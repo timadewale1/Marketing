@@ -46,9 +46,10 @@ const formSchema = z.object({
     .regex(/\d/, "Must include a number")
     .regex(/[@$!%*?&]/, "Must include a special character"),
   action: z.enum(["advertiser", "earner", "marketer"], {
-    required_error: "Please select what you want to do",
+    message: "Please select what you want to do", // <-- use 'message' instead of 'required_error'
   }),
-})
+});
+
 
 type FormData = z.infer<typeof formSchema>
 
@@ -258,10 +259,11 @@ export default function SignUpPage() {
           {/* What do you want to do? */}
           <div>
             <Label className="text-stone-200">What do you want to do?</Label>
-            <Select
-              onValueChange={(val) => setValue("action", val)}
-              defaultValue="earner"
-            >
+           <Select
+  onValueChange={(val) => setValue("action", val as "advertiser" | "earner" | "marketer")}
+  defaultValue="earner"
+>
+
               <SelectTrigger className="bg-white/20 border-white/30 text-white">
                 <SelectValue placeholder="Choose an option" />
               </SelectTrigger>
