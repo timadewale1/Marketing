@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase"
 import { sendPasswordResetEmail } from "firebase/auth"
 import { Button } from "@/components/ui/button"
@@ -30,20 +31,23 @@ export default function ForgotPasswordPage() {
   })
 
   const onSubmit = async (data: FormData) => {
-    setLoading(true)
-    try {
-      await sendPasswordResetEmail(auth, data.email)
-      toast.success("If this email exists, a reset link has been sent")
-    } catch (err: any) {
-      console.error(err)
-      let msg = "Failed to send reset link"
-      if (err.code === "auth/invalid-email") msg = "Invalid email address"
-      if (err.code === "auth/user-not-found") msg = "No account found with this email"
-      toast.error(msg)
-    } finally {
-      setLoading(false)
-    }
+  setLoading(true);
+  try {
+    await sendPasswordResetEmail(auth, data.email);
+    toast.success("If this email exists, a reset link has been sent");
+  } catch (err) {
+    const error = err as FirebaseError; // type assertion
+    console.error(error);
+
+    let msg = "Failed to send reset link";
+    if (error.code === "auth/invalid-email") msg = "Invalid email address";
+    if (error.code === "auth/user-not-found") msg = "No account found with this email";
+
+    toast.error(msg);
+  } finally {
+    setLoading(false);
   }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 p-6">
