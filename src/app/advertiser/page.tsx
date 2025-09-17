@@ -52,21 +52,26 @@ export default function AdvertiserDashboard() {
   }, [])
 
   // Real-time campaigns
+  
   useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const q = query(collection(db, "campaigns"), where("ownerId", "==", user.uid))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Campaign[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Campaign),
-      }))
-      setCampaigns(data)
-    })
+  const q = query(collection(db, "campaigns"), where("ownerId", "==", user.uid));
 
-    return () => unsubscribe()
-  }, [])
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data: Campaign[] = snapshot.docs.map((doc) => {
+      const { id, ...rest } = doc.data() as Omit<Campaign, "id">; // exclude id from doc.data()
+      return {
+        id: doc.id, // use Firestore doc ID
+        ...rest,
+      };
+    });
+    setCampaigns(data);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   const filteredCampaigns = campaigns.filter(
     (c) => c.status.toLowerCase() === filter.toLowerCase()
