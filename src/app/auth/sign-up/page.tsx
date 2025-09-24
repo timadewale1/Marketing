@@ -45,11 +45,10 @@ const formSchema = z.object({
     .regex(/[a-z]/, "Must include a lowercase letter")
     .regex(/\d/, "Must include a number")
     .regex(/[@$!%*?&]/, "Must include a special character"),
-  action: z.enum(["advertiser", "earner", "marketer"], {
-    message: "Please select what you want to do", // <-- use 'message' instead of 'required_error'
+  action: z.enum(["advertiser", "earner"], {
+    message: "Please select what you want to do",
   }),
-});
-
+})
 
 type FormData = z.infer<typeof formSchema>
 
@@ -85,7 +84,7 @@ export default function SignUpPage() {
 
   // ✅ Check if email or phone already exists
   const checkUnique = async (email: string, phone: string) => {
-    const collections = ["advertisers", "earners", "marketers"]
+    const collections = ["advertisers", "earners"]
     for (const coll of collections) {
       const emailQ = query(collection(db, coll), where("email", "==", email))
       const phoneQ = query(collection(db, coll), where("phone", "==", phone))
@@ -134,7 +133,8 @@ export default function SignUpPage() {
           email: data.email,
           phone: data.phone,
           createdAt: new Date(),
-          verified: false, // will update after email verification
+          verified: false, // updated after email verification
+          onboarded: false, // ✅ force onboarding after login
         })
 
         // ✅ Step 5: Show success + redirect
@@ -256,23 +256,21 @@ export default function SignUpPage() {
             )}
           </div>
 
-          {/* What do you want to do? */}
+          {/* Role Selection */}
           <div>
             <Label className="text-stone-200">What do you want to do?</Label>
-           <Select
-  onValueChange={(val) => setValue("action", val as "advertiser" | "earner" | "marketer")}
-  defaultValue="earner"
->
-
+            <Select
+              onValueChange={(val) =>
+                setValue("action", val as "advertiser" | "earner")
+              }
+              defaultValue="earner"
+            >
               <SelectTrigger className="bg-white/20 border-white/30 text-white">
                 <SelectValue placeholder="Choose an option" />
               </SelectTrigger>
               <SelectContent className="bg-stone-700 text-white">
                 <SelectItem value="advertiser">Advertise my products</SelectItem>
                 <SelectItem value="earner">Earn by promoting</SelectItem>
-                <SelectItem value="marketer">
-                  Connect advertisers to the platform
-                </SelectItem>
               </SelectContent>
             </Select>
             {errors.action && (
@@ -294,10 +292,7 @@ export default function SignUpPage() {
         <div className="text-center mt-4">
           <p className="text-stone-400 text-sm">
             Already have an Account?{" "}
-            <a
-              href="/auth/sign-in"
-              className="text-amber-400 hover:underline"
-            >
+            <a href="/auth/sign-in" className="text-amber-400 hover:underline">
               Login
             </a>
           </p>

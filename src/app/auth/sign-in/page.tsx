@@ -61,19 +61,24 @@ export default function SignInPage() {
         return
       }
 
-      // ✅ Figure out the user's role
+      // ✅ Figure out the user's role and onboarding status
       let role: "advertiser" | "earner" | "marketer" | null = null
       const collections = ["advertisers", "earners", "marketers"]
+      let onboarded = false
 
       for (const coll of collections) {
         const docRef = doc(db, coll, cred.user.uid)
         const snap = await getDoc(docRef)
         if (snap.exists()) {
-          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer" // singular
+          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer"
+
           // ✅ Update verified field
           if (!snap.data().verified) {
             await updateDoc(docRef, { verified: true })
           }
+
+          // ✅ Check onboarding status
+          onboarded = snap.data().onboarded || false
           break
         }
       }
@@ -84,9 +89,13 @@ export default function SignInPage() {
         return
       }
 
-      // ✅ Redirect to dashboard
+      // ✅ Redirect based on onboarding status
       toast.success("Login successful 🎉")
-      router.push(`/${role}`) // e.g. /advertiser, /earner, /marketer
+      if (!onboarded) {
+        router.push(`/${role}/onboarding`)
+      } else {
+        router.push(`/${role}`)
+      }
     } catch (err) {
       console.error("Login error:", err)
     } finally {
@@ -169,10 +178,7 @@ export default function SignInPage() {
         <div className="text-center mt-4">
           <p className="text-stone-400 text-sm">
             Don&apos;t have an Account?{" "}
-            <a
-              href="/auth/sign-up"
-              className="text-amber-400 hover:underline"
-            >
+            <a href="/auth/sign-up" className="text-amber-400 hover:underline">
               Sign Up
             </a>
           </p>
