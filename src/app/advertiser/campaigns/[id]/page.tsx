@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { db } from "@/lib/firebase"
-import { doc, getDoc, updateDoc, deleteDoc, collection, getDocs } from "firebase/firestore"
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+} from "firebase/firestore"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Pause, Play, StopCircle, Edit, Trash, ArrowLeft } from "lucide-react"
@@ -23,48 +33,109 @@ type Campaign = {
   paymentRef?: string
 }
 
+type Lead = {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  status?: string
+  createdAt?: { toDate: () => Date }
+}
+
 export default function CampaignDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [avgCPL, setAvgCPL] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [leads, setLeads] = useState<Lead[]>([])
 
+  // 🔄 Realtime campaign updates
   useEffect(() => {
-    const fetchCampaign = async () => {
-      try {
-        if (!id) return
-        const ref = doc(db, "campaigns", id as string)
-        const snap = await getDoc(ref)
-        if (snap.exists()) {
-  const data = snap.data() as Campaign;
-  setCampaign({ ...data, id: snap.id })
-        }
-      } catch (error) {
-        console.error(error)
-        toast.error("Failed to fetch campaign")
-      } finally {
-        setLoading(false)
+    if (!id) return
+    const unsub = onSnapshot(doc(db, "campaigns", id as string), (snap) => {
+      if (snap.exists()) {
+        setCampaign({ ...(snap.data() as Campaign), id: snap.id })
+      } else {
+        setCampaign(null)
       }
-    }
-    fetchCampaign()
+      setLoading(false)
+    })
+    return () => unsub()
   }, [id])
 
+  // ⚡ Fetch Avg CPL once
   useEffect(() => {
-    const fetchAvgCPL = async () => {
+    const fetchAvg = async () => {
       try {
         const snap = await getDocs(collection(db, "campaigns"))
-        const values = snap.docs.map((d) => (d.data() as Campaign).costPerLead || 0)
-        if (values.length > 0) {
-          const avg = values.reduce((a, b) => a + b, 0) / values.length
+        if (!snap.empty) {
+          const avg =
+            snap.docs.reduce(
+              (sum, d) => sum + ((d.data() as Campaign).costPerLead || 0),
+              0
+            ) / snap.size
           setAvgCPL(avg)
         }
       } catch (error) {
         console.error(error)
       }
     }
-    fetchAvgCPL()
+    fetchAvg()
   }, [])
+
+  // 📋 Fetch latest 10 leads
+  useEffect(() => {
+    if (!id) return
+    const qLeads = query(
+      collection(db, "campaigns", id as string, "leads"),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    )
+    const unsub = onSnapshot(qLeads, (snap) => {
+      const data: Lead[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Lead, "id">),
+      }))
+      setLeads(data)
+    })
+    return () => unsub()
+  }, [id])
+
+  const updateStatus = async (status: "Active" | "Paused" | "Stopped") => {
+    if (!campaign) return
+    try {
+      await updateDoc(doc(db, "campaigns", campaign.id), { status })
+      setCampaign({ ...campaign, status })
+      toast.success(`Campaign ${status}`)
+    } catch {
+      toast.error("Failed to update campaign")
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!campaign) return
+    try {
+      await deleteDoc(doc(db, "campaigns", campaign.id))
+      toast.success("Campaign deleted")
+      router.push("/advertiser")
+    } catch {
+      toast.error("Failed to delete campaign")
+    }
+  }
+
+  // 📊 Insights logic
+  const getInsights = () => {
+    if (avgCPL === null) return "No benchmark available yet."
+    if (!campaign) return "N/A"
+    if (campaign.costPerLead < avgCPL * 0.9) {
+      return "Your CPL is better than most campaigns 🎉"
+    } else if (campaign.costPerLead <= avgCPL * 1.1) {
+      return "Your CPL is around the average. Solid performance 👍"
+    } else {
+      return "Your CPL is higher than average. Try optimizing your ads ⚡"
+    }
+  }
 
   if (loading) {
     return (
@@ -90,37 +161,31 @@ export default function CampaignDetailsPage() {
       ? "from-yellow-400 to-yellow-600"
       : "from-red-500 to-red-700"
 
-  const updateStatus = async (status: "Active" | "Paused" | "Stopped") => {
-    try {
-      await updateDoc(doc(db, "campaigns", campaign.id), { status })
-      setCampaign({ ...campaign, status })
-      toast.success(`Campaign ${status}`)
-    } catch {
-      toast.error("Failed to update campaign")
-    }
-  }
-
-  const handleDelete = async () => {
-    try {
-      await deleteDoc(doc(db, "campaigns", campaign.id))
-      toast.success("Campaign deleted")
-      router.push("/advertiser")
-    } catch {
-      toast.error("Failed to delete campaign")
-    }
-  }
-
-  // Dynamic insights message
-  let insightsMsg = "No benchmark available yet."
-  if (avgCPL !== null) {
-    if (campaign.costPerLead < avgCPL * 0.9) {
-      insightsMsg = "Your CPL is better than most campaigns 🎉"
-    } else if (campaign.costPerLead <= avgCPL * 1.1) {
-      insightsMsg = "Your CPL is around the average. Solid performance 👍"
-    } else {
-      insightsMsg = "Your CPL is higher than average. Try optimizing your ads ⚡"
-    }
-  }
+  // 🎛️ Status buttons
+  const statusActions = [
+    {
+      label: campaign.status === "Active" ? "Pause" : "Resume",
+      action: () =>
+        updateStatus(campaign.status === "Active" ? "Paused" : "Active"),
+      color:
+        campaign.status === "Active"
+          ? "bg-yellow-500 hover:bg-yellow-600"
+          : "bg-green-500 hover:bg-green-600",
+      icon: campaign.status === "Active" ? Pause : Play,
+    },
+    {
+      label: "Edit",
+      action: () => router.push(`/advertiser/create-campaign?edit=${id}`),
+      color: "bg-blue-500 hover:bg-blue-600",
+      icon: Edit,
+    },
+    {
+      label: "Stop",
+      action: () => updateStatus("Stopped"),
+      color: "bg-red-500 hover:bg-red-600",
+      icon: StopCircle,
+    },
+  ]
 
   return (
     <div className="px-6 py-10 space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 min-h-screen">
@@ -163,7 +228,7 @@ export default function CampaignDetailsPage() {
         </Card>
       </div>
 
-      {/* Performance + Controls grid */}
+      {/* Performance + Controls */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Performance */}
         <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100 shadow-md space-y-4">
@@ -182,6 +247,48 @@ export default function CampaignDetailsPage() {
               {percent.toFixed(1)}%)
             </p>
           </div>
+
+          {/* Leads Table */}
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-stone-700 mb-2">
+              Latest Leads
+            </h3>
+            {leads.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border border-stone-200 rounded">
+                  <thead className="bg-stone-100 text-stone-600">
+                    <tr>
+                      <th className="p-2 text-left">Name</th>
+                      <th className="p-2 text-left">Email</th>
+                      <th className="p-2 text-left">Phone</th>
+                      <th className="p-2 text-left">Status</th>
+                      <th className="p-2 text-left">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        className="border-t border-stone-200 hover:bg-stone-50"
+                      >
+                        <td className="p-2">{lead.name || "N/A"}</td>
+                        <td className="p-2">{lead.email || "-"}</td>
+                        <td className="p-2">{lead.phone || "-"}</td>
+                        <td className="p-2">{lead.status || "New"}</td>
+                        <td className="p-2">
+                          {lead.createdAt
+                            ? new Date(lead.createdAt.toDate()).toLocaleDateString()
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-stone-500">No leads yet.</p>
+            )}
+          </div>
         </Card>
 
         {/* Controls */}
@@ -190,44 +297,22 @@ export default function CampaignDetailsPage() {
             Manage Campaign
           </h2>
           <div className="flex flex-wrap gap-3">
-            {campaign.status === "Active" ? (
+            {statusActions.map((btn, i) => (
               <Button
-                onClick={() => updateStatus("Paused")}
-                className="bg-yellow-500 hover:bg-yellow-600 flex gap-2"
+                key={i}
+                onClick={btn.action}
+                className={`${btn.color} flex gap-2`}
                 size="sm"
               >
-                <Pause size={16} /> Pause
+                <btn.icon size={16} /> {btn.label}
               </Button>
-            ) : (
-              <Button
-                onClick={() => updateStatus("Active")}
-                className="bg-green-500 hover:bg-green-600 flex gap-2"
-                size="sm"
-              >
-                <Play size={16} /> Resume
-              </Button>
-            )}
-            <Button
-              onClick={() => router.push(`/advertiser/create-campaign?edit=${id}`)}
-              className="bg-blue-500 hover:bg-blue-600 flex gap-2"
-              size="sm"
-            >
-              <Edit size={16} /> Edit
-            </Button>
-            <Button
-              onClick={() => updateStatus("Stopped")}
-              className="bg-red-500 hover:bg-red-600 flex gap-2"
-              size="sm"
-            >
-              <StopCircle size={16} /> Stop
-            </Button>
+            ))}
           </div>
         </Card>
       </div>
 
-      {/* Billing + Insights grid */}
+      {/* Billing + Insights */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Billing */}
         <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Billing</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -238,10 +323,9 @@ export default function CampaignDetailsPage() {
           </div>
         </Card>
 
-        {/* Insights */}
         <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800 mb-3">Insights</h2>
-          <p className="text-sm text-stone-700">{insightsMsg}</p>
+          <p className="text-sm text-stone-700">{getInsights()}</p>
         </Card>
       </div>
 

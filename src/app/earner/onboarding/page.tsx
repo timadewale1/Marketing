@@ -208,7 +208,7 @@ await updateDoc(refDoc, {
 
 
       toast.success("Onboarding completed 🎉")
-      router.push("/earner/dashboard")
+      router.push("/earner")
     } catch (err) {
       console.error(err)
       toast.error("Failed to complete onboarding")
