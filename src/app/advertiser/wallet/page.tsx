@@ -14,6 +14,7 @@ import {
   orderBy,
 } from "firebase/firestore"
 import { Timestamp } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth"
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -59,7 +60,55 @@ type Reroute = {
   createdAt?: Timestamp;
 };
 
+export const calculateWalletBalances = (
+  campaigns: Campaign[],
+  withdrawals: Withdrawal[],
+  reroutes: Reroute[]
+) => {
+  const totalDeposited = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
+  const totalSpent = campaigns.reduce(
+    (sum, c) => sum + (c.generatedLeads || 0) * (c.costPerLead || 0),
+    0
+  )
+
+  const refundableBalanceBase = Math.max(
+  0,
+  campaigns
+    .filter((c) => c.status === "Stopped" || c.status === "Deleted")
+    .reduce(
+      (sum, c) =>
+        sum + (c.budget || 0) - (c.generatedLeads || 0) * (c.costPerLead || 0),
+      0
+    )
+)
+
+  const totalRequestedWithdrawals = withdrawals
+    .filter((w) => w.status === "Pending" || w.status === "Approved")
+    .reduce((s, w) => s + (w.amount || 0), 0)
+
+  const totalRequestedReroutes = reroutes
+    .filter((r) => r.status === "Pending" || r.status === "Approved")
+    .reduce(
+      (s, r) => s + r.reroutes.reduce((sub, rr) => sub + (rr.amount || 0), 0),
+      0
+    )
+
+  const activeBalance = totalDeposited - totalSpent - refundableBalanceBase
+
+  return { totalDeposited, totalSpent, refundableBalance: refundableBalanceBase, activeBalance }
+}
+
+
 export default function WalletPage() {
+  type ResumedCampaign = {
+    id: string;
+    status: string;
+    resumedBudget?: number;
+    amountUsed?: number;
+    // Add more fields as needed, specify their types here if required
+  };
+  const [resumedCampaigns, setResumedCampaigns] = useState<ResumedCampaign[]>([])
+
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
@@ -76,78 +125,177 @@ export default function WalletPage() {
   const [rerouteEntries, setRerouteEntries] = useState<{ campaignId: string; amount: number }[]>([
     { campaignId: "", amount: 0 },
   ])
+  const [authLoading, setAuthLoading] = useState(true)
+
 
   // -------------------------
   // Firestore listeners
   // -------------------------
-  useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
-    const q = query(collection(db, "campaigns"), where("ownerId", "==", user.uid))
-    const unsub = onSnapshot(q, (snap) => {
+ useEffect(() => {
+  let unsubCampaigns: (() => void) | null = null
+  let unsubWithdrawals: (() => void) | null = null
+  let unsubReroutes: (() => void) | null = null
+let unsubResumed: (() => void) | null = null  // ✅ correct type
+
+
+  const stopAll = () => {
+    if (unsubCampaigns) unsubCampaigns()
+    if (unsubWithdrawals) unsubWithdrawals()
+    if (unsubReroutes) unsubReroutes()
+    if (unsubResumed) unsubResumed()
+
+  }
+
+  const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    stopAll()
+
+    if (!user) {
+      setCampaigns([])
+      setWithdrawals([])
+      setReroutes([])
+      setAuthLoading(false)
+      return
+    }
+
+    // --- Campaigns ---
+    const q1 = query(collection(db, "campaigns"), where("ownerId", "==", user.uid))
+    unsubCampaigns = onSnapshot(q1, (snap) => {
       const data: Campaign[] = snap.docs.map((d) => ({
         id: d.id,
         ...(d.data() as Omit<Campaign, "id">),
       }))
       setCampaigns(data)
+      setAuthLoading(false)
     })
-    return () => unsub()
-  }, [])
 
-  useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
-    const q = query(
-      collection(db, "withdrawals"),
-      where("userId", "==", user.uid),
-    )
-    const unsub = onSnapshot(q, (snap) => {
-  const data: Withdrawal[] = snap.docs.map((d) => ({
+    // --- Withdrawals ---
+    const q2 = query(collection(db, "withdrawals"), where("userId", "==", user.uid))
+    unsubWithdrawals = onSnapshot(q2, (snap) => {
+      const data: Withdrawal[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Withdrawal, "id">),
+      }))
+      setWithdrawals(
+        data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      )
+    })
+
+    // --- Reroutes ---
+    const q3 = query(collection(db, "reroutes"), where("userId", "==", user.uid))
+    unsubReroutes = onSnapshot(q3, (snap) => {
+      const data: Reroute[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<Reroute, "id">),
+      }))
+      setReroutes(
+        data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      )
+    })
+
+// --- Resumed Campaigns ---
+const q4 = query(collection(db, "resumedCampaigns"), where("userId", "==", user.uid))
+ unsubResumed = onSnapshot(q4, (snap) => {
+  const data = snap.docs.map((d) => ({
     id: d.id,
-    ...(d.data() as Omit<Withdrawal, "id">),
-  }));
-  setWithdrawals(data.sort((a, b) => 
-    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-  ));
-});
-    return () => unsub()
-  }, [])
+    ...(d.data() as Omit<ResumedCampaign, "id">)
+  }))
+  setResumedCampaigns(data)
+})
+  })
 
-  useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
-    const q = query(
-      collection(db, "reroutes"),
-      where("userId", "==", user.uid),
-    )
-    const unsub = onSnapshot(q, (snap) => {
-  const data: Reroute[] = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Reroute, "id">),
-  }));
-  setReroutes(data.sort((a, b) => 
-    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-  ));
-});
-    return () => unsub()
-  }, [])
+  return () => {
+    unsubscribeAuth()
+    stopAll()
+  }
+}, [])
 
-  // -------------------------
-  // Derived balances
-  // -------------------------
-  const totalDeposited = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
-  const totalSpent = campaigns.reduce(
-    (sum, c) => sum + (c.generatedLeads || 0) * (c.costPerLead || 0),
-    0
-  )
-  const refundableBalance = campaigns
+
+
+// -------------------------
+// Derived balances (with withdrawals & reroutes)
+// -------------------------
+const totalDeposited = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
+const totalSpent = campaigns.reduce(
+  (sum, c) => sum + (c.generatedLeads || 0) * (c.costPerLead || 0),
+  0
+)
+
+// -------------- safer balances calculation --------------
+// const refundableBalanceBase = Math.max(
+//   0,
+//   campaigns
+//     .filter((c) => c.status === "Stopped" || c.status === "Deleted")
+//     .reduce(
+//       (sum, c) =>
+//         sum + Math.max(0, (c.budget || 0) - ((c.generatedLeads || 0) * (c.costPerLead || 0))),
+//       0
+//     )
+// )
+
+// total amount already requested (pending or approved)
+const totalRequestedWithdrawals = Array.isArray(withdrawals)
+  ? withdrawals
+      .filter((w) => ["Pending", "Approved"].includes(w.status || ""))
+      .reduce((s, w) => s + (Number(w.amount) || 0), 0)
+  : 0;
+
+const totalRequestedReroutes = Array.isArray(reroutes)
+  ? reroutes
+      .filter((r) => ["Pending", "Approved"].includes(r.status || ""))
+      .reduce(
+        (s, r) =>
+          s +
+          (Array.isArray(r.reroutes)
+            ? r.reroutes.reduce((sub, rr) => sub + (Number(rr.amount) || 0), 0)
+            : 0),
+        0
+      )
+  : 0;
+
+  // --- Add this right after totalRequestedReroutes ---
+const resumedUsedTotal = resumedCampaigns
+  .filter((r) => r.status === "Active" || r.status === "Completed")
+  .reduce((sum, r) => sum + (r.resumedBudget || 0), 0)
+
+const refundableBalanceBase = Math.max(
+  0,
+  campaigns
     .filter((c) => c.status === "Stopped" || c.status === "Deleted")
     .reduce(
       (sum, c) =>
-        sum + (c.budget || 0) - (c.generatedLeads || 0) * (c.costPerLead || 0),
+        sum + Math.max(0, (c.budget || 0) - (c.generatedLeads || 0) * (c.costPerLead || 0)),
       0
-    )
-  const activeBalance = totalDeposited - totalSpent - refundableBalance
+    ) - resumedUsedTotal
+)
+
+
+
+  console.log("Refundable Base:", refundableBalanceBase)
+console.log("Withdrawals Total:", totalRequestedWithdrawals)
+console.log("Reroutes Total:", totalRequestedReroutes)
+
+
+// never deduct more than the base refundable amount
+const totalDeductions = Math.min(refundableBalanceBase, totalRequestedWithdrawals + totalRequestedReroutes)
+
+// refundableBalance is base minus the (capped) deductions — never negative
+const totalResumedUsed = resumedCampaigns
+  .filter((r) => ["Pending", "Approved"].includes(r.status || ""))
+  .reduce((s, r) => s + (Number(r.amountUsed) || 0), 0)
+
+const refundableBalance = Math.max(
+  0,
+  refundableBalanceBase -
+    totalRequestedWithdrawals -
+    totalRequestedReroutes -
+    totalResumedUsed
+)
+
+
+// active balance should use the base (not the post-deduction refundable), since deductions are still pending
+const activeBalance = totalDeposited - totalSpent - refundableBalanceBase
+// -------------------------------------------------------
+
 
   // Reroute totals (live)
   const rerouteTotal = rerouteEntries.reduce((s, r) => s + (r.amount || 0), 0)
@@ -155,11 +303,13 @@ export default function WalletPage() {
   const remainingWithdrawBalance = refundableBalance - (withdrawForm.amount || 0)
 
   const stats = [
-    { title: "Total Deposited", value: `₦${totalDeposited.toLocaleString()}`, icon: Wallet },
-    { title: "Total Spent", value: `₦${totalSpent.toLocaleString()}`, icon: TrendingUp },
-    { title: "Active Balance", value: `₦${activeBalance.toLocaleString()}`, icon: DollarSign },
-    { title: "Refundable Balance", value: `₦${refundableBalance.toLocaleString()}`, icon: RefreshCw },
-  ]
+  { title: "Total Deposited", value: `₦${Math.max(0, totalDeposited).toLocaleString()}`, icon: Wallet },
+  { title: "Total Spent", value: `₦${Math.max(0, totalSpent).toLocaleString()}`, icon: TrendingUp },
+  { title: "Active Balance", value: `₦${Math.max(0, activeBalance).toLocaleString()}`, icon: DollarSign },
+  { title: "Refundable Balance", value: `₦${Math.max(0, refundableBalance).toLocaleString()}`, icon: RefreshCw },
+]
+
+
 
   const getCampaignTitle = (id: string) => campaigns.find((c) => c.id === id)?.title || "Unknown campaign"
 
@@ -190,12 +340,15 @@ export default function WalletPage() {
       const user = auth.currentUser
       if (!user) return toast.error("Not authenticated")
       await addDoc(collection(db, "withdrawals"), {
-        userId: user.uid,
-        ...withdrawForm,
-        amount: Number(withdrawForm.amount || 0),
-        status: "Pending",
-        createdAt: serverTimestamp(),
-      })
+  userId: user.uid,
+  ...withdrawForm,
+  amount: withdrawForm.amount,
+  status: "Pending",
+  createdAt: serverTimestamp(),
+})
+
+// Immediately adjust refundable balance client-sid
+
       toast.success("Withdrawal request submitted ✅")
       setWithdrawForm({
         fullName: "",
@@ -225,11 +378,15 @@ export default function WalletPage() {
         return toast.error("Add at least one reroute entry")
       }
       await addDoc(collection(db, "reroutes"), {
-        userId: user.uid,
-        reroutes: validEntries,
-        status: "Pending",
-        createdAt: serverTimestamp(),
-      })
+  userId: user.uid,
+  reroutes: validEntries,
+  status: "Pending",
+  createdAt: serverTimestamp(),
+})
+
+// Immediately adjust refundable balance client-side
+
+
       toast.success("Reroute request submitted ✅")
       setRerouteEntries([{ campaignId: "", amount: 0 }])
       setView("overview")
@@ -245,8 +402,16 @@ export default function WalletPage() {
   // -------------------------
   // Render
   // -------------------------
+  if (authLoading) {
+  return (
+    <div className="flex items-center justify-center h-screen text-stone-600">
+      Loading your wallet...
+    </div>
+  )
+}
   return (
     <div className="px-6 py-10 min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
+      
       {/* Back button */}
       <Button
         onClick={() => router.back()}
@@ -341,7 +506,7 @@ export default function WalletPage() {
         <Card className="bg-white/90 shadow rounded-xl p-6 max-w-md mx-auto">
           <h2 className="text-lg font-semibold text-stone-800 mb-2">Request Withdrawal</h2>
           <p className="text-sm text-stone-600 mb-4">
-            Refundable Balance: <span className="font-semibold text-stone-900 ml-2">₦{refundableBalance.toLocaleString()}</span>
+            Refundable Balance: <span className="font-semibold text-stone-900 ml-2">₦(refundableBalance).toLocaleString()</span>
           </p>
 
           <form onSubmit={handleWithdrawSubmit} className="space-y-4">
@@ -388,7 +553,7 @@ export default function WalletPage() {
         <Card className="bg-white/90 shadow rounded-xl p-6 max-w-lg mx-auto">
           <h2 className="text-lg font-semibold text-stone-800 mb-2">Reroute Balance</h2>
           <p className="text-sm text-stone-600 mb-4">
-            Refundable Balance: <span className="font-semibold text-stone-900">₦{refundableBalance.toLocaleString()}</span>
+            Refundable Balance: <span className="font-semibold text-stone-900">₦(refundableBalance).toLocaleString()</span>
           </p>
 
           <form onSubmit={handleRerouteSubmit} className="space-y-4">

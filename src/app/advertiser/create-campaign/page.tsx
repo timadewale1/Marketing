@@ -286,6 +286,14 @@ const handler = paystackLib.setup({
   const StepHeader = useMemo(
     () => (
       <div className="max-w-3xl mx-auto text-center space-y-2">
+        {/* Back button */}
+              <Button
+                onClick={() => router.back()}
+                className="flex gap-2 mb-4 bg-stone-700 hover:bg-stone-800 text-white"
+                size="sm"
+              >
+                <ArrowLeft size={16} /> Back
+              </Button>
         <h1 className="text-2xl md:text-3xl font-bold text-stone-800">
           Create a Campaign
         </h1>
