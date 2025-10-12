@@ -56,6 +56,8 @@ export default function CreateCampaignPage() {
   const [bannerUrl, setBannerUrl] = useState("")
   const [mediaUrl, setMediaUrl] = useState("")
   const [externalLink, setExternalLink] = useState("")
+  const [videoLink, setVideoLink] = useState("") // ✅ new field
+
 
   const [location, setLocation] = useState("")
   const [ageGroup, setAgeGroup] = useState("")
@@ -175,8 +177,9 @@ const compressed = await imageCompression(file, options)
         bannerUrl
       )
     if (step === 1) {
-      if (category === "Video" || category === "Picture") return !!mediaUrl
-      if (category === "Survey" || category === "Third-Party Task")
+      if (category === "Video") return videoLink.trim().length > 5 // ✅ use link
+      if (category === "Picture") return !!mediaUrl
+      if (["Survey", "Third-Party Task", "App Download"].includes(category))
         return externalLink.trim().length > 5
       return true
     }
@@ -239,7 +242,7 @@ const campaignData: Record<string, unknown> = {
       description: description.trim(),
       category,
       bannerUrl,
-      mediaUrl: mediaUrl || "",
+      mediaUrl: category === "Video" ? videoLink : mediaUrl, // ✅ use link
       externalLink: externalLink || "",
       target: { location, ageGroup, gender, interests },
       budget: numericBudget,
@@ -304,6 +307,25 @@ const handler = paystackLib.setup({
     ),
     []
   )
+
+  // ✅ helper to embed YouTube/Vimeo links
+const getEmbeddedVideo = (url: string) => {
+  try {
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/)
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+
+    if (ytMatch) {
+      return `https://www.youtube.com/embed/${ytMatch[1]}`
+    }
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 
   // Render step content
   const renderStep = () => {
@@ -371,12 +393,11 @@ const handler = paystackLib.setup({
         return (
           <Card>
             <CardContent className="space-y-4 p-6">
-              {category === "Video" && (
-                <Dropzone
-                  label="Upload video (max 15MB)"
-                  accept="video/*"
-                  previewUrl={mediaUrl}
-                  onFileSelected={(f) => handleFileSelected(f, "media")}
+{category === "Video" && (
+                <Input
+                  placeholder="Paste your video link (e.g. YouTube or hosted URL)"
+                  value={videoLink}
+                  onChange={(e) => setVideoLink(e.target.value)}
                 />
               )}
               {category === "Picture" && (
@@ -525,9 +546,27 @@ onChange={(e) => setGender(e.target.value as "Male" | "Female" | "All" | "")}
 
               <div className="text-sm text-stone-700 mt-2">{description}</div>
 
-              {category === "Video" && mediaUrl && (
-                <video src={mediaUrl} controls className="w-full mt-3 rounded" />
-              )}
+              {category === "Video" && videoLink && (() => {
+  const embed = getEmbeddedVideo(videoLink)
+  return embed ? (
+    <iframe
+      src={embed}
+      className="w-full h-60 mt-3 rounded-lg"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+    />
+  ) : (
+    <a
+      href={videoLink}
+      target="_blank"
+      rel="noreferrer"
+      className="text-amber-600 underline mt-2 block"
+    >
+      Watch video
+    </a>
+  )
+})()}
+
               {category === "Picture" && mediaUrl && (
                 <img
                   src={mediaUrl}
