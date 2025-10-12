@@ -248,7 +248,7 @@ const campaignData: Record<string, unknown> = {
       budget: numericBudget,
       estimatedLeads,
       costPerLead: currentCPL,
-      status: "Pending",
+      status: "Active",
 createdAt: serverTimestamp(),
     }
 
