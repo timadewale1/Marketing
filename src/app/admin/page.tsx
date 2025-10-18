@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard",
+  description: "Admin dashboard for managing submissions and withdrawals",
+};
+
 export default function AdminDashboard() {
   type ProofSubmission = {
     id: string;
