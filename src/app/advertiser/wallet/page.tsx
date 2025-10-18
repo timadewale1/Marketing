@@ -14,6 +14,8 @@ import {
   orderBy,
 } from "firebase/firestore"
 import { Timestamp } from "firebase/firestore";
+import { calculateWalletBalances } from "@/lib/wallet"
+import Image from "next/image"
 import { onAuthStateChanged } from "firebase/auth"
 
 import { Card } from "@/components/ui/card"
@@ -60,43 +62,6 @@ type Reroute = {
   createdAt?: Timestamp;
 };
 
-export const calculateWalletBalances = (
-  campaigns: Campaign[],
-  withdrawals: Withdrawal[],
-  reroutes: Reroute[]
-) => {
-  const totalDeposited = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
-  const totalSpent = campaigns.reduce(
-    (sum, c) => sum + (c.generatedLeads || 0) * (c.costPerLead || 0),
-    0
-  )
-
-  const refundableBalanceBase = Math.max(
-  0,
-  campaigns
-    .filter((c) => c.status === "Stopped" || c.status === "Deleted")
-    .reduce(
-      (sum, c) =>
-        sum + (c.budget || 0) - (c.generatedLeads || 0) * (c.costPerLead || 0),
-      0
-    )
-)
-
-  const totalRequestedWithdrawals = withdrawals
-    .filter((w) => w.status === "Pending" || w.status === "Approved")
-    .reduce((s, w) => s + (w.amount || 0), 0)
-
-  const totalRequestedReroutes = reroutes
-    .filter((r) => r.status === "Pending" || r.status === "Approved")
-    .reduce(
-      (s, r) => s + r.reroutes.reduce((sub, rr) => sub + (rr.amount || 0), 0),
-      0
-    )
-
-  const activeBalance = totalDeposited - totalSpent - refundableBalanceBase
-
-  return { totalDeposited, totalSpent, refundableBalance: refundableBalanceBase, activeBalance }
-}
 
 
 export default function WalletPage() {
@@ -212,13 +177,11 @@ const q4 = query(collection(db, "resumedCampaigns"), where("userId", "==", user.
 
 
 // -------------------------
-// Derived balances (with withdrawals & reroutes)
+// Derived balances (from util)
+// We only take totals here; refundable/active balances are computed below
+// because they depend on resumed campaigns / pending withdrawals logic.
 // -------------------------
-const totalDeposited = campaigns.reduce((sum, c) => sum + (c.budget || 0), 0)
-const totalSpent = campaigns.reduce(
-  (sum, c) => sum + (c.generatedLeads || 0) * (c.costPerLead || 0),
-  0
-)
+const { totalDeposited, totalSpent } = calculateWalletBalances(campaigns)
 
 // -------------- safer balances calculation --------------
 // const refundableBalanceBase = Math.max(
@@ -275,8 +238,7 @@ console.log("Withdrawals Total:", totalRequestedWithdrawals)
 console.log("Reroutes Total:", totalRequestedReroutes)
 
 
-// never deduct more than the base refundable amount
-const totalDeductions = Math.min(refundableBalanceBase, totalRequestedWithdrawals + totalRequestedReroutes)
+// never deduct more than the base refundable amount (calculated elsewhere if needed)
 
 // refundableBalance is base minus the (capped) deductions — never negative
 const totalResumedUsed = resumedCampaigns
@@ -478,9 +440,11 @@ const activeBalance = totalDeposited - totalSpent - refundableBalanceBase
                 return (
                   <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
                     <Card className="bg-white/90 shadow rounded-xl p-3 flex gap-3 items-center hover:shadow-md transition cursor-pointer">
-                      {c.bannerUrl ? (
-                        <img src={c.bannerUrl} alt={c.title} className="w-12 h-12 rounded object-cover" />
-                      ) : (
+                              {c.bannerUrl ? (
+                                <div className="w-12 h-12 rounded overflow-hidden">
+                                  <Image src={c.bannerUrl} alt={c.title} width={48} height={48} style={{ objectFit: "cover" }} />
+                                </div>
+                              ) : (
                         <div className="w-12 h-12 rounded bg-stone-100 flex items-center justify-center text-xs text-stone-500">No image</div>
                       )}
                       <div className="flex-1 min-w-0">

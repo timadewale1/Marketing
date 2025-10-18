@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Eye, EyeOff } from "lucide-react"
 import toast from "react-hot-toast"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 // ✅ Validation schema
 const formSchema = z.object({
@@ -57,6 +57,8 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState(0)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const referralId = searchParams.get('ref')
 
   const {
     register,
@@ -135,7 +137,21 @@ export default function SignUpPage() {
           createdAt: new Date(),
           verified: false, // updated after email verification
           onboarded: false, // ✅ force onboarding after login
+          referredBy: referralId || null, // track referral
         })
+
+        // If this user was referred, create a referral record
+        if (referralId) {
+          await setDoc(doc(db, "referrals", `${referralId}_${cred.user.uid}`), {
+            referrerId: referralId,
+            referredId: cred.user.uid,
+            email: data.email,
+            name: data.name,
+            amount: 500,
+            status: 'pending', // will be marked as completed after onboarding
+            createdAt: new Date(),
+          });
+        }
 
         // ✅ Step 5: Show success + redirect
         toast.success("Signup successful! Please verify your email.")

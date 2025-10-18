@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { auth, db, storage } from "@/lib/firebase"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp, increment } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -206,6 +207,34 @@ await updateDoc(refDoc, {
 
 })
 
+      // ✅ Handle referrals: if someone referred this user at signup, mark referral completed and credit referrer
+      try {
+        const q = query(collection(db, "referrals"), where("referredId", "==", user.uid), where("status", "==", "pending"));
+        const snaps = await getDocs(q);
+        for (const docSnap of snaps.docs) {
+          const r = docSnap.data();
+          const bonus = Number(r.amount || 0);
+          const referrerId = r.referrerId;
+          // mark referral as completed
+          await updateDoc(doc(db, "referrals", docSnap.id), { status: "completed", completedAt: serverTimestamp() });
+          // credit referrer (if exists)
+          if (referrerId && bonus > 0) {
+            // add transaction to referrer's transactions
+            await addDoc(collection(db, "earnerTransactions"), {
+              userId: referrerId,
+              type: "referral_bonus",
+              amount: bonus,
+              status: "completed",
+              note: `Referral bonus for referring ${user.uid}`,
+              createdAt: serverTimestamp(),
+            });
+            // increment referrer's balance
+            await updateDoc(doc(db, "earners", referrerId), { balance: increment(bonus) });
+          }
+        }
+      } catch (refErr) {
+        console.error("Referral finalization failed:", refErr);
+      }
 
       toast.success("Onboarding completed 🎉")
       router.push("/earner")
@@ -231,7 +260,9 @@ await updateDoc(refDoc, {
             <Label className="text-stone-200">Profile Picture</Label>
             <Input type="file" accept="image/*" onChange={handleProfilePic} />
             {profilePreview && (
-              <img src={profilePreview} className="mt-3 h-20 w-20 rounded-full object-cover border-2 border-amber-500" />
+              <div className="mt-3 h-20 w-20 rounded-full overflow-hidden border-2 border-amber-500 relative">
+                <Image src={profilePreview} alt="Profile preview" fill style={{ objectFit: "cover" }} />
+              </div>
             )}
           </div>
 

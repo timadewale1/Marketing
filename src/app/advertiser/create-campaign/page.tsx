@@ -27,16 +27,42 @@ type CampaignType =
   | "Third-Party Task"
   | "Survey"
   | "App Download"
+  | "Instagram Follow"
+  | "Instagram Like"
+  | "Instagram Share"
+  | "Twitter Follow"
+  | "Twitter Retweet"
+  | "Facebook Like"
+  | "Facebook Share"
+  | "TikTok Follow"
+  | "TikTok Like"
+  | "TikTok Share"
+  | "YouTube Subscribe"
+  | "YouTube Like"
+  | "YouTube Comment"
 
 const STEPS = ["Details", "Upload Media", "Targeting & Budget", "Review & Pay"] as const
 
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
-  Video: 500,
-  Picture: 300,
-  "Third-Party Task": 150,
-  Survey: 200,
-  "App Download": 400,
+  Video: 250,
+  Picture: 150,
+  "Third-Party Task": 100,
+  Survey: 100,
+  "App Download": 200,
+  "Instagram Follow": 80,
+  "Instagram Like": 50,
+  "Instagram Share": 60,
+  "Twitter Follow": 80,
+  "Twitter Retweet": 60,
+  "Facebook Like": 50,
+  "Facebook Share": 60,
+  "TikTok Follow": 80,
+  "TikTok Like": 50,
+  "TikTok Share": 60,
+  "YouTube Subscribe": 100,
+  "YouTube Like": 60,
+  "YouTube Comment": 70,
 }
 
 export default function CreateCampaignPage() {
