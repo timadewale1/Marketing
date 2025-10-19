@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import Image from "next/image"
 import { UploadCloud } from "lucide-react"
 
 interface DropzoneProps {
@@ -43,9 +44,11 @@ export default function Dropzone({
     >
       {previewUrl ? (
         accept?.includes("image") ? (
-          <img
+          <Image
             src={previewUrl}
             alt="Preview"
+            width={400}
+            height={192}
             className="w-full max-h-48 object-cover rounded mb-2"
           />
         ) : accept?.includes("video") ? (

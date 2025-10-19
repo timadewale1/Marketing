@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { auth, db, storage } from "@/lib/firebase"
 import { doc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp, increment } from "firebase/firestore"
+import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -211,25 +212,41 @@ await updateDoc(refDoc, {
       try {
         const q = query(collection(db, "referrals"), where("referredId", "==", user.uid), where("status", "==", "pending"));
         const snaps = await getDocs(q);
+        const { admin, dbAdmin } = await initFirebaseAdmin();
         for (const docSnap of snaps.docs) {
           const r = docSnap.data();
           const bonus = Number(r.amount || 0);
           const referrerId = r.referrerId;
+          // Prevent duplicate payout: check if already completed
+          if (r.status === "completed") continue;
           // mark referral as completed
           await updateDoc(doc(db, "referrals", docSnap.id), { status: "completed", completedAt: serverTimestamp() });
           // credit referrer (if exists)
           if (referrerId && bonus > 0) {
-            // add transaction to referrer's transactions
-            await addDoc(collection(db, "earnerTransactions"), {
-              userId: referrerId,
-              type: "referral_bonus",
-              amount: bonus,
-              status: "completed",
-              note: `Referral bonus for referring ${user.uid}`,
-              createdAt: serverTimestamp(),
-            });
-            // increment referrer's balance
-            await updateDoc(doc(db, "earners", referrerId), { balance: increment(bonus) });
+            if (dbAdmin && admin) {
+              // Use admin SDK for transaction and balance increment
+              const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore;
+              await adminDb.collection("earnerTransactions").add({
+                userId: referrerId,
+                type: "referral_bonus",
+                amount: bonus,
+                status: "completed",
+                note: `Referral bonus for referring ${user.uid}`,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+              await adminDb.collection("earners").doc(referrerId).update({ balance: admin.firestore.FieldValue.increment(bonus) });
+            } else {
+              // Fallback to client SDK
+              await addDoc(collection(db, "earnerTransactions"), {
+                userId: referrerId,
+                type: "referral_bonus",
+                amount: bonus,
+                status: "completed",
+                note: `Referral bonus for referring ${user.uid}`,
+                createdAt: serverTimestamp(),
+              });
+              await updateDoc(doc(db, "earners", referrerId), { balance: increment(bonus) });
+            }
           }
         }
       } catch (refErr) {
@@ -261,7 +278,7 @@ await updateDoc(refDoc, {
             <Input type="file" accept="image/*" onChange={handleProfilePic} />
             {profilePreview && (
               <div className="mt-3 h-20 w-20 rounded-full overflow-hidden border-2 border-amber-500 relative">
-                <Image src={profilePreview} alt="Profile preview" fill style={{ objectFit: "cover" }} />
+                <Image src={profilePreview} alt="Profile preview" width={80} height={80} className="object-cover" />
               </div>
             )}
           </div>

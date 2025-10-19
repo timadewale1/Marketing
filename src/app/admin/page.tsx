@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp, increment, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, updateDoc, doc, getDoc, addDoc, serverTimestamp, increment, Timestamp, getDocs, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +121,26 @@ export default function AdminDashboard() {
 
   const markAsSent = async (id: string) => {
     try {
-      await updateDoc(doc(db, "earnerWithdrawals", id), { status: "sent" });
+      // mark the withdrawal request as sent
+      const ref = doc(db, "earnerWithdrawals", id)
+      const snap = await getDoc(ref)
+      if (!snap.exists()) {
+        toast.error('Withdrawal request not found')
+        return
+      }
+      const data = snap.data() as any
+      await updateDoc(ref, { status: "sent" })
+
+      // try to find matching advertiserTransactions entry and mark completed
+      try {
+        const txsSnap = await getDocs(query(collection(db, 'advertiserTransactions'), where('userId', '==', data.userId), where('type', '==', 'withdrawal'), where('amount', '==', -Math.abs(data.amount)), where('status', '==', 'pending')))
+        txsSnap.forEach(async (t) => {
+          await updateDoc(doc(db, 'advertiserTransactions', t.id), { status: 'completed' })
+        })
+      } catch (e) {
+        console.warn('No matching advertiser transaction updated', e)
+      }
+
       toast.success("Marked as sent");
     } catch (err) {
       console.error(err);

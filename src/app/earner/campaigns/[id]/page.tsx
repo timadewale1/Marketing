@@ -197,26 +197,34 @@ export default function CampaignDetailPage() {
         <Card className="mt-6 p-6 bg-white/80 backdrop-blur">
           <h3 className="text-xl font-semibold mb-4 text-stone-800">How to participate</h3>
           <div className="space-y-3 text-stone-700">
-            <p>Follow instructions below depending on campaign type. Provide proof so the advertiser can verify.</p>
-            {campaign.category === "Survey" && (
-              <p className="p-3 bg-stone-50 rounded border border-stone-100">
-                Open the survey link and complete it. Paste the completion link or screenshot link as proof below.
-              </p>
-            )}
-            {campaign.category === "Video" && (
-              <p className="p-3 bg-stone-50 rounded border border-stone-100">
-                Record the requested short video and upload it as proof. (Max file size depends on storage)
-              </p>
-            )}
-            {campaign.category === "Picture" && (
-              <p className="p-3 bg-stone-50 rounded border border-stone-100">
-                Take a photo as instructed and upload it as proof.
-              </p>
-            )}
-            {campaign.category === "Third-Party Task" && (
-              <p className="p-3 bg-stone-50 rounded border border-stone-100">
-                Complete external task and provide completion link or screenshot link as proof.
-              </p>
+            {campaign.description ? (
+              <div className="p-3 bg-stone-50 rounded border border-stone-100">
+                <div dangerouslySetInnerHTML={{ __html: campaign.description }} />
+              </div>
+            ) : (
+              <>
+                <p>Follow instructions below depending on campaign type. Provide proof so the advertiser can verify.</p>
+                {campaign.category === "Survey" && (
+                  <p className="p-3 bg-stone-50 rounded border border-stone-100">
+                    Open the survey link and complete it. Paste the completion link or screenshot link as proof below.
+                  </p>
+                )}
+                {campaign.category === "Video" && (
+                  <p className="p-3 bg-stone-50 rounded border border-stone-100">
+                    Record the requested short video and upload it as proof. (Max file size depends on storage)
+                  </p>
+                )}
+                {campaign.category === "Picture" && (
+                  <p className="p-3 bg-stone-50 rounded border border-stone-100">
+                    Take a photo as instructed and upload it as proof.
+                  </p>
+                )}
+                {campaign.category === "Third-Party Task" && (
+                  <p className="p-3 bg-stone-50 rounded border border-stone-100">
+                    Complete external task and provide completion link or screenshot link as proof.
+                  </p>
+                )}
+              </>
             )}
           </div>
 

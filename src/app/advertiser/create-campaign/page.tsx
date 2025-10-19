@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -41,7 +42,7 @@ type CampaignType =
   | "YouTube Like"
   | "YouTube Comment"
 
-const STEPS = ["Details", "Upload Media", "Targeting & Budget", "Review & Pay"] as const
+const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
 
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
@@ -68,6 +69,15 @@ const CPL_MAP: Record<CampaignType, number> = {
 export default function CreateCampaignPage() {
   const router = useRouter()
 
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        router.push("/auth/sign-in")
+      }
+    })
+    return () => unsub()
+  }, [router])
+
   // stepper
   const [step, setStep] = useState<number>(0)
 
@@ -85,10 +95,7 @@ export default function CreateCampaignPage() {
   const [videoLink, setVideoLink] = useState("") // ✅ new field
 
 
-  const [location, setLocation] = useState("")
-  const [ageGroup, setAgeGroup] = useState("")
-  const [gender, setGender] = useState<"Male" | "Female" | "All" | "">("")
-  const [interests, setInterests] = useState("")
+  // targeting removed — only budget is required now
 
   const [budget, setBudget] = useState<number | "">("")
 
@@ -120,8 +127,8 @@ export default function CreateCampaignPage() {
       }
 const compressed = await imageCompression(file, options)
       return compressed as File
-    } catch (err) {
-      console.warn("Image compression failed:", err)
+    } catch (error) {
+      console.error('Image compression failed:', error)
       return file
     }
   }
@@ -185,8 +192,8 @@ const compressed = await imageCompression(file, options)
           toast.success("Media uploaded")
         }
       })
-    } catch (err) {
-      console.error(err)
+    } catch (error) {
+      console.error(error)
       toast.error("Upload error")
       setLoading(false)
       setUploadProgress(null)
@@ -209,14 +216,7 @@ const compressed = await imageCompression(file, options)
         return externalLink.trim().length > 5
       return true
     }
-    if (step === 2)
-      return (
-        location.trim().length > 1 &&
-        ageGroup.trim().length > 1 &&
-        gender !== "" &&
-        interests.trim().length > 1 &&
-        numericBudget > 0
-      )
+    if (step === 2) return numericBudget > 0
     if (step === 3) return true
     return false
   }
@@ -262,7 +262,7 @@ const compressed = await imageCompression(file, options)
       return
     }
 
-const campaignData: Record<string, unknown> = {
+    const campaignData: Record<string, unknown> = {
       ownerId: user.uid,
       title: title.trim(),
       description: description.trim(),
@@ -270,7 +270,6 @@ const campaignData: Record<string, unknown> = {
       bannerUrl,
       mediaUrl: category === "Video" ? videoLink : mediaUrl, // ✅ use link
       externalLink: externalLink || "",
-      target: { location, ageGroup, gender, interests },
       budget: numericBudget,
       estimatedLeads,
       costPerLead: currentCPL,
@@ -312,26 +311,18 @@ const handler = paystackLib.setup({
   // helpers
   const canGoNext = isStepValid()
 
-  const StepHeader = useMemo(
-    () => (
-      <div className="max-w-3xl mx-auto text-center space-y-2">
-        {/* Back button */}
-              <Button
-                onClick={() => router.back()}
-                className="flex gap-2 mb-4 bg-stone-700 hover:bg-stone-800 text-white"
-                size="sm"
-              >
-                <ArrowLeft size={16} /> Back
-              </Button>
-        <h1 className="text-2xl md:text-3xl font-bold text-stone-800">
-          Create a Campaign
-        </h1>
-        <p className="text-sm text-stone-600">
-          Fill in the details. You will only pay & submit after review.
-        </p>
-      </div>
-    ),
-    []
+  const StepHeader = (
+    <div className="max-w-3xl mx-auto text-center space-y-2">
+      <Button
+        onClick={() => router.back()}
+        className="flex gap-2 mb-4 bg-stone-700 hover:bg-stone-800 text-white"
+        size="sm"
+      >
+        <ArrowLeft size={16} /> Back
+      </Button>
+      <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Create a Campaign</h1>
+      <p className="text-sm text-stone-600">Fill in the details. You will only pay & submit after review.</p>
+    </div>
   )
 
   // ✅ helper to embed YouTube/Vimeo links
@@ -385,11 +376,9 @@ const getEmbeddedVideo = (url: string) => {
                 onChange={(e) => setCategory(e.target.value as CampaignType)}
               >
                 <option value="">Select category</option>
-                <option value="Video">🎥 Video</option>
-                <option value="Picture">🖼️ Picture</option>
-                <option value="Third-Party Task">🌐 Third-Party Task</option>
-                <option value="Survey">📊 Survey</option>
-                <option value="App Download">📱 App Download</option>
+                {Object.keys(CPL_MAP).map((k) => (
+                  <option key={k} value={k}>{k}</option>
+                ))}
               </select>
 
               <div>
@@ -460,70 +449,16 @@ const getEmbeddedVideo = (url: string) => {
         return (
           <Card>
             <CardContent className="space-y-4 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-stone-700">
-                    Location
-                  </label>
-                  <Input
-                    placeholder="e.g. Lagos, Nigeria"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-stone-700">
-                    Age group
-                  </label>
-                  <Input
-                    placeholder="e.g. 18-35"
-                    value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-stone-700">
-                    Gender
-                  </label>
-                  <select
-                    className="w-full border rounded px-3 py-2 bg-white"
-                    value={gender}
-onChange={(e) => setGender(e.target.value as "Male" | "Female" | "All" | "")}
-                  >
-                    <option value="">Select</option>
-                    <option value="All">All</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-stone-700">
-                    Interests
-                  </label>
-                  <Input
-                    placeholder="Comma separated"
-                    value={interests}
-                    onChange={(e) => setInterests(e.target.value)}
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="text-sm font-medium text-stone-700">
-                  Budget (₦)
-                </label>
+                <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
                 <Input
                   type="number"
                   placeholder="Enter budget in NGN"
                   value={budget}
-                  onChange={(e) =>
-                    setBudget(e.target.value === "" ? "" : Number(e.target.value))
-                  }
+                  onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Cost-per-lead for <b>{category || "selected type"}</b> is ₦
-                  {currentCPL}. Estimated leads:{" "}
-                  <span className="font-semibold">{estimatedLeads}</span>
+                  Cost-per-lead for <b>{category || "selected type"}</b> is ₦{currentCPL}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
                 </p>
               </div>
 
@@ -532,10 +467,7 @@ onChange={(e) => setGender(e.target.value as "Male" | "Female" | "All" | "")}
                   <FileText size={18} />
                   <div>
                     <div className="font-medium">Summary</div>
-                    <div className="text-sm text-stone-600">
-                      Budget: ₦{numericBudget.toLocaleString() || 0} • Estimated
-                      leads: {estimatedLeads}
-                    </div>
+                    <div className="text-sm text-stone-600">Budget: ₦{numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
                   </div>
                 </div>
               </div>
@@ -563,11 +495,9 @@ onChange={(e) => setGender(e.target.value as "Male" | "Female" | "All" | "")}
               </div>
 
               {bannerUrl && (
-                <img
-                  src={bannerUrl}
-                  alt="banner"
-                  className="w-full max-h-56 object-cover rounded"
-                />
+                <div className="w-full max-h-56 overflow-hidden rounded">
+                  <Image src={bannerUrl} alt="banner" width={1200} height={400} className="w-full object-cover" />
+                </div>
               )}
 
               <div className="text-sm text-stone-700 mt-2">{description}</div>
@@ -594,11 +524,9 @@ onChange={(e) => setGender(e.target.value as "Male" | "Female" | "All" | "")}
 })()}
 
               {category === "Picture" && mediaUrl && (
-                <img
-                  src={mediaUrl}
-                  alt="media"
-                  className="w-full mt-3 rounded object-cover"
-                />
+                <div className="w-full mt-3 rounded overflow-hidden">
+                  <Image src={mediaUrl} alt="media" width={1200} height={800} className="w-full object-cover" />
+                </div>
               )}
               {(category === "Survey" ||
                 category === "Third-Party Task" ||

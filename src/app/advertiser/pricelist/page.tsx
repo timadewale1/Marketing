@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function PriceListPage() {
-  // canonical campaign types and CPL map (should match advertiser create-campaign)
+export default function AdvertiserPriceListPage() {
+  // canonical campaign types and CPL map (should match create-campaign)
   const CPL_MAP: Record<string, number> = {
     Video: 250,
     Picture: 150,
@@ -30,8 +30,7 @@ export default function PriceListPage() {
   };
   const campaignTypes = Object.keys(CPL_MAP).map((k) => ({
     category: k,
-    advertiserPrice: CPL_MAP[k],
-    earnerPrice: Math.round(CPL_MAP[k] / 2),
+    price: CPL_MAP[k],
   }));
 
   const router = useRouter();
@@ -46,16 +45,19 @@ export default function PriceListPage() {
         </div>
 
         <Card className="bg-white/80 backdrop-blur p-6">
-          <h2 className="text-lg font-semibold text-stone-800 mb-4">Categories & Earner Price</h2>
+          <h2 className="text-lg font-semibold text-stone-800 mb-4">Campaign Types & Cost Per Lead</h2>
           <div className="divide-y divide-stone-200">
             {campaignTypes.map((c) => (
               <div key={c.category} className="flex items-center justify-between py-4">
                 <div>
                   <div className="font-medium text-stone-800">{c.category}</div>
+                  <div className="text-sm text-stone-500 mt-1">
+                    ₦{(c.price * 100).toLocaleString()} budget = {100} leads
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-stone-500">Earner price</div>
-                  <div className="font-bold text-amber-600 text-lg">₦{c.earnerPrice.toLocaleString()}</div>
+                  <div className="text-xs text-stone-500">Cost per lead</div>
+                  <div className="font-bold text-amber-600 text-lg">₦{c.price.toLocaleString()}</div>
                 </div>
               </div>
             ))}

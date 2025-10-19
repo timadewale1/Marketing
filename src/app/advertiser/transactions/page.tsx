@@ -2,20 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
-import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 
 interface Transaction {
   id: string;
   type?: string;
   note?: string;
   amount: number;
+  campaignId?: string;
+  campaignTitle?: string;
   status?: 'pending' | 'completed' | 'cancelled';
   createdAt?: {
     seconds: number;
@@ -23,19 +23,11 @@ interface Transaction {
   };
 }
 
-interface BankDetails {
-  accountNumber: string;
-  bankName: string;
-  accountName: string;
-}
-
-export default function TransactionsPage() {
+export default function AdvertiserTransactionsPage() {
   const router = useRouter();
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
-  const [availableBalance, setAvailableBalance] = useState(0);
+  const [balance, setBalance] = useState(0);
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -44,27 +36,9 @@ export default function TransactionsPage() {
       return;
     }
 
-    // Get bank details and available balance
-    const unsubUser = onSnapshot(doc(db, "earners", u.uid), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.bank) {
-          setBankDetails({
-            accountNumber: data.bank.accountNumber,
-            bankName: data.bank.bankName,
-            accountName: data.bank.accountName,
-          });
-        }
-      }
-    });
-
-    // Get transaction history
-    const q = query(
-      collection(db, "earnerTransactions"),
-      where("userId", "==", u.uid),
-      where("status", "in", ["completed", null]) // null for backward compatibility
-    );
-    const unsubTx = onSnapshot(q, (snap) => {
+    // Get transaction history (campaign creation, deposits, withdrawals, reroutes, etc)
+    const txQ = query(collection(db, "advertiserTransactions"), where("userId", "==", u.uid));
+    const unsubTx = onSnapshot(txQ, (snap) => {
       const txs = snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -73,59 +47,27 @@ export default function TransactionsPage() {
           note: data.note,
           amount: data.amount,
           status: data.status,
+          campaignId: data.campaignId,
+          campaignTitle: data.campaignTitle,
           createdAt: data.createdAt
         } as Transaction;
       });
-      setHistory(txs);
-      
-      // Calculate available balance from completed transactions
-      const balance = txs.reduce((sum, tx) => sum + tx.amount, 0);
-      setAvailableBalance(balance);
+      const sorted = txs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setHistory(sorted);
+      // compute balance from transactions (sum of amounts)
+      const bal = sorted.reduce((s, t) => s + (t.amount || 0), 0)
+      setBalance(bal)
       setLoading(false);
     });
 
     return () => {
-      unsubUser();
       unsubTx();
     };
   }, [router]);
 
-  const requestWithdraw = async (amount: number): Promise<void> => {
-    const u = auth.currentUser;
-    if (!u) {
-      toast.error("Login required");
-      return;
-    }
-    if (!bankDetails) {
-      toast.error("Please add bank details first");
-      return;
-    }
-
-    try {
-      // Create withdrawal request with bank details
-      await addDoc(collection(db, "earnerWithdrawals"), {
-        userId: u.uid,
-        amount: amount,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        bank: bankDetails,
-      });
-
-      // Add transaction record
-      await addDoc(collection(db, "earnerTransactions"), {
-        userId: u.uid,
-        type: "withdrawal",
-        amount: -amount,
-        status: "pending",
-        note: "Withdrawal requested",
-        createdAt: serverTimestamp(),
-      });
-
-      toast.success("Withdrawal request submitted");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit withdrawal request");
-    }
+  // Navigate to wallet page for funding
+  const handleFundWallet = () => {
+    router.push('/advertiser/wallet');
   };
 
   return (
@@ -142,20 +84,19 @@ export default function TransactionsPage() {
         <Card className="bg-white/80 backdrop-blur p-6 mb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-stone-800">Available Balance</h2>
+              <h2 className="text-lg font-semibold text-stone-800">Wallet Balance</h2>
               <p className="text-3xl font-bold text-amber-600 mt-1">
-                ₦{availableBalance.toLocaleString()}
+                ₦{balance.toLocaleString()}
               </p>
               <p className="text-sm text-stone-600 mt-1">
-                Minimum withdrawal: ₦2,000
+                Used for campaign payments
               </p>
             </div>
             <Button
-              onClick={() => setWithdrawOpen(true)}
-              disabled={availableBalance < 2000 || !bankDetails}
+              onClick={handleFundWallet}
               className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
             >
-              Withdraw Funds
+              Fund Wallet
             </Button>
           </div>
         </Card>
@@ -177,12 +118,21 @@ export default function TransactionsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="font-medium text-stone-800">
-                        {tx.type === 'withdrawal' ? 'Withdrawal' : tx.note || "Transaction"}
+                        {tx.type === 'campaign_payment' 
+                          ? `Campaign Payment: ${tx.campaignTitle || 'Untitled'}`
+                          : tx.type === 'wallet_funding'
+                          ? 'Wallet Funding'
+                          : tx.note || "Transaction"}
                       </div>
                       {tx.createdAt && (
                         <div className="text-sm text-stone-500 mt-1">
                           {new Date(tx.createdAt.seconds * 1000).toLocaleDateString()} at{" "}
                           {new Date(tx.createdAt.seconds * 1000).toLocaleTimeString()}
+                        </div>
+                      )}
+                      {tx.campaignId && (
+                        <div className="text-xs text-amber-600 mt-1">
+                          Campaign ID: {tx.campaignId}
                         </div>
                       )}
                     </div>
@@ -193,9 +143,9 @@ export default function TransactionsPage() {
                         </span>
                       )}
                       <div className={`font-bold ${
-                        tx.amount < 0 ? 'text-red-600' : 'text-green-600'
+                        tx.type === 'campaign_payment' ? 'text-red-600' : 'text-green-600'
                       }`}>
-                        ₦{Math.abs(tx.amount).toLocaleString()}
+                        {tx.type === 'campaign_payment' ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -204,14 +154,6 @@ export default function TransactionsPage() {
             </div>
           )}
         </Card>
-
-        <WithdrawDialog
-          open={withdrawOpen}
-          onClose={() => setWithdrawOpen(false)}
-          onSubmit={requestWithdraw}
-          maxAmount={availableBalance}
-          bankDetails={bankDetails}
-        />
       </div>
     </div>
   );

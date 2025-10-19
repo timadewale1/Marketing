@@ -5,11 +5,7 @@ import { useRouter } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
 
-type Activity = {
-  id: string;
-  status: string;
-  earned: number;
-};
+// Activity type removed (we now use earnerSubmissions and earnerTransactions directly)
 import {
   collection,
   doc,
@@ -29,7 +25,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle,
+  
   Menu,
   ChevronDown,
   ChevronUp,
@@ -60,8 +56,9 @@ export default function EarnerDashboard() {
     campaignPending: 0,
     campaignRejected: 0,
     campaignApproved: 0,
-    campaignCancelled: 0,
   })
+
+  const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
   const [referralStats, setReferralStats] = useState({ totalReferrals: 0, pendingBonuses: 0 })
   const [rotIdx, setRotIdx] = useState(0)
@@ -107,28 +104,43 @@ export default function EarnerDashboard() {
         }
       )
 
-      // Campaign activities
-      const unsubActivities = onSnapshot(
-        collection(db, "earners", u.uid, "activities"),
+      // Campaign submissions (use earnerSubmissions collection to reflect actual submitted/approved/rejected statuses)
+      const unsubSubmissions = onSnapshot(
+        query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid)),
         (snap) => {
-          const data = snap.docs.map((d) => {
-
-            const dd = d.data() as Partial<Activity>;
-            return {
-              id: d.id,
-              status: dd.status || "",
-              earned: dd.earned || 0,
-            } as Activity;
+          type Sub = { id: string; status?: string }
+          const subs: Sub[] = snap.docs.map((d) => {
+            const data = d.data() as Sub
+            return { id: d.id, status: data.status }
           })
-          // Calculate campaign stats
+          const submitted = subs.length
+          const pending = subs.filter((s) => s.status === "Pending" || s.status === "In Review").length
+          const rejected = subs.filter((s) => s.status === "Rejected").length
+          const approved = subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length
+
           setStats((prev) => ({
             ...prev,
-            campaignSubmitted: data.filter((r) => ["Submitted", "In Review", "Pending"].includes(r.status)).length,
-            campaignPending: data.filter((r) => r.status === "In Review").length,
-            campaignRejected: data.filter((r) => r.status === "Rejected").length,
-            campaignApproved: data.filter((r) => ["Completed", "Paid", "Verified"].includes(r.status)).length,
-            campaignCancelled: data.filter((r) => r.status === "Cancelled").length,
+            campaignSubmitted: submitted,
+            campaignPending: pending,
+            campaignRejected: rejected,
+            campaignApproved: approved,
           }))
+        }
+      )
+
+      // Transactions (compute total earned from earnerTransactions)
+      const unsubTx = onSnapshot(
+        query(collection(db, "earnerTransactions"), where("userId", "==", u.uid)),
+        (snap) => {
+          type Tx = { id: string; amount?: number; type?: string }
+          const txs: Tx[] = snap.docs.map((d) => {
+            const data = d.data() as Tx
+            return { id: d.id, amount: data.amount, type: data.type }
+          })
+          const earned = txs.reduce((s, t) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0)
+          const paidLeads = txs.filter((t) => t.type === "lead" || t.type === "payment").length
+          setTotalEarned(earned)
+          setStats((prev) => ({ ...prev, leadsPaidFor: paidLeads || prev.leadsPaidFor }))
         }
       )
 
@@ -149,7 +161,8 @@ export default function EarnerDashboard() {
       return () => {
         unsubProfile()
         unsubWithdraws()
-        unsubActivities()
+        unsubSubmissions()
+        unsubTx()
         unsubReferrals()
       }
     })
@@ -313,7 +326,7 @@ export default function EarnerDashboard() {
               <div>
                 <h3 className="text-sm text-stone-600 font-medium">Total Earned</h3>
                 <p className="text-2xl font-bold text-stone-900">
-                  ₦{(stats.leadsPaidFor * 0).toLocaleString()}
+                  ₦{Number(totalEarned || 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-stone-500 mt-1">
                   Paid leads: {stats.leadsPaidFor}
@@ -342,11 +355,10 @@ export default function EarnerDashboard() {
           </div>
           <div className="divide-y divide-stone-200">
             {[
-              { label: "Submitted", icon: <Grid size={18} />, value: stats.campaignSubmitted },
-              { label: "Pending", icon: <Clock size={18} />, value: stats.campaignPending },
-              { label: "Approved", icon: <CheckCircle size={18} />, value: stats.campaignApproved },
-              { label: "Rejected", icon: <XCircle size={18} />, value: stats.campaignRejected },
-              { label: "Cancelled", icon: <AlertCircle size={18} />, value: stats.campaignCancelled },
+                { label: "Submitted", icon: <Grid size={18} />, value: stats.campaignSubmitted },
+                { label: "Pending", icon: <Clock size={18} />, value: stats.campaignPending },
+                { label: "Approved", icon: <CheckCircle size={18} />, value: stats.campaignApproved },
+                { label: "Rejected", icon: <XCircle size={18} />, value: stats.campaignRejected },
             ].map((item) => (
               <motion.div
                 key={item.label}

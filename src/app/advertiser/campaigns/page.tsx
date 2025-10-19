@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { ArrowLeft, Plus } from "lucide-react"
+import Image from "next/image"
 
 type Campaign = {
   id: string
@@ -124,10 +125,13 @@ export default function CampaignsPage() {
               <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
                 <Card className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden">
                   <div className="relative">
-                    <img
-                      src={c.bannerUrl}
-                      alt={c.title}
-                      className="w-full aspect-square object-cover"
+                    <Image
+                      src={c.bannerUrl || "/placeholders/default.jpg"}
+                      alt={c.title || 'Campaign banner'}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="w-full h-full object-cover"
+                      priority
                     />
                     <span
                       className={`absolute top-2 left-2 px-2 py-1 text-xs rounded font-medium ${

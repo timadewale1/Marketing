@@ -210,9 +210,9 @@ export default function BankPage() {
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Choose your bank" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white shadow-lg rounded max-h-64 overflow-auto">
                       {banks.map((b, idx) => (
-                        <SelectItem key={b.code + '-' + idx} value={b.code} className="py-3 px-4 hover:bg-amber-50 cursor-pointer">
+                        <SelectItem key={b.code + '-' + idx} value={b.code} className="py-3 px-4 hover:bg-amber-50 cursor-pointer bg-white">
                           <span className="font-medium text-stone-800">{b.name}</span>
                         </SelectItem>
                       ))}

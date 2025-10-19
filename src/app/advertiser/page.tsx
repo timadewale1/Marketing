@@ -15,23 +15,9 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  Menu,
-  X,
-  TrendingUp,
-  Wallet,
-  Users,
-  Percent,
-  Plus,
-  LogOut,
-  Info,
-} from "lucide-react"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import Image from "next/image"
+import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle, CheckCircle } from "lucide-react"
+import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 
 type Campaign = {
@@ -48,354 +34,413 @@ type Campaign = {
 
 export default function AdvertiserDashboard() {
   const router = useRouter()
-
-  // UI states
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [fabOpen, setFabOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement | null>(null)
-  const fabRef = useRef<HTMLDivElement | null>(null)
-
-  const [name, setName] = useState<string>("Loading...")
+  const [name, setName] = useState<string>("Advertiser")
+  const [profilePic, setProfilePic] = useState("")
+  const [stats, setStats] = useState({
+    balance: 0,
+    activeCampaigns: 0,
+    leadsGenerated: 0,
+    leadsPaidFor: 0,
+    campaignSubmitted: 0,
+    campaignPending: 0,
+    campaignRejected: 0,
+    campaignApproved: 0,
+  })
   const [filter, setFilter] = useState("Active")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
 
-  // Fetch advertiser name
   useEffect(() => {
-    const fetchName = async () => {
-      const user = auth.currentUser
-      if (user) {
-        const ref = doc(db, "advertisers", user.uid)
-        const snap = await getDoc(ref)
-        if (snap.exists()) setName(snap.data().name)
+    let unsubCampaigns: (() => void) | null = null
+    let unsubWithdrawals: (() => void) | null = null
+    let unsubReroutes: (() => void) | null = null
+    let unsubResumed: (() => void) | null = null
+
+    const unsubAuth = auth.onAuthStateChanged(async (u) => {
+      if (!u) {
+        router.push("/auth/sign-in")
+        return
       }
-    }
-    fetchName()
-  }, [])
 
-  // Real-time campaigns
-  useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
+      // Profile
+      const ref = doc(db, "advertisers", u.uid)
+      const snap = await getDoc(ref)
+      if (snap.exists()) {
+        setName(snap.data().name || "Advertiser")
+        setProfilePic(snap.data().profilePic || "")
+      }
 
-    const q = query(collection(db, "campaigns"), where("ownerId", "==", user.uid))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Campaign[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Omit<Campaign, "id">),
-      }))
-      setCampaigns(data)
+      // Campaigns
+      const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid))
+      unsubCampaigns = onSnapshot(q, (snapshot) => {
+        const data: Campaign[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Campaign, "id">),
+        }))
+        setCampaigns(data)
+        setStats((prev) => ({
+          ...prev,
+          activeCampaigns: data.filter((c) => c.status === "Active").length,
+          leadsPaidFor: data.reduce((sum, c) => sum + (c.estimatedLeads || 0), 0),
+          leadsGenerated: data.reduce((sum, c) => sum + (c.generatedLeads || 0), 0),
+        }))
+
+        // submissions summary
+        data.forEach((c) => {
+          const subsQ = query(collection(db, "earnerSubmissions"), where("campaignId", "==", c.id))
+          onSnapshot(subsQ, (ssnap) => {
+            type Sub = { status?: string }
+            const subs = ssnap.docs.map((d) => d.data() as Sub)
+            setStats((prev) => ({
+              ...prev,
+              campaignSubmitted: subs.length,
+              campaignPending: subs.filter((s) => s.status === "Pending" || s.status === "In Review").length,
+              campaignRejected: subs.filter((s) => s.status === "Rejected").length,
+              campaignApproved: subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length,
+            }))
+          })
+        })
+      })
+
+      // Withdrawals
+      const wq = query(collection(db, "withdrawals"), where("userId", "==", u.uid))
+      unsubWithdrawals = onSnapshot(wq, () => {
+        // compute balance after we have reroutes/resumed
+      })
+
+      // Reroutes
+      const rq = query(collection(db, "reroutes"), where("userId", "==", u.uid))
+      unsubReroutes = onSnapshot(rq, () => {
+        // compute balance after we have withdrawals/resumed
+      })
+
+      // Resumed campaigns
+      const rsq = query(collection(db, "resumedCampaigns"), where("userId", "==", u.uid))
+      unsubResumed = onSnapshot(rsq, () => {
+        // compute balance after we have campaigns/withdrawals/reroutes
+      })
+
+      // Instead of individually setting inside each listener above, create a join: listen to campaigns + withdrawals + reroutes + resumed by reading them once and recomputing when any changes.
+      // We'll re-use the campaign listener's snapshot to compute; set up helper refs to current arrays
+  type Withdrawal = { id: string; amount: number; status?: string; createdAt?: unknown }
+  type Reroute = { id: string; reroutes?: { campaignId: string; amount: number }[]; status?: string; createdAt?: unknown }
+  type Resumed = { id: string; amountUsed?: number; status?: string }
+
+      const current = {
+        campaigns: [] as Campaign[],
+        withdrawals: [] as Withdrawal[],
+        reroutes: [] as Reroute[],
+        resumed: [] as Resumed[],
+      }
+
+      // helper to compute when arrays update
+      const recompute = () => {
+        const result = calculateWalletBalances(current.campaigns, current.withdrawals, current.reroutes, current.resumed)
+        setStats((prev) => ({ ...prev, balance: result.refundableBalance }))
+      }
+
+      // wire the existing snapshots to update 'current' and recompute
+      // campaigns handler (replace above inline behaviour)
+      if (unsubCampaigns) {
+        // replace with a fresh onSnapshot that updates current.campaigns and recomputes
+        if (unsubCampaigns) unsubCampaigns()
+        unsubCampaigns = onSnapshot(q, (snapshot) => {
+    current.campaigns = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Campaign, 'id'>) }))
+          // update stats counts from campaigns
+          setCampaigns(current.campaigns as Campaign[])
+          setStats((prev) => ({
+            ...prev,
+            activeCampaigns: current.campaigns.filter((c) => c.status === "Active").length,
+            leadsPaidFor: current.campaigns.reduce((s, c) => s + (c.estimatedLeads || 0), 0),
+            leadsGenerated: current.campaigns.reduce((s, c) => s + (c.generatedLeads || 0), 0),
+          }))
+          recompute()
+        })
+      }
+
+      if (unsubWithdrawals) {
+        if (unsubWithdrawals) unsubWithdrawals()
+        unsubWithdrawals = onSnapshot(wq, (snap) => {
+          current.withdrawals = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Withdrawal, 'id'>) }))
+          recompute()
+        })
+      }
+
+      if (unsubReroutes) {
+        if (unsubReroutes) unsubReroutes()
+        unsubReroutes = onSnapshot(rq, (snap) => {
+          current.reroutes = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Reroute, 'id'>) }))
+          recompute()
+        })
+      }
+
+      if (unsubResumed) {
+        if (unsubResumed) unsubResumed()
+        unsubResumed = onSnapshot(rsq, (snap) => {
+          current.resumed = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Resumed, 'id'>) }))
+          recompute()
+        })
+      }
     })
 
-    return () => unsubscribe()
-  }, [])
+    return () => {
+      unsubAuth()
+      if (unsubCampaigns) unsubCampaigns()
+      if (unsubWithdrawals) unsubWithdrawals()
+      if (unsubReroutes) unsubReroutes()
+      if (unsubResumed) unsubResumed()
+    }
+  }, [router])
+
+  const handleLogout = async () => {
+    await signOut(auth)
+    router.push("/auth/sign-in")
+  }
+
+  // Stats cards
+  const statCards = [
+    {
+      title: "Available Balance",
+      value: `₦${stats.balance.toLocaleString()}`,
+      icon: Wallet,
+      action: () => router.push("/advertiser/wallet"),
+      actionLabel: "Fund Wallet",
+    },
+    {
+      title: "Active Campaigns",
+      value: stats.activeCampaigns,
+      icon: TrendingUp,
+      action: () => router.push("/advertiser/campaigns"),
+      actionLabel: "View Campaigns",
+    },
+    {
+      title: "Leads Paid For",
+      value: stats.leadsPaidFor,
+      icon: Users,
+    },
+    {
+      title: "Leads Generated",
+      value: stats.leadsGenerated,
+      icon: Users,
+    },
+    {
+      title: "Campaigns Submitted",
+      value: stats.campaignSubmitted,
+      icon: Grid,
+    },
+    {
+      title: "Pending Submissions",
+      value: stats.campaignPending,
+      icon: Clock,
+    },
+    {
+      title: "Rejected Submissions",
+      value: stats.campaignRejected,
+      icon: XCircle,
+    },
+    {
+      title: "Approved Submissions",
+      value: stats.campaignApproved,
+      icon: CheckCircle,
+    },
+  ]
 
   const filteredCampaigns = campaigns.filter(
     (c) => c.status.toLowerCase() === filter.toLowerCase()
   )
 
-  // close sidebar/fab on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (sidebarOpen && sidebarRef.current && !sidebarRef.current.contains(target)) {
-        setSidebarOpen(false)
-      }
-      if (fabOpen && fabRef.current && !fabRef.current.contains(target)) {
-        setFabOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [sidebarOpen, fabOpen])
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth)
-      router.push("/auth/sign-in")
-    } catch (err) {
-      console.error("Logout failed", err)
-    }
-  }
-
-  // Stats calculations
-  const totalSpend = campaigns.reduce(
-    (sum, c) =>
-      sum +
-      ((c.estimatedLeads || 0) * (c.costPerLead || 0) || c.budget || 0),
-    0
-  )
-  const totalPaidLeads = campaigns.reduce((sum, c) => sum + (c.estimatedLeads || 0), 0)
-  const totalGenerated = campaigns.reduce((sum, c) => sum + (c.generatedLeads || 0), 0)
-
-  const conversionRate =
-    totalPaidLeads > 0 ? (totalGenerated / totalPaidLeads) * 100 : null
-
-  // Stats with conversion rate
-  const stats = [
-    {
-      title: "Active Campaigns",
-      value: campaigns.filter((c) => c.status === "Active").length,
-      icon: TrendingUp,
-      desc: "Number of campaigns currently running",
-    },
-    {
-      title: "Total Spend",
-      value: `₦${totalSpend.toLocaleString()}`,
-      icon: Wallet,
-      desc: "Total budget allocated across campaigns",
-    },
-    {
-      title: "Leads Paid For",
-      value: totalPaidLeads,
-      icon: Users,
-      desc: "Total leads budgeted for via campaigns",
-    },
-    {
-      title: "Leads Generated",
-      value: totalGenerated,
-      icon: Users,
-      desc: "Total actual leads generated",
-    },
-    {
-      title: "Conversion Rate",
-      value: conversionRate !== null ? `${conversionRate.toFixed(1)}%` : "N/A",
-      icon: Percent,
-      desc: "Generated ÷ Paid For × 100",
-      highlight: conversionRate, // we’ll use this to color code
-    },
-  ]
-
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
-        <div className="max-w-[1200px] mx-auto px-4 py-8 relative">
-          {/* Sidebar */}
-          <aside
-            ref={sidebarRef}
-            className={`fixed top-0 left-0 z-50 h-full w-72 bg-white/90 backdrop-blur-md shadow transform transition-transform duration-300 ${
-              sidebarOpen ? "translate-x-0" : "-translate-x-full"
-            }`}
+    <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
+      {/* Header */}
+      <header className="flex justify-between items-center px-6 py-4 bg-white/60 backdrop-blur sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen((s) => !s)}
+            className="p-2 bg-white rounded-lg shadow"
           >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold text-stone-800">Menu</h2>
-              <button onClick={() => setSidebarOpen(false)}>
-                <X size={18} />
-              </button>
+            <Menu size={20} />
+          </button>
+          <h1 className="font-semibold text-stone-800 text-lg">Advertiser Dashboard</h1>
+        </div>
+        <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
+          {profilePic ? (
+            <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-amber-300 font-bold text-stone-900">
+              {name.charAt(0)}
             </div>
+          )}
+        </div>
+      </header>
 
-            <nav className="p-4 space-y-2">
-              {[
-                { label: "Dashboard", path: "/advertiser" },
-                { label: "Campaigns", path: "/advertiser/campaigns" },
-                { label: "Wallet", path: "/advertiser/wallet" },
-                { label: "Profile", path: "/advertiser/profile" },
-              ].map((item) => (
-                <button
-                  key={item.path}
-                  className="block w-full text-left text-sm p-2 rounded hover:bg-stone-100"
-                  onClick={() => {
-                    setSidebarOpen(false)
-                    router.push(item.path)
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
+      {/* Sidebar */}
+      <aside
+        ref={sidebarRef}
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-white/90 backdrop-blur-md shadow transform transition-transform duration-300 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold text-stone-800">Menu</h2>
+          <button onClick={() => setSidebarOpen(false)}>
+            <X size={18} />
+          </button>
+        </div>
+        <nav className="p-4 space-y-2">
+          {/* ...existing code for nav items... */}
+          {[
+            { label: "Dashboard", path: "/advertiser" },
+            { label: "Campaigns", path: "/advertiser/campaigns" },
+            { label: "Wallet", path: "/advertiser/wallet" },
+            { label: "Transactions", path: "/advertiser/transactions" },
+            { label: "Referrals", path: "/advertiser/referrals" },
+            { label: "Campaign Price List", path: "/advertiser/pricelist" },
+            { label: "Profile", path: "/advertiser/profile" },
+          ].map((item) => (
+            <button
+              key={item.path}
+              className="block w-full text-left text-sm p-2 rounded hover:bg-stone-100"
+              onClick={() => {
+                setSidebarOpen(false)
+                router.push(item.path)
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sm"
+            onClick={handleLogout}
+          >
+            <LogOut size={16} className="mr-2" /> Logout
+          </Button>
+        </div>
+      </aside>
 
-            <div className="p-4 border-t">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-sm"
-                onClick={handleLogout}
-              >
-                <LogOut size={16} className="mr-2" /> Logout
-              </Button>
-            </div>
-          </aside>
+      <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+        {/* Top Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {statCards.map((card, i) => (
+            <Card key={i} className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
+              <CardContent className="p-6 flex items-center gap-5">
+                <div className="p-3 bg-amber-200 rounded-2xl">
+                  <card.icon size={28} className="text-amber-700" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm text-stone-600 font-medium">{card.title}</h3>
+                  <p className="text-2xl font-bold text-stone-900">{card.value}</p>
+                  {card.action && (
+                    <Button
+                      size="sm"
+                      className="bg-amber-500 text-stone-900 mt-3"
+                      onClick={card.action}
+                    >
+                      {card.actionLabel}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-          {/* Header */}
-          <header className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <button
-                className="p-2 rounded bg-white/70"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu size={18} />
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-stone-800">Welcome, {name}</h1>
-                <p className="text-sm text-stone-600">Manage your campaigns and leads</p>
-              </div>
-            </div>
-          </header>
+        {/* Campaigns Section */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-stone-800">Your Campaigns</h2>
+          <Link href="/advertiser/create-campaign">
+            <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
+              <Plus size={16} />
+              Create Campaign
+            </Button>
+          </Link>
+        </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-            {stats.map((s, i) => {
-              let valueColor = "text-stone-900"
-              if (s.title === "Conversion Rate" && typeof s.highlight === "number") {
-                if (s.highlight >= 70) valueColor = "text-green-600"
-                else if (s.highlight >= 40) valueColor = "text-yellow-600"
-                else valueColor = "text-red-600"
+        {/* Filter */}
+        <div className="flex gap-2 mb-6">
+          {["Active", "Paused", "Stopped", "Pending"].map((status) => (
+            <Button
+              key={status}
+              variant={filter === status ? "default" : "outline"}
+              className={
+                filter === status
+                  ? "bg-amber-500 text-stone-900"
+                  : "text-stone-600 border-stone-300"
               }
+              onClick={() => setFilter(status)}
+            >
+              {status}
+            </Button>
+          ))}
+        </div>
+
+        {/* Campaigns Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {filteredCampaigns.length > 0 ? (
+            filteredCampaigns.map((c) => {
+              const total = c.estimatedLeads || 0
+              const achieved = c.generatedLeads || 0
+              const percent = total > 0 ? Math.min((achieved / total) * 100, 100) : 0
 
               return (
-                <Card key={i} className="bg-white/90 shadow rounded-2xl">
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-stone-700">{s.title}</h3>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info size={14} className="text-stone-500 cursor-pointer" />
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-stone-800 text-amber-200 text-xs rounded px-2 py-1">
-                            {s.desc}
-                          </TooltipContent>
-                        </Tooltip>
+                <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
+                  <Card className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden">
+                    <div className="relative">
+                      <div className="w-full aspect-square relative h-0" style={{ paddingBottom: '100%' }}>
+                        <Image src={c.bannerUrl || '/placeholders/default.jpg'} alt={c.title} fill className="absolute inset-0 object-cover" />
                       </div>
-                      <p className={`text-xl font-bold mt-2 ${valueColor}`}>{s.value}</p>
+                      <span
+                        className={`absolute top-2 left-2 px-2 py-1 text-xs rounded font-medium ${
+                          c.status === "Active"
+                            ? "bg-green-100 text-green-700"
+                            : c.status === "Paused"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : c.status === "Pending"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {c.status}
+                      </span>
                     </div>
-                    <s.icon size={24} className="text-amber-600" />
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {/* Campaigns Section */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-stone-800">Your Campaigns</h2>
-            <Link href="/advertiser/create-campaign">
-              <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
-                <Plus size={16} />
-                Create Campaign
-              </Button>
-            </Link>
-          </div>
-
-          {/* Filter */}
-          <div className="flex gap-2 mb-6">
-            {["Active", "Paused", "Stopped", "Pending"].map((status) => (
-              <Button
-                key={status}
-                variant={filter === status ? "default" : "outline"}
-                className={
-                  filter === status
-                    ? "bg-amber-500 text-stone-900"
-                    : "text-stone-600 border-stone-300"
-                }
-                onClick={() => setFilter(status)}
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
-
-          {/* Campaigns Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {filteredCampaigns.length > 0 ? (
-              filteredCampaigns.map((c) => {
-                const total = c.estimatedLeads || 0
-                const achieved = c.generatedLeads || 0
-                const percent = total > 0 ? Math.min((achieved / total) * 100, 100) : 0
-
-                return (
-                  <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
-                    <Card className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden">
-                      <div className="relative">
-                        <img
-                          src={c.bannerUrl}
-                          alt={c.title}
-                          className="w-full aspect-square object-cover"
-                        />
-                        <span
-                          className={`absolute top-2 left-2 px-2 py-1 text-xs rounded font-medium ${
-                            c.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : c.status === "Paused"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : c.status === "Pending"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {c.status}
-                        </span>
+                    <CardContent className="p-3">
+                      <h3 className="font-semibold text-sm text-stone-800 line-clamp-2">
+                        {c.title}
+                      </h3>
+                      <p className="text-xs text-stone-500">{c.category}</p>
+                      <div className="flex justify-between text-xs text-stone-600 mt-1">
+                        <span>₦{c.budget.toLocaleString()}</span>
+                        <span>{(c.estimatedLeads || 0).toLocaleString()} leads</span>
                       </div>
-                      <CardContent className="p-3">
-                        <h3 className="font-semibold text-sm text-stone-800 line-clamp-2">
-                          {c.title}
-                        </h3>
-                        <p className="text-xs text-stone-500">{c.category}</p>
-                        <div className="flex justify-between text-xs text-stone-600 mt-1">
-                          <span>₦{c.budget}</span>
-                          <span>{c.estimatedLeads} leads</span>
+
+                      {total > 0 && (
+                        <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2">
+                          <div
+                            className="h-1.5 bg-amber-500 rounded-full transition-all duration-300"
+                            style={{ width: `${percent}%` }}
+                          />
                         </div>
-
-                        {total > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2">
-                                <div
-                                  className="h-1.5 bg-amber-500 rounded-full"
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-stone-800 text-amber-200 text-xs px-2 py-1 rounded">
-                              {achieved} of {total} leads generated (
-                              {percent.toFixed(1)}%)
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Link>
-                )
-              })
-            ) : (
-              <p className="text-sm text-stone-500">No {filter} campaigns found.</p>
-            )}
-          </div>
-
-          {/* FAB */}
-          <div
-            ref={fabRef}
-            className="fixed right-6 bottom-6 z-50 flex flex-col items-end gap-2"
-          >
-            {fabOpen && (
-              <>
-                <Button
-                  className="bg-white text-stone-900 shadow"
-                  onClick={() => {
-                    setFabOpen(false)
-                    router.push("/advertiser/create-campaign")
-                  }}
-                >
-                  New Campaign
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })
+          ) : (
+            <div className="col-span-full flex flex-col items-center justify-center py-12">
+              <p className="text-lg text-stone-600 mb-3">No {filter} campaigns found.</p>
+              <Link href="/advertiser/create-campaign">
+                <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow">
+                  <Plus size={18} className="mr-2" /> Create Your First Campaign
                 </Button>
-                <Button
-                  className="bg-white text-stone-900 shadow"
-                  onClick={() => {
-                    setFabOpen(false)
-                    router.push("/advertiser/analytics")
-                  }}
-                >
-                  Analytics
-                </Button>
-              </>
-            )}
-            <button
-              onClick={() => setFabOpen((s) => !s)}
-              className="w-14 h-14 rounded-full bg-amber-600 shadow-lg flex items-center justify-center text-white"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
+              </Link>
+            </div>
+          )}
         </div>
-      </div>
-    </TooltipProvider>
+      </main>
+    </div>
   )
 }

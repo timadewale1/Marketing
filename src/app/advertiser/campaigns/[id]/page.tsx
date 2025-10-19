@@ -21,6 +21,7 @@ import { getAuth } from "firebase/auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Pause, Play, StopCircle, Edit, Trash, ArrowLeft } from "lucide-react"
+import Image from "next/image"
 import { toast } from "react-hot-toast"
 import { Dialog } from "@headlessui/react"
 
@@ -436,10 +437,14 @@ await updateDoc(campaignRef, {
       {/* Hero Section */}
       <div className="flex justify-center">
         <Card className="w-full max-w-xs rounded-xl overflow-hidden shadow-md bg-gradient-to-br from-amber-50 to-stone-100">
-          <img
-            src={campaign.bannerUrl}
-            alt={campaign.title}
+          <Image
+            src={campaign.bannerUrl || "/placeholders/default.jpg"}
+            alt={campaign.title || "Campaign banner"}
+            width={400}
+            height={400}
             className="w-full aspect-square object-cover"
+            style={{ objectFit: "cover" }}
+            priority
           />
           <CardContent className="p-4 space-y-2 text-center">
             <h1 className="text-lg font-semibold text-stone-800">
