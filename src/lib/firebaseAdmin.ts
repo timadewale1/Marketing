@@ -24,15 +24,22 @@ export async function initFirebaseAdmin() {
       return { admin, dbAdmin }
     }
 
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      if (!admin.apps.length) {
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
-        })
+    // Check for service account in environment variables (Vercel)
+    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (serviceAccountEnv) {
+      try {
+        const serviceAccount = JSON.parse(serviceAccountEnv);
+        if (!admin.apps.length) {
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
+          })
+        }
+        dbAdmin = admin.firestore()
+        return { admin, dbAdmin }
+      } catch (err) {
+        console.error('Error parsing service account from environment:', err)
+        return { admin: null, dbAdmin: null }
       }
-      dbAdmin = admin.firestore()
-      return { admin, dbAdmin }
     }
 
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
