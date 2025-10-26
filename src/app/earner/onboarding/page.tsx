@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { auth, db, storage } from "@/lib/firebase"
-import { doc, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp, increment } from "firebase/firestore"
-import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { doc, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -167,7 +166,7 @@ if (process.env.NEXT_PUBLIC_ENV === "dev") {
       customer_code: "CUS_TEST123",
     },
   }
-  console.log("⚡ Using fake wallet in dev mode:", walletData)
+  // Dev: using fake wallet data for local testing
 } else {
   // 🔹 Real wallet creation on Paystack
   const walletRes = await fetch("/api/create-wallet", {
@@ -208,50 +207,10 @@ await updateDoc(refDoc, {
 
 })
 
-      // ✅ Handle referrals: if someone referred this user at signup, mark referral completed and credit referrer
-      try {
-        const q = query(collection(db, "referrals"), where("referredId", "==", user.uid), where("status", "==", "pending"));
-        const snaps = await getDocs(q);
-        const { admin, dbAdmin } = await initFirebaseAdmin();
-        for (const docSnap of snaps.docs) {
-          const r = docSnap.data();
-          const bonus = Number(r.amount || 0);
-          const referrerId = r.referrerId;
-          // Prevent duplicate payout: check if already completed
-          if (r.status === "completed") continue;
-          // mark referral as completed
-          await updateDoc(doc(db, "referrals", docSnap.id), { status: "completed", completedAt: serverTimestamp() });
-          // credit referrer (if exists)
-          if (referrerId && bonus > 0) {
-            if (dbAdmin && admin) {
-              // Use admin SDK for transaction and balance increment
-              const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore;
-              await adminDb.collection("earnerTransactions").add({
-                userId: referrerId,
-                type: "referral_bonus",
-                amount: bonus,
-                status: "completed",
-                note: `Referral bonus for referring ${user.uid}`,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              });
-              await adminDb.collection("earners").doc(referrerId).update({ balance: admin.firestore.FieldValue.increment(bonus) });
-            } else {
-              // Fallback to client SDK
-              await addDoc(collection(db, "earnerTransactions"), {
-                userId: referrerId,
-                type: "referral_bonus",
-                amount: bonus,
-                status: "completed",
-                note: `Referral bonus for referring ${user.uid}`,
-                createdAt: serverTimestamp(),
-              });
-              await updateDoc(doc(db, "earners", referrerId), { balance: increment(bonus) });
-            }
-          }
-        }
-      } catch (refErr) {
-        console.error("Referral finalization failed:", refErr);
-      }
+      // NOTE: Referral finalization has been moved off the onboarding step.
+      // Under the new business rule, referrals for earners are paid only after
+      // the referred earner pays the activation fee (₦2000). The activation
+      // flow will complete pending referrals and credit referrers.
 
       toast.success("Onboarding completed 🎉")
       router.push("/earner")

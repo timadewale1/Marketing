@@ -37,7 +37,7 @@ export default function Dropzone({
 
   return (
     <div
-      className="border-2 border-dashed border-stone-400 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-stone-100 transition relative"
+      className="border-2 border-dashed border-primary-400 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary-100 transition relative"
       onClick={() => fileInputRef.current?.click()}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
@@ -60,13 +60,13 @@ export default function Dropzone({
         ) : null
       ) : (
         <>
-          <UploadCloud className="w-10 h-10 text-stone-500 mb-2" />
-          <p className="text-stone-700 font-medium">{label}</p>
-          <p className="text-xs text-stone-500 mt-1">Click or drag & drop</p>
+          <UploadCloud className="w-10 h-10 text-primary-500 mb-2" />
+          <p className="text-primary-700 font-medium">{label}</p>
+          <p className="text-xs text-primary-500 mt-1">Click or drag & drop</p>
         </>
       )}
       {fileName && !previewUrl && (
-        <p className="text-xs mt-2 text-stone-600 truncate">{fileName}</p>
+        <p className="text-xs mt-2 text-primary-600 truncate">{fileName}</p>
       )}
       <input
         type="file"

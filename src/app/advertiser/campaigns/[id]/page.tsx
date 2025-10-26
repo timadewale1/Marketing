@@ -31,7 +31,7 @@ type Campaign = {
   title: string
   bannerUrl: string
   category: string
-  status: "Active" | "Paused" | "Stopped" | "Pending" | "Deleted"
+  status: "Active" | "Paused" | "Stopped" | "Pending" | "Deleted" | "Completed"
   budget: number
   estimatedLeads: number
   generatedLeads: number
@@ -43,9 +43,7 @@ type Campaign = {
 type Lead = {
   id: string
   name: string
-  email?: string
-  phone?: string
-  status?: string
+  proofUrl?: string
   createdAt?: { toDate: () => Date }
 }
 
@@ -110,23 +108,49 @@ export default function CampaignDetailsPage() {
     fetchAvg()
   }, [])
 
-  // 📋 Fetch latest 10 leads
+  // 📋 Fetch latest verified submissions as leads
   useEffect(() => {
     if (!id) return
-    const qLeads = query(
-      collection(db, "campaigns", id as string, "leads"),
+    // Listen to earner submissions instead of leads collection
+    const qSubmissions = query(
+      collection(db, "earnerSubmissions"),
+      where("campaignId", "==", id),
+      where("status", "==", "Verified"), // Only show verified submissions
       orderBy("createdAt", "desc"),
       limit(10)
     )
-    const unsub = onSnapshot(qLeads, (snap) => {
-      const data: Lead[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<Lead, "id">),
-      }))
-      setLeads(data)
-    })
-    return () => unsub()
-  }, [id])
+    const unsub = onSnapshot(qSubmissions, (snap) => {
+      // Update campaign stats with verified count
+      const verifiedCount = snap.size;
+      setCampaign(prev => prev ? {
+        ...prev,
+        generatedLeads: verifiedCount
+      } : null);
+
+      const data: Lead[] = snap.docs.map((d) => {
+        const sub = d.data();
+        return {
+          id: d.id,
+          name: sub.fullName || "Anonymous",
+          proofUrl: sub.proofUrl || sub.socialHandle || sub.linkProof || null,
+          createdAt: sub.createdAt,
+        };
+      });
+      setLeads(data);
+
+      // If campaign is complete, update status
+      if (campaign?.budget && campaign.costPerLead) {
+        const targetLeads = Math.floor(campaign.budget / campaign.costPerLead);
+        if (verifiedCount >= targetLeads && campaign.status !== "Completed") {
+          updateDoc(doc(db, "campaigns", id as string), {
+            status: "Completed",
+            completedAt: serverTimestamp()
+          });
+        }
+      }
+    });
+    return () => unsub();
+  }, [id, campaign])
 
   const updateStatus = async (status: "Active" | "Paused" | "Stopped") => {
   if (!campaign) return
@@ -499,10 +523,8 @@ await updateDoc(campaignRef, {
                   <thead className="bg-stone-100 text-stone-600">
                     <tr>
                       <th className="p-2 text-left">Name</th>
-                      <th className="p-2 text-left">Email</th>
-                      <th className="p-2 text-left">Phone</th>
-                      <th className="p-2 text-left">Status</th>
                       <th className="p-2 text-left">Date</th>
+                      <th className="p-2 text-left">Proof</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -511,14 +533,23 @@ await updateDoc(campaignRef, {
                         key={lead.id}
                         className="border-t border-stone-200 hover:bg-stone-50"
                       >
-                        <td className="p-2">{lead.name || "N/A"}</td>
-                        <td className="p-2">{lead.email || "-"}</td>
-                        <td className="p-2">{lead.phone || "-"}</td>
-                        <td className="p-2">{lead.status || "New"}</td>
+                        <td className="p-2">{lead.name || "Anonymous"}</td>
                         <td className="p-2">
                           {lead.createdAt
-                            ? new Date(lead.createdAt.toDate()).toLocaleDateString()
+                            ? new Date(lead.createdAt.toDate()).toLocaleString()
                             : "-"}
+                        </td>
+                        <td className="p-2">
+                          {lead.proofUrl ? (
+                            <a 
+                              href={lead.proofUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-amber-600 hover:underline"
+                            >
+                              View Proof
+                            </a>
+                          ) : "-"}
                         </td>
                       </tr>
                     ))}

@@ -24,7 +24,7 @@ import {
 
 type CampaignType =
   | "Video"
-  | "Picture"
+  | "Advertise Product"
   | "Third-Party Task"
   | "Survey"
   | "App Download"
@@ -47,7 +47,7 @@ const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
   Video: 250,
-  Picture: 150,
+  "Advertise Product": 150,
   "Third-Party Task": 100,
   Survey: 100,
   "App Download": 200,
@@ -93,6 +93,7 @@ export default function CreateCampaignPage() {
   const [mediaUrl, setMediaUrl] = useState("")
   const [externalLink, setExternalLink] = useState("")
   const [videoLink, setVideoLink] = useState("") // ✅ new field
+  const [productLink, setProductLink] = useState("") // ✅ product link field
 
 
   // targeting removed — only budget is required now
@@ -210,8 +211,8 @@ const compressed = await imageCompression(file, options)
         bannerUrl
       )
     if (step === 1) {
-      if (category === "Video") return videoLink.trim().length > 5 // ✅ use link
-      if (category === "Picture") return !!mediaUrl
+      if (category === "Video") return videoLink.trim().length > 5 
+      if (category === "Advertise Product") return productLink.trim().length > 5
       if (["Survey", "Third-Party Task", "App Download"].includes(category))
         return externalLink.trim().length > 5
       return true
@@ -268,13 +269,13 @@ const compressed = await imageCompression(file, options)
       description: description.trim(),
       category,
       bannerUrl,
-      mediaUrl: category === "Video" ? videoLink : mediaUrl, // ✅ use link
-      externalLink: externalLink || "",
+      mediaUrl: category === "Video" ? videoLink : mediaUrl,
+      externalLink: category === "Advertise Product" ? productLink : (externalLink || ""),
       budget: numericBudget,
       estimatedLeads,
       costPerLead: currentCPL,
       status: "Active",
-createdAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
     }
 
     try {
@@ -415,13 +416,20 @@ const getEmbeddedVideo = (url: string) => {
                   onChange={(e) => setVideoLink(e.target.value)}
                 />
               )}
-              {category === "Picture" && (
-                <Dropzone
-                  label="Upload image"
-                  accept="image/*"
-                  previewUrl={mediaUrl}
-                  onFileSelected={(f) => handleFileSelected(f, "media")}
-                />
+              {category === "Advertise Product" && (
+                <div>
+                  <label className="text-sm font-medium text-stone-700 block mb-2">
+                    Product Link
+                  </label>
+                  <Input
+                    placeholder="Enter product URL (https://...)"
+                    value={productLink}
+                    onChange={(e) => setProductLink(e.target.value)}
+                  />
+                  <p className="text-xs text-stone-500 mt-1">
+                    Enter the URL where people can purchase your product
+                  </p>
+                </div>
               )}
               {(category === "Survey" ||
                 category === "Third-Party Task" ||
@@ -523,11 +531,6 @@ const getEmbeddedVideo = (url: string) => {
   )
 })()}
 
-              {category === "Picture" && mediaUrl && (
-                <div className="w-full mt-3 rounded overflow-hidden">
-                  <Image src={mediaUrl} alt="media" width={1200} height={800} className="w-full object-cover" />
-                </div>
-              )}
               {(category === "Survey" ||
                 category === "Third-Party Task" ||
                 category === "App Download") &&
@@ -541,6 +544,16 @@ const getEmbeddedVideo = (url: string) => {
                     Open link
                   </a>
                 )}
+              {category === "Advertise Product" && productLink && (
+                <a
+                  className="text-amber-600 underline mt-2 block"
+                  href={productLink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View Product
+                </a>
+              )}
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button variant="outline" onClick={() => setStep(2)}>

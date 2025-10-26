@@ -1,99 +1,96 @@
-import React, { useState } from "react"
-import { PaystackModal } from "@/components/paystack-modal"
+"use client"
+
+import { useState } from "react"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import toast from "react-hot-toast"
+import { PaystackModal } from "@/components/paystack-modal"
 
-export type PaystackFundWalletModalProps = {
+interface PaystackFundWalletModalProps {
   open: boolean
-  email?: string
   onClose: () => void
-  onSuccess?: () => void
+  onSuccess: () => void
+  email?: string
 }
 
-export const PaystackFundWalletModal: React.FC<PaystackFundWalletModalProps> = ({ open, email, onClose, onSuccess }) => {
-  const [amount, setAmount] = useState<number>(0)
+export function PaystackFundWalletModal({
+  open,
+  onClose,
+  onSuccess,
+  email = "",
+}: PaystackFundWalletModalProps) {
+  const [amount, setAmount] = useState("")
+  const [userEmail, setUserEmail] = useState(email)
   const [paystackOpen, setPaystackOpen] = useState(false)
 
-  if (!open) return null
-
-  const handleSubmit = () => {
-    if (!email) {
-      toast.error('Email address is required')
-      return
-    }
-    if (!amount || amount < 100) {
-      toast.error('Minimum amount is ₦100')
-      return
-    }
-    setPaystackOpen(true)
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold">Fund Wallet</h2>
-          <button
-            onClick={onClose}
-            className="text-stone-400 hover:text-stone-600"
-          >
-            &times;
-          </button>
-        </div>
-        
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">
-              Amount (₦)
-            </label>
+            <Label htmlFor="amount">Amount (₦)</Label>
             <Input
+              id="amount"
               type="number"
-              min={100}
-              value={amount || ""}
-              onChange={e => setAmount(Number(e.target.value))}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
               placeholder="Enter amount"
+              className="mt-1"
+              min="100"
             />
-            <p className="text-xs text-stone-500 mt-1">
-              Minimum amount: ₦100
-            </p>
           </div>
 
-          <div className="pt-4">
-            <Button
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={!amount || amount < 100}
-              onClick={handleSubmit}
-            >
-              Proceed to Payment
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="mt-1"
+            />
+          </div>
+
+          <div className="mt-4">
+            {Number(amount) >= 100 && userEmail ? (
+              <Button 
+                className="w-full bg-gold-500 hover:bg-gold-600 text-white"
+                onClick={() => setPaystackOpen(true)}
+              >
+                Pay Now
+              </Button>
+            ) : (
+              <Button
+                disabled
+                className="w-full"
+                variant="secondary"
+              >
+                Enter amount (min. ₦100) and email
+              </Button>
+            )}
           </div>
         </div>
 
         {paystackOpen && (
           <PaystackModal
-            amount={amount}
-            email={email || ""}
+            amount={Number(amount)}
+            email={userEmail}
             open={paystackOpen}
-            onSuccess={() => {
+            onSuccess={(reference) => {
+              onSuccess()
+              setAmount("")
               setPaystackOpen(false)
-              if (onSuccess) onSuccess()
-              onClose()
             }}
             onClose={() => {
-              setPaystackOpen(false)
               onClose()
+              setAmount("")
+              setPaystackOpen(false)
             }}
           />
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

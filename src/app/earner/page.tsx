@@ -9,6 +9,7 @@ import { auth, db } from "@/lib/firebase"
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   query,
   where,
@@ -57,6 +58,7 @@ export default function EarnerDashboard() {
     campaignRejected: 0,
     campaignApproved: 0,
   })
+  const [activated, setActivated] = useState<boolean>(false)
 
   const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
@@ -68,7 +70,15 @@ export default function EarnerDashboard() {
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
       if (!u) {
-        router.push("/auth/sign-in")
+        // Use replace instead of push to prevent back navigation
+        router.replace("/auth/sign-in")
+        return
+      }
+      
+      // Check if user exists in earners collection
+      const earnerDoc = await getDoc(doc(db, "earners", u.uid))
+      if (!earnerDoc.exists()) {
+        router.replace("/auth/sign-in")
         return
       }
       // Profile and stats
@@ -84,6 +94,7 @@ export default function EarnerDashboard() {
             leadsGenerated: d.leadsGenerated || 0,
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
+          setActivated(!!d.activated)
         }
       })
 
@@ -229,13 +240,11 @@ export default function EarnerDashboard() {
                   >
                     Withdraw
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push("/earner/campaigns")}
-                  >
-                    Perform Tasks
-                  </Button>
+                  {activated ? (
+                    <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => router.push("/earner/activate")}>Activate to Participate (₦2,000)</Button>
+                  )}
                 </div>
               </div>
             </CardContent>

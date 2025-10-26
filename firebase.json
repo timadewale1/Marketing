@@ -15,5 +15,107 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }
-  ]
+  ],
+  "firestore": {
+    "indexes": {
+      "earnerTransactions": [
+        {
+          "collectionGroup": "earnerTransactions",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "userId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "createdAt",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "earnerTransactions",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "type",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "createdAt",
+              "order": "DESCENDING"
+            }
+          ]
+        }
+      ],
+      "advertiserTransactions": [
+        {
+          "collectionGroup": "advertiserTransactions",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "userId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "createdAt",
+              "order": "DESCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "advertiserTransactions",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "type",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "createdAt",
+              "order": "DESCENDING"
+            }
+          ]
+        }
+      ],
+      "referrals": [
+        {
+          "collectionGroup": "referrals",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "referrerId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            }
+          ]
+        },
+        {
+          "collectionGroup": "referrals",
+          "queryScope": "COLLECTION",
+          "fields": [
+            {
+              "fieldPath": "referredId",
+              "order": "ASCENDING"
+            },
+            {
+              "fieldPath": "status",
+              "order": "ASCENDING"
+            }
+          ]
+        }
+      ]
+    }
+  }
 }

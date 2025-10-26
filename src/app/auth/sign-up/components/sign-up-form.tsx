@@ -48,6 +48,12 @@ const formSchema = z.object({
   action: z.enum(["advertiser", "earner"], {
     message: "Please select what you want to do",
   }),
+  acceptTerms: z.boolean().refine(val => val === true, {
+    message: "You must accept the Terms of Service",
+  }),
+  acceptPrivacy: z.boolean().refine(val => val === true, {
+    message: "You must accept the Privacy Policy",
+  }),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -142,13 +148,16 @@ export function SignUpForm() {
 
         // If this user was referred, create a referral record
         if (referralId) {
+          // Store a pending referral. The business rule has changed: earner referrer
+          // will be paid only after the referred earner completes onboarding AND pays
+          // the activation fee. We set amount to 1000 and leave status as pending.
           await setDoc(doc(db, "referrals", `${referralId}_${cred.user.uid}`), {
             referrerId: referralId,
             referredId: cred.user.uid,
             email: data.email,
             name: data.name,
-            amount: 500,
-            status: 'pending', // will be marked as completed after onboarding
+            amount: 1000, // pay referrer ₦1000 when the referred earner activates
+            status: 'pending',
             createdAt: new Date(),
           });
         }
@@ -289,6 +298,55 @@ export function SignUpForm() {
                 <SelectItem value="earner">Earn by promoting</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Terms and Privacy Policy */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                {...register("acceptTerms")}
+                className="mt-1"
+              />
+              <label className="text-sm text-stone-300">
+                I agree to the{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  className="text-yellow-400 hover:text-yellow-300 underline"
+                >
+                  Terms of Service
+                </a>
+              </label>
+            </div>
+            {errors.acceptTerms && (
+              <p className="text-sm text-red-300 mt-1">
+                {errors.acceptTerms.message}
+              </p>
+            )}
+
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                {...register("acceptPrivacy")}
+                className="mt-1"
+              />
+              <label className="text-sm text-stone-300">
+                I agree to the{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  className="text-yellow-400 hover:text-yellow-300 underline"
+                >
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+            {errors.acceptPrivacy && (
+              <p className="text-sm text-red-300 mt-1">
+                {errors.acceptPrivacy.message}
+              </p>
+            )}
           </div>
 
           {/* Submit Button */}

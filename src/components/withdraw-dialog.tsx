@@ -41,38 +41,38 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-[425px] bg-white p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-stone-800">Withdraw Funds</DialogTitle>
-          <DialogDescription className="text-stone-600">
+          <DialogTitle className="text-xl font-semibold text-primary-800">Withdraw Funds</DialogTitle>
+          <DialogDescription className="text-primary-600">
             Enter amount to withdraw to your bank account.
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-6 space-y-4">
           {bankDetails ? (
-            <div className="p-4 bg-stone-50 rounded-lg border border-stone-100">
-              <div className="text-sm text-stone-600">Bank Account</div>
-              <div className="font-medium text-stone-800">{bankDetails.accountName}</div>
-              <div className="text-sm text-stone-600">{bankDetails.bankName} • {bankDetails.accountNumber}</div>
+            <div className="p-4 bg-primary-50 rounded-lg border border-primary-100">
+              <div className="text-sm text-primary-600">Bank Account</div>
+              <div className="font-medium text-primary-800">{bankDetails.accountName}</div>
+              <div className="text-sm text-primary-600">{bankDetails.bankName} • {bankDetails.accountNumber}</div>
             </div>
           ) : (
-            <div className="text-center p-4 bg-amber-50 text-amber-700 rounded-lg">
+            <div className="text-center p-4 bg-gold-50 text-gold-700 rounded-lg">
               Please add your bank details in your profile first.
             </div>
           )}
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-stone-600">Available balance</span>
-              <span className="font-medium text-stone-800">₦{maxAmount.toLocaleString()}</span>
+              <span className="text-primary-600">Available balance</span>
+              <span className="font-medium text-primary-800">₦{maxAmount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-stone-600">Minimum withdrawal</span>
-              <span className="font-medium text-stone-800">₦{minWithdraw.toLocaleString()}</span>
+              <span className="text-primary-600">Minimum withdrawal</span>
+              <span className="font-medium text-primary-800">₦{minWithdraw.toLocaleString()}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-stone-700">Amount to withdraw</label>
+            <label className="text-sm font-medium text-primary-700">Amount to withdraw</label>
             <Input
               type="number"
               value={amount}
@@ -109,14 +109,14 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
                 Number(amount) > maxAmount ||
                 !bankDetails
               }
-              className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium"
+              className="flex-1 bg-gold-500 hover:bg-gold-600 text-primary-900 font-medium"
             >
               {submitting ? "Processing..." : "Withdraw"}
             </Button>
             <Button
               variant="outline"
               onClick={onClose}
-              className="hover:bg-stone-100"
+              className="hover:bg-primary-100"
             >
               Cancel
             </Button>

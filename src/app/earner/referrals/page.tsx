@@ -73,12 +73,25 @@ export default function ReferralsPage() {
         <Card className="bg-white/80 backdrop-blur p-6 mb-6">
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Share your invite link</h2>
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
-                Earn ₦500 per signup
-              </div>
-              <div className="text-xs text-stone-500">
-                *Bonus paid after referral completes onboarding
+            <div className="mb-4 space-y-3">
+              <div className="bg-stone-50 p-4 rounded-lg space-y-2">
+                <h3 className="font-medium text-stone-800">Earn by referring others:</h3>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                    ₦1,000 per activated earner
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    Paid when referred earner pays ₦2,000 activation fee
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                    0.5% of first campaign payment
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    When referring advertisers who create their first campaign
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -153,7 +166,7 @@ export default function ReferralsPage() {
                         {r.status === 'completed' ? 'Completed' : 'Pending'}
                       </div>
                       <div className="font-bold text-amber-600">
-                        ₦{(r.amount || 500).toLocaleString()}
+                        ₦{(r.amount || 1000).toLocaleString()}
                       </div>
                     </div>
                   </div>

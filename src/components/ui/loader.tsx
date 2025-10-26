@@ -15,7 +15,7 @@ export function Loader({ size = "md", className = "" }: LoaderProps) {
   return (
     <div className="flex items-center justify-center">
       <div
-        className={`animate-spin rounded-full border-4 border-stone-200 border-t-amber-500 ${sizeClasses[size]} ${className}`}
+        className={`animate-spin rounded-full border-4 border-primary-200 border-t-gold-500 ${sizeClasses[size]} ${className}`}
         role="status"
         aria-label="Loading"
       />
