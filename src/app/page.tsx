@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-primary-50 via-gold-100 to-primary-100">
+      <section className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="absolute inset-0">
           <Image
             src="/hero-bg.jpg"
@@ -17,7 +17,7 @@ export default function HomePage() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-900/80 to-primary-900/40 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-stone-900/40 backdrop-blur-[2px]" />
         </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
@@ -29,10 +29,10 @@ export default function HomePage() {
               Join our platform to earn by participating in marketing campaigns or reach your target audience effectively through our network of engaged users.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button asChild className="h-12 px-8 text-lg bg-gold-500 hover:bg-gold-600 text-primary-900">
+              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
                 <Link href="/auth/sign-up">Start Earning</Link>
               </Button>
-              <Button asChild variant="outline" className="h-12 px-8 text-lg">
+              <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
                 <Link href="/auth/sign-up">Create Campaigns</Link>
               </Button>
             </div>
@@ -91,9 +91,9 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-primary-50">
+      <section className="py-20 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-primary-900 mb-12">
+          <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
             How It Works
           </h2>
 

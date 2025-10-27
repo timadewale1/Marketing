@@ -267,7 +267,7 @@ export default function CampaignDetailPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-200 via-gold-100 to-primary-300">
+    <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
       <div className="px-6 py-8 max-w-3xl mx-auto">
         <PageLoader />
       </div>
@@ -275,9 +275,9 @@ export default function CampaignDetailPage() {
   );
 
   if (!campaign) return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-200 via-gold-100 to-primary-300">
+    <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
       <div className="px-6 py-8 max-w-3xl mx-auto text-center">
-        <p className="text-primary-700">Campaign not found</p>
+        <p className="text-stone-700">Campaign not found</p>
       </div>
     </div>
   );
@@ -285,18 +285,18 @@ export default function CampaignDetailPage() {
   const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-200 via-gold-100 to-primary-300">
+    <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
       <div className="px-6 py-8 max-w-3xl mx-auto">
         <div className="mb-6 flex items-center gap-3">
           <Button variant="ghost" onClick={() => router.back()} className="hover:bg-white/20">
             <ArrowLeft size={16} className="mr-2" /> Back
           </Button>
-          <h1 className="text-2xl font-semibold text-primary-800">{campaign.title}</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">{campaign.title}</h1>
         </div>
 
-        <Card className="bg-white/80 backdrop-blur">
+        <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
           <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
-            <div className="absolute inset-0 bg-primary-100">
+            <div className="absolute inset-0 bg-stone-100">
               <Image
                 src={campaign.bannerUrl || "/placeholders/default.jpg"}
                 alt={campaign.title || "Campaign banner"}
@@ -305,27 +305,27 @@ export default function CampaignDetailPage() {
               />
             </div>
             <div className="absolute top-3 right-3">
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/90 text-primary-800">
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/90 text-stone-800">
                 {campaign.category}
               </span>
             </div>
           </div>
           <div className="p-6">
-            <p className="text-primary-700">{campaign.description}</p>
-            <div className="mt-4 p-4 bg-gold-50 rounded-lg border border-gold-100">
-              <div className="text-sm font-medium text-primary-600">You earn per lead</div>
-              <div className="text-2xl font-bold text-gold-600">₦{earnerPrice.toLocaleString()}</div>
+            <p className="text-stone-700">{campaign.description}</p>
+            <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-100">
+              <div className="text-sm font-medium text-stone-600">You earn per lead</div>
+              <div className="text-2xl font-bold text-amber-600">₦{earnerPrice.toLocaleString()}</div>
             </div>
           </div>
         </Card>
 
         {/* Instructions & proof */}
-        <Card className="mt-6 p-6 bg-white/80 backdrop-blur">
-          <h3 className="text-xl font-semibold mb-4 text-primary-800">How to participate</h3>
-          <div className="space-y-3 text-primary-700">
+        <Card className="mt-6 p-6 bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
+          <h3 className="text-xl font-semibold mb-4 text-stone-800">How to participate</h3>
+          <div className="space-y-3 text-stone-700">
             {/* Campaign Resources */}
             {(campaign.videoUrl || campaign.externalLink || (campaign.mediaUrls?.length ?? 0) > 0) && (
-              <div className="mb-4 p-3 bg-primary-50 rounded border border-primary-100">
+              <div className="mb-4 p-3 bg-amber-50 rounded border border-amber-100">
                 <h4 className="text-lg font-medium mb-2">Campaign Resources:</h4>
                 {campaign.videoUrl && (
                   <div className="mb-3">
@@ -349,7 +349,7 @@ export default function CampaignDetailPage() {
                       href={campaign.externalLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gold-600 hover:underline break-all"
+                      className="text-amber-600 hover:underline break-all"
                     >
                       {campaign.externalLink}
                     </a>
@@ -377,18 +377,18 @@ export default function CampaignDetailPage() {
 
             {/* Campaign Instructions */}
             {campaign.description ? (
-              <div className="p-3 bg-primary-50 rounded border border-primary-100">
+              <div className="p-3 bg-amber-50 rounded border border-amber-100">
                 <div className="prose max-w-none">
-                  <h4 className="text-lg font-medium mb-2 text-primary-800">Instructions from Advertiser:</h4>
-                  <div className="whitespace-pre-wrap text-primary-700">{campaign.description}</div>
+                  <h4 className="text-lg font-medium mb-2 text-stone-800">Instructions from Advertiser:</h4>
+                  <div className="whitespace-pre-wrap text-stone-700">{campaign.description}</div>
                 </div>
               </div>
             ) : (
               <>
-                <p className="text-primary-700">Follow the instructions below to complete the task and provide proof for verification.</p>
-                <div className="p-3 bg-primary-50 rounded border border-primary-100 space-y-3">
-                  <p className="font-medium text-primary-800">Required for all campaigns:</p>
-                  <ul className="list-disc pl-4 text-primary-700 space-y-2">
+                <p className="text-stone-700">Follow the instructions below to complete the task and provide proof for verification.</p>
+                <div className="p-3 bg-amber-50 rounded border border-amber-100 space-y-3">
+                  <p className="font-medium text-stone-800">Required for all campaigns:</p>
+                  <ul className="list-disc pl-4 text-stone-700 space-y-2">
                     <li>Complete the task as instructed</li>
                     <li>Take a clear screenshot showing proof of completion</li>
                     <li>Upload the screenshot using the form below</li>
@@ -399,8 +399,8 @@ export default function CampaignDetailPage() {
                     "TikTok Share", "YouTube Subscribe", "YouTube Like",
                     "YouTube Comment"].includes(campaign.category || "") && (
                     <div className="mt-4">
-                      <p className="font-medium text-primary-800">For social media campaigns:</p>
-                      <p className="text-primary-700">Also provide your social media handle for verification</p>
+                      <p className="font-medium text-stone-800">For social media campaigns:</p>
+                      <p className="text-stone-700">Also provide your social media handle for verification</p>
                     </div>
                   )}
                 </div>
@@ -410,7 +410,7 @@ export default function CampaignDetailPage() {
 
           <div className="mt-6 space-y-4">
             <div>
-              <label className="text-sm font-medium text-primary-700">Note for advertiser (optional)</label>
+              <label className="text-sm font-medium text-stone-700">Note for advertiser (optional)</label>
               <Textarea
                 placeholder="Any additional information you want to share..."
                 value={note}
@@ -421,7 +421,7 @@ export default function CampaignDetailPage() {
 
             {(campaign.category === "Survey" || campaign.category === "Third-Party Task") && (
               <div>
-                <label className="text-sm font-medium text-primary-700">Proof Link</label>
+                <label className="text-sm font-medium text-stone-700">Proof Link</label>
                 <Input
                   placeholder="Paste link to completed task..."
                   value={linkProof}
@@ -447,24 +447,24 @@ export default function CampaignDetailPage() {
               "YouTube Comment",
             ].includes(campaign.category || "") && (
               <div>
-                <label className="text-sm font-medium text-primary-700">Your social handle</label>
+                <label className="text-sm font-medium text-stone-700">Your social handle</label>
                 <Input
                   placeholder="e.g. @yourhandle or https://..."
                   value={socialHandle}
                   onChange={(e) => setSocialHandle(e.target.value)}
                   className="mt-1"
                 />
-                <p className="text-xs text-primary-500 mt-1">We may ask for a link or screenshot as proof.</p>
+                <p className="text-xs text-stone-500 mt-1">We may ask for a link or screenshot as proof.</p>
               </div>
             )}
 
             {(campaign.category === "Video" || campaign.category === "Picture") && (
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-primary-700">Upload proof file</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-primary-300 border-dashed rounded-lg">
+                <label className="block text-sm font-medium text-stone-700">Upload proof file</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
                   <div className="space-y-1 text-center">
-                    <div className="text-sm text-primary-600">
-                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-gold-600 hover:text-gold-500">
+                    <div className="text-sm text-stone-600">
+                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500">
                         <span>Upload a file</span>
                         <input
                           id="file-upload"
@@ -474,10 +474,10 @@ export default function CampaignDetailPage() {
                           className="sr-only"
                         />
                       </label>
-                      <p className="pl-1 text-primary-600">or drag and drop</p>
+                      <p className="pl-1 text-stone-600">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-primary-500">Image or video files</p>
-                    {file && <p className="text-sm text-gold-600">{file.name}</p>}
+                    <p className="text-xs text-stone-500">Image or video files</p>
+                    {file && <p className="text-sm text-amber-600">{file.name}</p>}
                   </div>
                 </div>
               </div>
@@ -485,7 +485,7 @@ export default function CampaignDetailPage() {
 
             <div className="flex gap-3 pt-4">
               <Button
-                className="flex-1 bg-gold-500 hover:bg-gold-600 text-primary-900 font-medium h-12"
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium h-12"
                 onClick={submitParticipation}
                 disabled={submitting}
               >
@@ -494,7 +494,7 @@ export default function CampaignDetailPage() {
               <Button
                 variant="outline"
                 onClick={() => router.push("/earner/campaigns")}
-                className="hover:bg-primary-100"
+                className="hover:bg-stone-100"
               >
                 Cancel
               </Button>
