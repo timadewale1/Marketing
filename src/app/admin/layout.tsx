@@ -120,14 +120,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-stone-100">
+    <div className="flex h-screen bg-gradient-to-br from-stone-100 via-amber-50 to-stone-200">
       {/* Sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow pt-5 bg-white border-r">
+        <div className="flex flex-col flex-grow pt-5 bg-white/70 backdrop-blur border-r border-stone-200">
           <div className="flex items-center flex-shrink-0 px-4 mb-5">
-            <h1 className="text-lg font-semibold text-stone-900">
-              Admin Dashboard
-            </h1>
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+              <h1 className="text-lg font-semibold text-stone-900">Admin</h1>
+            </div>
           </div>
           <div className="flex flex-col flex-1">
             <nav className="flex-1 px-2 pb-4 space-y-1">
@@ -139,13 +140,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     href={item.href}
                     className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg ${
                       isActive
-                        ? "bg-amber-50 text-amber-700"
-                        : "text-stone-700 hover:bg-stone-50"
+                        ? "bg-amber-100 text-amber-700"
+                        : "text-stone-700 hover:bg-stone-100"
                     }`}
                   >
                     <item.icon
                       className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        isActive ? "text-amber-500" : "text-stone-400"
+                        isActive ? "text-amber-600" : "text-stone-400"
                       }`}
                     />
                     {item.name}
@@ -167,7 +168,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     });
                 }}
                 variant="ghost"
-                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 rounded-lg"
+                className="w-full flex items-center justify-start px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-100 rounded-lg"
               >
                 <LogOut className="mr-3 h-5 w-5 text-stone-400" />
                 Log Out

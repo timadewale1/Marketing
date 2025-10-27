@@ -1,8 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Wallet, Users, TrendingUp } from 'lucide-react';
+import { ArrowRight, Coins, Target, UserCheck, Wallet, Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { TypedText } from '@/components/ui/typed-text';
 
 export default function HomePage() {
   return (
@@ -19,13 +20,31 @@ export default function HomePage() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-stone-900/40 backdrop-blur-[2px]" />
         </div>
+
+        {/* Logo */}
+        <div className="relative">
+          <div className="container mx-auto px-4 pt-6">
+            <Link href="/" className="inline-flex items-center text-2xl font-bold text-white">
+              <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md mr-2">BT</span>
+              BlessedTokens
+            </Link>
+          </div>
+        </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
           <div className="max-w-2xl">
-            <h1 className="text-5xl sm:text-6xl font-bold text-primary-900 mb-6">
-              Earn Money Through Social Impact
+            <h1 className="text-5xl sm:text-6xl font-bold text-white mb-6">
+              <TypedText
+                strings={[
+                  'Earn Money Through Social Impact',
+                  'Get Paid for Social Engagement',
+                  'Monetize Your Social Reach',
+                  'Earn While Making an Impact'
+                ]}
+                className="text-white"
+              />
             </h1>
-            <p className="text-xl text-primary-700 mb-8">
+            <p className="text-xl text-white mb-8">
               Join our platform to earn by participating in marketing campaigns or reach your target audience effectively through our network of engaged users.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -37,18 +56,18 @@ export default function HomePage() {
               </Button>
             </div>
             
-            <div className="mt-12 flex gap-8">
+            <div className="mt-12 flex flex-wrap gap-8 text-white">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">10k+ Active Users</span>
+                <Users className="w-6 h-6 text-amber-500" />
+                <span>10k+ Active Users</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">₦50M+ Paid Out</span>
+                <Coins className="w-6 h-6 text-amber-500" />
+                <span>₦50M+ Paid Out</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">500+ Campaigns</span>
+                <Target className="w-6 h-6 text-amber-500" />
+                <span>500+ Campaigns</span>
               </div>
             </div>
           </div>
@@ -56,33 +75,33 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-stone-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-primary-900 mb-12">
+          <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
             Why Choose Our Platform?
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <Wallet className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Earn Money</h3>
-              <p className="text-primary-600">
+            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
+              <Wallet className="w-12 h-12 text-amber-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Earn Money</h3>
+              <p className="text-stone-600">
                 Participate in various marketing campaigns and get paid for your engagement. Complete tasks like surveys, social media interactions, and more.
               </p>
             </Card>
             
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <Users className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Build Community</h3>
-              <p className="text-primary-600">
+            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
+              <Users className="w-12 h-12 text-amber-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Build Community</h3>
+              <p className="text-stone-600">
                 Connect with like-minded individuals, refer friends, and grow your network while earning through our referral program.
               </p>
             </Card>
             
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <TrendingUp className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Market Growth</h3>
-              <p className="text-primary-600">
+            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
+              <TrendingUp className="w-12 h-12 text-amber-500 mb-4" />
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Market Growth</h3>
+              <p className="text-stone-600">
                 Advertisers can reach their target audience effectively and track campaign performance in real-time.
               </p>
             </Card>
@@ -100,48 +119,48 @@ export default function HomePage() {
           <div className="grid md:grid-cols-3 gap-12 items-center">
             <div className="space-y-8">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  1
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <UserCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Sign Up & Activate</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Sign Up & Activate</h3>
+                  <p className="text-stone-600">
                     Create your account and activate it with a one-time fee of ₦2,000 to start participating in campaigns.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  2
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Choose Campaigns</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Choose Campaigns</h3>
+                  <p className="text-stone-600">
                     Browse available campaigns and select those that match your interests and skills.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  3
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Complete Tasks</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Complete Tasks</h3>
+                  <p className="text-stone-600">
                     Follow campaign instructions and submit your work for review.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  4
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Wallet className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Get Paid</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Get Paid</h3>
+                  <p className="text-stone-600">
                     Receive payment directly to your wallet once your submission is approved.
                   </p>
                 </div>
@@ -150,7 +169,7 @@ export default function HomePage() {
 
             <div className="relative h-[500px] rounded-lg overflow-hidden">
               <Image
-                src="/how-it-works.jpg"
+                src="/howitworks.jpg"
                 alt="Platform demonstration"
                 fill
                 className="object-cover"
@@ -233,41 +252,44 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-            <footer className="bg-primary-900 text-primary-400 py-12">
+            <footer className="bg-stone-900 text-stone-400 py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-bold mb-4">Platform</h3>
+              <div className="flex items-center gap-2 mb-6">
+                <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+                <span className="text-white font-bold">BlessedTokens</span>
+              </div>
               <ul className="space-y-2">
-                <li><Link href="/auth/sign-up" className="hover:text-gold-500">Start Earning</Link></li>
-                <li><Link href="/auth/sign-up" className="hover:text-gold-500">Create Campaign</Link></li>
-                <li><Link href="/faq" className="hover:text-gold-500">FAQ</Link></li>
+                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning</Link></li>
+                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Create Campaign</Link></li>
+                <li><Link href="/faq" className="hover:text-amber-500">FAQ</Link></li>
               </ul>
             </div>
             
             <div>
-              <h3 className="font-bold mb-4">Legal</h3>
+              <h3 className="font-bold text-white mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><Link href="/contact" className="hover:text-gold-500">Contact Us</Link></li>
-                <li><Link href="/terms" className="hover:text-gold-500">Terms of Service</Link></li>
-                <li><Link href="/privacy" className="hover:text-gold-500">Privacy Policy</Link></li>
+                <li><Link href="/contact" className="hover:text-amber-500">Contact Us</Link></li>
+                <li><Link href="/terms" className="hover:text-amber-500">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-amber-500">Privacy Policy</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-bold mb-4">Follow Us</h3>
+              <h3 className="font-bold text-white mb-4">Follow Us</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-gold-500">Twitter</a></li>
-                <li><a href="#" className="hover:text-gold-500">Facebook</a></li>
-                <li><a href="#" className="hover:text-gold-500">Instagram</a></li>
-                <li><a href="#" className="hover:text-gold-500">LinkedIn</a></li>
+                <li><a href="#" className="hover:text-amber-500">Twitter</a></li>
+                <li><a href="#" className="hover:text-amber-500">Facebook</a></li>
+                <li><a href="#" className="hover:text-amber-500">Instagram</a></li>
+                <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li>
               </ul>
             </div>
 
           </div>
 
-          <div className="mt-12 pt-8 border-t border-primary-800 text-center text-sm">
-            &copy; 2024 Blessing. All rights reserved.
+          <div className="mt-12 pt-8 border-t border-stone-800 text-center text-sm">
+            &copy; 2024 BlessedTokens. All rights reserved.
           </div>
         </div>
       </footer>
