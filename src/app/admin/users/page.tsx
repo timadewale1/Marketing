@@ -264,7 +264,7 @@ export default function UsersPage() {
                       </Button>
                     </DialogTrigger>
                     {selectedUser && (
-                      <DialogContent className="bg-white border-stone-200">
+                      <DialogContent className="bg-stone-50 border-stone-200">
                         <DialogHeader>
                           <DialogTitle className="text-xl">Manage User Account</DialogTitle>
                           <DialogDescription className="text-stone-600">
@@ -281,7 +281,7 @@ export default function UsersPage() {
                               )
                             }
                             variant="outline"
-                            className="bg-white hover:bg-green-50 text-green-700 border-green-200"
+                            className="bg-stone-50 hover:bg-green-50 text-green-700 border-green-200"
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Activate Account
@@ -295,7 +295,7 @@ export default function UsersPage() {
                               )
                             }
                             variant="outline"
-                            className="bg-white hover:bg-red-50 text-red-700 border-red-200"
+                            className="bg-stone-50 hover:bg-red-50 text-red-700 border-red-200"
                           >
                             <Ban className="w-4 h-4 mr-2" />
                             Suspend Account
