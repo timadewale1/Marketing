@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Coins, Target, UserCheck, Wallet, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { ArrowRight, Coins, Target, UserCheck, Wallet, Users, TrendingUp, CheckCircle, Megaphone, Clipboard, SlidersHorizontal } from 'lucide-react';
+import Navbar from '@/components/navbar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypedText } from '@/components/ui/typed-text';
@@ -8,8 +9,10 @@ import { TypedText } from '@/components/ui/typed-text';
 export default function HomePage() {
   return (
     <div className="min-h-screen">
+      <Navbar />
+
       {/* Hero Section */}
-      <section className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
+      <section id="hero" className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="absolute inset-0">
           <Image
             src="/hero-bg.jpg"
@@ -18,7 +21,7 @@ export default function HomePage() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-stone-900/40 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/95 to-stone-900/60 backdrop-blur-xl" />
         </div>
 
         {/* Logo */}
@@ -75,31 +78,37 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-stone-50">
+      <section id="features" className="py-20 bg-stone-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
             Why Choose Our Platform?
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
-              <Wallet className="w-12 h-12 text-amber-500 mb-4" />
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <Wallet className="w-6 h-6" />
+              </div>
               <h3 className="text-xl font-semibold mb-3 text-stone-900">Earn Money</h3>
               <p className="text-stone-600">
                 Participate in various marketing campaigns and get paid for your engagement. Complete tasks like surveys, social media interactions, and more.
               </p>
             </Card>
-            
-            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
-              <Users className="w-12 h-12 text-amber-500 mb-4" />
+
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <Users className="w-6 h-6" />
+              </div>
               <h3 className="text-xl font-semibold mb-3 text-stone-900">Build Community</h3>
               <p className="text-stone-600">
                 Connect with like-minded individuals, refer friends, and grow your network while earning through our referral program.
               </p>
             </Card>
-            
-            <Card className="p-6 hover:shadow-lg transition-shadow bg-white/70 backdrop-blur">
-              <TrendingUp className="w-12 h-12 text-amber-500 mb-4" />
+
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <TrendingUp className="w-6 h-6" />
+              </div>
               <h3 className="text-xl font-semibold mb-3 text-stone-900">Market Growth</h3>
               <p className="text-stone-600">
                 Advertisers can reach their target audience effectively and track campaign performance in real-time.
@@ -110,7 +119,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
+      <section id="howitworks" className="py-20 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
             How It Works
@@ -178,48 +187,48 @@ export default function HomePage() {
 
             <div className="space-y-8">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A1
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Megaphone className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Advertiser — Sign Up & Fund</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2">Advertiser - Sign Up & Fund</h3>
+                  <p className="text-stone-600">
                     Create an account, verify your details, and fund your wallet to begin creating campaigns.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A2
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Clipboard className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Create Campaign</h3>
-                  <p className="text-primary-600">
+                  <p className="text-stone-600">
                     Define your objective, target demographics, creatives and set the budget and cost-per-lead.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A3
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <SlidersHorizontal className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Target & Optimize</h3>
-                  <p className="text-primary-600">
+                  <p className="text-stone-600">
                     Choose who sees your campaign, set pacing and monitor performance to optimize for quality leads.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A4
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Launch & Track</h3>
-                  <p className="text-primary-600">
+                  <p className="text-stone-600">
                     Launch your campaign, review submissions, approve quality leads, and pay only for validated results.
                   </p>
                 </div>
@@ -230,21 +239,21 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-gold-500 to-gold-600">
+      <section id="cta" className="py-20 bg-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-primary-900 mb-6">
+          <h2 className="text-3xl font-bold text-stone-900 mb-6">
             Ready to Start Your Journey?
           </h2>
-          <p className="text-xl text-primary-900/90 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-stone-700 mb-8 max-w-2xl mx-auto">
             Join thousands of users who are already earning through our platform. Start participating in campaigns or create your own today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="h-12 px-8 text-lg bg-white hover:bg-white/90 text-gold-600">
+            <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
               <Link href="/auth/sign-up">
                 Start Earning Now <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
+            <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
               <Link href="/auth/sign-up">Create Your Campaign</Link>
             </Button>
           </div>

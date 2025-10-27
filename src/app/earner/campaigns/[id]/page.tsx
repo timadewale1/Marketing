@@ -63,7 +63,6 @@ export default function CampaignDetailPage() {
 
   // participation fields
   const [note, setNote] = useState("");
-  const [linkProof, setLinkProof] = useState("");
   const [socialHandle, setSocialHandle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -247,7 +246,7 @@ export default function CampaignDetailPage() {
         category: campaign.category || null,
         note: note || null,
         socialHandle: socialHandle || null,
-        proofUrl: proofUrl || linkProof || null,
+        proofUrl: proofUrl || null,
         status: "Pending",
         createdAt: serverTimestamp(),
         earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
@@ -420,14 +419,27 @@ export default function CampaignDetailPage() {
             </div>
 
             {(campaign.category === "Survey" || campaign.category === "Third-Party Task") && (
-              <div>
-                <label className="text-sm font-medium text-stone-700">Proof Link</label>
-                <Input
-                  placeholder="Paste link to completed task..."
-                  value={linkProof}
-                  onChange={(e) => setLinkProof(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
+                  <div className="space-y-1 text-center">
+                    <div className="text-sm text-stone-600">
+                      <label htmlFor="proof-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
+                        <span>Upload screenshot</span>
+                        <input
+                          id="proof-screenshot-upload"
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={handleFileSelect}
+                          className="sr-only"
+                        />
+                      </label>
+                      <p className="pl-1 text-stone-600">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-stone-500">A clear screenshot or image of completion</p>
+                    {file && <p className="text-sm text-amber-600">{file.name}</p>}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -489,7 +501,7 @@ export default function CampaignDetailPage() {
                 onClick={submitParticipation}
                 disabled={submitting}
               >
-                {submitting ? "Submitting..." : `Submit Participation — ₦${earnerPrice}`}
+                {submitting ? "Submitting..." : `Submit Participation - ₦${earnerPrice}`}
               </Button>
               <Button
                 variant="outline"
