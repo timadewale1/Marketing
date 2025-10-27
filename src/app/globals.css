@@ -1,22 +1,24 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 274 68% 25%;
+:root {
+  --background: 0 0% 100%;
+  --foreground: 274 68% 25%;
 
-    --primary: 265 89% 78%;
-    --primary-foreground: 274 68% 9%;
+  --primary: 265 89% 78%;
+  --primary-foreground: 274 68% 9%;
 
-    --accent: 39 100% 50%;
-    --accent-foreground: 39 100% 10%;
+  --accent: 39 100% 50%;
+  --accent-foreground: 39 100% 10%;
 
-    --muted: 265 10% 95%;
-    --muted-foreground: 265 5% 45%;
+  --muted: 265 10% 95%;
+  --muted-foreground: 265 5% 45%;
 
-    --border: 265 10% 85%;
-    --ring: 265 89% 78%;
+  --border: 265 10% 85%;
+  --ring: 265 89% 78%;
 
-    --radius: 0.5rem;
-  }
+  --radius: 0.5rem;
+}
+
+body {
+  background-color: rgb(250 250 249);
 }

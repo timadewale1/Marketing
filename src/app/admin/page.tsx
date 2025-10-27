@@ -64,16 +64,17 @@ export default function Page() {
         const totalCampaigns = campaignsSnap.size;
 
         // Total earnings calculation
-        // 1. Get campaign earnings (half of paid campaign amounts)
-        const campaignEarningsSnap = await getDocs(
-          query(collection(db, "campaigns"), where("status", "in", ["Completed", "Stopped"]))
-        );
-        const campaignEarnings = campaignEarningsSnap.docs.reduce(
-          (sum, doc) => sum + (doc.data().budget || 0) / 2, // Platform takes 50% of campaign payments
-          0
-        );
+        // Get total amount paid by advertisers for campaigns and take 50%
+        const campaignEarnings = campaignsSnap.docs.reduce((sum, doc) => {
+          const data = doc.data();
+          // Only include campaign if it has a payment reference (meaning payment was successful)
+          if (data.paymentRef) {
+            return sum + (data.budget || 0) / 2;  // Platform takes 50% of all campaign payments
+          }
+          return sum;
+        }, 0);
 
-        // 2. Get activation fees
+        // Add activation fees
         const activatedEarnersSnap = await getDocs(
           query(collection(db, "earners"), where("activated", "==", true))
         );

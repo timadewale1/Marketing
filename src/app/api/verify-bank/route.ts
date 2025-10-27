@@ -23,9 +23,18 @@ export async function POST(req: Request) {
 
     const data = await res.json()
 
-    if (!data.status) {
+    if (!res.ok) {
+      console.error('Bank verification failed:', data)
       return NextResponse.json(
-        { status: false, message: data.message || "Verification failed" },
+        { status: false, message: "Could not verify bank account. Please check the details and try again." },
+        { status: 400 }
+      )
+    }
+
+    if (!data.status) {
+      console.error('Bank verification error:', data)
+      return NextResponse.json(
+        { status: false, message: data.message || "Bank account verification failed" },
         { status: 400 }
       )
     }

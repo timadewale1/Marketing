@@ -173,30 +173,30 @@ export default function CampaignDetailPage() {
     }
 
     // basic validation depending on campaign type
-    const mediaCats = ["Video", "Picture"];
-    const linkCats = ["Survey", "Third-Party Task", "App Download"];
-    const socialCats = [
+    // Always require a screenshot for proof
+    if (!file) {
+      return toast.error("Please attach a screenshot as proof of completion");
+    }
+
+    // For social campaigns, also require the social handle
+    if ([
       "Instagram Follow",
-      "Instagram Like",
+      "Instagram Like", 
       "Instagram Share",
       "Twitter Follow",
       "Twitter Retweet",
-      "Facebook Like",
+      "Facebook Like", 
       "Facebook Share",
       "TikTok Follow",
       "TikTok Like",
       "TikTok Share",
       "YouTube Subscribe",
       "YouTube Like",
-      "YouTube Comment",
-    ];
-
-    if (mediaCats.includes(campaign.category || "")) {
-      if (!file) return toast.error("Attach an image/video proof file");
-    } else if (linkCats.includes(campaign.category || "")) {
-      if (!linkProof || linkProof.trim().length < 5) return toast.error("Provide a link proof");
-    } else if (socialCats.includes(campaign.category || "")) {
-      if (!socialHandle || socialHandle.trim().length < 3) return toast.error("Provide your social handle for verification");
+      "YouTube Comment"
+    ].includes(campaign.category || "")) {
+      if (!socialHandle || socialHandle.trim().length < 3) {
+        return toast.error("Please provide your social handle for verification");
+      }
     }
 
     setSubmitting(true);
@@ -385,27 +385,25 @@ export default function CampaignDetailPage() {
               </div>
             ) : (
               <>
-                <p className="text-primary-700">Follow instructions below depending on campaign type. Provide proof so the advertiser can verify.</p>
-                {campaign.category === "Survey" && (
-                  <p className="p-3 bg-primary-50 rounded border border-primary-100">
-                    Open the survey link and complete it. Paste the completion link or screenshot link as proof below.
-                  </p>
-                )}
-                {campaign.category === "Video" && (
-                  <p className="p-3 bg-primary-50 rounded border border-primary-100">
-                    Record the requested short video and upload it as proof. (Max file size depends on storage)
-                  </p>
-                )}
-                {campaign.category === "Picture" && (
-                  <p className="p-3 bg-primary-50 rounded border border-primary-100">
-                    Take a photo as instructed and upload it as proof.
-                  </p>
-                )}
-                {campaign.category === "Third-Party Task" && (
-                  <p className="p-3 bg-primary-50 rounded border border-primary-100">
-                    Complete external task and provide completion link or screenshot link as proof.
-                  </p>
-                )}
+                <p className="text-primary-700">Follow the instructions below to complete the task and provide proof for verification.</p>
+                <div className="p-3 bg-primary-50 rounded border border-primary-100 space-y-3">
+                  <p className="font-medium text-primary-800">Required for all campaigns:</p>
+                  <ul className="list-disc pl-4 text-primary-700 space-y-2">
+                    <li>Complete the task as instructed</li>
+                    <li>Take a clear screenshot showing proof of completion</li>
+                    <li>Upload the screenshot using the form below</li>
+                  </ul>
+                  {["Instagram Follow", "Instagram Like", "Instagram Share",
+                    "Twitter Follow", "Twitter Retweet", "Facebook Like",
+                    "Facebook Share", "TikTok Follow", "TikTok Like",
+                    "TikTok Share", "YouTube Subscribe", "YouTube Like",
+                    "YouTube Comment"].includes(campaign.category || "") && (
+                    <div className="mt-4">
+                      <p className="font-medium text-primary-800">For social media campaigns:</p>
+                      <p className="text-primary-700">Also provide your social media handle for verification</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>

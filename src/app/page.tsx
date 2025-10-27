@@ -10,7 +10,6 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-primary-50 via-gold-100 to-primary-100">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-gold-500/10 to-transparent" />
           <Image
             src="/hero-bg.jpg"
             alt="Marketing campaign illustration"
@@ -18,6 +17,7 @@ export default function HomePage() {
             className="object-cover"
             priority
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-900/80 to-primary-900/40 backdrop-blur-[2px]" />
         </div>
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
