@@ -142,82 +142,79 @@ export default function EarnerOnboarding() {
         profilePicUrl = await getDownloadURL(storageRef)
       }
 
-      // ✅ Create Paystack Wallet
-interface WalletData {
-  wallet: {
-    account_number: string;
-    bank: { name: string };
-  };
-  customer: {
-    customer_code: string;
-  };
-  isTest?: boolean;
-}
-let walletData: WalletData
+      /* 
+      // ✅ Wallet Creation - Temporarily disabled until Paystack DVA is set up
+      interface WalletData {
+        wallet: {
+          account_number: string;
+          bank: { name: string };
+        };
+        customer: {
+          customer_code: string;
+        };
+        isTest?: boolean;
+      }
+      let walletData: WalletData
 
-if (process.env.NEXT_PUBLIC_ENV === "dev") {
-  // 🔹 Fake wallet for dev mode
-  walletData = {
-    wallet: {
-      account_number: "1234567890",
-      bank: { name: "Test Bank" },
-    },
-    customer: {
-      customer_code: "CUS_TEST123",
-    },
-  }
-  // Dev: using fake wallet data for local testing
-  } else {
-    // 🔹 Real wallet creation on Paystack
-    const walletRes = await fetch("/api/create-wallet", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: user.email,
-        name: data.fullName,
-        phone: user.phoneNumber,
-      }),
-    })
-    const walletJson = await walletRes.json()
-    // If the API returned an error payload, surface it to the console so it's
-    // easier to debug in development and give a clearer message to the user.
-    if (!walletJson || !walletJson.wallet) {
-      console.error("Wallet creation failed:", walletJson)
-      throw new Error(walletJson?.error || walletJson?.message || "Wallet creation failed")
-    }
-    walletData = walletJson
-  }
+      if (process.env.NEXT_PUBLIC_ENV === "dev") {
+        // 🔹 Fake wallet for dev mode
+        walletData = {
+          wallet: {
+            account_number: "1234567890",
+            bank: { name: "Test Bank" },
+          },
+          customer: {
+            customer_code: "CUS_TEST123",
+          },
+        }
+      } else {
+        // 🔹 Real wallet creation on Paystack
+        const walletRes = await fetch("/api/create-wallet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            name: data.fullName,
+            phone: user.phoneNumber,
+          }),
+        })
+        const walletJson = await walletRes.json()
+        if (!walletJson || !walletJson.wallet) {
+          console.error("Wallet creation failed:", walletJson)
+          throw new Error(walletJson?.error || walletJson?.message || "Wallet creation failed")
+        }
+        walletData = walletJson
+      }
+      */
 
-  const refDoc = doc(db, "earners", user.uid)
-  // Use setDoc with merge:true so onboarding won't fail if the document
-  // doesn't exist yet (signup should create a minimal doc, but this is
-  // defensive and prevents updateDoc throwing). Also set an updatedAt
-  // server timestamp.
-  await setDoc(
-    refDoc,
-    {
-      fullName: data.fullName,
-      gender: data.gender,
-      dob: data.dob,
-      bio: data.bio,
-      skills: data.skills,
-      preferredCampaigns: data.preferredCampaigns,
-      bankCode: data.bankCode,
-      bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
-      accountNumber: data.accountNumber,
-      accountName: accountName,
-      profilePic: profilePicUrl,
-      onboarded: true,
-      wallet: {
-        account_number: walletData.wallet.account_number,
-        bank: walletData.wallet.bank.name,
-        customer_code: walletData.customer.customer_code,
-        isTest: walletData.isTest, // comes directly from API
-      },
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  )
+      const refDoc = doc(db, "earners", user.uid)
+      await setDoc(
+        refDoc,
+        {
+          fullName: data.fullName,
+          gender: data.gender,
+          dob: data.dob,
+          bio: data.bio,
+          skills: data.skills,
+          preferredCampaigns: data.preferredCampaigns,
+          bankCode: data.bankCode,
+          bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
+          accountNumber: data.accountNumber,
+          accountName: accountName,
+          profilePic: profilePicUrl,
+          onboarded: true,
+          /* Wallet field commented out until Paystack DVA is ready
+          wallet: {
+            account_number: walletData.wallet.account_number,
+            bank: walletData.wallet.bank.name,
+            customer_code: walletData.customer.customer_code,
+            isTest: walletData.isTest,
+          },
+          */
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
 
       // NOTE: Referral finalization has been moved off the onboarding step.
       // Under the new business rule, referrals for earners are paid only after
