@@ -35,7 +35,8 @@ type Campaign = {
   reward?: number;
   externalLink?: string;
   videoUrl?: string;
-  mediaUrls?: string[];
+  mediaUrl?: string; // Single media URL
+  mediaUrls?: string[]; // Legacy: multiple media URLs
   status?: string;
   dailyLimit?: number;
   locationRequirements?: string;
@@ -144,6 +145,70 @@ export default function CampaignDetailPage() {
     return url;
   };
 
+  // Handle Paystack payment
+  const handleActivation = async () => {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      toast.error("You must be logged in to activate");
+      return;
+    }
+
+    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
+      toast.error("Payment configuration error");
+      return;
+    }
+
+    try {
+      interface PaystackPopInterface {
+        setup: (config: {
+          key: string;
+          email: string;
+          amount: number;
+          currency: string;
+          label: string;
+          onClose: () => void;
+          callback: (response: { reference: string }) => void;
+        }) => { openIframe: () => void };
+      }
+      const paystackLib = (window as unknown as { PaystackPop?: PaystackPopInterface }).PaystackPop;
+      if (!paystackLib || typeof paystackLib.setup !== "function") {
+        toast.error("Payment system not ready - try again shortly");
+        return;
+      }
+
+      const handler = paystackLib.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+        email: user.email,
+        amount: 1000 * 100, // ₦1000 in kobo
+        currency: "NGN",
+        label: "Account Activation",
+        onClose: () => toast.error("Activation cancelled"),
+        callback: async (response: { reference: string }) => {
+          // Verify payment and activate account
+          const res = await fetch('/api/earner/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: response.reference, userId: user.uid }),
+          })
+
+          if (res.ok) {
+            toast.success('Account activated successfully!')
+            // Proceed with submission
+            submitParticipation()
+          } else {
+            const data = await res.json().catch(() => ({}))
+            toast.error(data?.message || 'Activation verification failed')
+          }
+        }
+      });
+
+      handler.openIframe();
+    } catch (err) {
+      console.error("Payment error:", err);
+      toast.error("Activation payment failed");
+    }
+  };
+
   const submitParticipation = async () => {
     const user = auth.currentUser;
     if (!user) return toast.error("You must be logged in to participate");
@@ -154,8 +219,7 @@ export default function CampaignDetailPage() {
     if (!earnerDoc.exists()) return toast.error("Earner profile not found");
     const earnerData = earnerDoc.data() as EarnerData;
     if (!earnerData?.activated) {
-      toast.error("You need to activate your account to participate");
-      router.push("/earner/activate");
+      handleActivation(); // Open Paystack modal for activation
       return;
     }
 
@@ -323,27 +387,42 @@ export default function CampaignDetailPage() {
           <h3 className="text-xl font-semibold mb-4 text-stone-800">How to participate</h3>
           <div className="space-y-3 text-stone-700">
             {/* Campaign Resources */}
-            {(campaign.videoUrl || campaign.externalLink || (campaign.mediaUrls?.length ?? 0) > 0) && (
+            {(campaign.videoUrl || campaign.externalLink || campaign.mediaUrl || (campaign.mediaUrls?.length ?? 0) > 0) && (
               <div className="mb-4 p-3 bg-amber-50 rounded border border-amber-100">
                 <h4 className="text-lg font-medium mb-2">Campaign Resources:</h4>
+                
+                {/* Video content */}
                 {campaign.videoUrl && (
                   <div className="mb-3">
                     <h5 className="text-sm font-medium mb-2">Campaign Video</h5>
-                    <div className="aspect-video relative">
-                      <video
-                        src={campaign.videoUrl}
-                        controls
-                        className="w-full h-full rounded"
-                        poster={campaign.bannerUrl || undefined}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
+                    {campaign.videoUrl.includes('youtube.com') || campaign.videoUrl.includes('youtu.be') ? (
+                      <iframe
+                        src={campaign.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                        className="w-full aspect-video rounded"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="aspect-video relative">
+                        <video
+                          src={campaign.videoUrl}
+                          controls
+                          className="w-full h-full rounded"
+                          poster={campaign.bannerUrl || undefined}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* External/Product Links */}
                 {campaign.externalLink && (
                   <div className="mb-3">
-                    <h5 className="text-sm font-medium mb-2">Campaign Link</h5>
+                    <h5 className="text-sm font-medium mb-2">
+                      {campaign.category === 'Advertise Product' ? 'Product Link' : 'Campaign Link'}
+                    </h5>
                     <a
                       href={campaign.externalLink}
                       target="_blank"
@@ -354,6 +433,23 @@ export default function CampaignDetailPage() {
                     </a>
                   </div>
                 )}
+
+                {/* Media URL from newer campaigns */}
+                {campaign.mediaUrl && (
+                  <div className="mb-3">
+                    <h5 className="text-sm font-medium mb-2">Campaign Media</h5>
+                    <div className="aspect-square relative overflow-hidden rounded max-w-md mx-auto">
+                      <Image
+                        src={campaign.mediaUrl}
+                        alt="Campaign media"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy media URLs */}
                 {(campaign.mediaUrls?.length ?? 0) > 0 && (
                   <div>
                     <h5 className="text-sm font-medium mb-2">Additional Resources</h5>

@@ -1,5 +1,6 @@
 import "./globals.css"
 import { Toaster } from "react-hot-toast"
+import PwaInstaller from "@/components/PwaInstaller"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body>
+        <PwaInstaller />
         {children}
         <Toaster
           position="top-right"

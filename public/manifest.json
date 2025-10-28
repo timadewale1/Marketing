@@ -1,6 +1,7 @@
 {
   "short_name": "BlessedTokens",
   "name": "BlessedTokens Platform",
+  "description": "Earn rewards by participating in marketing campaigns",
   "icons": [
     {
       "src": "/icons/icon-192.svg",
@@ -16,7 +17,11 @@
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#f59e0b"
+  "theme_color": "#f59e0b",
+  "prefer_related_applications": false,
+  "categories": ["marketing", "business", "social"]
 }
