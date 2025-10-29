@@ -97,10 +97,22 @@ export default function CampaignDetailPage() {
     // Check daily limits
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    // First check if user has submitted this campaign at all
+    const campaignSubmissionQuery = query(
+      collection(db, "earnerSubmissions"),
+      where("userId", "==", userId),
+      where("campaignId", "==", campaignId)
+    );
+    const campaignSubmissionsSnap = await getDocs(campaignSubmissionQuery);
+    if (campaignSubmissionsSnap.size > 0) {
+      // User has already submitted this campaign
+      return false;
+    }
+
+    // Then check daily limits separately
     const dailySubmissionsQuery = query(
       collection(db, "earnerSubmissions"),
       where("userId", "==", userId),
-      where("campaignId", "==", campaignId),
       where("createdAt", ">=", today)
     );
     const dailySubmissionsSnap = await getDocs(dailySubmissionsQuery);
@@ -223,15 +235,24 @@ export default function CampaignDetailPage() {
       return;
     }
 
+    console.log("Checking previous submissions...");
     // Check if user has already participated
     const submissionsRef = collection(db, "earnerSubmissions");
     const q = query(submissionsRef,
       where("userId", "==", user.uid),
       where("campaignId", "==", campaign.id)
     );
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      toast.error("You have already participated in this campaign");
+    try {
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        console.log("Found existing submission");
+        toast.error("You have already participated in this campaign");
+        return;
+      }
+      console.log("No existing submission found");
+    } catch (queryError) {
+      console.error("Error checking submissions:", queryError);
+      toast.error("Error checking previous submissions");
       return;
     }
 
@@ -427,15 +448,23 @@ export default function CampaignDetailPage() {
                     <h5 className="text-sm font-medium mb-2">Campaign Video</h5>
                     {campaign.videoUrl.includes('youtube.com') || campaign.videoUrl.includes('youtu.be') ? (
                       <div className="space-y-3">
-                        <iframe
-                          src={campaign.videoUrl
-                            .replace('watch?v=', 'embed/')
-                            .replace('youtu.be/', 'youtube.com/embed/')
-                            .split('&')[0]} // Remove additional parameters
-                          className="w-full aspect-video rounded-lg"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
+                        {(() => {
+                          const getYouTubeVideoId = (url: string) => {
+                            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                            const match = url.match(regExp);
+                            return (match && match[2].length === 11) ? match[2] : null;
+                          };
+                          
+                          const videoId = getYouTubeVideoId(campaign.videoUrl);
+                          return videoId ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${videoId}`}
+                              className="w-full aspect-video rounded-lg"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          ) : null;
+                        })()}
                         <div className="p-3 bg-white/50 rounded-lg border border-amber-100">
                           <p className="text-stone-700 mb-2">Video URL:</p>
                           <a 
