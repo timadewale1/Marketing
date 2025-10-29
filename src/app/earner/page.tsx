@@ -221,54 +221,53 @@ export default function EarnerDashboard() {
         })
       }
 
-      interface PaystackPopInterface {
-        setup: (config: {
-          key: string
-          email: string
-          amount: number
-          currency?: string
-          label?: string
-          metadata?: Record<string, unknown>
-          onClose?: () => void
-          callback: (response: { reference: string }) => void
-        }) => { openIframe: () => void }
+      interface PaystackConfig {
+        key: string;
+        email: string;
+        amount: number;
+        currency: string;
+        label?: string;
+        metadata: { [key: string]: string };
+        onClose: () => void;
+        callback: (response: { reference: string }) => void;
       }
 
-      const paystackLib = (window as unknown as { PaystackPop?: PaystackPopInterface }).PaystackPop
-      if (!paystackLib || typeof paystackLib.setup !== 'function') {
-        toast.error('Payment system not ready - try again shortly')
-        return
+      interface PaystackWindow extends Window {
+        PaystackPop: {
+          setup: (config: PaystackConfig) => { openIframe: () => void };
+        };
       }
 
-      const handler = paystackLib.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+      const PaystackPop = (window as unknown as PaystackWindow).PaystackPop;
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY!,
         email: user.email,
         amount: 2000 * 100, // ₦2000 in kobo
         currency: 'NGN',
         label: 'Account Activation',
         metadata: { userId: user.uid },
         onClose: () => toast.error('Activation cancelled'),
-        callback: async (resp: { reference: string }) => {
-          try {
-            const res = await fetch('/api/earner/activate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
-            })
-
+        callback: function(resp: { reference: string }) {
+          fetch('/api/earner/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
+          })
+          .then(res => {
             if (res.ok) {
               toast.success('Account activated successfully')
-              // Firestore onSnapshot will update activated state; set local state optimistically
               setActivated(true)
-            } else {
-              const data = await res.json().catch(() => ({}))
-              toast.error(data?.message || 'Activation verification failed')
+              return
             }
-          } catch (err) {
+            return res.json().then(data => {
+              throw new Error(data?.message || 'Activation verification failed')
+            })
+          })
+          .catch(err => {
             console.error('Activation verify error', err)
-            toast.error('Activation verification failed')
-          }
-        },
+            toast.error(err.message || 'Activation verification failed')
+          })
+        }
       })
 
       handler.openIframe()
