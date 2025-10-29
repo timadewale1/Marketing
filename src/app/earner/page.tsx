@@ -209,6 +209,18 @@ export default function EarnerDashboard() {
     }
 
     try {
+      // Load Paystack script if not already loaded
+      if (!document.querySelector('script[src*="paystack.co"]')) {
+        const script = document.createElement('script')
+        script.src = 'https://js.paystack.co/v1/inline.js'
+        document.head.appendChild(script)
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve
+          script.onerror = () => reject(new Error('Failed to load Paystack'))
+        })
+      }
+
       interface PaystackPopInterface {
         setup: (config: {
           key: string
