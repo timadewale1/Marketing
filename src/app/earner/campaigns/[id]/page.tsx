@@ -426,28 +426,18 @@ export default function CampaignDetailPage() {
                   <div className="mb-3">
                     <h5 className="text-sm font-medium mb-2">Campaign Video</h5>
                     {campaign.videoUrl.includes('youtube.com') || campaign.videoUrl.includes('youtu.be') ? (
-                      <>
+                      <div className="space-y-3">
                         <iframe
-                          src={campaign.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                          className="w-full aspect-video rounded mb-2"
+                          src={campaign.videoUrl
+                            .replace('watch?v=', 'embed/')
+                            .replace('youtu.be/', 'youtube.com/embed/')
+                            .split('&')[0]} // Remove additional parameters
+                          className="w-full aspect-video rounded-lg"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
-                        <div className="p-2 bg-white/50 rounded-lg mt-2">
-                          <a 
-                            href={campaign.videoUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-amber-600 hover:underline break-all text-sm"
-                          >
-                            {campaign.videoUrl}
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-2">
                         <div className="p-3 bg-white/50 rounded-lg border border-amber-100">
-                          <p className="text-stone-700 mb-2">Video Link:</p>
+                          <p className="text-stone-700 mb-2">Video URL:</p>
                           <a 
                             href={campaign.videoUrl} 
                             target="_blank" 
@@ -457,9 +447,23 @@ export default function CampaignDetailPage() {
                             {campaign.videoUrl}
                           </a>
                         </div>
-                        <p className="text-sm text-stone-500">
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="p-3 bg-white/50 rounded-lg border border-amber-100">
+                          <p className="text-stone-700 mb-2">Video URL:</p>
+                          <a 
+                            href={campaign.videoUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-amber-600 hover:underline break-all"
+                          >
+                            {campaign.videoUrl}
+                          </a>
+                        </div>
+                        <div className="text-sm text-stone-600 bg-amber-50 p-3 rounded-lg">
                           Click the link above to watch the video in a new tab
-                        </p>
+                        </div>
                       </div>
                     )}
                   </div>
