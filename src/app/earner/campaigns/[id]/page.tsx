@@ -264,17 +264,33 @@ export default function CampaignDetailPage() {
 
     setSubmitting(true);
     try {
+      // Log current state
+      console.log("Starting submission with file:", file?.name);
+      
       const isValid = await validateDataSync(user.uid, campaign.id);
       if (!isValid) {
+        console.log("Data sync validation failed");
         toast.error("Unable to submit - please check campaign status and your limits");
         return;
       }
 
       let proofUrl = "";
-      if (file) proofUrl = await uploadProofFile(file, user.uid);
+      if (file) {
+        console.log("Uploading proof file...");
+        try {
+          proofUrl = await uploadProofFile(file, user.uid);
+          console.log("File uploaded successfully:", proofUrl);
+        } catch (uploadErr) {
+          console.error("File upload error:", uploadErr);
+          toast.error("Failed to upload proof file. Please try again.");
+          return;
+        }
+      }
 
+      console.log("Checking campaign status...");
       const campaignSnap = await getDoc(doc(db, "campaigns", campaign.id));
       if (!campaignSnap.exists()) {
+        console.log("Campaign not found");
         toast.error("Campaign not found or has been removed");
         return;
       }
@@ -301,29 +317,43 @@ export default function CampaignDetailPage() {
         return;
       }
 
-      await addDoc(collection(db, "earnerSubmissions"), {
-        userId: user.uid,
-        campaignId: campaign.id,
-        campaignTitle: campaign.title || null,
-        advertiserName: campaignData?.advertiserName || null,
-        advertiserId: campaignData?.ownerId || null,
-        category: campaign.category || null,
-        note: note || null,
-        socialHandle: socialHandle || null,
-        proofUrl: proofUrl || null,
-        status: "Pending",
-        createdAt: serverTimestamp(),
-        earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
-        reviewedAt: null,
-        reviewedBy: null,
-        rejectionReason: null,
-      });
+      console.log("Creating submission document...");
+      try {
+        const submissionData = {
+          userId: user.uid,
+          campaignId: campaign.id,
+          campaignTitle: campaign.title || null,
+          advertiserName: campaignData?.advertiserName || null,
+          advertiserId: campaignData?.ownerId || null,
+          category: campaign.category || null,
+          note: note || null,
+          socialHandle: socialHandle || null,
+          proofUrl: proofUrl || null,
+          status: "Pending",
+          createdAt: serverTimestamp(),
+          earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
+          reviewedAt: null,
+          reviewedBy: null,
+          rejectionReason: null,
+        };
+        
+        console.log("Submission data prepared:", submissionData);
+        const docRef = await addDoc(collection(db, "earnerSubmissions"), submissionData);
+        console.log("Submission created with ID:", docRef.id);
 
-      toast.success("Submission sent. Awaiting review.");
-      router.push("/earner/campaigns/done");
+        toast.success("Submission sent. Awaiting review.");
+        router.push("/earner/campaigns/done");
+      } catch (submitError) {
+        console.error("Error creating submission:", submitError);
+        throw submitError; // Re-throw to be caught by outer catch block
+      }
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit participation");
+      console.error("Submission error details:", err);
+      if (err instanceof Error) {
+        toast.error(`Failed to submit: ${err.message}`);
+      } else {
+        toast.error("Failed to submit participation");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -403,15 +433,15 @@ export default function CampaignDetailPage() {
                         allowFullScreen
                       />
                     ) : (
-                      <div className="aspect-video relative">
-                        <video
-                          src={campaign.videoUrl}
-                          controls
-                          className="w-full h-full rounded"
-                          poster={campaign.bannerUrl || undefined}
+                      <div className="p-3 bg-white rounded-lg">
+                        <a 
+                          href={campaign.videoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-amber-600 hover:underline break-all"
                         >
-                          Your browser does not support the video tag.
-                        </video>
+                          Click here to watch video
+                        </a>
                       </div>
                     )}
                   </div>
