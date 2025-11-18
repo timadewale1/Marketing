@@ -142,19 +142,20 @@ export default function EarnerOnboarding() {
         profilePicUrl = await getDownloadURL(storageRef)
       }
 
-      /* 
-      // ✅ Wallet Creation - Temporarily disabled until Paystack DVA is set up
+      // ✅ Wallet Creation - create a Paystack DVA (live) when not in dev mode
       interface WalletData {
         wallet: {
           account_number: string;
           bank: { name: string };
+          account_name?: string;
+          dedicated_account_number?: string;
         };
         customer: {
           customer_code: string;
         };
         isTest?: boolean;
       }
-      let walletData: WalletData
+      let walletData: WalletData | null = null;
 
       if (process.env.NEXT_PUBLIC_ENV === "dev") {
         // 🔹 Fake wallet for dev mode
@@ -166,26 +167,33 @@ export default function EarnerOnboarding() {
           customer: {
             customer_code: "CUS_TEST123",
           },
-        }
+          isTest: true,
+        };
       } else {
         // 🔹 Real wallet creation on Paystack
-        const walletRes = await fetch("/api/create-wallet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: user.email,
-            name: data.fullName,
-            phone: user.phoneNumber,
-          }),
-        })
-        const walletJson = await walletRes.json()
-        if (!walletJson || !walletJson.wallet) {
-          console.error("Wallet creation failed:", walletJson)
-          throw new Error(walletJson?.error || walletJson?.message || "Wallet creation failed")
+        try {
+          const walletRes = await fetch("/api/create-wallet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              name: data.fullName,
+              phone: user.phoneNumber,
+            }),
+          });
+          const walletJson = await walletRes.json();
+          if (!walletJson || !walletJson.wallet) {
+            console.error("Wallet creation failed:", walletJson);
+            // proceed without failing onboarding, but warn
+            toast.error("Wallet creation failed. You can add bank details later.");
+          } else {
+            walletData = walletJson;
+          }
+        } catch (err) {
+          console.error("Wallet creation error:", err);
+          toast.error("Wallet creation failed. You can add bank details later.");
         }
-        walletData = walletJson
       }
-      */
 
       const refDoc = doc(db, "earners", user.uid)
       await setDoc(
@@ -212,6 +220,17 @@ export default function EarnerOnboarding() {
           },
           */
           updatedAt: serverTimestamp(),
+          // Save wallet info if available
+          ...(walletData
+            ? {
+                wallet: {
+                  account_number: walletData.wallet.account_number,
+                  bank: walletData.wallet.bank?.name || "",
+                  customer_code: walletData.customer.customer_code,
+                  isTest: walletData.isTest || false,
+                },
+              }
+            : {}),
         },
         { merge: true }
       )

@@ -49,6 +49,7 @@ export default function Page() {
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
   const [recentWithdrawals, setRecentWithdrawals] = useState<Withdrawal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [datawayBalance, setDatawayBalance] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch statistics
@@ -170,6 +171,30 @@ export default function Page() {
     );
 
     fetchStats();
+    // fetch Dataway balance
+    (async () => {
+      try {
+        const res = await fetch('/api/dataway/balance', { method: 'POST' })
+        const j = await res.json()
+        if (res.ok && j?.ok) {
+          // try to extract a balance field if present
+          const body = j.result?.body || j.result
+          let bal: string | null = null
+          if (body && typeof body === 'object') {
+            const asRecord = body as Record<string, unknown>
+            bal = String(asRecord['balance'] ?? asRecord['data'] ?? JSON.stringify(body))
+          } else if (typeof body === 'string') {
+            bal = body
+          }
+          setDatawayBalance(bal)
+        } else {
+          setDatawayBalance(`Status: ${res.status}`)
+        }
+      } catch (err) {
+        console.error('Failed to fetch Dataway balance', err)
+        setDatawayBalance(null)
+      }
+    })()
     setLoading(false);
 
     return () => {
@@ -278,6 +303,34 @@ export default function Page() {
       </div>
 
       {/* Recent Activity */}
+      {/* Dataway Balance Card */}
+      <div className="mt-6">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-stone-600">Dataway Balance</h3>
+              <p className="text-lg font-bold text-stone-900">{datawayBalance ?? 'Unavailable'}</p>
+            </div>
+            <div>
+              <Button variant="ghost" onClick={async () => {
+                try {
+                  const res = await fetch('/api/dataway/balance', { method: 'POST' })
+                  const j = await res.json()
+                  if (res.ok && j?.ok) {
+                    const body = j.result?.body || j.result
+                    const asRecord = body as Record<string, unknown>
+                    setDatawayBalance(String(asRecord['balance'] ?? asRecord['data'] ?? JSON.stringify(body)))
+                  } else {
+                    setDatawayBalance(`Status: ${res.status}`)
+                  }
+                } catch (err) {
+                  console.error('Failed to refresh Dataway balance', err)
+                }
+              }}>Refresh</Button>
+            </div>
+          </div>
+        </Card>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Submissions */}
         <Card className="p-6">

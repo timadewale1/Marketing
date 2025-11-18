@@ -37,6 +37,9 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
     }
   };
 
+  const fee = typeof amount === 'number' && amount > 0 ? Math.round(Number(amount) * 0.1) : 0
+  const net = typeof amount === 'number' && amount > 0 ? Math.max(0, Number(amount) - fee) : 0
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-[425px] bg-white p-6">
@@ -96,6 +99,17 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
                   Amount exceeds your available balance
                 </p>
               )}
+              {/* Fee preview */}
+              <div className="mt-2 p-3 bg-stone-50 rounded-lg">
+                <div className="flex justify-between text-sm text-stone-700">
+                  <span>Service fee (10%)</span>
+                  <span>₦{fee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-medium mt-1">
+                  <span>Net amount to receive</span>
+                  <span>₦{net.toLocaleString()}</span>
+                </div>
+              </div>
             </>
           )}
 

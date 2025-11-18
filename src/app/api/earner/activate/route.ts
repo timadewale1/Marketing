@@ -33,8 +33,14 @@ export async function POST(req: Request) {
 
     const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
 
-    // Mark earner activated and set activatedAt
-    await adminDb.collection('earners').doc(userId).update({ activated: true, activatedAt: admin.firestore.FieldValue.serverTimestamp() })
+    // Mark earner activated and set activatedAt and nextActivationDue (3 months from now)
+    const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 3;
+    const nextDue = admin.firestore.Timestamp.fromMillis(Date.now() + THREE_MONTHS_MS);
+    await adminDb.collection('earners').doc(userId).update({
+      activated: true,
+      activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      nextActivationDue: nextDue,
+    })
 
     // Finalize pending referrals for this user: mark completed and credit referrer (amount set on referral doc)
     const refsSnap = await adminDb.collection('referrals').where('referredId', '==', userId).where('status', '==', 'pending').get()

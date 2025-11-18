@@ -133,6 +133,9 @@ export default function SubmissionsPage() {
       const dailyCount = dailySubmissionsSnap.size;
 
       // Update submission with complete details
+      const prevStatus = submission.status
+  const prevAutoVerified = (subSnap.data() as { autoVerified?: boolean })?.autoVerified
+
       await updateDoc(subRef, {
         status,
         reviewedAt: serverTimestamp(),
@@ -148,7 +151,7 @@ export default function SubmissionsPage() {
       });
 
       // If marking verified, update all related collections atomically
-      if (status === "Verified") {
+  if (status === "Verified") {
         const userId = submission.userId;
         const amount = Number(submission.earnerPrice || 0);
         const fullAmount = amount * 2; // Total cost including advertiser portion
@@ -217,6 +220,68 @@ export default function SubmissionsPage() {
           });
         }
       }
+
+        // If admin rejects a submission that was previously verified (autoVerified or verified), reverse payments
+        if (status === "Rejected") {
+          try {
+            const wasAuto = !!prevAutoVerified
+            const wasVerifiedBefore = prevStatus === 'Verified'
+            if (wasAuto || wasVerifiedBefore) {
+              const userId = submission.userId
+              const amount = Number(submission.earnerPrice || 0)
+              const fullAmount = amount * 2
+              const advertiserId = campaign.ownerId
+
+              if (userId && amount > 0) {
+                // 1. Create reversal transaction for earner and decrement balance
+                await addDoc(collection(db, "earnerTransactions"), {
+                  userId,
+                  campaignId: submission.campaignId,
+                  type: "reversal",
+                  amount: -amount,
+                  status: "completed",
+                  note: `Reversal for rejected submission ${submission.campaignTitle}`,
+                  createdAt: serverTimestamp(),
+                });
+
+                await updateDoc(doc(db, "earners", userId), {
+                  balance: increment(-amount),
+                  leadsPaidFor: increment(-1),
+                  totalEarned: increment(-amount),
+                });
+              }
+
+              // 2. Refund advertiser (credit back) and update campaign stats
+              if (advertiserId) {
+                await addDoc(collection(db, "advertiserTransactions"), {
+                  userId: advertiserId,
+                  campaignId: submission.campaignId,
+                  type: "refund",
+                  amount: fullAmount,
+                  status: "completed",
+                  note: `Refund for rejected submission ${submission.campaignTitle}`,
+                  createdAt: serverTimestamp(),
+                });
+
+                await updateDoc(doc(db, "advertisers", advertiserId), {
+                  totalSpent: increment(-fullAmount),
+                  leadsGenerated: increment(-1),
+                });
+
+                // Restore campaign budget and decrement generated/completed leads
+                await updateDoc(campaignRef, {
+                  generatedLeads: increment(-1),
+                  budget: increment(fullAmount),
+                  completedLeads: increment(-1),
+                });
+              }
+            }
+          } catch (revErr) {
+            console.error('Reversal error on reject:', revErr)
+            // don't block admin action; notify
+            toast.error('Failed to fully reverse funds; check logs')
+          }
+        }
 
       toast.success(`Marked as ${status}`);
     } catch (err) {

@@ -10,12 +10,12 @@ type FAQItem = {
 
 const faqs: FAQItem[] = [
   {
-    question: "What is Blessed Token?",
-    answer: "Blessed Token is a platform that connects advertisers with users who can earn rewards by engaging with advertisements and completing simple tasks like watching videos, filling surveys, or engaging with social media content."
+    question: "What is AllDaysJoy?",
+    answer: "AllDaysJoy is a platform that connects advertisers with users who can earn rewards by engaging with advertisements and completing simple tasks like watching videos, filling surveys, or engaging with social media content."
   },
   {
-    question: "How do I earn on Blessed Token?",
-    answer: "You can earn by participating in available campaigns. Each campaign has specific tasks like watching videos, completing surveys, or social media engagement. Once you complete the task and provide proof, you'll receive tokens in your wallet."
+    question: "How do I earn on AllDaysJoy?",
+    answer: "You can earn by participating in available campaigns. Each campaign has specific tasks like watching videos, completing surveys, or social media engagement. Once you complete the task and provide proof, you'll receive rewards in your wallet."
   },
   {
     question: "How do I create an advertising campaign?",

@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-semibold text-primary-800 mb-3">1. Introduction</h2>
             <p className="text-primary-600">
-              This Privacy Policy explains how Blessed Token (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) collects, uses, and protects your personal information. By using our service, you agree to the collection and use of information in accordance with this policy.
+              This Privacy Policy explains how AllDaysJoy (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) collects, uses, and protects your personal information. By using our service, you agree to the collection and use of information in accordance with this policy.
             </p>
           </section>
 
@@ -115,7 +115,7 @@ export default function PrivacyPolicyPage() {
 
           <div className="mt-8 text-sm text-primary-500">
             <p>Last updated: October 26, 2023</p>
-            <p>For privacy-related questions, contact us at privacy@blessedtoken.com</p>
+            <p>For privacy-related questions, contact us at privacy@alldaysjoy.com</p>
           </div>
         </Card>
       </div>

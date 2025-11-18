@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -102,29 +102,22 @@ export default function TransactionsPage() {
     }
 
     try {
-      // Create withdrawal request with bank details
-      await addDoc(collection(db, "earnerWithdrawals"), {
-        userId: u.uid,
-        amount: amount,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        bank: bankDetails,
-      });
-
-      // Add transaction record
-      await addDoc(collection(db, "earnerTransactions"), {
-        userId: u.uid,
-        type: "withdrawal",
-        amount: -amount,
-        status: "pending",
-        note: "Withdrawal requested",
-        createdAt: serverTimestamp(),
-      });
-
-      toast.success("Withdrawal request submitted");
+      // Call server API to process withdrawal immediately via Paystack
+      const res = await fetch('/api/earner/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, userId: u.uid }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('Withdrawal processed. Check transaction history for details.')
+      } else {
+        console.error('Withdraw API error', data)
+        toast.error(data?.message || 'Withdrawal failed')
+      }
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit withdrawal request");
+      console.error(err)
+      toast.error('Failed to process withdrawal')
     }
   };
 

@@ -17,6 +17,7 @@ import {
 import Image from "next/image"
 import toast from 'react-hot-toast'
 import { Card, CardContent } from "@/components/ui/card"
+import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import {
   Wallet,
@@ -60,6 +61,7 @@ export default function EarnerDashboard() {
     campaignApproved: 0,
   })
   const [activated, setActivated] = useState<boolean>(false)
+  const [needsReactivation, setNeedsReactivation] = useState<boolean>(false)
 
   const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
@@ -83,7 +85,7 @@ export default function EarnerDashboard() {
         return
       }
       // Profile and stats
-      const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
+          const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
         if (snap.exists()) {
           const d = snap.data()
           setUserName(d.fullName || d.name || "User")
@@ -96,6 +98,7 @@ export default function EarnerDashboard() {
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
           setActivated(!!d.activated)
+          setNeedsReactivation(!!d.needsReactivation)
         }
       })
 
@@ -290,6 +293,11 @@ export default function EarnerDashboard() {
           </button>
           <h1 className="font-semibold text-stone-800 text-lg">Earner Dashboard</h1>
         </div>
+
+        {/* Bills & Utilities */}
+        <div className="mb-8">
+          <BillsCard />
+        </div>
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (
             <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
@@ -315,20 +323,22 @@ export default function EarnerDashboard() {
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    className="bg-amber-500 text-stone-900"
-                    onClick={() => router.push("/earner/transactions")}
-                  >
-                    Withdraw
-                  </Button>
-                  {activated ? (
-                    <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
-                  )}
-                </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      className="bg-amber-500 text-stone-900"
+                      onClick={() => router.push("/earner/transactions")}
+                    >
+                      Withdraw
+                    </Button>
+                    {activated ? (
+                      <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
+                    ) : needsReactivation ? (
+                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
+                    )}
+                  </div>
               </div>
             </CardContent>
           </Card>

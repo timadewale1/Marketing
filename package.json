@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "eslint",
+  "mock-paystack": "node tools/integration/mock-paystack.js",
+  "test:integration": "node tools/integration/run-withdraw-test.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

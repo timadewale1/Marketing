@@ -10,12 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { PageLoader } from "@/components/ui/loader";
 
 interface Bank {
@@ -47,15 +53,12 @@ export default function BankPage() {
   const [accountName, setAccountName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch banks from Paystack on mount
+  // Fetch banks from Paystack on mount (server doesn't expose secret here - we use public endpoint)
   useEffect(() => {
     const fetchBanks = async () => {
       try {
-        const res = await fetch("https://api.paystack.co/bank", {
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY}`,
-          },
-        });
+        // Use Paystack public banks endpoint (no secret required for listing banks)
+        const res = await fetch("https://api.paystack.co/bank?country=nigeria");
         const data = await res.json();
         if (data.status && data.data) {
           setBanks(data.data.map((b: PaystackBank) => ({
@@ -88,33 +91,27 @@ export default function BankPage() {
     })();
   }, [router]);
 
-  // Verify bank account with Paystack
+  // Verify bank account using server-side endpoint to avoid exposing secret
   useEffect(() => {
     const verifyAccount = async () => {
       if (accountNumber?.length === 10 && selectedBank) {
         setVerifying(true);
         setAccountName("");
         try {
-          const res = await fetch(
-            "https://api.paystack.co/bank/resolve?" +
-            new URLSearchParams({
-              account_number: accountNumber,
-              bank_code: selectedBank,
-            }), {
-              headers: {
-                Authorization: `Bearer ${process.env.NEXT_PUBLIC_PAYSTACK_SECRET_KEY}`,
-              },
-            }
-          );
+          const res = await fetch('/api/verify-bank', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountNumber, bankCode: selectedBank }),
+          });
           const data = await res.json();
-          if (data.status) {
-            setAccountName(data.data.account_name);
+          if (data.status && data.data) {
+            setAccountName(data.data.account_name || data.data.accountName || '');
           } else {
-            toast.error("Could not verify account");
+            toast.error(data?.message || 'Could not verify account');
           }
         } catch (err) {
-          console.error("Account verification failed:", err);
-          toast.error("Account verification failed");
+          console.error('Account verification failed:', err);
+          toast.error('Account verification failed');
         } finally {
           setVerifying(false);
         }
@@ -202,22 +199,31 @@ export default function BankPage() {
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-stone-700">Select Bank</label>
-                  <Select
-                    onValueChange={setSelectedBank}
-                    value={selectedBank}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Choose your bank" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white shadow-lg rounded max-h-64 overflow-auto">
-                      {banks.map((b, idx) => (
-                        <SelectItem key={b.code + '-' + idx} value={b.code} className="py-3 px-4 hover:bg-amber-50 cursor-pointer bg-white">
-                          <span className="font-medium text-stone-800">{b.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <label className="text-sm font-medium text-stone-700">Select Bank</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full mt-1 justify-between bg-white/20 border-white/30 text-stone-800">
+                            {selectedBank ? banks.find(b => b.code === selectedBank)?.name : 'Choose your bank'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[320px] max-h-80 overflow-hidden bg-white p-0 rounded-lg shadow-lg">
+                          <Command>
+                            <CommandInput placeholder="Search bank..." />
+                            <CommandList className="max-h-72 overflow-y-auto">
+                              <CommandEmpty>No bank found.</CommandEmpty>
+                              <CommandGroup>
+                                {banks.map((bank, idx) => (
+                                  <CommandItem key={`${bank.code}-${idx}`} onSelect={() => {
+                                    setSelectedBank(bank.code);
+                                  }}>
+                                    {bank.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                 </div>
 
                 <div>

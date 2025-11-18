@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore"
 
 import { Card, CardContent } from "@/components/ui/card"
+import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle, CheckCircle } from "lucide-react"
@@ -262,6 +263,11 @@ export default function AdvertiserDashboard() {
             <Menu size={20} />
           </button>
           <h1 className="font-semibold text-stone-800 text-lg">Advertiser Dashboard</h1>
+        </div>
+
+        {/* Bills & Utilities */}
+        <div className="mb-8">
+          <BillsCard />
         </div>
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (

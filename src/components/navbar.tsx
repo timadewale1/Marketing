@@ -34,11 +34,10 @@ export default function Navbar() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
+      navigator.serviceWorker.register('/sw.js').then(() => {
         // registration successful
-        // console.log('Service worker registered.', reg)
-      }).catch((err) => {
-        // console.warn('Service worker registration failed:', err)
+      }).catch(() => {
+        // registration failed (ignored)
       })
     }
   }, [])
@@ -56,8 +55,8 @@ export default function Navbar() {
     <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-md border-b border-stone-200">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
-          <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md font-bold">BT</span>
-          <span className="font-semibold text-stone-900 text-lg">BlessedTokens</span>
+          <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md font-bold">ADJ</span>
+          <span className="font-semibold text-stone-900 text-lg">AllDaysJoy</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
@@ -89,6 +88,11 @@ export default function Navbar() {
             <a href="#why" onClick={() => setOpen(false)} className="block">Why choose us</a>
             <a href="#features" onClick={() => setOpen(false)} className="block">Features</a>
             <a href="#cta" onClick={() => setOpen(false)} className="block">Get started</a>
+            {showInstall && (
+              <button onClick={() => { handleInstall(); setOpen(false); }} className="w-full text-left mt-2 inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-2 rounded-md text-sm">
+                <Smartphone className="w-4 h-4" /> Install App
+              </button>
+            )}
           </div>
         </div>
       )}

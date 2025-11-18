@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Coins, Target, UserCheck, Wallet, Users, TrendingUp, CheckCircle, Megaphone, Clipboard, SlidersHorizontal } from 'lucide-react';
 import Navbar from '@/components/navbar';
+import BillsCard from '@/components/bills/BillsCard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypedText } from '@/components/ui/typed-text';
@@ -28,8 +29,8 @@ export default function HomePage() {
         <div className="relative">
           <div className="container mx-auto px-4 pt-6">
             <Link href="/" className="inline-flex items-center text-2xl font-bold text-white">
-              <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md mr-2">BT</span>
-              BlessedTokens
+              <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md mr-2">ADJ</span>
+              AllDaysJoy
             </Link>
           </div>
         </div>
@@ -42,7 +43,11 @@ export default function HomePage() {
                   'Earn Money Through Social Impact',
                   'Get Paid for Social Engagement',
                   'Monetize Your Social Reach',
-                  'Earn While Making an Impact'
+                  'Earn While Making an Impact',
+                  'YouTube Views, Likes & Subscriptions',
+                  'Social Media Engagements',
+                  'Product Advertisement & Promotions',
+                  'Grow Your Audience & Earn'
                 ]}
                 className="text-white"
               />
@@ -57,6 +62,11 @@ export default function HomePage() {
               <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
                 <Link href="/auth/sign-up">Create Campaigns</Link>
               </Button>
+              <div className="mt-3 sm:mt-0 sm:ml-4">
+                <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                <Link href="/auth/sign-in">Login</Link>
+              </Button>
+              </div>
             </div>
             
             <div className="mt-12 flex flex-wrap gap-8 text-white">
@@ -64,15 +74,25 @@ export default function HomePage() {
                 <Users className="w-6 h-6 text-amber-500" />
                 <span>10k+ Active Users</span>
               </div>
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <Coins className="w-6 h-6 text-amber-500" />
-                <span>₦50M+ Paid Out</span>
+                <span>₦10M+ Paid Out</span>
               </div>
               <div className="flex items-center gap-2">
                 <Target className="w-6 h-6 text-amber-500" />
                 <span>500+ Campaigns</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bills & Utilities */}
+      <section id="bills" className="py-12 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-2xl font-semibold text-stone-900 mb-6">Bills & Utilities</h2>
+          <div className="max-w-3xl">
+            <BillsCard />
           </div>
         </div>
       </section>
@@ -250,11 +270,11 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
               <Link href="/auth/sign-up">
-                Start Earning Now <ArrowRight className="ml-2 w-5 h-5" />
+                Start Earning Now/Create Campaigns <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
-              <Link href="/auth/sign-up">Create Your Campaign</Link>
+              <Link href="/auth/sign-in">Login to your account</Link>
             </Button>
           </div>
         </div>
@@ -266,12 +286,12 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
-                <span className="text-white font-bold">BlessedTokens</span>
+                <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">ADJ</span>
+                <span className="text-white font-bold">AllDaysJoy</span>
               </div>
               <ul className="space-y-2">
-                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning</Link></li>
-                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Create Campaign</Link></li>
+                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning/Create Campaigns</Link></li>
+                <li><Link href="/auth/sign-in" className="hover:text-amber-500">Login to your account</Link></li>
                 <li><Link href="/faq" className="hover:text-amber-500">FAQ</Link></li>
               </ul>
             </div>
@@ -298,7 +318,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 pt-8 border-t border-stone-800 text-center text-sm">
-            &copy; 2024 BlessedTokens. All rights reserved.
+            &copy; 2024 AllDaysJoy. All rights reserved.
           </div>
         </div>
       </footer>

@@ -12,7 +12,6 @@ import {
   query,
   where,
   serverTimestamp,
-  DocumentData,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -191,7 +190,7 @@ export default function CampaignDetailPage() {
       const handler = paystackLib.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
         email: user.email,
-        amount: 1000 * 100, // ₦1000 in kobo
+        amount: 2000 * 100, // ₦2000 in kobo
         currency: "NGN",
         label: "Account Activation",
         onClose: () => toast.error("Activation cancelled"),
