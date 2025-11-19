@@ -53,57 +53,12 @@ export async function POST(req: Request) {
     const fee = Math.round(amount * 0.1)
     const net = amount - fee
 
-    const PAYSTACK_BASE = process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co'
+    // PAYSTACK DVA is not available currently. Instead of initiating an automatic
+    // transfer, create a withdrawal request record for admin review. Admin will
+    // mark the request as 'sent' once processing with Paystack is complete.
+    // We do NOT decrement the earner balance here; the admin should handle
+    // finalization and accounting when marking as completed.
 
-    // Reuse Paystack recipient_code if available, otherwise create and persist
-    let recipientCode = earner?.paystackRecipientCode
-    if (!recipientCode) {
-      const recipientRes = await fetch(`${PAYSTACK_BASE}/transferrecipient`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'nuban',
-          name: bank.accountName || earner?.fullName || 'Recipient',
-          account_number: bank.accountNumber,
-          bank_code: bank.bankCode || '',
-          currency: 'NGN',
-        }),
-      })
-      const recipientJson = await recipientRes.json()
-      if (!recipientRes.ok || !recipientJson.status) {
-        console.error('Paystack create recipient error:', recipientJson)
-        return NextResponse.json({ success: false, message: recipientJson.message || 'Failed to create transfer recipient' }, { status: 500 })
-      }
-
-      recipientCode = recipientJson.data.recipient_code
-      // Persist recipient code for future reuse
-      await earnerRef.update({ paystackRecipientCode: recipientCode })
-    }
-
-  // Initiate transfer (amount in kobo)
-  const transferRes = await fetch(`${PAYSTACK_BASE}/transfer`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source: 'balance',
-        amount: Math.round(amount * 100),
-        recipient: recipientCode,
-        reason: 'Earner withdrawal',
-      }),
-    })
-    const transferJson = await transferRes.json()
-    if (!transferRes.ok || !transferJson.status) {
-      console.error('Paystack transfer error:', transferJson)
-      return NextResponse.json({ success: false, message: transferJson.message || 'Transfer failed' }, { status: 500 })
-    }
-
-    // Record withdrawal and transaction in Firestore atomically
     const withdrawalRef = db.collection('earnerWithdrawals').doc()
     const txRef = db.collection('earnerTransactions').doc()
 
@@ -113,34 +68,33 @@ export async function POST(req: Request) {
       const currentBal = Number(snap.data()?.balance || 0)
       if (currentBal < amount) throw new Error('Insufficient balance')
 
+      // Create a pending withdrawal request
       t.set(withdrawalRef, {
         userId,
         amount,
         fee,
         net,
-        status: 'completed',
+        status: 'pending',
         bank,
-        paystack: transferJson,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
+      // Create a lightweight transaction record to show a pending request in UI.
+      // Do not alter balance yet; admin will create the final transaction on approval.
       t.set(txRef, {
         userId,
-        type: 'withdrawal',
-        amount: -amount,
+        type: 'withdrawal_request',
+        amount: 0,
+        requestedAmount: amount,
         fee,
         net,
-        status: 'completed',
-        note: 'Withdrawal processed via Paystack',
+        status: 'pending',
+        note: 'Withdrawal request pending admin approval',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
-
-      t.update(earnerRef, {
-        balance: admin.firestore.FieldValue.increment(-amount),
       })
     })
 
-    return NextResponse.json({ success: true, data: transferJson })
+    return NextResponse.json({ success: true, message: 'Withdrawal request created and awaiting admin approval' })
   } catch (err) {
     console.error('Withdrawal error', err)
     return NextResponse.json({ success: false, message: (err as Error).message || 'Server error' }, { status: 500 })

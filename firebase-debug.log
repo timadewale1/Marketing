@@ -1,0 +1,40 @@
+[debug] [2025-11-19T16:02:06.345Z] ----------------------------------------------------------------------
+[debug] [2025-11-19T16:02:06.860Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes
+[debug] [2025-11-19T16:02:06.861Z] CLI Version:   14.11.2
+[debug] [2025-11-19T16:02:06.861Z] Platform:      win32
+[debug] [2025-11-19T16:02:06.861Z] Node Version:  v22.17.1
+[debug] [2025-11-19T16:02:06.874Z] Time:          Wed Nov 19 2025 17:02:06 GMT+0100 (West Africa Standard Time)
+[debug] [2025-11-19T16:02:06.875Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-19T16:02:07.284Z] Field "/firestore/indexes" in "firebase.json" is possibly invalid: must be string
+[debug] [2025-11-19T16:02:07.285Z] Field "/firestore" in "firebase.json" is possibly invalid: must be array
+[debug] [2025-11-19T16:02:07.285Z] Field "/firestore" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[debug] [2025-11-19T16:02:07.323Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-19T16:02:07.323Z] > authorizing via signed-in user (timadewale1@gmail.com)
+[debug] [2025-11-19T16:02:07.323Z] [iam] checking project blessing-636ca for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-11-19T16:02:07.346Z] Checked if tokens are valid: false, expires at: 1763555038235
+[debug] [2025-11-19T16:02:07.346Z] Checked if tokens are valid: false, expires at: 1763555038235
+[debug] [2025-11-19T16:02:07.346Z] > refreshing access token with scopes: []
+[debug] [2025-11-19T16:02:07.374Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-11-19T16:02:07.374Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-19T16:02:10.666Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-11-19T16:02:10.667Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-11-19T16:02:10.750Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions [none]
+[debug] [2025-11-19T16:02:10.751Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-11-19T16:02:10.751Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-11-19T16:02:11.912Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions 200
+[debug] [2025-11-19T16:02:11.912Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'blessing-636ca'...
+[info] 
+[info] i  deploying firestore 
+[debug] [2025-11-19T16:02:12.629Z] TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received an instance of Object
+    at Object.isAbsolute (node:path:482:5)
+    at Config.path (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\config.js:130:18)
+    at prepareIndexes (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\firestore\prepare.js:17:40)
+    at default_1 (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\firestore\prepare.js:53:13)
+    at chain (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:42:15)
+    at deploy (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:119:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[error] 
+[error] Error: An unexpected error has occurred.

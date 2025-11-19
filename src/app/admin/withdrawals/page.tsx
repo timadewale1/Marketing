@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, updateDoc, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { collection, onSnapshot, updateDoc, doc, getDoc, getDocs, query, where, orderBy, addDoc, serverTimestamp, increment } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,26 +81,51 @@ export default function WithdrawalsPage() {
         return;
       }
       const data = snap.data();
-      await updateDoc(ref, { status: "sent" });
+      // Update withdrawal status and record processedAt
+      await updateDoc(ref, { status: "sent", sentAt: serverTimestamp(), processedBy: auth.currentUser?.uid || null });
 
-      // Try to find matching advertiserTransactions entry and mark completed
+      // Try to find an existing placeholder transaction (type: 'withdrawal_request') and complete it.
       try {
         const txsSnap = await getDocs(
           query(
-            collection(db, "advertiserTransactions"),
+            collection(db, "earnerTransactions"),
             where("userId", "==", data.userId),
-            where("type", "==", "withdrawal"),
-            where("amount", "==", -Math.abs(data.amount)),
+            where("type", "==", "withdrawal_request"),
+            where("requestedAmount", "==", data.amount),
             where("status", "==", "pending")
           )
         );
-        txsSnap.forEach(async (t) => {
-          await updateDoc(doc(db, "advertiserTransactions", t.id), {
+
+        if (!txsSnap.empty) {
+          // Complete all matching placeholders
+          const updates = txsSnap.docs.map((t) => updateDoc(doc(db, "earnerTransactions", t.id), {
+            amount: -Math.abs(data.amount),
             status: "completed",
+            note: "Withdrawal processed by admin",
+            completedAt: serverTimestamp(),
+          }));
+          await Promise.all(updates);
+        } else {
+          // No placeholder found — create a final withdrawal transaction
+          await addDoc(collection(db, "earnerTransactions"), {
+            userId: data.userId,
+            type: "withdrawal",
+            amount: -Math.abs(data.amount),
+            fee: data.fee || 0,
+            net: data.net || data.amount,
+            status: "completed",
+            note: "Withdrawal processed by admin",
+            createdAt: serverTimestamp(),
           });
+        }
+
+        // Decrement earner balance now that withdrawal has been processed
+        await updateDoc(doc(db, "earners", data.userId), {
+          balance: increment(-Math.abs(data.amount)),
+          totalWithdrawn: increment(Number(data.amount) || 0),
         });
       } catch (e) {
-        console.warn("No matching advertiser transaction updated", e);
+        console.warn("Error finalizing withdrawal transaction", e);
       }
 
       toast.success("Marked as sent");

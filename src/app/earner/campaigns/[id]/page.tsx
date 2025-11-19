@@ -519,12 +519,48 @@ export default function CampaignDetailPage() {
                   <div className="mb-3">
                     <h5 className="text-sm font-medium mb-2">Campaign Media</h5>
                     <div className="aspect-square relative overflow-hidden rounded max-w-md mx-auto">
-                      <Image
-                        src={campaign.mediaUrl}
-                        alt="Campaign media"
-                        fill
-                        className="object-contain"
-                      />
+                      {(() => {
+                        const url = campaign.mediaUrl || '';
+                        const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+                        // If it's a YouTube link, render an iframe embed instead of an image
+                        if (isYouTube) {
+                          const getYouTubeVideoId = (u: string) => {
+                            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                            const match = u.match(regExp);
+                            return (match && match[2].length === 11) ? match[2] : null;
+                          };
+                          const vid = getYouTubeVideoId(url);
+                          return vid ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${vid}`}
+                              className="w-full h-full rounded-lg"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-amber-600 break-all">{url}</a>
+                          );
+                        }
+
+                        // If it looks like an image URL, render with next/image
+                        try {
+                          const u = new URL(url);
+                          const pathname = u.pathname || '';
+                          const ext = pathname.split('.').pop()?.toLowerCase() || '';
+                          if (['jpg','jpeg','png','webp','gif','bmp','svg'].includes(ext)) {
+                            return (
+                              <Image src={url} alt="Campaign media" fill className="object-contain" />
+                            );
+                          }
+                        } catch {
+                          // ignore invalid URL and fallthrough
+                        }
+
+                        // Fallback: show a clickable link
+                        return (
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-amber-600 break-all">{url}</a>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
