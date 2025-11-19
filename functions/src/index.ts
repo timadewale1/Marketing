@@ -4,10 +4,17 @@ import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
-// Scheduled function to process due activation fees every 5 minutes
-export const processDueActivations = (functions.pubsub as any)
-	.schedule('every 5 minutes')
-	.onRun(async (context: any) => {
+// Guard feature detection: some firebase-functions versions/environments may not
+// expose `functions.pubsub.schedule` (older/newer incompatibilities). If the
+// function is not available, skip registering scheduled functions so the
+// deployment static analysis doesn't crash.
+const hasPubsubSchedule = Boolean((functions as any).pubsub && typeof (functions as any).pubsub.schedule === 'function');
+
+if (hasPubsubSchedule) {
+	// Scheduled function to process due activation fees every 5 minutes
+	(exports as any).processDueActivations = (functions.pubsub as any)
+		.schedule('every 5 minutes')
+		.onRun(async (context: any) => {
 		const db = admin.firestore();
 		const now = admin.firestore.Timestamp.now();
 		const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 3; // approximate 3 months
@@ -65,19 +72,23 @@ export const processDueActivations = (functions.pubsub as any)
 			}
 		}
 
-			// Commit batch operations
-			try {
-				await batch.commit();
-			} catch (err) {
-				console.error('Error committing activation batch', err);
-			}
-		return null;
-	});
+					// Commit batch operations
+					try {
+						await batch.commit();
+					} catch (err) {
+						console.error('Error committing activation batch', err);
+					}
+				return null;
+			});
+		} else {
+		  console.warn('Skipping processDueActivations: functions.pubsub.schedule is not available in this firebase-functions install. Consider upgrading firebase-functions.');
+		}
 
 // Scheduled function to auto-verify submissions older than 10 minutes
-export const autoVerifySubmissions = (functions.pubsub as any)
-	.schedule('every 2 minutes')
-	.onRun(async () => {
+if (hasPubsubSchedule) {
+	(exports as any).autoVerifySubmissions = (functions.pubsub as any)
+		.schedule('every 2 minutes')
+		.onRun(async () => {
 		const db = admin.firestore();
 		const now = Date.now();
 		const tenMinutes = 1000 * 60 * 10;
@@ -132,5 +143,8 @@ export const autoVerifySubmissions = (functions.pubsub as any)
 			}
 		}
 
-		return null;
-	});
+				return null;
+		});
+} else {
+	console.warn('Skipping autoVerifySubmissions: functions.pubsub.schedule is not available in this firebase-functions install. Consider upgrading firebase-functions.');
+}
