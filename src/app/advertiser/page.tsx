@@ -265,10 +265,7 @@ export default function AdvertiserDashboard() {
           <h1 className="font-semibold text-stone-800 text-lg">Advertiser Dashboard</h1>
         </div>
 
-        {/* Bills & Utilities */}
-        <div className="mb-8">
-          <BillsCard />
-        </div>
+        {/* Bills & Utilities (moved into top stat cards) */}
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (
             <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
@@ -329,7 +326,7 @@ export default function AdvertiserDashboard() {
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
         {/* Top Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {statCards.map((card, i) => (
             <Card key={i} className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
               <CardContent className="p-6 flex items-center gap-5">
@@ -352,6 +349,11 @@ export default function AdvertiserDashboard() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Bills card */}
+          <div>
+            <BillsCard />
+          </div>
         </div>
 
         {/* Campaigns Section */}

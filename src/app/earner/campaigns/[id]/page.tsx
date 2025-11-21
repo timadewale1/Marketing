@@ -97,26 +97,46 @@ export default function CampaignDetailPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     // First check if user has submitted this campaign at all
-    const campaignSubmissionQuery = query(
+    // Avoid composite-index queries by querying by userId only and filtering client-side
+    const userSubmissionsQuery = query(
       collection(db, "earnerSubmissions"),
-      where("userId", "==", userId),
-      where("campaignId", "==", campaignId)
+      where("userId", "==", userId)
     );
-    const campaignSubmissionsSnap = await getDocs(campaignSubmissionQuery);
-    if (campaignSubmissionsSnap.size > 0) {
+    const userSubmissionsSnap = await getDocs(userSubmissionsQuery);
+    const hasSubmittedForCampaign = userSubmissionsSnap.docs.some((d) => {
+      const dd = d.data() as unknown
+      const campaignField = (dd as { campaignId?: unknown }).campaignId
+      return String(campaignField ?? '') === String(campaignId)
+    })
+    if (hasSubmittedForCampaign) {
       // User has already submitted this campaign
       return false;
     }
 
     // Then check daily limits separately
-    const dailySubmissionsQuery = query(
-      collection(db, "earnerSubmissions"),
-      where("userId", "==", userId),
-      where("createdAt", ">=", today)
-    );
-    const dailySubmissionsSnap = await getDocs(dailySubmissionsQuery);
-    if (dailySubmissionsSnap.size >= (campaignData?.dailyLimit || Infinity)) {
-      return false;
+    // Check daily limits: query by userId and filter createdAt client-side to avoid index requirements
+    const dailyByUserQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", userId))
+    const dailyByUserSnap = await getDocs(dailyByUserQuery)
+    const todayTime = today.getTime()
+    const submissionsToday = dailyByUserSnap.docs.filter((d) => {
+      const dd = d.data() as unknown
+      const createdAt = (dd as { createdAt?: unknown }).createdAt
+      if (!createdAt) return false
+      // createdAt could be Firestore Timestamp, JS Date, or object with seconds
+      const maybeWithToDate = createdAt as { toDate?: () => Date }
+      if (maybeWithToDate.toDate && typeof maybeWithToDate.toDate === 'function') {
+        return maybeWithToDate.toDate().getTime() >= todayTime
+      }
+      const maybeSeconds = createdAt as { seconds?: number }
+      if (maybeSeconds && typeof maybeSeconds.seconds === 'number') {
+        return (maybeSeconds.seconds * 1000) >= todayTime
+      }
+      const parsed = Date.parse(String(createdAt))
+      if (!isNaN(parsed)) return parsed >= todayTime
+      return false
+    }).length
+    if (submissionsToday >= (campaignData?.dailyLimit || Infinity)) {
+      return false
     }
 
     return true;

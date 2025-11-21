@@ -33,6 +33,8 @@ export default function BillsForm({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [validBiller, setValidBiller] = useState<unknown | null>(null)
 
+  const validBillerText = validBiller ? String(validBiller) : null
+
   useEffect(() => {
     // load categories
     fetch('/api/dataway/get-service-categories')
@@ -119,7 +121,7 @@ export default function BillsForm({ onSuccess }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white/70 p-4 rounded-lg border border-stone-100">
       <div>
         <Label>Category</Label>
         <select value={category} onChange={(e) => { setCategory(e.target.value); setService(''); setVariation(''); }} className="w-full p-2 border rounded">
@@ -166,6 +168,9 @@ export default function BillsForm({ onSuccess }: Props) {
       <div>
         <Label>{identifierLabel}</Label>
         <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder={identifierLabel} />
+        {validBillerText && (
+          <p className="mt-2 text-sm text-stone-700">Customer: {validBillerText}</p>
+        )}
       </div>
 
       <div>
