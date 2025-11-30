@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
                 <li>Bank account details (for withdrawals)</li>
                 <li>Device and browser information</li>
                 <li>Usage data and activity logs</li>
-                <li>Campaign participation data</li>
+                <li>Task participation data</li>
               </ul>
             </div>
           </section>
@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
               <ul className="list-disc pl-6">
                 <li>Provide and maintain our service</li>
                 <li>Process payments and withdrawals</li>
-                <li>Verify campaign participation</li>
+                <li>Verify task participation</li>
                 <li>Prevent fraud and abuse</li>
                 <li>Communicate with you about our service</li>
                 <li>Improve our platform</li>
@@ -54,7 +54,7 @@ export default function PrivacyPolicyPage() {
               <p>We may share your information with:</p>
               <ul className="list-disc pl-6">
                 <li>Payment processors (for transaction processing)</li>
-                <li>Advertisers (limited campaign participation data)</li>
+                <li>Advertisers (limited task participation data)</li>
                 <li>Service providers (hosting, analytics, etc.)</li>
                 <li>Law enforcement (when legally required)</li>
               </ul>

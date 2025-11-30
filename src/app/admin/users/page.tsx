@@ -122,6 +122,34 @@ export default function UsersPage() {
       const collectionName = userType === "earner" ? "earners" : "advertisers";
       await updateDoc(doc(db, collectionName, userId), { status });
       toast.success(`User ${status === "active" ? "activated" : status}`);
+
+      // If an advertiser was activated, finalize any pending referral for them.
+      if (userType === 'advertiser' && status === 'active') {
+        try {
+          const { getDocs, query, where, collection } = await import('firebase/firestore')
+          const snap = await getDocs(query(collection(db, 'referrals'), where('referredId', '==', userId)))
+          const pending = snap.docs.find(d => {
+            interface Referral {
+              userType: string;
+              status: string;
+              [key: string]: unknown;
+            }
+            const data = d.data() as Referral;
+            return data.userType === 'advertiser' && data.status === 'pending'
+          })
+          if (pending) {
+            // Call server-side referral finalize endpoint
+            await fetch('/api/referral', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ referralId: pending.id, action: 'activate' }),
+            })
+            toast.success('Referral finalized for activated advertiser')
+          }
+        } catch (err) {
+          console.error('Failed to finalize referral on advertiser activation', err)
+        }
+      }
     } catch (error) {
       console.error("Error updating user status:", error);
       toast.error("Failed to update user status");
@@ -232,9 +260,9 @@ export default function UsersPage() {
                 </TableCell>
                 <TableCell>₦{user.balance.toLocaleString()}</TableCell>
                 <TableCell>
-                  {user.type === "earner"
-                    ? `${user.leadsPaidFor} leads completed`
-                    : `${user.campaignsCreated} campaigns created`}
+          {user.type === "earner"
+            ? `${user.leadsPaidFor} leads completed`
+            : `${user.campaignsCreated} tasks created`}
                 </TableCell>
                 <TableCell>
                   <span

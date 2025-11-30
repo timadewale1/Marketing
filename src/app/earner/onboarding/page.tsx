@@ -33,7 +33,7 @@ const formSchema = z.object({
   dob: z.string().min(1, "Date of birth is required"),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
   skills: z.string().min(3, "Please list at least one skill"),
-  preferredCampaigns: z.string().min(3, "Enter preferred campaign types"),
+  preferredCampaigns: z.string().min(3, "Enter preferred task types"),
   bankCode: z.string().min(2, "Select your bank"),
   accountNumber: z
     .string()

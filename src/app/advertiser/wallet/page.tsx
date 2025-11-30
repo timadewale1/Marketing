@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth, db } from "@/lib/firebase"
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from "firebase/firestore"
 import { Timestamp } from "firebase/firestore"
 import { calculateWalletBalances } from "@/lib/wallet"
 import { onAuthStateChanged } from "firebase/auth"
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PaystackFundWalletModal } from "@/components/paystack-fund-wallet-modal"
+import { WithdrawDialog } from '@/components/withdraw-dialog'
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from "lucide-react"
 import { toast } from "react-hot-toast"
 
@@ -51,8 +52,10 @@ type Reroute = {
 
 
 export default function WalletPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'withdraw' | 'reroute'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'withdraw'>('overview')
   const [fundModalOpen, setFundModalOpen] = useState(false)
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const [bankDetails, setBankDetails] = useState<{ accountNumber?: string; bankName?: string; accountName?: string } | null>(null)
   type ResumedCampaign = {
     id: string;
     status: string;
@@ -76,6 +79,7 @@ export default function WalletPage() {
     let unsubWithdrawals: (() => void) | null = null
     let unsubReroutes: (() => void) | null = null
     let unsubResumed: (() => void) | null = null
+    let unsubscribeAuth: (() => void) | null = null
 
     const stopAll = () => {
       if (unsubCampaigns) unsubCampaigns()
@@ -84,14 +88,14 @@ export default function WalletPage() {
       if (unsubResumed) unsubResumed()
     }
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       stopAll()
 
       if (!user) {
         setCampaigns([])
         setWithdrawals([])
         setReroutes([])
-        
+
         return
       }
       // --- Campaigns ---
@@ -104,7 +108,6 @@ export default function WalletPage() {
         setCampaigns(data)
         const u = auth.currentUser
         setUserEmail(u?.email || null)
-        
       })
       // --- Withdrawals ---
       const q2 = query(collection(db, "withdrawals"), where("userId", "==", user.uid))
@@ -117,6 +120,25 @@ export default function WalletPage() {
           data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
         )
       })
+      // Fetch advertiser bank details from profile
+      ;(async () => {
+        try {
+          const advQ = query(collection(db, 'advertisers'), where('email', '==', user.email))
+          const docRef = await getDocs(advQ)
+          if (!docRef.empty) {
+            const d = docRef.docs[0].data() as {
+              bank?: {
+                accountNumber?: string
+                bankName?: string
+                accountName?: string
+              }
+            }
+            setBankDetails(d.bank || null)
+          }
+        } catch (e) {
+          console.warn('Failed to load advertiser bank details', e)
+        }
+      })()
       // --- Reroutes ---
       const q3 = query(collection(db, "reroutes"), where("userId", "==", user.uid))
       unsubReroutes = onSnapshot(q3, (snap) => {
@@ -139,7 +161,7 @@ export default function WalletPage() {
       })
     })
     return () => {
-      unsubscribeAuth()
+      if (unsubscribeAuth) unsubscribeAuth()
       stopAll()
     }
   }, [])
@@ -152,6 +174,36 @@ export default function WalletPage() {
     resumedCampaigns
   )
 
+  const handleAdvertiserWithdraw = async (amount: number) => {
+    const user = auth.currentUser
+    if (!user) {
+      toast.error('You must be signed in to withdraw')
+      return
+    }
+
+    try {
+      const idToken = await user.getIdToken()
+      const res = await fetch('/api/advertiser/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.message || 'Withdrawal failed')
+        return
+      }
+      toast.success(data?.message || 'Withdrawal request submitted')
+      setWithdrawOpen(false)
+    } catch (err) {
+      console.error('Withdraw error', err)
+      toast.error('Failed to create withdrawal request')
+    }
+  }
+
   // Reroute totals (live)
   
 
@@ -162,18 +214,7 @@ export default function WalletPage() {
     { title: "Refundable Balance", value: `₦${Math.max(0, refundableBalance).toLocaleString()}`, icon: RefreshCw },
   ]
 
-  const getCampaignTitle = (id: string) => campaigns.find((c) => c.id === id)?.title || "Unknown campaign"
-
-  const formatDate = (ts: Timestamp | Date | string | undefined) => {
-    if (!ts) return "-"
-    if (ts instanceof Timestamp) return ts.toDate().toLocaleString()
-    if (ts instanceof Date) return ts.toLocaleString()
-    try {
-      return new Date(ts).toLocaleString()
-    } catch {
-      return String(ts)
-    }
-  }
+  
 
   // Render wallet page with tabs
   return (
@@ -219,7 +260,6 @@ export default function WalletPage() {
               >
                 Overview
               </button>
-              {/* Withdrawal feature temporarily disabled
               <button
                 className={`flex-1 py-4 px-6 text-center border-b-2 text-sm font-medium ${
                   activeTab === 'withdraw'
@@ -230,17 +270,7 @@ export default function WalletPage() {
               >
                 Withdraw
               </button>
-              */}
-              <button
-                className={`flex-1 py-4 px-6 text-center border-b-2 text-sm font-medium ${
-                  activeTab === 'reroute'
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-primary-500 hover:text-primary-700 hover:border-primary-300'
-                }`}
-                onClick={() => setActiveTab('reroute')}
-              >
-                Reroute
-              </button>
+              {/* Reroute feature removed — tasks now run until funds exhaust */}
             </nav>
           </div>
 
@@ -257,11 +287,11 @@ export default function WalletPage() {
                   </Button>
                 </div>
 
-                {/* Campaign Breakdown */}
+                {/* Task Breakdown */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Campaign Breakdown</h3>
+                  <h3 className="font-semibold text-lg">Task Breakdown</h3>
                   {campaigns.length === 0 ? (
-                    <p className="text-primary-500">No active campaigns</p>
+                    <p className="text-primary-500">No active tasks</p>
                   ) : (
                     <div className="space-y-3">
                       {campaigns.map((c) => (
@@ -292,114 +322,7 @@ export default function WalletPage() {
               </>
             )}
 
-            {activeTab === 'reroute' && (
-              <div className="space-y-4">
-                <div className="p-4 border rounded">
-                  <h3 className="text-lg font-medium mb-4">Reroute Funds</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-primary-700 mb-1">Campaign</label>
-                      <select
-                        className="w-full border rounded px-3 py-2"
-                        value={rerouteEntries[0]?.campaignId || ''}
-                        onChange={(e) => setRerouteEntries([{ campaignId: e.target.value, amount: rerouteEntries[0]?.amount || 0 }])}
-                      >
-                        <option value="">Select campaign (active only)</option>
-                        {campaigns.filter(c => c.status === 'Active').map(c => (
-                          <option key={c.id} value={c.id}>{c.title}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-primary-700 mb-1">Amount (₦)</label>
-                      <Input
-                        type="number"
-                        value={rerouteEntries[0]?.amount || ""}
-                        onChange={(e) => {
-                          const amount = Number(e.target.value);
-                          if (amount > refundableBalance) {
-                            toast.error(`Amount cannot exceed refundable balance of ₦${refundableBalance.toLocaleString()}`);
-                            return;
-                          }
-                          setRerouteEntries([{ campaignId: rerouteEntries[0]?.campaignId || '', amount }]);
-                        }}
-                        placeholder="Enter amount to reroute"
-                        max={refundableBalance}
-                      />
-                      <p className="text-xs text-primary-500 mt-1">Available refundable balance: ₦{refundableBalance.toLocaleString()}</p>
-                    </div>
-                    <Button
-                      className="w-full bg-gold-500 hover:bg-gold-600"
-                      onClick={async () => {
-                        const u = auth.currentUser
-                        const entry = rerouteEntries[0]
-                        if (!u) return toast.error('Login required')
-                        if (!entry || !entry.campaignId) return toast.error('Select a campaign')
-                        const amount = Number(entry.amount || 0)
-                        if (!amount || amount < 100) return toast.error('Enter valid amount')
-                        if (amount > refundableBalance) return toast.error('Amount exceeds refundable balance')
-                        try {
-                          await addDoc(collection(db, 'reroutes'), {
-                            userId: u.uid,
-                            reroutes: [{ campaignId: entry.campaignId, amount }],
-                            status: 'pending',
-                            createdAt: serverTimestamp(),
-                          })
-                          await addDoc(collection(db, 'advertiserTransactions'), {
-                            userId: u.uid,
-                            type: 'reroute',
-                            amount: -Math.abs(amount),
-                            status: 'pending',
-                            note: `Reroute to ${getCampaignTitle(entry.campaignId)}`,
-                            campaignId: entry.campaignId,
-                            createdAt: serverTimestamp(),
-                          })
-                          toast.success('Reroute requested')
-                          setRerouteEntries([{ campaignId: '', amount: 0 }])
-                        } catch (e) {
-                          console.error(e)
-                          toast.error('Failed to request reroute')
-                        }
-                      }}
-                    >
-                      Submit Reroute Request
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Recent Reroutes */}
-                <div>
-                  <h3 className="font-medium mb-3">Recent Reroutes</h3>
-                  {reroutes.length === 0 ? (
-                    <p className="text-stone-500 text-sm">No reroutes yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {reroutes.map((r) => (
-                        <Card key={r.id} className="p-4">
-                          <div className="flex justify-between">
-                            <div>
-                              <div className="text-sm">
-                                {r.reroutes?.map((e) => (
-                                  <div key={e.campaignId} className="font-medium">
-                                    ₦{e.amount.toLocaleString()} to {getCampaignTitle(e.campaignId)}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-primary-500">{formatDate(r.createdAt)}</div>
-                              <div className="text-sm font-medium text-gold-600">
-                                {r.status}
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Reroute feature removed — tasks now run until funds exhaust */}
           </div>
         </div>
 
@@ -411,6 +334,21 @@ export default function WalletPage() {
             setFundModalOpen(false)
             toast.success("Wallet funded")
           }}
+        />
+        <WithdrawDialog
+          open={withdrawOpen}
+          onClose={() => setWithdrawOpen(false)}
+          onSubmit={handleAdvertiserWithdraw}
+          maxAmount={Math.max(0, refundableBalance)}
+          bankDetails={
+            bankDetails
+              ? {
+                  accountNumber: bankDetails.accountNumber || "",
+                  bankName: bankDetails.bankName || "",
+                  accountName: bankDetails.accountName || "",
+                }
+              : null
+          }
         />
       </div>
     </div>

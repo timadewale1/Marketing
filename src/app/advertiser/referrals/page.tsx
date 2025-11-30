@@ -36,7 +36,7 @@ export default function AdvertiserReferralsPage() {
       return;
     }
     
-    setInviteLink(`https://marketing-b.vercel.app/auth/sign-up?ref=${u.uid}&type=advertiser`);
+  setInviteLink(`https://alldaysjoy.vercel.app/auth/sign-up?ref=${u.uid}&type=advertiser`);
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
     const unsub = onSnapshot(q, (snap) => {
       setReferrals(snap.docs.map((d) => ({ 
@@ -80,10 +80,10 @@ export default function AdvertiserReferralsPage() {
                 <h3 className="font-medium text-stone-800">Earn by referring others:</h3>
                 <div className="flex items-center gap-2">
                   <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
-                    0.5% of first campaign payment
+                    ₦1,000 per activated advertiser
                   </div>
                   <div className="text-xs text-stone-500">
-                    When referring other advertisers who create their first campaign
+                    When referring advertisers who activate their account
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -160,7 +160,7 @@ export default function AdvertiserReferralsPage() {
                       </div>
                       {r.firstPaymentAmount && (
                         <div className="text-xs text-amber-600 mt-1">
-                          First campaign payment: ₦{r.firstPaymentAmount.toLocaleString()}
+                          First task payment: ₦{r.firstPaymentAmount.toLocaleString()}
                         </div>
                       )}
                     </div>

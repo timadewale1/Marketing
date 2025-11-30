@@ -21,7 +21,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-xl font-semibold text-primary-800 mb-3">2. Description of Service</h2>
             <p className="text-primary-600">
-                We provide a platform connecting advertisers with users who can participate in marketing campaigns for rewards. Users may earn money by completing tasks, while advertisers can reach their target audience effectively.
+                We provide a platform connecting advertisers with users who can participate in marketing tasks for rewards. Users may earn money by completing tasks, while advertisers can reach their target audience effectively.
             </p>
           </section>
 
@@ -68,7 +68,7 @@ export default function TermsOfServicePage() {
             <div className="space-y-2 text-primary-600">
               <p>Advertisers must:</p>
               <ul className="list-disc pl-6">
-                <li>Provide accurate campaign information</li>
+                <li>Provide accurate task information</li>
                 <li>Not promote illegal or prohibited content</li>
                 <li>Have proper rights to advertised content</li>
                 <li>Accept our review and approval process</li>
@@ -87,7 +87,7 @@ export default function TermsOfServicePage() {
                 <li>Loss of earnings or opportunities</li>
                 <li>Actions of other users</li>
                 <li>Third-party payment processor issues</li>
-                <li>Campaign performance or outcomes</li>
+                <li>Task performance or outcomes</li>
               </ul>
             </div>
           </section>

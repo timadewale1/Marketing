@@ -7,31 +7,35 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function PriceListPage() {
-  // canonical campaign types and CPL map (should match advertiser create-campaign)
+  // canonical task types and CPL map (should match advertiser create-campaign)
   const CPL_MAP: Record<string, number> = {
-    Video: 250,
-    Picture: 150,
+    Video: 300,
+    "Advertise Product": 150,
     "Third-Party Task": 100,
     Survey: 100,
     "App Download": 200,
-    "Instagram Follow": 80,
+    "Instagram Follow": 100,
     "Instagram Like": 50,
-    "Instagram Share": 60,
-    "Twitter Follow": 80,
-    "Twitter Retweet": 60,
+    "Instagram Share": 100,
+    "Twitter Follow": 100,
+    "Twitter Retweet": 100,
     "Facebook Like": 50,
-    "Facebook Share": 60,
+    "Facebook Share": 200,
     "TikTok Follow": 80,
     "TikTok Like": 50,
     "TikTok Share": 60,
     "YouTube Subscribe": 100,
     "YouTube Like": 60,
     "YouTube Comment": 70,
+    "WhatsApp Status": 200,
+    "WhatsApp Group Join": 200,
+    "Telegram Group Join": 200,
+    "Facebook Group Join": 200,
   };
   const campaignTypes = Object.keys(CPL_MAP).map((k) => ({
     category: k,
     advertiserPrice: CPL_MAP[k],
-    earnerPrice: Math.round(CPL_MAP[k] / 2),
+    earnerPrice: (k === 'Video') ? 150 : Math.round(CPL_MAP[k] / 2),
   }));
 
   const router = useRouter();
@@ -42,7 +46,7 @@ export default function PriceListPage() {
           <Button variant="ghost" onClick={() => router.back()} className="hover:bg-white/20">
             <ArrowLeft size={16} className="mr-2" /> Back
           </Button>
-          <h1 className="text-2xl font-semibold text-stone-800">Campaign Price List</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">Task Price List</h1>
         </div>
 
         <Card className="bg-white/80 backdrop-blur p-6">

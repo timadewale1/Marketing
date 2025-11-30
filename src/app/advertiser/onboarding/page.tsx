@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -28,10 +28,11 @@ import { useRouter } from "next/navigation"
 
 // ✅ Validation schema
 const formSchema = z.object({
-  companyName: z.string().min(2, "Company name is required"),
+  companyName: z.string().min(2, "Business name is required"),
   industry: z.string().min(2, "Industry is required"),
-  website: z.string().url("Enter a valid website").optional(),
   companyBio: z.string().min(10, "Bio must be at least 10 characters"),
+  bankCode: z.string().min(2, "Select your bank"),
+  accountNumber: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit account number"),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -51,8 +52,10 @@ const industries = [
 
 export default function AdvertiserOnboarding() {
   const [loading, setLoading] = useState(false)
-  const [logo, setLogo] = useState<File | null>(null)
-  const [logoPreview, setLogoPreview] = useState<string>("")
+  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([])
+  const [open, setOpen] = useState(false)
+  const [accountName, setAccountName] = useState("")
+  // logo upload removed per request
   const router = useRouter()
 
   const {
@@ -65,17 +68,52 @@ export default function AdvertiserOnboarding() {
     resolver: zodResolver(formSchema),
   })
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("Logo must be less than 2MB")
-        return
+  // Fetch Nigerian banks list for advertiser bank selection
+  type PaystackBank = { name: string; code: string }
+  useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const res = await fetch("https://api.paystack.co/bank?country=nigeria")
+        const data = await res.json()
+        if (data.status && data.data) {
+          const dataBanks = data.data as PaystackBank[]
+          setBanks(dataBanks.map((b) => ({ name: b.name, code: b.code })))
+        }
+      } catch (err) {
+        console.error("Failed to fetch banks", err)
       }
-      setLogo(file)
-      setLogoPreview(URL.createObjectURL(file))
     }
-  }
+    fetchBanks()
+  }, [])
+
+  // verify bank account whenever inputs change
+  const bankCode = watch("bankCode")
+  const accountNumber = watch("accountNumber")
+  useEffect(() => {
+    const verify = async () => {
+      if (accountNumber?.length === 10 && bankCode) {
+        try {
+          const res = await fetch("/api/verify-bank", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountNumber, bankCode }),
+          })
+          const data = await res.json()
+          if (data.status && data.data) {
+            setAccountName(data.data.account_name || data.data.accountName || "")
+          } else {
+            setAccountName("")
+          }
+        } catch (err) {
+          console.error("Bank verification failed", err)
+          setAccountName("")
+        }
+      }
+    }
+    verify()
+  }, [accountNumber, bankCode])
+
+  // logo upload handler removed
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
@@ -86,23 +124,21 @@ export default function AdvertiserOnboarding() {
         return
       }
 
-      // ✅ Upload company logo
-      let logoUrl = ""
-      if (logo) {
-        const storageRef = ref(storage, `advertisers/${user.uid}/logo.jpg`)
-        await uploadBytes(storageRef, logo)
-        logoUrl = await getDownloadURL(storageRef)
-      }
-
-      // ✅ Save onboarding details in Firestore
+      // ✅ Save onboarding details in Firestore (website & logo removed)
       const refDoc = doc(db, "advertisers", user.uid)
       await updateDoc(refDoc, {
         companyName: data.companyName,
         industry: data.industry,
-        website: data.website || "",
         companyBio: data.companyBio,
-        logo: logoUrl,
         onboarded: true,
+        // bank fields
+        bank: {
+          bankCode: data.bankCode,
+          bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
+          accountNumber: data.accountNumber,
+          accountName: accountName || null,
+          verified: !!accountName,
+        },
       })
 
       toast.success("Onboarding completed 🎉")
@@ -120,28 +156,16 @@ export default function AdvertiserOnboarding() {
       <div className="w-full max-w-3xl bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-white">Advertiser Onboarding</h1>
-          <p className="text-stone-300 mt-2">Set up your profile to start running campaigns 🚀</p>
+          <p className="text-stone-300 mt-2">Set up your profile to start creating tasks 🚀</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Company Logo */}
+          {/* Business Name */}
           <div>
-            <Label className="text-stone-200">Company Logo</Label>
-            <Input type="file" accept="image/*" onChange={handleLogoUpload} />
-            {logoPreview && (
-              <img
-                src={logoPreview}
-                className="mt-3 h-20 w-20 rounded-full object-cover border-2 border-amber-500"
-              />
-            )}
-          </div>
-
-          {/* Company Name */}
-          <div>
-            <Label className="text-stone-200">Company Name</Label>
+            <Label className="text-stone-200">Business Name</Label>
             <Input
               {...register("companyName")}
-              placeholder="My Brand Ltd"
+              placeholder="My Business Ltd"
               className="bg-white/20 border-white/30 text-white"
             />
             {errors.companyName && (
@@ -196,18 +220,6 @@ export default function AdvertiserOnboarding() {
             )}
           </div>
 
-          {/* Website */}
-          <div>
-            <Label className="text-stone-200">Website (optional)</Label>
-            <Input
-              {...register("website")}
-              placeholder="https://mybrand.com"
-              className="bg-white/20 border-white/30 text-white"
-            />
-            {errors.website && (
-              <p className="text-sm text-red-300 mt-1">{errors.website.message}</p>
-            )}
-          </div>
 
           {/* Company Bio */}
           <div>
@@ -222,6 +234,53 @@ export default function AdvertiserOnboarding() {
             )}
           </div>
 
+          {/* Bank Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-stone-200">Bank</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between bg-white/20 border-white/30 text-white"
+                  >
+                    {watch("bankCode")
+                      ? banks.find((ind) => ind.code === watch("bankCode"))?.name
+                      : "Select bank"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-stone-800 text-white">
+                  <div className="p-2 max-h-56 overflow-y-auto">
+                    {banks.map((b) => (
+                      <button
+                        key={b.code}
+                        className="w-full text-left p-2 hover:bg-stone-700 rounded"
+                        type="button"
+                        onClick={() => setValue("bankCode", b.code)}
+                      >
+                        {b.name}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {errors.bankCode && (
+                <p className="text-sm text-red-300 mt-1">{errors.bankCode.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-stone-200">Account Number</Label>
+              <Input
+                {...register("accountNumber")}
+                placeholder="1234567890"
+                className="bg-white/20 border-white/30 text-white"
+              />
+              {accountName && <p className="text-xs text-green-400 mt-1">Account: {accountName}</p>}
+            </div>
+          </div>
+
           <Button
             type="submit"
             disabled={loading}
@@ -234,3 +293,4 @@ export default function AdvertiserOnboarding() {
     </div>
   )
 }
+

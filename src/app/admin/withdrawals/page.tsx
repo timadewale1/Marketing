@@ -34,6 +34,7 @@ interface Withdrawal {
     bankName: string;
     accountName: string;
   };
+  source: 'earner' | 'advertiser';
 }
 
 export default function WithdrawalsPage() {
@@ -44,51 +45,85 @@ export default function WithdrawalsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const q = query(
-      collection(db, "earnerWithdrawals"),
-      orderBy("createdAt", "desc")
-    );
+    // Listen to both earnerWithdrawals and advertiserWithdrawals and merge
+    const qEarners = query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"));
+    const qAdvertisers = query(collection(db, "advertiserWithdrawals"), orderBy("createdAt", "desc"));
 
-    const unsubWithdrawals = onSnapshot(q, (snap) => {
-      const withdrawalsData = snap.docs.map((doc) => {
-        const data = doc.data();
+    const unsubEarners = onSnapshot(qEarners, (snap) => {
+      const data = snap.docs.map((doc) => {
+        const d = doc.data();
         return {
           id: doc.id,
-          userId: data.userId || "",
-          amount: data.amount || 0,
-          status: data.status || "",
-          createdAt: data.createdAt || { seconds: Date.now() / 1000 },
+          userId: d.userId || "",
+          amount: d.amount || 0,
+          status: d.status || "",
+          createdAt: d.createdAt || { seconds: Date.now() / 1000 },
           bank: {
-            accountNumber: data.bank?.accountNumber || "",
-            bankName: data.bank?.bankName || "",
-            accountName: data.bank?.accountName || "",
-          }
-        };
+            accountNumber: d.bank?.accountNumber || "",
+            bankName: d.bank?.bankName || "",
+            accountName: d.bank?.accountName || "",
+          },
+          source: 'earner'
+        } as Withdrawal & { source: string };
       });
-      setWithdrawals(withdrawalsData);
+      setWithdrawals((prev) => {
+        const others = prev.filter((p) => p.source !== 'earner');
+        return [...data, ...others].sort((a, b) => (b.createdAt.seconds || 0) - (a.createdAt.seconds || 0));
+      });
       setLoading(false);
     });
 
-    return () => unsubWithdrawals();
+    const unsubAdvertisers = onSnapshot(qAdvertisers, (snap) => {
+      const data = snap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          userId: d.userId || "",
+          amount: d.amount || 0,
+          status: d.status || "",
+          createdAt: d.createdAt || { seconds: Date.now() / 1000 },
+          bank: {
+            accountNumber: d.bank?.accountNumber || "",
+            bankName: d.bank?.bankName || "",
+            accountName: d.bank?.accountName || "",
+          },
+          source: 'advertiser'
+        } as Withdrawal & { source: string };
+      });
+      setWithdrawals((prev) => {
+        const others = prev.filter((p) => p.source !== 'advertiser');
+        return [...data, ...others].sort((a, b) => (b.createdAt.seconds || 0) - (a.createdAt.seconds || 0));
+      });
+      setLoading(false);
+    });
+
+    return () => {
+      unsubEarners()
+      unsubAdvertisers()
+    }
   }, []);
 
-  const markAsSent = async (id: string) => {
+  const markAsSent = async (id: string, source: 'earner' | 'advertiser' = 'earner') => {
     try {
-      const ref = doc(db, "earnerWithdrawals", id);
-      const snap = await getDoc(ref);
+      const collectionName = source === 'advertiser' ? 'advertiserWithdrawals' : 'earnerWithdrawals'
+      const txCollection = source === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions'
+      const userCollection = source === 'advertiser' ? 'advertisers' : 'earners'
+
+      const refDoc = doc(db, collectionName, id);
+      const snap = await getDoc(refDoc);
       if (!snap.exists()) {
         toast.error("Withdrawal request not found");
         return;
       }
       const data = snap.data();
       // Update withdrawal status and record processedAt
-      await updateDoc(ref, { status: "sent", sentAt: serverTimestamp(), processedBy: auth.currentUser?.uid || null });
+      await updateDoc(refDoc, { status: "sent", sentAt: serverTimestamp(), processedBy: auth.currentUser?.uid || null });
 
-      // Try to find an existing placeholder transaction (type: 'withdrawal_request') and complete it.
+      // Try to find an existing placeholder transaction and complete it.
       try {
         const txsSnap = await getDocs(
           query(
-            collection(db, "earnerTransactions"),
+            collection(db, txCollection),
             where("userId", "==", data.userId),
             where("type", "==", "withdrawal_request"),
             where("requestedAmount", "==", data.amount),
@@ -97,8 +132,7 @@ export default function WithdrawalsPage() {
         );
 
         if (!txsSnap.empty) {
-          // Complete all matching placeholders
-          const updates = txsSnap.docs.map((t) => updateDoc(doc(db, "earnerTransactions", t.id), {
+          const updates = txsSnap.docs.map((t) => updateDoc(doc(db, txCollection, t.id), {
             amount: -Math.abs(data.amount),
             status: "completed",
             note: "Withdrawal processed by admin",
@@ -106,8 +140,7 @@ export default function WithdrawalsPage() {
           }));
           await Promise.all(updates);
         } else {
-          // No placeholder found — create a final withdrawal transaction
-          await addDoc(collection(db, "earnerTransactions"), {
+          await addDoc(collection(db, txCollection), {
             userId: data.userId,
             type: "withdrawal",
             amount: -Math.abs(data.amount),
@@ -119,8 +152,8 @@ export default function WithdrawalsPage() {
           });
         }
 
-        // Decrement earner balance now that withdrawal has been processed
-        await updateDoc(doc(db, "earners", data.userId), {
+        // Decrement user balance now that withdrawal has been processed
+        await updateDoc(doc(db, userCollection, data.userId), {
           balance: increment(-Math.abs(data.amount)),
           totalWithdrawn: increment(Number(data.amount) || 0),
         });
@@ -205,9 +238,15 @@ export default function WithdrawalsPage() {
                   <span className="text-sm text-stone-500">{withdrawal.bank.accountNumber}</span>
                 </TableCell>
                 <TableCell>
-                  <a href={`/admin/earners/${withdrawal.userId}`} className="hover:underline">
-                    {withdrawal.bank.accountName}
-                  </a>
+                  {withdrawal.source === 'advertiser' ? (
+                    <a href={`/admin/advertisers/${withdrawal.userId}`} className="hover:underline">
+                      {withdrawal.bank.accountName}
+                    </a>
+                  ) : (
+                    <a href={`/admin/earners/${withdrawal.userId}`} className="hover:underline">
+                      {withdrawal.bank.accountName}
+                    </a>
+                  )}
                 </TableCell>
                 <TableCell>₦{withdrawal.amount.toLocaleString()}</TableCell>
                 <TableCell>
@@ -229,7 +268,7 @@ export default function WithdrawalsPage() {
                 <TableCell className="text-right">
                   {withdrawal.status !== "sent" && (
                     <Button
-                      onClick={() => markAsSent(withdrawal.id)}
+                      onClick={() => markAsSent(withdrawal.id, withdrawal.source)}
                       variant="outline"
                       size="sm"
                     >

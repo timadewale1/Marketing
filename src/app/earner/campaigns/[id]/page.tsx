@@ -148,7 +148,7 @@ export default function CampaignDetailPage() {
       try {
         const snap = await getDoc(doc(db, "campaigns", id));
         if (!snap.exists()) {
-          toast.error("Campaign not found");
+          toast.error("Task not found");
           router.back();
           return;
         }
@@ -156,7 +156,7 @@ export default function CampaignDetailPage() {
         setCampaign({ ...data, id: snap.id });
       } catch (err) {
         console.error(err);
-        toast.error("Failed to load campaign");
+        toast.error("Failed to load task");
       } finally {
         setLoading(false);
       }
@@ -255,33 +255,32 @@ export default function CampaignDetailPage() {
     }
 
     console.log("Checking previous submissions...");
-    // Check if user has already participated
-    const submissionsRef = collection(db, "earnerSubmissions");
-    const q = query(submissionsRef,
-      where("userId", "==", user.uid),
-      where("campaignId", "==", campaign.id)
-    );
+    // Check if user has already participated (avoid composite-index queries)
     try {
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        console.log("Found existing submission");
-        toast.error("You have already participated in this campaign");
-        return;
+      const userSubQ = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid))
+      const userSubs = await getDocs(userSubQ)
+      const already = userSubs.docs.some((d) => {
+        const dd = d.data() as Record<string, unknown>
+        return String(dd['campaignId'] || '') === String(campaign.id)
+      })
+      if (already) {
+        console.log("Found existing submission")
+        toast.error("You have already participated in this task")
+        return
       }
-      console.log("No existing submission found");
     } catch (queryError) {
-      console.error("Error checking submissions:", queryError);
-      toast.error("Error checking previous submissions");
-      return;
+      console.error("Error checking submissions:", queryError)
+      toast.error("Error checking previous submissions")
+      return
     }
 
-    // basic validation depending on campaign type
-    // Always require a screenshot for proof
+  // basic validation depending on task type
+  // Always require a screenshot for proof
     if (!file) {
       return toast.error("Please attach a screenshot as proof of completion");
     }
 
-    // For social campaigns, also require the social handle
+  // For social tasks, also require the social handle
     if ([
       "Instagram Follow",
       "Instagram Like", 
@@ -310,7 +309,7 @@ export default function CampaignDetailPage() {
       const isValid = await validateDataSync(user.uid, campaign.id);
       if (!isValid) {
         console.log("Data sync validation failed");
-        toast.error("Unable to submit - please check campaign status and your limits");
+        toast.error("Unable to submit - please check task status and your limits");
         return;
       }
 
@@ -327,20 +326,20 @@ export default function CampaignDetailPage() {
         }
       }
 
-      console.log("Checking campaign status...");
-      const campaignSnap = await getDoc(doc(db, "campaigns", campaign.id));
+  console.log("Checking task status...");
+  const campaignSnap = await getDoc(doc(db, "campaigns", campaign.id));
       if (!campaignSnap.exists()) {
-        console.log("Campaign not found");
-        toast.error("Campaign not found or has been removed");
+        console.log("Task not found");
+        toast.error("Task not found or has been removed");
         return;
       }
       const campaignData = campaignSnap.data() as CampaignData;
       if (campaignData?.status !== "Active") {
-        toast.error("This campaign is no longer active");
+        toast.error("This task is no longer active");
         return;
       }
       if ((campaignData?.budget || 0) < (campaignData?.costPerLead || 0)) {
-        toast.error("Campaign budget has been depleted");
+        toast.error("Task budget has been depleted");
         return;
       }
 
@@ -371,7 +370,7 @@ export default function CampaignDetailPage() {
           proofUrl: proofUrl || null,
           status: "Pending",
           createdAt: serverTimestamp(),
-          earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
+          earnerPrice: (campaign.category === "Video") ? 150 : Math.round((campaign.costPerLead || 0) / 2),
           reviewedAt: null,
           reviewedBy: null,
           rejectionReason: null,
@@ -410,12 +409,12 @@ export default function CampaignDetailPage() {
   if (!campaign) return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
       <div className="px-6 py-8 max-w-3xl mx-auto text-center">
-        <p className="text-stone-700">Campaign not found</p>
+  <p className="text-stone-700">Task not found</p>
       </div>
     </div>
   );
 
-  const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
+  const earnerPrice = campaign.category === "Video" ? 150 : Math.round((campaign.costPerLead || 0) / 2);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -432,7 +431,7 @@ export default function CampaignDetailPage() {
             <div className="absolute inset-0 bg-stone-100">
               <Image
                 src={campaign.bannerUrl || "/placeholders/default.jpg"}
-                alt={campaign.title || "Campaign banner"}
+                alt={campaign.title || "Task banner"}
                 fill
                 className="object-cover"
               />
@@ -459,12 +458,12 @@ export default function CampaignDetailPage() {
             {/* Campaign Resources */}
             {(campaign.videoUrl || campaign.externalLink || campaign.mediaUrl || (campaign.mediaUrls?.length ?? 0) > 0) && (
               <div className="mb-4 p-3 bg-amber-50 rounded border border-amber-100">
-                <h4 className="text-lg font-medium mb-2">Campaign Resources:</h4>
+                <h4 className="text-lg font-medium mb-2">Task Resources:</h4>
                 
                 {/* Video content */}
                 {campaign.videoUrl && (
                   <div className="mb-3">
-                    <h5 className="text-sm font-medium mb-2">Campaign Video</h5>
+                    <h5 className="text-sm font-medium mb-2">Task Video</h5>
                     {campaign.videoUrl.includes('youtube.com') || campaign.videoUrl.includes('youtu.be') ? (
                       <div className="space-y-3">
                         {(() => {
@@ -521,7 +520,7 @@ export default function CampaignDetailPage() {
                 {campaign.externalLink && (
                   <div className="mb-3">
                     <h5 className="text-sm font-medium mb-2">
-                      {campaign.category === 'Advertise Product' ? 'Product Link' : 'Campaign Link'}
+                      {campaign.category === 'Advertise Product' ? 'Product Link' : 'Task Link'}
                     </h5>
                     <a
                       href={campaign.externalLink}
@@ -537,7 +536,7 @@ export default function CampaignDetailPage() {
                 {/* Media URL from newer campaigns */}
                 {campaign.mediaUrl && (
                   <div className="mb-3">
-                    <h5 className="text-sm font-medium mb-2">Campaign Media</h5>
+                    <h5 className="text-sm font-medium mb-2">Task Media</h5>
                     <div className="aspect-square relative overflow-hidden rounded max-w-md mx-auto">
                       {(() => {
                         const url = campaign.mediaUrl || '';
@@ -569,7 +568,7 @@ export default function CampaignDetailPage() {
                           const ext = pathname.split('.').pop()?.toLowerCase() || '';
                           if (['jpg','jpeg','png','webp','gif','bmp','svg'].includes(ext)) {
                             return (
-                              <Image src={url} alt="Campaign media" fill className="object-contain" />
+                              <Image src={url} alt="Task media" fill className="object-contain" />
                             );
                           }
                         } catch {
@@ -606,7 +605,7 @@ export default function CampaignDetailPage() {
               </div>
             )}
 
-            {/* Campaign Instructions */}
+            {/* Task Instructions */}
             {campaign.description ? (
               <div className="p-3 bg-amber-50 rounded border border-amber-100">
                 <div className="prose max-w-none">
@@ -618,7 +617,7 @@ export default function CampaignDetailPage() {
               <>
                 <p className="text-stone-700">Follow the instructions below to complete the task and provide proof for verification.</p>
                 <div className="p-3 bg-amber-50 rounded border border-amber-100 space-y-3">
-                  <p className="font-medium text-stone-800">Required for all campaigns:</p>
+                  <p className="font-medium text-stone-800">Required for all tasks:</p>
                   <ul className="list-disc pl-4 text-stone-700 space-y-2">
                     <li>Complete the task as instructed</li>
                     <li>Take a clear screenshot showing proof of completion</li>
@@ -630,12 +629,26 @@ export default function CampaignDetailPage() {
                     "TikTok Share", "YouTube Subscribe", "YouTube Like",
                     "YouTube Comment"].includes(campaign.category || "") && (
                     <div className="mt-4">
-                      <p className="font-medium text-stone-800">For social media campaigns:</p>
+                      <p className="font-medium text-stone-800">For social media tasks:</p>
                       <p className="text-stone-700">Also provide your social media handle for verification</p>
                     </div>
                   )}
                 </div>
               </>
+            )}
+
+            {/* Views requirement for status shares (Instagram/WhatsApp) */}
+            {[
+              "Instagram Share",
+              "WhatsApp Status",
+              "Whatsapp Status",
+              "WhatsApp status",
+            ].includes(campaign.category || "") && (
+              <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-100">
+                <p className="text-sm text-stone-700">
+                  for any task that is stated for you to share via whatsapp status or instagram status, ensure that you have up to 50 views before taking the proof screenshot and submitting; if not it will not be approved as completed
+                </p>
+              </div>
             )}
           </div>
 

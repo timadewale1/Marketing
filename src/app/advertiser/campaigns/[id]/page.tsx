@@ -59,7 +59,7 @@ export default function CampaignDetailsPage() {
   const [showResumeModal, setShowResumeModal] = useState(false)
   const [useRefundAmount, setUseRefundAmount] = useState<number>(0)
   const [depositAmount, setDepositAmount] = useState<number>(0)
-  const [availableRefundable, setAvailableRefundable] = useState<number>(0)
+  const availableRefundable = 0
   const [processing, setProcessing] = useState<boolean>(false)
 
   // Load Paystack script once (inline)
@@ -152,94 +152,34 @@ export default function CampaignDetailsPage() {
     return () => unsub();
   }, [id, campaign])
 
-  const updateStatus = async (status: "Active" | "Paused" | "Stopped") => {
-  if (!campaign) return
-  try {
-    if (status === "Active") {
-      if (campaign.status === "Stopped") {
-        // open resume modal only for stopped campaigns
-        await handleResume()
-        return
-      } else if (campaign.status === "Paused") {
-        // direct resume for paused campaigns
-        await updateDoc(doc(db, "campaigns", campaign.id), { status: "Active" })
-        setCampaign({ ...campaign, status: "Active" })
-        toast.success("Campaign resumed")
-        return
-      }
-    }
-    await updateDoc(doc(db, "campaigns", campaign.id), { status })
-    setCampaign({ ...campaign, status })
-    toast.success(`Campaign ${status}`)
-  } catch (err) {
-    console.error(err)
-    toast.error("Failed to update campaign")
+  const updateStatus = async (): Promise<void> => {
+    // Pause/Resume/Stop features have been disabled per product decision.
+    toast('This action is disabled')
+    return
   }
-}
 
 
   const handleDelete = async () => {
     if (!campaign) return
     try {
       await deleteDoc(doc(db, "campaigns", campaign.id))
-      toast.success("Campaign deleted")
+      toast.success("Task deleted")
       router.push("/advertiser")
     } catch {
-      toast.error("Failed to delete campaign")
+      toast.error("Failed to delete task")
     }
   }
 
-  // Compute refundable balance for the user (fresh) and open modal
+  // Resume feature disabled — tasks now run until funds exhaust. Keep handler as no-op.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleResume = async () => {
-    try {
-      const auth = getAuth()
-      const user = auth.currentUser
-      if (!user || !user.uid) {
-        toast.error("You must be signed in to resume a campaign.")
-        return
-      }
-
-      // compute refundable base (stopped/deleted campaigns)
-      const cSnap = await getDocs(query(collection(db, "campaigns"), where("ownerId", "==", user.uid)))
-      const userCampaigns = cSnap.docs.map((d) => d.data() as Campaign)
-
-      const refundableBase = userCampaigns
-        .filter((c) => c.status === "Stopped" || c.status === "Deleted")
-        .reduce(
-          (sum, c) => sum + (c.budget || 0) - (c.generatedLeads || 0) * (c.costPerLead || 0),
-          0
-        )
-
-      // total requested withdrawals (pending/approved)
-      type Withdrawal = { amount: number }
-      const wSnap = await getDocs(query(collection(db, "withdrawals"), where("userId", "==", user.uid)))
-      const totalRequestedWithdrawals = wSnap.docs.reduce((s, d) => s + ((d.data() as Withdrawal).amount || 0), 0)
-
-      // total requested reroutes (pending/approved)
-      type RerouteItem = { amount: number }
-      const rSnap = await getDocs(query(collection(db, "reroutes"), where("userId", "==", user.uid)))
-      const totalRequestedReroutes = rSnap.docs.reduce(
-        (s, d) =>
-          s +
-          (((d.data() as { reroutes?: RerouteItem[] }).reroutes || []).reduce((sub: number, rr: RerouteItem) => sub + (rr.amount || 0), 0) || 0),
-        0
-      )
-
-      const available = refundableBase - totalRequestedWithdrawals - totalRequestedReroutes
-      setAvailableRefundable(Math.max(0, available))
-      // preset inputs
-      setUseRefundAmount(Math.min(Math.max(0, Math.floor(Math.min(available, (campaign?.budget || 0)))) , available))
-      setDepositAmount(0)
-      setShowResumeModal(true)
-    } catch (err) {
-      console.error("Failed to compute refundable balance:", err)
-      toast.error("Unable to determine refundable balance. Try again.")
-    }
+    toast('Resume feature is disabled. Tasks will run until funds are exhausted.')
+    return
   }
 
   // Start resume flow: supports using refundable + depositing more
   const startResumeFlow = async () => {
-  if (!campaign) return toast.error("Campaign missing")
+  if (!campaign) return toast.error("Task missing")
   const useRefund = Number(useRefundAmount || 0)
   const deposit = Number(depositAmount || 0)
 
@@ -338,7 +278,7 @@ await updateDoc(campaignRef, {
 
           setCampaign({ ...campaign, status: "Active", budget: total, generatedLeads: 0 })
           setShowResumeModal(false)
-          toast.success("Campaign resumed")
+          toast.success("Task resumed")
         } catch (err) {
           console.error("Finalize failed:", err)
           toast.error("Something went wrong after payment")
@@ -374,7 +314,7 @@ await updateDoc(campaignRef, {
 
     setCampaign({ ...campaign, status: "Active", budget: total, generatedLeads: 0 })
     setShowResumeModal(false)
-    toast.success("Campaign resumed using refundable balance")
+  toast.success("Task resumed using refundable balance")
     setProcessing(false)
   } catch (err) {
     console.error("Resume failed:", err)
@@ -402,13 +342,13 @@ await updateDoc(campaignRef, {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <Card className="p-8 shadow-md bg-gradient-to-br from-amber-50 to-stone-100 text-center">
           <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-stone-700 font-medium">Loading campaign...</p>
+          <p className="text-stone-700 font-medium">Loading task...</p>
         </Card>
       </div>
     )
   }
 
-  if (!campaign) return <p className="p-6">Campaign not found.</p>
+  if (!campaign) return <p className="p-6">Task not found.</p>
 
   const percent = campaign.estimatedLeads
     ? Math.min((campaign.generatedLeads / campaign.estimatedLeads) * 100, 100)
@@ -425,8 +365,7 @@ await updateDoc(campaignRef, {
   const statusActions = [
     {
       label: campaign.status === "Active" ? "Pause" : "Resume",
-      action: () =>
-        updateStatus(campaign.status === "Active" ? "Paused" : "Active"),
+      action: () => updateStatus(),
       color:
         campaign.status === "Active"
           ? "bg-yellow-500 hover:bg-yellow-600"
@@ -441,7 +380,7 @@ await updateDoc(campaignRef, {
     },
     {
       label: "Stop",
-      action: () => updateStatus("Stopped"),
+      action: () => updateStatus(),
       color: "bg-red-500 hover:bg-red-600",
       icon: StopCircle,
     },
@@ -461,15 +400,15 @@ await updateDoc(campaignRef, {
       {/* Hero Section */}
       <div className="flex justify-center">
         <Card className="w-full max-w-xs rounded-xl overflow-hidden shadow-md bg-gradient-to-br from-amber-50 to-stone-100">
-          <Image
-            src={campaign.bannerUrl || "/placeholders/default.jpg"}
-            alt={campaign.title || "Campaign banner"}
-            width={400}
-            height={400}
-            className="w-full aspect-square object-cover"
-            style={{ objectFit: "cover" }}
-            priority
-          />
+              <Image
+                src={campaign.bannerUrl || "/placeholders/default.jpg"}
+                alt={campaign.title || "Task banner"}
+                width={400}
+                height={400}
+                className="w-full aspect-square object-cover"
+                style={{ objectFit: "cover" }}
+                priority
+              />
           <CardContent className="p-4 space-y-2 text-center">
             <h1 className="text-lg font-semibold text-stone-800">
               {campaign.title}
@@ -565,7 +504,7 @@ await updateDoc(campaignRef, {
         {/* Controls */}
         <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800 mb-4">
-            Manage Campaign
+            Manage Task
           </h2>
           <div className="flex flex-wrap gap-3">
             {statusActions.map((btn, i) => (
@@ -611,7 +550,7 @@ await updateDoc(campaignRef, {
             className="bg-red-500 hover:bg-red-600 text-white flex gap-2 mx-auto"
             size="sm"
           >
-            <Trash size={16} /> Delete Campaign
+            <Trash size={16} /> Delete Task
           </Button>
         </Card>
       </div>
@@ -626,7 +565,7 @@ await updateDoc(campaignRef, {
       >
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-md">
           <Dialog.Title className="text-lg font-semibold mb-2">
-            Resume Campaign
+            Resume Task
           </Dialog.Title>
 
           <p className="text-sm text-stone-600 mb-4">

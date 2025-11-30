@@ -2,11 +2,11 @@
 
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, Briefcase, Users, Wallet, BarChart, Menu } from "lucide-react"
+import { Briefcase, Users, Wallet, BarChart, Menu } from "lucide-react"
 import { useUserRole } from "@/hooks/useUserRole"
 
 const navItems = [
-  { href: "/advertiser", label: "Campaigns", icon: Briefcase, roles: ["advertiser"] },
+  { href: "/advertiser", label: "Tasks", icon: Briefcase, roles: ["advertiser"] },
   { href: "/earner", label: "Referrals", icon: Users, roles: ["earner"] },
   { href: "/marketer", label: "Leads", icon: Users, roles: ["marketer"] },
   { href: "/wallet", label: "Wallet", icon: Wallet, roles: ["advertiser", "earner", "marketer"] },

@@ -448,15 +448,15 @@ export default function EarnerDashboard() {
           className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-md"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-stone-800">Campaign Stats</h3>
-            <Button
-              size="sm"
-              className="bg-stone-900 text-white"
-              onClick={() => router.push("/earner/campaigns")}
-            >
-              View Campaigns
-            </Button>
-          </div>
+              <h3 className="text-lg font-semibold text-stone-800">Task Stats</h3>
+              <Button
+                size="sm"
+                className="bg-stone-900 text-white"
+                onClick={() => router.push("/earner/campaigns")}
+              >
+                View Tasks
+              </Button>
+            </div>
           <div className="divide-y divide-stone-200">
             {[
                 { label: "Submitted", icon: <Grid size={18} />, value: stats.campaignSubmitted },
@@ -511,7 +511,7 @@ export default function EarnerDashboard() {
                     setOpenDropdown(openDropdown === "campaigns" ? null : "campaigns")
                   }
                 >
-                  Participate in Campaigns
+                  Participate in Tasks
                   {openDropdown === "campaigns" ? <ChevronUp /> : <ChevronDown />}
                 </button>
                 <AnimatePresence>
@@ -527,14 +527,14 @@ export default function EarnerDashboard() {
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/campaigns")}
                       >
-                        Available Campaigns
+                        Available Tasks
                       </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/campaigns/done")}
                       >
-                        Done Campaigns
+                        Done Tasks
                       </Button>
                     </motion.div>
                   )}
@@ -588,7 +588,7 @@ export default function EarnerDashboard() {
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/pricelist")}
                       >
-                        Campaign Price List
+                        Task Price List
                       </Button>
                     </motion.div>
                   )}

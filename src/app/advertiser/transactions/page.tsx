@@ -89,7 +89,7 @@ export default function AdvertiserTransactionsPage() {
                 ₦{balance.toLocaleString()}
               </p>
               <p className="text-sm text-stone-600 mt-1">
-                Used for campaign payments
+                Used for task payments
               </p>
             </div>
             <Button
@@ -119,7 +119,7 @@ export default function AdvertiserTransactionsPage() {
                     <div>
                       <div className="font-medium text-stone-800">
                         {tx.type === 'campaign_payment' 
-                          ? `Campaign Payment: ${tx.campaignTitle || 'Untitled'}`
+                          ? `Task Payment: ${tx.campaignTitle || 'Untitled'}`
                           : tx.type === 'wallet_funding'
                           ? 'Wallet Funding'
                           : tx.note || "Transaction"}
@@ -132,7 +132,7 @@ export default function AdvertiserTransactionsPage() {
                       )}
                       {tx.campaignId && (
                         <div className="text-xs text-amber-600 mt-1">
-                          Campaign ID: {tx.campaignId}
+                          Task ID: {tx.campaignId}
                         </div>
                       )}
                     </div>

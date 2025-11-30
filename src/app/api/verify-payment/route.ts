@@ -59,58 +59,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle campaign creation if this is a campaign payment
-    let createdId = ''
+  // Handle campaign creation if this is a campaign payment
     if (campaignData) {
       try {
         if (dbAdmin && admin) {
-          const ref = await adminDb.collection('campaigns').add({
+          await adminDb.collection('campaigns').add({
             ...campaignData,
             paymentRef: reference,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
           })
-          createdId = ref.id
         } else {
-          const created = await addDoc(collection(db, 'campaigns'), {
+          await addDoc(collection(db, 'campaigns'), {
             ...campaignData,
             paymentRef: reference,
             createdAt: serverTimestamp()
           })
-          createdId = created.id
         }
 
-        // Handle referral bonus for advertiser (0.5% of budget)
-        if (campaignData.ownerId) {
-          if (dbAdmin && admin) {
-            try {
-              const advDocRef = adminDb.collection('advertisers').doc(campaignData.ownerId)
-              const advSnap = await advDocRef.get()
-              if (advSnap.exists) {
-                const adv = advSnap.data() as Record<string, unknown>
-                const referrerId = (adv.referrerId as string) || (adv.referredBy as string) || null
-                const referralPaid = (adv.referralPaid as boolean) || false
-                const budget = Number(campaignData.budget || 0)
-                if (referrerId && !referralPaid && budget > 0) {
-                  const bonus = Math.round(0.005 * budget)
-                  await adminDb.collection('referrals').add({
-                    referrerId,
-                    referredId: campaignData.ownerId,
-                    amount: bonus,
-                    status: 'completed',
-                    note: `Referral bonus for advertiser first payment (campaign ${createdId})`,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  })
-                  await adminDb.collection('earners').doc(referrerId).update({
-                    balance: admin.firestore.FieldValue.increment(bonus)
-                  })
-                  await advDocRef.update({ referralPaid: true })
-                }
-              }
-            } catch (e) {
-              console.error('Failed to credit advertiser referrer:', e)
-            }
-          }
-        }
+        // NOTE: Referral bonus on advertiser first payment used to be processed here
+        // as a percentage of campaign budget. Business rule changed: advertiser
+        // referrals are now paid on advertiser activation (fixed ₦1,000). Referral
+        // creation on signup already records a pending referral; activation will
+        // be finalized by calling the referral API (PUT with action 'activate').
       } catch (e) {
         console.error('Failed to create campaign:', e)
         return NextResponse.json({ success: false, message: 'Failed to create campaign' }, { status: 500 })

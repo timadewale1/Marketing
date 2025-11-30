@@ -17,7 +17,7 @@ export default function HomePage() {
         <div className="absolute inset-0">
           <Image
             src="/hero-bg.jpg"
-            alt="Marketing campaign illustration"
+            alt="Marketing task illustration"
             fill
             className="object-cover"
             priority
@@ -37,7 +37,7 @@ export default function HomePage() {
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
           <div className="max-w-2xl">
-            <h1 className="text-5xl sm:text-6xl font-bold text-white mb-6">
+            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6">
               <TypedText
                 strings={[
                   'Earn Money Through Social Impact',
@@ -52,15 +52,15 @@ export default function HomePage() {
                 className="text-white"
               />
             </h1>
-            <p className="text-xl text-white mb-8">
-              Join our platform to earn by participating in marketing campaigns or reach your target audience effectively through our network of engaged users.
+            <p className="text-lg text-white mb-8">
+              Join our fast-growing community to earn for simple marketing tasks — from watching short videos to sharing status updates. Advertisers get reliable reach; users get paid instantly and can withdraw to their bank or pay bills directly from their wallet.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
                 <Link href="/auth/sign-up">Start Earning</Link>
               </Button>
               <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
-                <Link href="/auth/sign-up">Create Campaigns</Link>
+                <Link href="/auth/sign-up">Create Tasks</Link>
               </Button>
               <div className="mt-3 sm:mt-0 sm:ml-4">
                 <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
@@ -78,9 +78,9 @@ export default function HomePage() {
                 <Coins className="w-6 h-6 text-amber-500" />
                 <span>₦10M+ Paid Out</span>
               </div>
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <Target className="w-6 h-6 text-amber-500" />
-                <span>500+ Campaigns</span>
+                <span>500+ Tasks</span>
               </div>
             </div>
           </div>
@@ -100,18 +100,18 @@ export default function HomePage() {
       {/* Features Section */}
       <section id="features" className="py-20 bg-stone-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
+          <h2 className="text-3xl font-bold text-center text-stone-900 mb-8">
             Why Choose Our Platform?
           </h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
               <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
                 <Wallet className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-3 text-stone-900">Earn Money</h3>
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Instant Withdrawals</h3>
               <p className="text-stone-600">
-                Participate in various marketing campaigns and get paid for your engagement. Complete tasks like surveys, social media interactions, and more.
+                Withdraw your earnings quickly — we surface withdrawal requests for fast manual processing and plan to enable instant transfers.
               </p>
             </Card>
 
@@ -119,9 +119,9 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
                 <Users className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-3 text-stone-900">Build Community</h3>
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Referral Bonuses</h3>
               <p className="text-stone-600">
-                Connect with like-minded individuals, refer friends, and grow your network while earning through our referral program.
+                Earn referral bonuses when people you invite activate or make their first advertiser payment — a clear way to scale your earnings.
               </p>
             </Card>
 
@@ -129,9 +129,9 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-3 text-stone-900">Market Growth</h3>
+              <h3 className="text-xl font-semibold mb-2 text-stone-900">Pay Bills & Utilities</h3>
               <p className="text-stone-600">
-                Advertisers can reach their target audience effectively and track campaign performance in real-time.
+                Use your wallet to pay utilities and bills directly. Earn, withdraw, or pay — all from one place.
               </p>
             </Card>
           </div>
@@ -154,7 +154,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2 text-stone-900">Sign Up & Activate</h3>
                   <p className="text-stone-600">
-                    Create your account and activate it with a one-time fee of ₦2,000 to start participating in campaigns.
+                    Create your account and activate it with a one-time fee of ₦2,000 to start participating in tasks.
                   </p>
                 </div>
               </div>
@@ -164,9 +164,9 @@ export default function HomePage() {
                   <Target className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Choose Campaigns</h3>
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Choose Tasks</h3>
                   <p className="text-stone-600">
-                    Browse available campaigns and select those that match your interests and skills.
+                    Browse available tasks and select those that match your interests and skills.
                   </p>
                 </div>
               </div>
@@ -178,7 +178,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2 text-stone-900">Complete Tasks</h3>
                   <p className="text-stone-600">
-                    Follow campaign instructions and submit your work for review.
+                    Follow task instructions and submit your work for review.
                   </p>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Advertiser - Sign Up & Fund</h3>
                   <p className="text-stone-600">
-                    Create an account, verify your details, and fund your wallet to begin creating campaigns.
+                    Create an account, verify your details, and fund your wallet to begin creating tasks.
                   </p>
                 </div>
               </div>
@@ -223,7 +223,7 @@ export default function HomePage() {
                   <Clipboard className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Create Campaign</h3>
+                  <h3 className="text-xl font-semibold mb-2">Create Task</h3>
                   <p className="text-stone-600">
                     Define your objective, target demographics, creatives and set the budget and cost-per-lead.
                   </p>
@@ -237,7 +237,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Target & Optimize</h3>
                   <p className="text-stone-600">
-                    Choose who sees your campaign, set pacing and monitor performance to optimize for quality leads.
+                    Choose who sees your task, set pacing and monitor performance to optimize for quality leads.
                   </p>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Launch & Track</h3>
                   <p className="text-stone-600">
-                    Launch your campaign, review submissions, approve quality leads, and pay only for validated results.
+                    Launch your task, review submissions, approve quality leads, and pay only for validated results.
                   </p>
                 </div>
               </div>
@@ -265,12 +265,12 @@ export default function HomePage() {
             Ready to Start Your Journey?
           </h2>
           <p className="text-xl text-stone-700 mb-8 max-w-2xl mx-auto">
-            Join thousands of users who are already earning through our platform. Start participating in campaigns or create your own today.
+            Join thousands of users who are already earning through our platform. Start participating in tasks or create your own today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
-              <Link href="/auth/sign-up">
-                Start Earning Now/Create Campaigns <ArrowRight className="ml-2 w-5 h-5" />
+                <Link href="/auth/sign-up">
+                Start Earning Now/Create Tasks <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
             <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
@@ -290,7 +290,7 @@ export default function HomePage() {
                 <span className="text-white font-bold">AllDaysJoy</span>
               </div>
               <ul className="space-y-2">
-                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning/Create Campaigns</Link></li>
+                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning/Create Tasks</Link></li>
                 <li><Link href="/auth/sign-in" className="hover:text-amber-500">Login to your account</Link></li>
                 <li><Link href="/faq" className="hover:text-amber-500">FAQ</Link></li>
               </ul>

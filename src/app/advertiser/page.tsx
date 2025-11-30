@@ -209,11 +209,11 @@ export default function AdvertiserDashboard() {
       actionLabel: "Fund Wallet",
     },
     {
-      title: "Active Campaigns",
+      title: "Active Tasks",
       value: stats.activeCampaigns,
       icon: TrendingUp,
       action: () => router.push("/advertiser/campaigns"),
-      actionLabel: "View Campaigns",
+      actionLabel: "View Tasks",
     },
     {
       title: "Leads Paid For",
@@ -226,7 +226,7 @@ export default function AdvertiserDashboard() {
       icon: Users,
     },
     {
-      title: "Campaigns Submitted",
+      title: "Tasks Submitted",
       value: stats.campaignSubmitted,
       icon: Grid,
     },
@@ -294,11 +294,11 @@ export default function AdvertiserDashboard() {
           {/* ...existing code for nav items... */}
           {[
             { label: "Dashboard", path: "/advertiser" },
-            { label: "Campaigns", path: "/advertiser/campaigns" },
+            { label: "Tasks", path: "/advertiser/campaigns" },
             { label: "Wallet", path: "/advertiser/wallet" },
             { label: "Transactions", path: "/advertiser/transactions" },
             { label: "Referrals", path: "/advertiser/referrals" },
-            { label: "Campaign Price List", path: "/advertiser/pricelist" },
+            { label: "Task Price List", path: "/advertiser/pricelist" },
             { label: "Profile", path: "/advertiser/profile" },
           ].map((item) => (
             <button
@@ -356,13 +356,13 @@ export default function AdvertiserDashboard() {
           </div>
         </div>
 
-        {/* Campaigns Section */}
+        {/* Tasks Section */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-stone-800">Your Campaigns</h2>
+          <h2 className="text-lg font-semibold text-stone-800">Your Tasks</h2>
           <Link href="/advertiser/create-campaign">
             <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
               <Plus size={16} />
-              Create Campaign
+              Create Task
             </Button>
           </Link>
         </div>
@@ -439,10 +439,10 @@ export default function AdvertiserDashboard() {
             })
           ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-12">
-              <p className="text-lg text-stone-600 mb-3">No {filter} campaigns found.</p>
+              <p className="text-lg text-stone-600 mb-3">No {filter} tasks found.</p>
               <Link href="/advertiser/create-campaign">
                 <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow">
-                  <Plus size={18} className="mr-2" /> Create Your First Campaign
+                  <Plus size={18} className="mr-2" /> Create Your First Task
                 </Button>
               </Link>
             </div>

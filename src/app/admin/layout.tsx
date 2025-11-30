@@ -35,7 +35,7 @@ const NAVIGATION = [
     icon: Users,
   },
   {
-    name: "Campaigns",
+    name: "Tasks",
     href: "/admin/campaigns",
     icon: BarChart2,
   },

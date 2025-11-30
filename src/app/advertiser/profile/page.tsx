@@ -200,9 +200,9 @@ export default function ProfilePage() {
 
       {/* Campaign Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <Card className="p-4 bg-white/90 flex items-center justify-between rounded-xl shadow">
+          <Card className="p-4 bg-white/90 flex items-center justify-between rounded-xl shadow">
           <div>
-            <p className="text-sm text-stone-500">Total Campaigns</p>
+            <p className="text-sm text-stone-500">Total Tasks</p>
             <h3 className="text-xl font-bold text-stone-800">{campaignStats.total}</h3>
           </div>
           <Wallet className="text-amber-600" size={22} />

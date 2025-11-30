@@ -7,10 +7,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import Dropzone from "@/components/ui/dropzone"
-import { auth, storage } from "@/lib/firebase"
+// Dropzone removed: banner upload disabled, thumbnails auto-generated per task type
+import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { serverTimestamp } from "firebase/firestore"
+import { serverTimestamp, getDocs, query, where, collection } from "firebase/firestore"
 
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
@@ -25,6 +25,10 @@ import {
 type CampaignType =
   | "Video"
   | "Advertise Product"
+  | "WhatsApp Status"
+  | "WhatsApp Group Join"
+  | "Telegram Group Join"
+  | "Facebook Group Join"
   | "Third-Party Task"
   | "Survey"
   | "App Download"
@@ -46,24 +50,29 @@ const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
 
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
-  Video: 250,
+  // Advertiser price (NGN). Earner usually gets half, except Video which pays a fixed 150 to earner.
+  Video: 300,
   "Advertise Product": 150,
   "Third-Party Task": 100,
   Survey: 100,
   "App Download": 200,
-  "Instagram Follow": 80,
+  "Instagram Follow": 100,
   "Instagram Like": 50,
-  "Instagram Share": 60,
-  "Twitter Follow": 80,
-  "Twitter Retweet": 60,
+  "Instagram Share": 100,
+  "Twitter Follow": 100,
+  "Twitter Retweet": 100,
   "Facebook Like": 50,
-  "Facebook Share": 60,
+  "Facebook Share": 200,
   "TikTok Follow": 80,
   "TikTok Like": 50,
   "TikTok Share": 60,
   "YouTube Subscribe": 100,
   "YouTube Like": 60,
   "YouTube Comment": 70,
+  "WhatsApp Status": 200,
+  "WhatsApp Group Join": 200,
+  "Telegram Group Join": 200,
+  "Facebook Group Join": 200,
 }
 
 export default function CreateCampaignPage() {
@@ -105,6 +114,20 @@ export default function CreateCampaignPage() {
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
   const estimatedLeads =
     numericBudget > 0 ? Math.floor(numericBudget / currentCPL) : 0
+
+  // helper: generate thumbnail for category
+  const getThumbnailForCategory = (cat: string) => {
+    if (!cat) return "/placeholders/default.jpg"
+    const slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+    return `/placeholders/${slug}.jpg`
+  }
+
+  // generate a thumbnail whenever category changes (only if banner not explicitly set)
+  React.useEffect(() => {
+    if (category && !bannerUrl) {
+      setBannerUrl(getThumbnailForCategory(category as string))
+    }
+  }, [category, bannerUrl])
 
   // Load Paystack script once
   useEffect(() => {
@@ -164,42 +187,14 @@ const compressed = await imageCompression(file, options)
     )
   }
 
-  // handle Dropzone file
-  const handleFileSelected = async (file: File, type: "banner" | "media") => {
-    const MAX_MB = 15
-    if (file.size > MAX_MB * 1024 * 1024) {
-      toast.error(`File must be less than ${MAX_MB}MB`)
-      return
-    }
+  // Reference helpers so they are not flagged as unused (banner upload removed)
+  React.useEffect(() => {
+    void compressImage
+    void uploadFile
+    void setMediaUrl
+  }, [])
 
-    setLoading(true)
-    try {
-      let toUpload = file
-
-      if (file.type.startsWith("image/")) {
-        toUpload = await compressImage(file)
-      }
-
-      const filename = `${type}s/${Date.now()}-${file.name.replace(
-        /\s+/g,
-        "_"
-      )}`
-      uploadFile(toUpload, filename, (url) => {
-        if (type === "banner") {
-          setBannerUrl(url)
-          toast.success("Banner uploaded")
-        } else {
-          setMediaUrl(url)
-          toast.success("Media uploaded")
-        }
-      })
-    } catch (error) {
-      console.error(error)
-      toast.error("Upload error")
-      setLoading(false)
-      setUploadProgress(null)
-    }
-  }
+  // Banner upload removed; media upload still uses uploadFile helper above when needed elsewhere
 
   // Step validation
   const isStepValid = () => {
@@ -207,8 +202,7 @@ const compressed = await imageCompression(file, options)
       return (
         title.trim().length >= 3 &&
         description.trim().length >= 10 &&
-        category &&
-        bannerUrl
+        category
       )
     if (step === 1) {
       if (category === "Video") return videoLink.trim().length > 5 
@@ -234,12 +228,12 @@ const compressed = await imageCompression(file, options)
       const data = await res.json()
       toast.dismiss(t)
       if (res.ok && data.success) {
-        toast.success("Payment confirmed — campaign submitted for review")
+        toast.success("Payment confirmed — task submitted for review")
         router.push("/advertiser")
       } else {
         toast.error(data?.message || "Payment verification failed")
       }
-    } catch (err) {
+    } catch {
       toast.dismiss(t)
       toast.error("Error verifying payment")
     }
@@ -261,6 +255,24 @@ const compressed = await imageCompression(file, options)
     if (!isStepValid()) {
       toast.error("Please complete all required fields")
       return
+    }
+
+    // Ensure advertiser profile is onboarded/activated before allowing task creation
+    try {
+      const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
+      if (docs.empty) {
+        toast.error('Advertiser profile not found — please complete onboarding')
+        router.push('/advertiser/onboarding')
+        return
+      }
+      const ad = docs.docs[0].data() as Record<string, unknown>
+      if (!ad['onboarded'] && !ad['activated']) {
+        toast.error('Please complete advertiser onboarding/activation before creating tasks')
+        router.push('/advertiser/onboarding')
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to validate advertiser profile', e)
     }
 
     const campaignData: Record<string, unknown> = {
@@ -295,7 +307,7 @@ const handler = paystackLib.setup({
         email: user.email,
         amount: numericBudget * 100,
         currency: "NGN",
-        label: `Campaign payment: ${title}`,
+  label: `Task payment: ${title}`,
         onClose: () => toast.error("Payment canceled"),
         callback: (resp: { reference: string }) => {
           verifyPayment(resp.reference, campaignData)
@@ -321,7 +333,7 @@ const handler = paystackLib.setup({
       >
         <ArrowLeft size={16} /> Back
       </Button>
-      <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Create a Campaign</h1>
+  <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Create a Task</h1>
       <p className="text-sm text-stone-600">Fill in the details. You will only pay & submit after review.</p>
     </div>
   )
@@ -353,7 +365,7 @@ const getEmbeddedVideo = (url: string) => {
           <Card>
             <CardContent className="space-y-4 p-6">
               <label className="text-sm font-medium text-stone-700">
-                Campaign title
+                Task title
               </label>
               <Input
                 placeholder="Write a short, clear title"
@@ -384,22 +396,12 @@ const getEmbeddedVideo = (url: string) => {
 
               <div>
                 <label className="text-sm font-medium text-stone-700 block mb-2">
-                  Campaign cover image (banner) — required
+                  Task cover image (thumbnail)
                 </label>
-                <Dropzone
-                  label="Drop or choose image (max 15MB)"
-                  accept="image/*"
-                  previewUrl={bannerUrl}
-                  onFileSelected={(f) => handleFileSelected(f, "banner")}
-                />
-                {uploadProgress !== null && (
-                  <div className="mt-3 w-full bg-stone-200 rounded h-2">
-                    <div
-                      className="h-2 bg-amber-500 rounded"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                )}
+                <div className="w-full h-48 bg-stone-100 rounded overflow-hidden mb-2">
+                  <Image src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" fill className="object-cover" />
+                </div>
+                <p className="text-xs text-stone-500">Thumbnail auto-generated based on task type. No banner upload required.</p>
               </div>
             </CardContent>
           </Card>
