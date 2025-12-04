@@ -196,32 +196,5 @@ export default function ElectricityPage() {
       {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
     </div>
   )
-}
-                  const key = item.label
-                  const val = item.value || 'N/A'
-                  const lower = key.toLowerCase()
-                  const Icon = lower.includes('name') ? User : lower.includes('account') || lower.includes('meter') ? Hash : lower.includes('type') ? CreditCard : lower.includes('date') ? Calendar : lower.includes('district') || lower.includes('location') ? MapPin : lower.includes('amount') ? DollarSign : Info
-                  return (
-                    <React.Fragment key={key}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-amber-500" />
-                        <span className="font-medium">{key}:</span>
-                      </div>
-                      <div className="text-right">{key.toLowerCase().includes('amount') ? `₦${Number(val || 0).toLocaleString()}` : val}</div>
-                    </React.Fragment>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-        <input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-2 border rounded" />
-        <div className="text-sm">You will be charged: ₦{displayPrice().toLocaleString()}</div>
-        <div className="flex gap-2">
-          <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => setPayOpen(true)}>Pay</button>
-        </div>
-      </div>
-      {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
-    </div>
   )
 }
