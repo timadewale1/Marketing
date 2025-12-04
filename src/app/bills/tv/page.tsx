@@ -236,26 +236,3 @@ export default function TVPage() {
     </div>
   )
 }
-                const key = item.label
-                const val = item.value || ''
-                const lower = key.toLowerCase()
-                const Icon = lower.includes('name') ? User : lower.includes('account') || lower.includes('card') ? Hash : lower.includes('date') ? Calendar : lower.includes('amount') ? DollarSign : lower.includes('district') ? MapPin : Info
-                return (
-                  <React.Fragment key={key}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-amber-500" />
-                      <span className="font-medium">{key}:</span>
-                    </div>
-                    <div className="text-right">{key.toLowerCase().includes('amount') ? `₦${Number(val || 0).toLocaleString()}` : val || 'N/A'}</div>
-                  </React.Fragment>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
-    </div>
-  )
-}

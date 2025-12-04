@@ -197,22 +197,6 @@ export default function ElectricityPage() {
     </div>
   )
 }
-          {discos.length ? discos.map(d => <option key={d.id} value={d.id}>{d.name}</option>) : (
-            <>
-              <option value="ikeja-electric">Ikeja Electric</option>
-              <option value="eko-electric">Eko Electric</option>
-            </>
-          )}
-        </select>
-        <div className="flex gap-2">
-          <button type="button" onClick={handleVerify} className="px-3 py-2 border rounded">Verify</button>
-        </div>
-        {verifyResult && (
-          <div className="p-3 border rounded bg-white">
-            <h3 className="font-semibold">Customer details</h3>
-            <div className="text-sm mt-2">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 items-start">
-                {formatVerifyResult(verifyResult, ['Customer_Name', 'customerName', 'Account_Number', 'Meter_Number', 'Customer_Number', 'Meter_Type', 'Customer_Type', 'Minimum_Amount', 'Min_Purchase_Amount', 'Customer_District', 'Customer_District_Reference']).map((item: { label: string; value: string }) => {
                   const key = item.label
                   const val = item.value || 'N/A'
                   const lower = key.toLowerCase()
