@@ -26,18 +26,18 @@ export default function HomePage() {
         </div>
 
         {/* Logo */}
-        <div className="relative">
+        {/* <div className="relative">
           <div className="container mx-auto px-4 pt-6">
             <Link href="/" className="inline-flex items-center text-2xl font-bold text-white">
               <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md mr-2">ADJ</span>
               AllDaysJoy
             </Link>
           </div>
-        </div>
+        </div> */}
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
           <div className="max-w-2xl">
-            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
               <TypedText
                 strings={[
                   'Earn Money Through Social Impact',
@@ -62,11 +62,10 @@ export default function HomePage() {
               <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
                 <Link href="/auth/sign-up">Create Tasks</Link>
               </Button>
-              <div className="mt-3 sm:mt-0 sm:ml-4">
-                <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
                 <Link href="/auth/sign-in">Login</Link>
               </Button>
-              </div>
+              
             </div>
             
             <div className="mt-12 flex flex-wrap gap-8 text-white">

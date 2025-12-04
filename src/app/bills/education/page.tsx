@@ -5,6 +5,7 @@ import { PaystackModal } from '@/components/paystack-modal'
 import { applyMarkup, formatVerifyResult } from '@/services/vtpass/utils'
 import { User, Hash, Calendar, DollarSign, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
 
 export default function EducationPage() {
   const [tab, setTab] = useState<'waec' | 'jamb'>('waec')
@@ -108,6 +109,9 @@ export default function EducationPage() {
 
   return (
     <div className="p-6 max-w-xl">
+      <div className="mb-4">
+        <Button onClick={() => window.history.back()} variant="ghost">Back</Button>
+      </div>
       <h2 className="text-xl font-semibold mb-4">Education — WAEC & JAMB</h2>
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab('waec')} className={`px-3 py-1 rounded ${tab === 'waec' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC</button>

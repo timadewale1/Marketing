@@ -27,7 +27,7 @@ export default function AirtimePage() {
         phone,
         paystackReference: reference,
       }
-      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) {
         toast.error('VTpass purchase failed: ' + (j?.message || JSON.stringify(j)))
@@ -35,7 +35,7 @@ export default function AirtimePage() {
       }
       toast.success('Transaction successful')
       // redirect to confirmation page
-      window.open('/vtpass/confirmation', '_self')
+      window.open('/bills/confirmation', '_self')
     } catch (e) {
       console.error(e)
       toast.error('Purchase failed')
@@ -47,7 +47,7 @@ export default function AirtimePage() {
     let mounted = true
     ;(async () => {
       try {
-        const res = await fetch('/api/vtpass/services?identifier=airtime')
+        const res = await fetch('/api/bills/services?identifier=airtime')
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
           const mapped = (j.result as Service[]).map(s => ({ id: s.serviceID || s.code || s.id || 'unknown', name: s.name || s.title || 'Unknown' }))

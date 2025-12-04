@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/vtpass',
+        destination: '/bills',
+        permanent: true,
+      },
+      {
+        source: '/vtpass/:path*',
+        destination: '/bills/:path*',
+        permanent: true,
+      },
+    ]
+  }
 };
 
 export default nextConfig;

@@ -225,26 +225,26 @@ export default function AdvertiserDashboard() {
       value: stats.leadsGenerated,
       icon: Users,
     },
-    {
-      title: "Tasks Submitted",
-      value: stats.campaignSubmitted,
-      icon: Grid,
-    },
-    {
-      title: "Pending Submissions",
-      value: stats.campaignPending,
-      icon: Clock,
-    },
-    {
-      title: "Rejected Submissions",
-      value: stats.campaignRejected,
-      icon: XCircle,
-    },
-    {
-      title: "Approved Submissions",
-      value: stats.campaignApproved,
-      icon: CheckCircle,
-    },
+    // {
+    //   title: "Tasks Submitted",
+    //   value: stats.campaignSubmitted,
+    //   icon: Grid,
+    // },
+    // {
+    //   title: "Pending Submissions",
+    //   value: stats.campaignPending,
+    //   icon: Clock,
+    // },
+    // {
+    //   title: "Rejected Submissions",
+    //   value: stats.campaignRejected,
+    //   icon: XCircle,
+    // },
+    // {
+    //   title: "Approved Submissions",
+    //   value: stats.campaignApproved,
+    //   icon: CheckCircle,
+    // },
   ]
 
   const filteredCampaigns = campaigns.filter(

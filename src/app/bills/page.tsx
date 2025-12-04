@@ -15,7 +15,7 @@ const categories = [
   { id: 'education', name: 'Education', icon: BookOpen, color: 'bg-green-50 text-green-600' },
 ]
 
-export default function VtpassIndex() {
+export default function BillsIndex() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100">
       {/* Header */}

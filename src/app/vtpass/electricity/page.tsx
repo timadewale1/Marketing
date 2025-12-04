@@ -19,11 +19,11 @@ export default function ElectricityPage() {
   const handlePaySuccess = async (reference: string) => {
     try {
       const payload = { request_id: `vt-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference }
-      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       toast.success('Electricity paid')
-      window.location.href = '/vtpass/confirmation'
+      window.location.href = '/bills/confirmation'
     } catch (e) { console.error(e); toast.error('Error') }
   }
 
@@ -31,7 +31,7 @@ export default function ElectricityPage() {
     let mounted = true
     ;(async () => {
       try {
-        const res = await fetch('/api/vtpass/services?identifier=electricity-bill')
+        const res = await fetch('/api/bills/services?identifier=electricity-bill')
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
           const mapped = (j.result as Array<Record<string, unknown>>).map(s => ({ id: String(s['serviceID'] || s['code'] || s['id'] || ''), name: String(s['name'] || s['title'] || '') }))
@@ -47,7 +47,7 @@ export default function ElectricityPage() {
 
   const handleVerify = async () => {
     try {
-      const res = await fetch('/api/vtpass/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: meter, serviceID: disco }) })
+      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: meter, serviceID: disco }) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Verification failed')
       setVerifyResult(j.result || j)

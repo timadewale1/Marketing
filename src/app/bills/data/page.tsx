@@ -87,7 +87,7 @@ export default function DataPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-stone-200">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/vtpass">
+          <Link href="/bills">
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back

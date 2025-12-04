@@ -16,7 +16,7 @@ export default function WaecPage() {
     let mounted = true
     ;(async () => {
       try {
-        const res = await fetch('/api/vtpass/variations?serviceID=waec')
+        const res = await fetch('/api/bills/variations?serviceID=waec')
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
           const mapped = (j.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
@@ -40,11 +40,11 @@ export default function WaecPage() {
       const payload: Record<string, unknown> = { serviceID: 'waec', variation_code: plan, quantity, phone, paystackReference: reference }
       const found = plans.find(p => p.code === plan)
       if (found) payload.amount = String(found.amount * (quantity || 1))
-      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       toast.success('Purchase successful')
-      window.location.href = '/vtpass/confirmation'
+      window.location.href = '/bills/confirmation'
     } catch {
       toast.error('Error')
     }

@@ -27,18 +27,18 @@ export default function TVPage() {
       } else {
         payload.amount = String(amount)
       }
-      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       toast.success('Subscription successful')
-      window.location.href = '/vtpass/confirmation'
+      window.location.href = '/bills/confirmation'
     } catch (e) { console.error(e); toast.error('Error') }
   }
 
   const handleVerify = async () => {
     if (!smartcard) return toast.error('Enter smartcard number')
     try {
-      const res = await fetch('/api/vtpass/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
+      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Verification failed')
       setVerifyResult(j.result || j)
@@ -53,7 +53,7 @@ export default function TVPage() {
     let mounted = true
     ;(async () => {
       try {
-        const res = await fetch('/api/vtpass/services?identifier=tv-subscription')
+        const res = await fetch('/api/bills/services?identifier=tv-subscription')
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
           const mapped = (j.result as Array<Record<string, unknown>>).map(s => ({ id: String(s['serviceID'] || s['code'] || s['id'] || ''), name: String(s['name'] || s['title'] || '') }))
@@ -72,7 +72,7 @@ export default function TVPage() {
     if (!provider) return
     ;(async () => {
       try {
-        const res = await fetch(`/api/vtpass/variations?serviceID=${encodeURIComponent(provider)}`)
+        const res = await fetch(`/api/bills/variations?serviceID=${encodeURIComponent(provider)}`)
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
           const mapped = (j.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
