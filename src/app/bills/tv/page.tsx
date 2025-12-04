@@ -236,7 +236,6 @@ export default function TVPage() {
     </div>
   )
 }
-              {formatVerifyResult(verifyResult, ['Customer_Name', 'customerName', 'Amount', 'Renewal_Amount', 'Due_Date']).map((item: { label: string; value: string }) => {
                 const key = item.label
                 const val = item.value || ''
                 const lower = key.toLowerCase()
