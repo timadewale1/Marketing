@@ -196,5 +196,4 @@ export default function ElectricityPage() {
       {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
     </div>
   )
-  )
 }
