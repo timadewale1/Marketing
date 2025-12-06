@@ -99,7 +99,10 @@ export default function EducationPage() {
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serviceID: 'jamb', billersCode: jambProfile }) })
       const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Verify failed')
+      if (!res.ok || !j?.ok) {
+        const msg = j?.message || 'Verify failed'
+        return toast.error(String(msg))
+      }
       setJambVerifyResult(j.result)
       toast.success('Verified')
     } catch {
@@ -108,73 +111,85 @@ export default function EducationPage() {
   }
 
   return (
-    <div className="p-6 max-w-xl">
-      <div className="mb-4">
-        <Button onClick={() => window.history.back()} variant="ghost">Back</Button>
-      </div>
-      <h2 className="text-xl font-semibold mb-4">Education — WAEC & JAMB</h2>
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab('waec')} className={`px-3 py-1 rounded ${tab === 'waec' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC</button>
-        <button onClick={() => setTab('jamb')} className={`px-3 py-1 rounded ${tab === 'jamb' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>JAMB</button>
-      </div>
-
-      {tab === 'waec' && (
-        <div className="space-y-3">
-          <select value={waecPlan} onChange={(e) => setWaecPlan(e.target.value)} className="w-full p-2 border rounded">
-            {waecPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
-          </select>
-          <input type="number" min={1} value={waecQty} onChange={(e) => setWaecQty(Number(e.target.value))} className="w-full p-2 border rounded" />
-          <div className="text-sm">You will be charged: ₦{waecDisplayPrice().toLocaleString()}</div>
-          <div className="flex gap-2">
-            <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecPurchase(true)}>Pay</button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100">
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-stone-200">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>Back</Button>
+          <h1 className="text-xl font-bold text-stone-900">Education — WAEC & JAMB</h1>
+          <div className="w-[68px]" />
         </div>
-      )}
+      </div>
 
-      {tab === 'jamb' && (
-        <div className="space-y-3">
-          <select value={jambPlan} onChange={(e) => setJambPlan(e.target.value)} className="w-full p-2 border rounded">
-            {jambPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
-          </select>
-          <input placeholder="JAMB profile / registration" value={jambProfile} onChange={(e) => setJambProfile(e.target.value)} className="w-full p-2 border rounded" />
-          <input placeholder="Phone (optional)" value={jambPhone} onChange={(e) => setJambPhone(e.target.value)} className="w-full p-2 border rounded" />
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1 rounded bg-stone-100" onClick={verifyJamb}>Verify</button>
-            <div className="text-sm">You will be charged: ₦{jambDisplayPrice().toLocaleString()}</div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => setTab('waec')} className={`px-3 py-1 rounded ${tab === 'waec' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC</button>
+            <button onClick={() => setTab('jamb')} className={`px-3 py-1 rounded ${tab === 'jamb' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>JAMB</button>
           </div>
 
-          {jambVerifyResult && (
-            <div className="border p-3 rounded bg-white">
-              <h3 className="font-semibold">Verify Result</h3>
-              <div className="mt-2 space-y-1 text-sm">
-                  {formatVerifyResult(jambVerifyResult, ['Customer_Name', 'fullName', 'Full_Name', 'profile', 'registrationNumber', 'Amount', 'Minimum_Amount']).map((item: { label: string; value: string }) => {
-                    const key = item.label
-                    const val = item.value || ''
-                    const lower = key.toLowerCase()
-                    const Icon = lower.includes('name') ? User : lower.includes('profile') || lower.includes('registration') ? Hash : lower.includes('date') ? Calendar : lower.includes('amount') ? DollarSign : Info
-                    return (
-                      <React.Fragment key={key}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-amber-500" />
-                          <span className="font-medium">{key}:</span>
-                        </div>
-                        <div className="text-right">{key.toLowerCase().includes('amount') ? `₦${Number(val || 0).toLocaleString()}` : val || 'N/A'}</div>
-                      </React.Fragment>
-                    )
-                  })}
-              </div>
+          <div className="border border-stone-200 shadow-lg bg-white rounded-xl">
+            <div className="p-6 sm:p-8 space-y-4">
+              {tab === 'waec' && (
+                <div className="space-y-3">
+                  <select value={waecPlan} onChange={(e) => setWaecPlan(e.target.value)} className="w-full p-2 border rounded">
+                    {waecPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
+                  </select>
+                  <input type="number" min={1} value={waecQty} onChange={(e) => setWaecQty(Number(e.target.value))} className="w-full p-2 border rounded" />
+                  <div className="text-sm">You will be charged: ₦{waecDisplayPrice().toLocaleString()}</div>
+                  <div className="flex gap-2">
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecPurchase(true)}>Pay</button>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'jamb' && (
+                <div className="space-y-3">
+                  <select value={jambPlan} onChange={(e) => setJambPlan(e.target.value)} className="w-full p-2 border rounded">
+                    {jambPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
+                  </select>
+                  <input placeholder="JAMB profile / registration" value={jambProfile} onChange={(e) => setJambProfile(e.target.value)} className="w-full p-2 border rounded" />
+                  <input placeholder="Phone (optional)" value={jambPhone} onChange={(e) => setJambPhone(e.target.value)} className="w-full p-2 border rounded" />
+                  <div className="flex items-center gap-2">
+                    <button className="px-3 py-1 rounded bg-stone-100" onClick={verifyJamb}>Verify</button>
+                    <div className="text-sm">You will be charged: ₦{jambDisplayPrice().toLocaleString()}</div>
+                  </div>
+
+                  {jambVerifyResult && (
+                    <div className="border p-3 rounded bg-green-50">
+                      <h3 className="font-semibold">Verify Result</h3>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {formatVerifyResult(jambVerifyResult, ['Customer_Name', 'fullName', 'Full_Name', 'profile', 'registrationNumber', 'Amount', 'Minimum_Amount']).map((item: { label: string; value: string }) => {
+                          const key = item.label
+                          const val = item.value || ''
+                          const lower = key.toLowerCase()
+                          const Icon = lower.includes('name') ? User : lower.includes('profile') || lower.includes('registration') ? Hash : lower.includes('date') ? Calendar : lower.includes('amount') ? DollarSign : Info
+                          return (
+                            <div key={key} className="grid grid-cols-2 gap-2 items-start">
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-4 h-4 text-amber-500" />
+                                <span className="font-medium">{key}:</span>
+                              </div>
+                              <div className="text-right">{key.toLowerCase().includes('amount') ? `₦${Number(val || 0).toLocaleString()}` : val || 'N/A'}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startJambPurchase(true)}>Pay</button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-          <div className="flex gap-2">
-            <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startJambPurchase(true)}>Pay</button>
           </div>
-        </div>
-      )}
 
-      {payOpen && pendingPurchase && (
-        <PaystackModal amount={Number(pendingPurchase.amount || 0)} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />
-      )}
+          {payOpen && pendingPurchase && (
+            <PaystackModal amount={Number(pendingPurchase.amount || 0)} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -15,6 +15,7 @@ type DataPlan = { code: string; name: string; amount: number }
 export default function DataPage() {
   const [amount, setAmount] = useState('')
   const [service, setService] = useState('')
+  const [services, setServices] = useState<Array<{ id: string; name: string }>>([])
   const [plan, setPlan] = useState('')
   const [plans, setPlans] = useState<DataPlan[]>([])
   const [phone, setPhone] = useState('')
@@ -31,8 +32,10 @@ export default function DataPage() {
         const res = await fetch('/api/bills/services?identifier=data')
         const j = await res.json()
         if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
-          const first = j.result[0]
-          const sid = first?.serviceID || first?.code || first?.id || 'data'
+          const mapped = (j.result as Array<Record<string, unknown>>).map(s => ({ id: String(s['serviceID'] || s['code'] || s['id'] || ''), name: String(s['name'] || s['title'] || '') }))
+          setServices(mapped)
+          const first = mapped[0]
+          const sid = first?.id || 'data'
           setService(sid)
         }
       } catch (e) {
@@ -124,7 +127,15 @@ export default function DataPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-semibold text-stone-900 mb-3">Select Data Plan</label>
+                    <label className="block text-sm font-semibold text-stone-900 mb-3">Select Network</label>
+                    <select
+                      value={service}
+                      onChange={(e) => setService(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-stone-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      {services.length ? services.map(s => <option key={s.id} value={s.id}>{s.name}</option>) : <option value="">Select network</option>}
+                    </select>
+                    <label className="block text-sm font-semibold text-stone-900 mb-3">Select Data Plan</label>
                   <DataPlanSelector
                     plans={plans}
                     selectedCode={plan}

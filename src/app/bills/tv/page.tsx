@@ -43,7 +43,10 @@ export default function TVPage() {
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
       const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Verification failed')
+      if (!res.ok || !j?.ok) {
+        const msg = j?.message || 'Verification failed'
+        return toast.error(String(msg))
+      }
       setVerifyResult(j.result || j)
       toast.success('Verified')
     } catch (err) {

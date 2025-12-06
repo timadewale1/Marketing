@@ -20,11 +20,12 @@ export function groupDataPlans(plans: DataPlan[]): PlanGroup[] {
 
   plans.forEach(p => {
     const name = p.name.toLowerCase()
-    if (name.includes('daily') || name.includes('day')) {
+    // improved keyword matching to capture variations like "7days", "30 day", "weekly", etc.
+    if (name.includes('daily') || name.includes('day') || /\b\d+[- ]?day(s)?\b/.test(name)) {
       grouped.Daily.push(p)
-    } else if (name.includes('weekly') || name.includes('week')) {
+    } else if (name.includes('weekly') || name.includes('week') || /\b\d+[- ]?week(s)?\b/.test(name)) {
       grouped.Weekly.push(p)
-    } else if (name.includes('monthly') || name.includes('month')) {
+    } else if (name.includes('monthly') || name.includes('month') || /\b\d+[- ]?month(s)?\b/.test(name)) {
       grouped.Monthly.push(p)
     } else {
       // default to Monthly if unclear

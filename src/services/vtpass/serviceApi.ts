@@ -13,12 +13,30 @@ export async function getServicesForCategory(identifier: string) {
 }
 
 export async function getVariations(serviceID: string) {
-  const res = await vtpassClient.get(`/service-variations?serviceID=${encodeURIComponent(serviceID)}`)
-  // content may be an object with .variations
-  const content = res?.data?.content || res?.data
-  if (content?.variations) return content.variations
-  if (Array.isArray(content)) return content
-  return []
+  // Sometimes VTpass sandbox can drop connections; retry a few times before failing
+  const maxAttempts = 3
+  let attempt = 0
+  let lastErr: unknown = null
+
+  while (attempt < maxAttempts) {
+    try {
+      const res = await vtpassClient.get(`/service-variations?serviceID=${encodeURIComponent(serviceID)}`)
+      const content = res?.data?.content || res?.data
+      if (content?.variations) return content.variations
+      if (Array.isArray(content)) return content
+      return []
+    } catch (err) {
+      // record and retry with backoff for transient network errors
+      lastErr = err
+      attempt += 1
+      const backoff = 300 * Math.pow(2, attempt) // 600ms, 1200ms, ...
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, backoff))
+    }
+  }
+
+  // after retries, surface the last error
+  throw lastErr
 }
 
 export async function getOptions(serviceID: string, name: string) {
