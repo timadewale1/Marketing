@@ -30,7 +30,7 @@ export default function ConfirmationPage() {
             {/* Info Box */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-900">
-                You'll receive a confirmation email shortly. Check your transaction history for more details.
+                You&apos;ll receive a confirmation email shortly. Check your transaction history for more details.
               </p>
             </div>
 
