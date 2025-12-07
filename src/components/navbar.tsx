@@ -19,6 +19,14 @@ export default function Navbar() {
       // Prevent automatic prompt
       e.preventDefault()
       const evt = e as BeforeInstallPromptEvent
+      // don't show the install prompt UI repeatedly if user already dismissed or installed
+      try {
+        const installed = localStorage.getItem('pwa_installed')
+        const dismissed = localStorage.getItem('pwa_install_dismissed')
+        if (installed === '1' || dismissed === '1') return
+      } catch {
+        /* ignore */
+      }
       setDeferredPrompt(evt)
       setShowInstall(true)
     }
@@ -48,6 +56,13 @@ export default function Navbar() {
     const choice = await deferredPrompt.userChoice
     setShowInstall(false)
     setDeferredPrompt(null)
+    try {
+      if (choice && (choice as any).outcome === 'dismissed') {
+        localStorage.setItem('pwa_install_dismissed', '1')
+      }
+    } catch {
+      /* ignore */
+    }
     console.log("PWA install choice:", choice)
   }
 
@@ -68,8 +83,16 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3">
           {showInstall && (
-            <button onClick={handleInstall} className="hidden sm:inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-1 rounded-md text-sm">
+            // desktop/tablet button
+            <button onClick={handleInstall} className="hidden md:inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-1 rounded-md text-sm">
               <Smartphone className="w-4 h-4" /> Add to home
+            </button>
+          )}
+
+          {showInstall && (
+            // mobile button (visible on small screens)
+            <button onClick={handleInstall} className="md:hidden p-2 rounded-md bg-amber-500 text-stone-900">
+              <Smartphone className="w-5 h-5" />
             </button>
           )}
 

@@ -380,7 +380,7 @@ const handler = paystackLib.setup({
     }
   }
 
-  const captureFace = () => {
+  const captureFace = async () => {
     if (!videoRef.current) return
     const v = videoRef.current
     const canvas = canvasRef.current || document.createElement('canvas')
@@ -397,28 +397,30 @@ const handler = paystackLib.setup({
     try {
       setFaceUploading(true)
       // convert dataURL to blob
-      fetch(data)
-        .then((res) => res.blob())
-        .then(async (blob) => {
-          const user = auth.currentUser
-          const uid = user?.uid || 'anon'
-          const filename = `face_${uid}_${Date.now()}.jpg`
-          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
-          const path = `advertiserFaces/${uid}/${filename}`
-          // reuse uploadFile helper
-          uploadFile(file, path, (url) => {
-            setFaceImageUrl(url)
-            setFaceUploading(false)
-            toast.success('Face image uploaded')
-          })
-        })
-        .catch((e) => {
-          console.error('Face upload failed', e)
-          toast.error('Face upload failed')
-          setFaceUploading(false)
-        })
+      const blob = await (await fetch(data)).blob()
+      const user = auth.currentUser
+      const uid = user?.uid || 'anon'
+      const filename = `face_${uid}_${Date.now()}.jpg`
+      let file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
+
+      // compress the captured image before upload
+      try {
+        const compressed = await compressImage(file)
+        file = compressed as File
+      } catch (e) {
+        console.warn('Image compression failed, uploading original', e)
+      }
+
+      const path = `advertiserFaces/${uid}/${filename}`
+      // reuse uploadFile helper
+      uploadFile(file, path, (url) => {
+        setFaceImageUrl(url)
+        setFaceUploading(false)
+        toast.success('Face image uploaded')
+      })
     } catch (e) {
       console.error('Face upload error', e)
+      toast.error('Face upload failed')
       setFaceUploading(false)
     }
   }
@@ -497,8 +499,14 @@ const getEmbeddedVideo = (url: string) => {
                 <label className="text-sm font-medium text-stone-700 block mb-2">
                   Task cover image (thumbnail)
                 </label>
-                <div className="w-full h-48 bg-stone-100 rounded overflow-hidden mb-2">
-                  <Image src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" fill className="object-cover" />
+                <div className="relative w-full h-48 bg-stone-100 rounded overflow-hidden mb-2">
+                  { (bannerUrl || '/placeholders/default.jpg').startsWith('/placeholders') ? (
+                    // use a plain img for local placeholders to avoid image optimizer issues
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" className="w-full h-full object-cover" />
+                  ) : (
+                    <Image src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" fill className="object-cover" />
+                  )}
                 </div>
                 <p className="text-xs text-stone-500">Thumbnail auto-generated based on task type. No banner upload required.</p>
               </div>
