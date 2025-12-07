@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, result: variations })
   } catch (err: unknown) {
     console.error('bills variations error', err)
+    @typescript-eslint/no-explicit-any
     const anyErr = err as any
     if (anyErr?.response) {
       const status = anyErr.response.status || 500
