@@ -29,7 +29,7 @@ type CampaignType =
   | "WhatsApp Group Join"
   | "Telegram Group Join"
   | "Facebook Group Join"
-  | "Third-Party Task"
+  | "other website tasks"
   | "Survey"
   | "App Download"
   | "Instagram Follow"
@@ -51,28 +51,28 @@ const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
   // Advertiser price (NGN). Earner usually gets half, except Video which pays a fixed 150 to earner.
-  Video: 300,
-  "Advertise Product": 150,
-  "Third-Party Task": 100,
-  Survey: 100,
-  "App Download": 200,
-  "Instagram Follow": 100,
-  "Instagram Like": 50,
-  "Instagram Share": 100,
-  "Twitter Follow": 100,
-  "Twitter Retweet": 100,
-  "Facebook Like": 50,
-  "Facebook Share": 200,
-  "TikTok Follow": 80,
-  "TikTok Like": 50,
-  "TikTok Share": 60,
-  "YouTube Subscribe": 100,
-  "YouTube Like": 60,
-  "YouTube Comment": 70,
-  "WhatsApp Status": 200,
-  "WhatsApp Group Join": 200,
-  "Telegram Group Join": 200,
-  "Facebook Group Join": 200,
+   Video: 100,
+    "Advertise Product": 150,
+    "other website tasks": 100,
+    Survey: 100,
+    "App Download": 200,
+    "Instagram Follow": 50,
+    "Instagram Like": 50,
+    "Instagram Share": 100,
+    "Twitter Follow": 50,
+    "Twitter Retweet": 50,
+    "Facebook Like": 50,
+    "Facebook Share": 100,
+    "TikTok Follow": 50,
+    "TikTok Like": 50,
+    "TikTok Share": 50,
+    "YouTube Subscribe": 50,
+    "YouTube Like": 50,
+    "YouTube Comment": 50,
+    "WhatsApp Status": 100,
+    "WhatsApp Group Join": 100,
+    "Telegram Group Join": 100,
+    "Facebook Group Join": 100,
 }
 
 export default function CreateCampaignPage() {
@@ -207,7 +207,7 @@ const compressed = await imageCompression(file, options)
     if (step === 1) {
       if (category === "Video") return videoLink.trim().length > 5 
       if (category === "Advertise Product") return productLink.trim().length > 5
-      if (["Survey", "Third-Party Task", "App Download"].includes(category))
+      if (["Survey", "other website tasks", "App Download"].includes(category))
         return externalLink.trim().length > 5
       return true
     }
@@ -228,7 +228,7 @@ const compressed = await imageCompression(file, options)
       const data = await res.json()
       toast.dismiss(t)
       if (res.ok && data.success) {
-        toast.success("Payment confirmed — task submitted for review")
+        toast.success("Payment confirmed - task created")
         router.push("/advertiser")
       } else {
         toast.error(data?.message || "Payment verification failed")
@@ -261,7 +261,7 @@ const compressed = await imageCompression(file, options)
     try {
       const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
       if (docs.empty) {
-        toast.error('Advertiser profile not found — please complete onboarding')
+        toast.error('Advertiser profile not found - please complete onboarding')
         router.push('/advertiser/onboarding')
         return
       }
@@ -434,7 +434,7 @@ const getEmbeddedVideo = (url: string) => {
                 </div>
               )}
               {(category === "Survey" ||
-                category === "Third-Party Task" ||
+                category === "other website tasks" ||
                 category === "App Download") && (
                 <Input
                   placeholder="Enter link (https://...)"
@@ -534,7 +534,7 @@ const getEmbeddedVideo = (url: string) => {
 })()}
 
               {(category === "Survey" ||
-                category === "Third-Party Task" ||
+                category === "other website tasks" ||
                 category === "App Download") &&
                 externalLink && (
                   <a

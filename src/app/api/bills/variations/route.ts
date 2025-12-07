@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, result: variations })
   } catch (err: unknown) {
     console.error('bills variations error', err)
-    const anyErr = err as any
+    const anyErr = err as { response?: { status?: number; data?: string }; code?: string; message?: string }
     if (anyErr?.response) {
       const status = anyErr.response.status || 500
       const message = anyErr.response.data || anyErr.message || 'VTpass error'

@@ -76,11 +76,11 @@ export function SignUpForm() {
   // Live password strength meter
   const calcStrength = (password: string) => {
     let score = 0
-    if (password.length >= 8) score++
+    if (password.length >= 5) score++
     if (/[A-Z]/.test(password)) score++
     if (/[a-z]/.test(password)) score++
-    if (/\d/.test(password)) score++
-    if (/[@$!%*?&]/.test(password)) score++
+    // if (/\d/.test(password)) score++
+    // if (/[@$!%*?&]/.test(password)) score++
     return score
   }
 
@@ -202,6 +202,10 @@ export function SignUpForm() {
               </div>
               <p className="text-xs text-stone-300 mt-1">Password strength: {passwordStrength}/5</p>
             </div>
+            <p className="text-stone-400 text-sm">
+            Password must be at least 5 characters long and include uppercase, lowercase, numbers, and special characters.
+        
+          </p>
           </div>
 
           <div>
