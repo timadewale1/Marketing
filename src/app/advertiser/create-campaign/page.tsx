@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,7 +24,7 @@ import {
 
 type CampaignType =
   | "Video"
-  | "Advertise Product"
+  | "Share my Product"
   | "WhatsApp Status"
   | "WhatsApp Group Join"
   | "Telegram Group Join"
@@ -52,7 +52,7 @@ const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
 const CPL_MAP: Record<CampaignType, number> = {
   // Advertiser price (NGN). Earner usually gets half, except Video which pays a fixed 150 to earner.
    Video: 100,
-    "Advertise Product": 150,
+    "Share my Product": 150,
     "other website tasks": 100,
     Survey: 100,
     "App Download": 200,
@@ -103,6 +103,19 @@ export default function CreateCampaignPage() {
   const [externalLink, setExternalLink] = useState("")
   const [videoLink, setVideoLink] = useState("") // ✅ new field
   const [productLink, setProductLink] = useState("") // ✅ product link field
+  // face verification + address (for product campaigns)
+  const [faceImage, setFaceImage] = useState<string | null>(null)
+  const [faceImageUrl, setFaceImageUrl] = useState<string | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [faceUploading, setFaceUploading] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  const [addressLine, setAddressLine] = useState("")
+  const [city, setCity] = useState("")
+  const [stateRegion, setStateRegion] = useState("")
+  const [postalCode, setPostalCode] = useState("")
+  const [country, setCountry] = useState("")
 
 
   // targeting removed — only budget is required now
@@ -206,13 +219,19 @@ const compressed = await imageCompression(file, options)
       )
     if (step === 1) {
       if (category === "Video") return videoLink.trim().length > 5 
-      if (category === "Advertise Product") return productLink.trim().length > 5
+      if (category === "Share my Product") return productLink.trim().length > 5
       if (["Survey", "other website tasks", "App Download"].includes(category))
         return externalLink.trim().length > 5
       return true
     }
     if (step === 2) return numericBudget > 0
-    if (step === 3) return true
+    if (step === 3) {
+      // If this is a product campaign require face capture upload and address
+      if (category === "Share my Product") {
+        return Boolean((faceImageUrl || faceImage) && addressLine.trim().length > 3 && city.trim().length > 1)
+      }
+      return true
+    }
     return false
   }
 
@@ -282,12 +301,25 @@ const compressed = await imageCompression(file, options)
       category,
       bannerUrl,
       mediaUrl: category === "Video" ? videoLink : mediaUrl,
-      externalLink: category === "Advertise Product" ? productLink : (externalLink || ""),
+      externalLink: category === "Share my Product" ? productLink : (externalLink || ""),
       budget: numericBudget,
       estimatedLeads,
       costPerLead: currentCPL,
       status: "Active",
       createdAt: serverTimestamp(),
+    }
+
+    // If product campaign, attach face capture URL (preferred) and address
+    if (category === "Share my Product") {
+      if (faceImageUrl) campaignData['advertiserFaceImage'] = faceImageUrl
+      else if (faceImage) campaignData['advertiserFaceImage'] = faceImage
+      campaignData['advertiserAddress'] = {
+        addressLine: addressLine || "",
+        city: city || "",
+        state: stateRegion || "",
+        postalCode: postalCode || "",
+        country: country || "",
+      }
     }
 
     try {
@@ -323,6 +355,73 @@ const handler = paystackLib.setup({
 
   // helpers
   const canGoNext = isStepValid()
+
+  // Camera helpers for face verification
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      if (videoRef.current) videoRef.current.srcObject = stream
+      setCameraActive(true)
+    } catch (e) {
+      console.error('Camera start failed', e)
+      toast.error('Unable to access camera. Please allow camera permission.')
+    }
+  }
+
+  const stopCamera = () => {
+    try {
+      const stream = videoRef.current?.srcObject as MediaStream | null
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop())
+      }
+      if (videoRef.current) videoRef.current.srcObject = null
+    } finally {
+      setCameraActive(false)
+    }
+  }
+
+  const captureFace = () => {
+    if (!videoRef.current) return
+    const v = videoRef.current
+    const canvas = canvasRef.current || document.createElement('canvas')
+    canvas.width = v.videoWidth || 320
+    canvas.height = v.videoHeight || 240
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height)
+    const data = canvas.toDataURL('image/jpeg', 0.9)
+    setFaceImage(data)
+    stopCamera()
+
+    // upload captured image to Firebase Storage
+    try {
+      setFaceUploading(true)
+      // convert dataURL to blob
+      fetch(data)
+        .then((res) => res.blob())
+        .then(async (blob) => {
+          const user = auth.currentUser
+          const uid = user?.uid || 'anon'
+          const filename = `face_${uid}_${Date.now()}.jpg`
+          const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
+          const path = `advertiserFaces/${uid}/${filename}`
+          // reuse uploadFile helper
+          uploadFile(file, path, (url) => {
+            setFaceImageUrl(url)
+            setFaceUploading(false)
+            toast.success('Face image uploaded')
+          })
+        })
+        .catch((e) => {
+          console.error('Face upload failed', e)
+          toast.error('Face upload failed')
+          setFaceUploading(false)
+        })
+    } catch (e) {
+      console.error('Face upload error', e)
+      setFaceUploading(false)
+    }
+  }
 
   const StepHeader = (
     <div className="max-w-3xl mx-auto text-center space-y-2">
@@ -418,7 +517,14 @@ const getEmbeddedVideo = (url: string) => {
                   onChange={(e) => setVideoLink(e.target.value)}
                 />
               )}
-              {category === "Advertise Product" && (
+
+              {category === "Share my Product" && faceUploading && (
+                <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` — ${uploadProgress}%` : '...'}</div>
+              )}
+              {category === "Share my Product" && faceImageUrl && (
+                <div className="mt-2 text-sm text-stone-600">Face image uploaded and attached to campaign</div>
+              )}
+              {category === "Share my Product" && (
                 <div>
                   <label className="text-sm font-medium text-stone-700 block mb-2">
                     Product Link
@@ -546,7 +652,7 @@ const getEmbeddedVideo = (url: string) => {
                     Open link
                   </a>
                 )}
-              {category === "Advertise Product" && productLink && (
+              {category === "Share my Product" && productLink && (
                 <a
                   className="text-amber-600 underline mt-2 block"
                   href={productLink}
@@ -557,6 +663,62 @@ const getEmbeddedVideo = (url: string) => {
                 </a>
               )}
 
+              {/* Product-specific: face verification + address before payment */}
+              {category === "Share my Product" && (
+                <div className="mt-4 p-4 bg-amber-50 rounded border border-amber-100 space-y-4">
+                  <h4 className="font-medium text-stone-800">Advertiser identity verification</h4>
+                  <p className="text-sm text-stone-700">Before paying, capture your face using your device camera (upload not allowed) and provide a pickup address for deliveries.</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="mb-2">
+                        <div className="w-full h-40 bg-stone-100 rounded overflow-hidden relative">
+                          {!faceImage ? (
+                            <div className="w-full h-full flex items-center justify-center text-stone-500">No face captured</div>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={faceImage} alt="Captured face" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {!cameraActive && !faceImage && (
+                          <Button onClick={startCamera} size="sm">Open Camera</Button>
+                        )}
+                        {cameraActive && (
+                          <>
+                            <Button onClick={captureFace} size="sm">Capture</Button>
+                            <Button variant="outline" onClick={stopCamera} size="sm">Cancel</Button>
+                          </>
+                        )}
+                        {faceImage && (
+                          <>
+                            <Button onClick={() => { setFaceImage(null); setTimeout(() => startCamera(), 120) }} size="sm">Retake</Button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Hidden video/canvas for capture */}
+                      <div className="hidden">
+                        <video ref={videoRef} autoPlay playsInline className="hidden" />
+                        <canvas ref={canvasRef} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="text-sm font-medium mb-2">Address</h5>
+                      <Input placeholder="Street address" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} className="mb-2" />
+                      <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} className="mb-2" />
+                      <Input placeholder="State / Region" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} className="mb-2" />
+                      <Input placeholder="Postal Code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className="mb-2" />
+                      <Input placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
+                      <p className="text-xs text-stone-500 mt-2">Address is required for product-related campaigns.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Button variant="outline" onClick={() => setStep(2)}>
                   <ArrowLeft size={16} /> Back to targeting
@@ -564,7 +726,7 @@ const getEmbeddedVideo = (url: string) => {
                 <Button
                   className="bg-amber-600 text-white"
                   onClick={handlePay}
-                  disabled={loading}
+                  disabled={loading || (category === "Share my Product" && faceUploading)}
                 >
                   <CreditCard size={16} />{" "}
                   {loading

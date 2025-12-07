@@ -650,6 +650,19 @@ export default function CampaignDetailPage() {
                 </p>
               </div>
             )}
+
+              {/* General requirement for share or product tasks */}
+              {(() => {
+                const cat = (campaign.category || '').toLowerCase()
+                if (cat.includes('share') || cat.includes('product') || cat.includes('link')) {
+                  return (
+                    <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-100">
+                      <p className="text-sm text-stone-700">Any task that has to do with sharing links or product must have up to 50 views on wherever it is shared to before submission of proof or it will not be approved.</p>
+                    </div>
+                  )
+                }
+                return null
+              })()}
           </div>
 
           <div className="mt-6 space-y-4">
