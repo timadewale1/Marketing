@@ -10,7 +10,7 @@ export default function AdvertiserPriceListPage() {
   // canonical task types and CPL map (should match create-campaign)
   const CPL_MAP: Record<string, number> = {
     Video: 100,
-    "Advertise Product": 150,
+    "Share my Product": 150,
     "other website tasks": 100,
     Survey: 100,
     "App Download": 200,
@@ -51,17 +51,24 @@ export default function AdvertiserPriceListPage() {
         <Card className="bg-white/80 backdrop-blur p-6">
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Task Types & Cost</h2>
           <div className="divide-y divide-stone-200">
-            {campaignTypes.map((c) => (
-              <div key={c.category} className="flex items-center justify-between py-4">
-                <div>
-                  <div className="font-medium text-stone-800">{c.category}</div>
+            {campaignTypes.map((c) => {
+              const lower = c.category.toLowerCase()
+              const isShareOrProduct = lower.includes('share') || lower.includes('product')
+              return (
+                <div key={c.category} className="flex items-center justify-between py-4">
+                  <div>
+                    <div className="font-medium text-stone-800">{c.category}</div>
+                    {isShareOrProduct && (
+                      <div className="text-xs text-stone-500 mt-1">1 lead paid for guarantees up to 50 views.</div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-stone-500">Cost per lead</div>
+                    <div className="font-bold text-amber-600 text-lg">₦{c.price.toLocaleString()}</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-stone-500">Cost per lead</div>
-                  <div className="font-bold text-amber-600 text-lg">₦{c.price.toLocaleString()}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       </div>
