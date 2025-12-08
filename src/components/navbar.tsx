@@ -51,20 +51,26 @@ export default function Navbar() {
   }, [])
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    const choice = await deferredPrompt.userChoice
-    setShowInstall(false)
-    setDeferredPrompt(null)
-    try {
-      if (choice && (choice as any).outcome === 'dismissed') {
-        localStorage.setItem('pwa_install_dismissed', '1')
-      }
-    } catch {
-      /* ignore */
+  if (!deferredPrompt) return
+
+  deferredPrompt.prompt()
+  const choice = await deferredPrompt.userChoice
+
+  setShowInstall(false)
+  setDeferredPrompt(null)
+
+  try {
+    const userChoice = choice as { outcome: string; platform?: string } | undefined
+
+    if (userChoice?.outcome === 'dismissed') {
+      localStorage.setItem('pwa_install_dismissed', '1')
     }
-    console.log("PWA install choice:", choice)
+  } catch {
+    /* ignore */
   }
+
+  console.log("PWA install choice:", choice)
+}
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-md border-b border-stone-200">
