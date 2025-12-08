@@ -94,7 +94,7 @@ export default function ElectricityPage() {
           <div className="p-3 border rounded bg-white">
             <h3 className="font-semibold">Customer details</h3>
             <div className="text-sm mt-2">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 items-start">
+              <div className="space-y-2">
                 {formatVerifyResult(verifyResult, ['Customer_Name', 'customerName', 'Account_Number', 'Meter_Number', 'Customer_Number', 'Meter_Type', 'Customer_Type', 'Minimum_Amount', 'Min_Purchase_Amount', 'Customer_District', 'Customer_District_Reference']).map((item: { label: string; value: string }) => {
                   const key = item.label
                   const val = item.value || 'N/A'
@@ -107,13 +107,13 @@ export default function ElectricityPage() {
                   else if (lower.includes('district') || lower.includes('location')) Icon = MapPin
                   else if (lower.includes('amount')) Icon = DollarSign
                   return (
-                    <React.Fragment key={key}>
+                    <div key={key} className="grid grid-cols-2 gap-x-6 gap-y-2 items-start">
                       <div className="flex items-center gap-2">
                         <Icon className="w-4 h-4 text-amber-500" />
                         <span className="font-medium">{key}:</span>
                       </div>
                       <div className="text-right">{key.toLowerCase().includes('amount') ? `₦${Number(val || 0).toLocaleString()}` : val}</div>
-                    </React.Fragment>
+                    </div>
                   )
                 })}
               </div>
