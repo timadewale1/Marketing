@@ -99,7 +99,13 @@ export default function ElectricityPage() {
                   const key = item.label
                   const val = item.value || 'N/A'
                   const lower = key.toLowerCase()
-                  const Icon = lower.includes('name') ? User : lower.includes('account') || lower.includes('meter') ? Hash : lower.includes('type') ? CreditCard : lower.includes('date') ? Calendar : lower.includes('district') || lower.includes('location') ? MapPin : lower.includes('amount') ? DollarSign : Info
+                  let Icon = Info
+                  if (lower.includes('name')) Icon = User
+                  else if (lower.includes('account') || lower.includes('meter')) Icon = Hash
+                  else if (lower.includes('type')) Icon = CreditCard
+                  else if (lower.includes('date')) Icon = Calendar
+                  else if (lower.includes('district') || lower.includes('location')) Icon = MapPin
+                  else if (lower.includes('amount')) Icon = DollarSign
                   return (
                     <React.Fragment key={key}>
                       <div className="flex items-center gap-2">
