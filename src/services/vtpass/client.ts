@@ -22,11 +22,27 @@ export const createVtpassClient = () => {
       ...(defaultsHeaders.common as Record<string, unknown> | undefined || {}),
       Authorization: `Basic ${token}`,
     }
+    // indicate auth method for debugging (no secrets logged)
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug('[VTPASS] Using Basic auth (username provided)')
+    }
   } else if (bearer) {
     const defaultsHeaders = instance.defaults.headers as unknown as Record<string, unknown>
     defaultsHeaders.common = {
       ...(defaultsHeaders.common as Record<string, unknown> | undefined || {}),
       Authorization: `Bearer ${bearer}`,
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug('[VTPASS] Using Bearer token auth (secret key provided)')
+    }
+  }
+  else {
+    // No authentication configured — VTpass will return 401. Log a helpful warning.
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[VTPASS] No credentials configured (VTPASS_BASIC_USER/PASS or VTPASS_SECRET_KEY). VTpass requests will likely return 401 Unauthorized.')
     }
   }
 

@@ -99,10 +99,10 @@ export default function EducationPage() {
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serviceID: 'jamb', billersCode: jambProfile }) })
       const j = await res.json()
-      if (!res.ok || !j?.ok) {
-        const msg = j?.message || 'Verify failed'
-        return toast.error(String(msg))
-      }
+        if (!res.ok || !j?.ok) {
+          const msg = j?.message || 'Verify failed'
+          return toast.error(String(msg))
+        }
       setJambVerifyResult(j.result)
       toast.success('Verified')
     } catch {

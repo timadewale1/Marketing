@@ -9,9 +9,11 @@ import toast from 'react-hot-toast'
 export default function ElectricityPage() {
   const [meter, setMeter] = useState('')
   const [disco, setDisco] = useState('ikeja-electric')
+  const [meterType, setMeterType] = useState('prepaid' as 'prepaid'|'postpaid')
   const [amount, setAmount] = useState('')
   const [discos, setDiscos] = useState<Array<{ id: string; name: string }>>([])
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifying, setVerifying] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
 
   const displayPrice = () => applyMarkup(amount)
@@ -46,16 +48,25 @@ export default function ElectricityPage() {
   }, [])
 
   const handleVerify = async () => {
+    setVerifyResult(null)
+    setVerifying(true)
     try {
-      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: meter, serviceID: disco }) })
+      const payload: Record<string, unknown> = { billersCode: meter, serviceID: disco }
+      if (meterType === 'postpaid') payload.type = 'postpaid'
+      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Verification failed')
+      if (!res.ok || !j?.ok) {
+        toast.error('Verification failed')
+        setVerifying(false)
+        return
+      }
       setVerifyResult(j.result || j)
       toast.success('Verified')
     } catch (err) {
       console.error('verify error', err)
       toast.error('Verification error')
     }
+    setVerifying(false)
   }
 
   return (
@@ -63,7 +74,12 @@ export default function ElectricityPage() {
       <h2 className="text-xl font-semibold mb-4">Electricity</h2>
       <div className="space-y-3">
         <input placeholder="Meter number" value={meter} onChange={(e) => setMeter(e.target.value)} className="w-full p-2 border rounded" />
-        <select value={disco} onChange={(e) => setDisco(e.target.value)} className="w-full p-2 border rounded">
+        <div className="flex gap-2">
+          <select value={meterType} onChange={(e) => setMeterType(e.target.value as 'prepaid'|'postpaid') } className="p-2 border rounded w-1/2">
+            <option value="prepaid">Prepaid</option>
+            <option value="postpaid">Postpaid</option>
+          </select>
+          <select value={disco} onChange={(e) => setDisco(e.target.value)} className="p-2 border rounded w-1/2">
           {discos.length ? discos.map(d => <option key={d.id} value={d.id}>{d.name}</option>) : (
             <>
               <option value="ikeja-electric">Ikeja Electric</option>
@@ -72,7 +88,7 @@ export default function ElectricityPage() {
           )}
         </select>
         <div className="flex gap-2">
-          <button type="button" onClick={handleVerify} className="px-3 py-2 border rounded">Verify</button>
+          <button type="button" onClick={handleVerify} className="px-3 py-2 border rounded" disabled={verifying}>{verifying ? 'Verifying...' : 'Verify'}</button>
         </div>
         {verifyResult && (
           <div className="p-3 border rounded bg-white">

@@ -45,8 +45,28 @@ export async function getOptions(serviceID: string, name: string) {
 }
 
 export async function merchantVerify(payload: Record<string, unknown>) {
-  const res = await vtpassClient.post('/merchant-verify', payload)
-  return res?.data
+  // Retry a few times for transient network errors (sandbox can be flaky)
+  const maxAttempts = 3
+  let attempt = 0
+  let lastErr: unknown = null
+
+  while (attempt < maxAttempts) {
+    try {
+      const res = await vtpassClient.post('/merchant-verify', payload)
+      return res?.data
+    } catch (err) {
+      lastErr = err
+      attempt += 1
+      // if it's the last attempt, break and throw
+      if (attempt >= maxAttempts) break
+      const backoff = 300 * Math.pow(2, attempt) // 600ms, 1200ms, ...
+      // small delay before retry
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, backoff))
+    }
+  }
+
+  throw lastErr
 }
 
 export async function pay(payload: Record<string, unknown>) {

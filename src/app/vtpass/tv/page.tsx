@@ -14,6 +14,7 @@ export default function TVPage() {
   const [bouquets, setBouquets] = useState<Array<{ code: string; name: string; amount: number }>>([])
   const [payOpen, setPayOpen] = useState(false)
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   const displayPrice = () => applyMarkup(amount)
 
@@ -37,16 +38,22 @@ export default function TVPage() {
 
   const handleVerify = async () => {
     if (!smartcard) return toast.error('Enter smartcard number')
+    setVerifying(true)
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
       const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Verification failed')
+      if (!res.ok || !j?.ok) {
+        toast.error('Verification failed')
+        setVerifying(false)
+        return
+      }
       setVerifyResult(j.result || j)
       toast.success('Verified')
     } catch (err) {
       console.error('verify error', err)
       toast.error('Verification error')
     }
+    setVerifying(false)
   }
 
   useEffect(() => {
@@ -97,7 +104,7 @@ export default function TVPage() {
         </select>
         <div className="flex gap-2">
           <input placeholder="Smartcard number" value={smartcard} onChange={(e) => setSmartcard(e.target.value)} className="flex-1 p-2 border rounded" />
-          <button type="button" onClick={handleVerify} className="px-3 py-2 border rounded">Verify</button>
+          <button type="button" onClick={handleVerify} className="px-3 py-2 border rounded" disabled={verifying}>{verifying ? 'Verifying...' : 'Verify'}</button>
         </div>
         <input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-2 border rounded" />
         <div className="text-sm">You will be charged: ₦{displayPrice().toLocaleString()}</div>

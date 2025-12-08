@@ -20,6 +20,7 @@ export default function EducationPage() {
   const [jambProfile, setJambProfile] = useState('')
   const [jambPhone, setJambPhone] = useState('')
   const [jambVerifyResult, setJambVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifyingJamb, setVerifyingJamb] = useState(false)
 
   const [payOpen, setPayOpen] = useState(false)
   const [pendingPurchase, setPendingPurchase] = useState<Record<string, unknown> | null>(null)
@@ -95,6 +96,7 @@ export default function EducationPage() {
 
   const verifyJamb = async () => {
     if (!jambProfile) return toast.error('Enter JAMB profile/registration')
+    setVerifyingJamb(true)
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serviceID: 'jamb', billersCode: jambProfile }) })
       const j = await res.json()
@@ -104,6 +106,7 @@ export default function EducationPage() {
     } catch {
       toast.error('Verification error')
     }
+    setVerifyingJamb(false)
   }
 
   return (

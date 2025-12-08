@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 // Dropzone removed: banner upload disabled, thumbnails auto-generated per task type
 import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { serverTimestamp, getDocs, query, where, collection } from "firebase/firestore"
+import { serverTimestamp, getDocs, query, where, collection, updateDoc } from "firebase/firestore"
 
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
@@ -114,8 +114,6 @@ export default function CreateCampaignPage() {
   const [addressLine, setAddressLine] = useState("")
   const [city, setCity] = useState("")
   const [stateRegion, setStateRegion] = useState("")
-  const [postalCode, setPostalCode] = useState("")
-  const [country, setCountry] = useState("")
 
 
   // targeting removed — only budget is required now
@@ -135,12 +133,12 @@ export default function CreateCampaignPage() {
     return `/placeholders/${slug}.jpg`
   }
 
-  // generate a thumbnail whenever category changes (only if banner not explicitly set)
+  // generate a thumbnail when user reaches review step (do not show on initial details)
   React.useEffect(() => {
-    if (category && !bannerUrl) {
+    if (step >= 3 && category && !bannerUrl) {
       setBannerUrl(getThumbnailForCategory(category as string))
     }
-  }, [category, bannerUrl])
+  }, [step, category, bannerUrl])
 
   // Load Paystack script once
   useEffect(() => {
@@ -317,15 +315,13 @@ const compressed = await imageCompression(file, options)
         addressLine: addressLine || "",
         city: city || "",
         state: stateRegion || "",
-        postalCode: postalCode || "",
-        country: country || "",
       }
     }
 
     try {
       const paystackLib = (window as unknown as { PaystackPop?: PaystackPopInterface }).PaystackPop;
       if (!paystackLib || typeof paystackLib.setup !== "function") {
-        toast.error("Payment library not ready — try again shortly")
+        toast.error("Payment library not ready - try again shortly")
         return
       }
 
@@ -413,10 +409,20 @@ const handler = paystackLib.setup({
 
       const path = `advertiserFaces/${uid}/${filename}`
       // reuse uploadFile helper
-      uploadFile(file, path, (url) => {
+      uploadFile(file, path, async (url) => {
         setFaceImageUrl(url)
         setFaceUploading(false)
         toast.success('Face image uploaded')
+
+        // persist the uploaded face image URL into the advertiser profile if available
+        try {
+          const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user?.email)))
+          if (!docs.empty) {
+            await updateDoc(docs.docs[0].ref, { advertiserFaceImage: url, advertiserFaceUploadedAt: serverTimestamp() })
+          }
+        } catch (e) {
+          console.warn('Failed to persist face URL to advertiser profile', e)
+        }
       })
     } catch (e) {
       console.error('Face upload error', e)
@@ -495,21 +501,7 @@ const getEmbeddedVideo = (url: string) => {
                 ))}
               </select>
 
-              <div>
-                <label className="text-sm font-medium text-stone-700 block mb-2">
-                  Task cover image (thumbnail)
-                </label>
-                <div className="relative w-full h-48 bg-stone-100 rounded overflow-hidden mb-2">
-                  { (bannerUrl || '/placeholders/default.jpg').startsWith('/placeholders') ? (
-                    // use a plain img for local placeholders to avoid image optimizer issues
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" className="w-full h-full object-cover" />
-                  ) : (
-                    <Image src={bannerUrl || '/placeholders/default.jpg'} alt="Task thumbnail" fill className="object-cover" />
-                  )}
-                </div>
-                <p className="text-xs text-stone-500">Thumbnail auto-generated based on task type. No banner upload required.</p>
-              </div>
+              {/* Thumbnail removed from initial Details step — it's auto-generated at Review */}
             </CardContent>
           </Card>
         )
@@ -543,7 +535,7 @@ const getEmbeddedVideo = (url: string) => {
                     onChange={(e) => setProductLink(e.target.value)}
                   />
                   <p className="text-xs text-stone-500 mt-1">
-                    Enter the URL where people can purchase your product
+                    Enter the URL for your product
                   </p>
                 </div>
               )}
@@ -675,17 +667,19 @@ const getEmbeddedVideo = (url: string) => {
               {category === "Share my Product" && (
                 <div className="mt-4 p-4 bg-amber-50 rounded border border-amber-100 space-y-4">
                   <h4 className="font-medium text-stone-800">Advertiser identity verification</h4>
-                  <p className="text-sm text-stone-700">Before paying, capture your face using your device camera (upload not allowed) and provide a pickup address for deliveries.</p>
+                  <p className="text-sm text-stone-700">Before paying, capture your face using your device camera (upload not allowed) and provide your business address.</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <div className="mb-2">
                         <div className="w-full h-40 bg-stone-100 rounded overflow-hidden relative">
-                          {!faceImage ? (
-                            <div className="w-full h-full flex items-center justify-center text-stone-500">No face captured</div>
-                          ) : (
+                          {cameraActive ? (
+                            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                          ) : faceImage ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={faceImage} alt="Captured face" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-stone-500">No face captured</div>
                           )}
                         </div>
                       </div>
@@ -707,11 +701,7 @@ const getEmbeddedVideo = (url: string) => {
                         )}
                       </div>
 
-                      {/* Hidden video/canvas for capture */}
-                      <div className="hidden">
-                        <video ref={videoRef} autoPlay playsInline className="hidden" />
-                        <canvas ref={canvasRef} />
-                      </div>
+                      <canvas ref={canvasRef} className="hidden" />
                     </div>
 
                     <div>
@@ -719,8 +709,6 @@ const getEmbeddedVideo = (url: string) => {
                       <Input placeholder="Street address" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} className="mb-2" />
                       <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} className="mb-2" />
                       <Input placeholder="State / Region" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} className="mb-2" />
-                      <Input placeholder="Postal Code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className="mb-2" />
-                      <Input placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} />
                       <p className="text-xs text-stone-500 mt-2">Address is required for product-related campaigns.</p>
                     </div>
                   </div>
