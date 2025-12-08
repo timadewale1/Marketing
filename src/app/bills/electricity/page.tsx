@@ -12,9 +12,11 @@ import { Card, CardContent } from '@/components/ui/card'
 export default function ElectricityPage() {
   const [meter, setMeter] = useState('')
   const [disco, setDisco] = useState('ikeja-electric')
+  const [meterType, setMeterType] = useState('prepaid' as 'prepaid'|'postpaid')
   const [amount, setAmount] = useState('')
   const [discos, setDiscos] = useState<Array<{ id: string; name: string }>>([])
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifying, setVerifying] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
 
   const displayPrice = () => applyMarkup(amount)
@@ -49,12 +51,17 @@ export default function ElectricityPage() {
   }, [])
 
   const handleVerify = async () => {
+    setVerifying(true)
     try {
-      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: meter, serviceID: disco }) })
+      const payload: Record<string, unknown> = { billersCode: meter, serviceID: disco }
+      if (meterType === 'postpaid') payload.type = 'postpaid'
+      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) {
         const msg = j?.message || 'Verification failed'
-        return toast.error(String(msg))
+        toast.error(String(msg))
+        setVerifying(false)
+        return
       }
       setVerifyResult(j.result || j)
       toast.success('Verified')
@@ -62,6 +69,7 @@ export default function ElectricityPage() {
       console.error('verify error', err)
       toast.error('Verification error')
     }
+    setVerifying(false)
   }
 
   return (
@@ -88,11 +96,16 @@ export default function ElectricityPage() {
               {/* Disco Selection */}
               <div>
                 <label className="block text-sm font-semibold text-stone-900 mb-2">Select Distribution Company</label>
-                <select
-                  value={disco}
-                  onChange={(e) => setDisco(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                >
+                <div className="flex gap-2">
+                  <select value={meterType} onChange={(e) => setMeterType(e.target.value as 'prepaid'|'postpaid') } className="w-1/2 px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                    <option value="prepaid">Prepaid</option>
+                    <option value="postpaid">Postpaid</option>
+                  </select>
+                  <select
+                    value={disco}
+                    onChange={(e) => setDisco(e.target.value)}
+                    className="w-1/2 px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
                   {discos.length ? discos.map(d => <option key={d.id} value={d.id}>{d.name}</option>) : (
                     <>
                       <option value="ikeja-electric">Ikeja Electric</option>
@@ -100,6 +113,7 @@ export default function ElectricityPage() {
                     </>
                   )}
                 </select>
+              </div>
               </div>
 
               {/* Meter Number Input */}
@@ -119,10 +133,10 @@ export default function ElectricityPage() {
               {/* Verify Button */}
               <Button
                 onClick={handleVerify}
-                disabled={!meter}
+                disabled={!meter || verifying}
                 className="w-full bg-stone-900 hover:bg-stone-800 text-white rounded-lg h-10"
               >
-                Verify Meter
+                {verifying ? 'Verifying...' : 'Verify Meter'}
               </Button>
 
               {/* Verification Result */}

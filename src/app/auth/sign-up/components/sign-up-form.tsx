@@ -38,7 +38,7 @@ const formSchema = z.object({
   phone: z
     .string()
     .regex(/^\d{10,15}$/, "Enter a valid phone number (10-15 digits)"),
-  password: z.string().min(1, "Password required"),
+  password: z.string().min(5, "Password must be at least 5 characters"),
   action: z.enum(["advertiser", "earner"], {
     message: "Please select what you want to do",
   }),
@@ -75,13 +75,8 @@ export function SignUpForm() {
 
   // Live password strength meter
   const calcStrength = (password: string) => {
-    let score = 0
-    if (password.length >= 5) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[a-z]/.test(password)) score++
-    // if (/\d/.test(password)) score++
-    // if (/[@$!%*?&]/.test(password)) score++
-    return score
+    // Only measure basic length for strength (requirement: >=5 chars)
+    return password.length >= 5 ? 1 : 0
   }
 
   useEffect(() => {
@@ -149,7 +144,8 @@ export function SignUpForm() {
         }
 
         toast.success("Signup successful! Please verify your email.")
-        setTimeout(() => router.push("/auth/sign-in"), 2000)
+        // Redirect user to the verify-email page so they can resend/check verification
+        setTimeout(() => router.push("/auth/verify-email"), 800)
       } catch (firestoreErr) {
         console.error("Firestore error:", firestoreErr)
         await cred.user.delete()
@@ -198,14 +194,11 @@ export function SignUpForm() {
             {errors.password && <p className="text-sm text-red-300 mt-1">{errors.password.message}</p>}
             <div className="mt-2">
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div style={{ width: `${(passwordStrength / 5) * 100}%` }} className={`h-full ${passwordStrength <= 2 ? "bg-red-500" : passwordStrength === 3 ? "bg-yellow-400" : "bg-green-400"}`} />
+                <div style={{ width: `${passwordStrength ? 100 : 0}%` }} className={`h-full ${passwordStrength ? "bg-green-400" : "bg-red-500"}`} />
               </div>
-              <p className="text-xs text-stone-300 mt-1">Password strength: {passwordStrength}/5</p>
+              <p className="text-xs text-stone-300 mt-1">Password: {passwordStrength ? 'OK' : 'too short'}</p>
             </div>
-            <p className="text-stone-400 text-sm">
-            Password must be at least 5 characters long and include uppercase, lowercase, numbers, and special characters.
-        
-          </p>
+            <p className="text-stone-400 text-sm">Password must be at least 5 characters long.</p>
           </div>
 
           <div>

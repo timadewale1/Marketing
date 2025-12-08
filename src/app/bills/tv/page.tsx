@@ -17,6 +17,7 @@ export default function TVPage() {
   const [bouquets, setBouquets] = useState<Array<{ code: string; name: string; amount: number }>>([])
   const [payOpen, setPayOpen] = useState(false)
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   const displayPrice = () => applyMarkup(amount)
 
@@ -40,12 +41,15 @@ export default function TVPage() {
 
   const handleVerify = async () => {
     if (!smartcard) return toast.error('Enter smartcard number')
+    setVerifying(true)
     try {
       const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
       const j = await res.json()
       if (!res.ok || !j?.ok) {
         const msg = j?.message || 'Verification failed'
-        return toast.error(String(msg))
+        toast.error(String(msg))
+        setVerifying(false)
+        return
       }
       setVerifyResult(j.result || j)
       toast.success('Verified')
@@ -53,6 +57,7 @@ export default function TVPage() {
       console.error('verify error', err)
       toast.error('Verification error')
     }
+    setVerifying(false)
   }
 
   useEffect(() => {
@@ -156,10 +161,10 @@ export default function TVPage() {
               {/* Verify Button */}
               <Button
                 onClick={handleVerify}
-                disabled={!smartcard}
+                disabled={!smartcard || verifying}
                 className="w-full bg-stone-900 hover:bg-stone-800 text-white rounded-lg h-10"
               >
-                Verify Smartcard
+                {verifying ? 'Verifying...' : 'Verify Smartcard'}
               </Button>
 
               {/* Verification Result */}
