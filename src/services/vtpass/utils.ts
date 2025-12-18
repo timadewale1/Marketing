@@ -103,7 +103,7 @@ export function extractPhoneFromVerifyResult(result: Record<string, unknown> | n
   if (!result) return null
   // First pass: return any value whose key explicitly indicates phone-like data
   const phoneKeys = ['phone', 'msisdn', 'mobile', 'telephone', 'customer_phone']
-  const seen = new Set<any>()
+  const seen = new Set<unknown>()
 
   function searchByKey(obj: unknown): string | null {
     if (obj === null || obj === undefined) return null
