@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { PaystackModal } from '@/components/paystack-modal'
-import { applyMarkup, formatVerifyResult } from '@/services/vtpass/utils'
+// bypass Paystack: call VTpass directly
+import { applyMarkup, formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, Zap, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -15,15 +15,16 @@ export default function TVPage() {
   const [amount, setAmount] = useState('')
   const [providers, setProviders] = useState<Array<{ id: string; name: string }>>([])
   const [bouquets, setBouquets] = useState<Array<{ code: string; name: string; amount: number }>>([])
-  const [payOpen, setPayOpen] = useState(false)
+  
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [phone, setPhone] = useState('')
 
   const displayPrice = () => applyMarkup(amount)
 
-  const handlePaySuccess = async (reference: string) => {
+  const handlePurchase = async () => {
     try {
-      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard, paystackReference: reference }
+      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard }
       const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
       if (matched) {
         payload.variation_code = matched.code
@@ -31,9 +32,17 @@ export default function TVPage() {
       } else {
         payload.amount = String(amount)
       }
+      if (phone) payload.phone = phone
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
+      // Store transaction data for confirmation page
+      const transactionData = {
+        serviceID: provider,
+        amount: Number(amount),
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Subscription successful')
       window.location.href = '/bills/confirmation'
     } catch (e) { console.error(e); toast.error('Error') }
@@ -51,7 +60,12 @@ export default function TVPage() {
         setVerifying(false)
         return
       }
-      setVerifyResult(j.result || j)
+      const resObj = j.result?.content || j.result || j
+      setVerifyResult(resObj)
+      try {
+        const p = extractPhoneFromVerifyResult(resObj)
+        if (p) setPhone(p)
+      } catch {}
       toast.success('Verified')
     } catch (err) {
       console.error('verify error', err)
@@ -175,12 +189,18 @@ export default function TVPage() {
                     <p className="text-sm font-semibold text-green-900">Account Verified</p>
                   </div>
                   <div className="space-y-2">
-                    {Object.entries(formatVerifyResult(verifyResult)).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm">
-                        <span className="text-green-800">{k}:</span>
-                        <span className="text-green-900 font-medium">{String(v)}</span>
+                    {formatVerifyResult(filterVerifyResultByService(verifyResult, ['Customer_Name', 'Status', 'Due_Date', 'Customer_Number'])).map((item) => (
+                      <div key={item.label} className="flex justify-between text-sm">
+                        <span className="text-green-800">{item.label}:</span>
+                        <span className="text-green-900 font-medium">{item.value || 'N/A'}</span>
                       </div>
                     ))}
+                    {phone && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-800">Phone:</span>
+                        <span className="text-green-900 font-medium">{phone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -229,7 +249,7 @@ export default function TVPage() {
               {/* Action Button */}
               {verifyResult && amount && (
                 <Button
-                  onClick={() => setPayOpen(true)}
+                  onClick={async () => await handlePurchase()}
                   className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
                 >
                   Proceed to Payment
@@ -240,7 +260,7 @@ export default function TVPage() {
         </div>
       </div>
 
-      {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
+      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }

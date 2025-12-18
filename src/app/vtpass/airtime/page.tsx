@@ -27,7 +27,7 @@ export default function AirtimePage() {
         phone,
         paystackReference: reference,
       }
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) {
         toast.error('VTpass purchase failed: ' + (j?.message || JSON.stringify(j)))

@@ -65,7 +65,7 @@ export default function EducationPage() {
   const handlePaySuccess = async (reference: string) => {
     try {
       if (!pendingPurchase) return toast.error('No pending purchase')
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...pendingPurchase, paystackReference: reference }) })
+      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...pendingPurchase, paystackReference: reference }) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       toast.success('Purchase successful')

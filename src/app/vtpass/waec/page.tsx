@@ -40,7 +40,7 @@ export default function WaecPage() {
       const payload: Record<string, unknown> = { serviceID: 'waec', variation_code: plan, quantity, phone, paystackReference: reference }
       const found = plans.find(p => p.code === plan)
       if (found) payload.amount = String(found.amount * (quantity || 1))
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const res = await fetch('/api/vtpass/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       toast.success('Purchase successful')

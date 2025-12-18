@@ -86,14 +86,108 @@ export function formatVerifyResult(result: Record<string, unknown> | null | unde
   for (const k of keys) {
     if (seen.has(k)) continue
     const v = result[k]
-    if (v === null || v === undefined || String(v) === '') continue
+    if (v === null || v === undefined) continue
+    const str = stringifyVerifyValue(v)
+    if (str === '') continue
     const label = VERIFY_LABELS[k] || humanizeKey(k)
-    out.push({ label, value: String(v) })
+    out.push({ label, value: str })
   }
 
   return out
 }
 
+/**
+ * Try to extract a sensible phone number from a merchant-verify result.
+ */
+export function extractPhoneFromVerifyResult(result: Record<string, unknown> | null | undefined): string | null {
+  if (!result) return null
+  // First pass: return any value whose key explicitly indicates phone-like data
+  const phoneKeys = ['phone', 'msisdn', 'mobile', 'telephone', 'customer_phone']
+  const seen = new Set<any>()
+
+  function searchByKey(obj: unknown): string | null {
+    if (obj === null || obj === undefined) return null
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const r = searchByKey(item)
+        if (r) return r
+      }
+      return null
+    }
+    if (typeof obj === 'object') {
+      if (seen.has(obj)) return null
+      seen.add(obj)
+      for (const k of Object.keys(obj as Record<string, unknown>)) {
+        const lower = k.toLowerCase()
+        for (const pk of phoneKeys) {
+          if (lower.includes(pk)) {
+            const v = (obj as Record<string, unknown>)[k]
+            if (v !== null && v !== undefined) {
+              const s = String(v).trim()
+              // basic phone sanity check
+              if (/^\+?\d{7,15}$/.test(s)) return s
+              return s
+            }
+          }
+        }
+        const r = searchByKey((obj as Record<string, unknown>)[k])
+        if (r) return r
+      }
+    }
+    return null
+  }
+
+  const byKey = searchByKey(result)
+  if (byKey) return byKey
+
+  // No explicit phone keys found — don't guess from arbitrary numeric fields (meter numbers can be numeric).
+  return null
+}
+
+function stringifyVerifyValue(v: unknown): string {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v)
+  try {
+    // Limit depth by stringifying shallowly: if it's an object with primitive props, show them; otherwise JSON.stringify
+    if (typeof v === 'object') {
+      const obj = v as Record<string, unknown>
+      const simple: Record<string, unknown> = {}
+      let count = 0
+      for (const k of Object.keys(obj)) {
+        const val = obj[k]
+        if (val === null || val === undefined) continue
+        if (typeof val === 'object') {
+          simple[k] = JSON.stringify(val)
+        } else {
+          simple[k] = val
+        }
+        count++
+        if (count >= 6) break
+      }
+      return Object.keys(simple).length ? JSON.stringify(simple) : JSON.stringify(v)
+    }
+    return String(v)
+  } catch (e) {
+    return String(v)
+  }
+}
+
 function humanizeKey(k: string) {
   return k.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (m) => m.toUpperCase())
+}
+
+/**
+ * Filter verify result to only include fields relevant to a specific service.
+ * Pass an array of preferred key names (case-sensitive) for that service.
+ */
+export function filterVerifyResultByService(
+  result: Record<string, unknown> | null | undefined,
+  serviceKeys: string[]
+): Record<string, unknown> {
+  if (!result) return {}
+  const filtered: Record<string, unknown> = {}
+  for (const k of serviceKeys) {
+    if (k in result) filtered[k] = result[k]
+  }
+  return filtered
 }
