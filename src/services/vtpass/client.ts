@@ -10,9 +10,12 @@ export const createVtpassClient = () => {
   const instance = axios.create({ baseURL, timeout: 20_000 })
 
   // Authentication: prefer Basic (username/password) if provided, otherwise fallback to Bearer secret
-  const basicUser = process.env.VTPASS_BASIC_USER || ''
-  const basicPass = process.env.VTPASS_BASIC_PASS || ''
-  const bearer = process.env.VTPASS_SECRET_KEY || ''
+  // trim potential surrounding quotes from env values
+  const trim = (v: string | undefined) => (v || '').replace(/^['"]|['"]$/g, '')
+  const basicUser = trim(process.env.VTPASS_BASIC_USER)
+  const basicPass = trim(process.env.VTPASS_BASIC_PASS)
+  const bearer = trim(process.env.VTPASS_SECRET_KEY)
+  // Do not send API key or public/secret keys from client — only use username/password
 
   if (basicUser && basicPass) {
     // set Authorization header to Basic <base64>
@@ -46,6 +49,8 @@ export const createVtpassClient = () => {
     }
   }
 
+  // NOTE: API key and public/secret headers intentionally omitted per request
+
   // request debug interceptor
   instance.interceptors.request.use((config) => {
     if (process.env.NODE_ENV !== 'production') {
@@ -53,7 +58,17 @@ export const createVtpassClient = () => {
         const method = (config.method || 'get').toUpperCase()
         const url = `${config.baseURL || ''}${config.url || ''}`
         const data = config.data ? JSON.stringify(config.data) : ''
-        console.debug(`[VTPASS][REQ] ${method} ${url} ${data}`)
+        // Log request method/url and which auth headers will be sent (mask values)
+        const hdrs = config.headers || {}
+        const headerKeys: string[] = []
+        try {
+          // collect header keys from common/defaults and request-specific
+          const common = (hdrs as Record<string, unknown>).common
+          if (common && typeof common === 'object') headerKeys.push(...Object.keys(common))
+          headerKeys.push(...Object.keys(hdrs).filter(k => k !== 'common'))
+        } catch {}
+        const uniq = Array.from(new Set(headerKeys)).slice(0, 50)
+        console.debug(`[VTPASS][REQ] ${method} ${url} ${data} | headers: ${uniq.join(',')}`)
       } catch { /* ignore */ }
     }
     return config

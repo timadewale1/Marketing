@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { PaystackModal } from '@/components/paystack-modal'
+// bypass Paystack: call VTpass directly
 import DataPlanSelector from '@/components/bills/DataPlanSelector'
 import { applyMarkup } from '@/services/vtpass/utils'
 import toast from 'react-hot-toast'
@@ -19,7 +19,7 @@ export default function DataPage() {
   const [plan, setPlan] = useState('')
   const [plans, setPlans] = useState<DataPlan[]>([])
   const [phone, setPhone] = useState('')
-  const [payOpen, setPayOpen] = useState(false)
+  
   const [loading, setLoading] = useState(true)
 
   const displayPrice = () => applyMarkup(amount)
@@ -69,14 +69,22 @@ export default function DataPage() {
     return () => { mounted = false }
   }, [service])
 
-  const handlePaySuccess = async (reference: string) => {
+  const handlePurchase = async () => {
     try {
-      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference }
+      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone }
       const matched = plans.find(p => p.code === plan)
       if (matched) payload.amount = String(matched.amount)
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
+      // Store transaction data for confirmation page
+      const matched2 = plans.find(p => p.code === plan)
+      const transactionData = {
+        serviceID: service || 'data',
+        amount: matched2?.amount || Number(payload.amount),
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Purchase successful')
       window.location.href = '/bills/confirmation'
     } catch (e) {
@@ -165,12 +173,12 @@ export default function DataPage() {
 
               {/* Action Button */}
               <Button
-                onClick={() => {
+                onClick={async () => {
                   if (!phone) {
                     toast.error('Please enter phone number')
                     return
                   }
-                  setPayOpen(true)
+                  await handlePurchase()
                 }}
                 className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
               >
@@ -181,7 +189,7 @@ export default function DataPage() {
         </div>
       </div>
 
-      {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
+      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }

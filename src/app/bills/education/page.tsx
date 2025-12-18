@@ -1,19 +1,26 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
-import { applyMarkup, formatVerifyResult } from '@/services/vtpass/utils'
+// bypass Paystack: call VTpass directly
+import { applyMarkup, formatVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { User, Hash, Calendar, DollarSign, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 
 export default function EducationPage() {
-  const [tab, setTab] = useState<'waec' | 'jamb'>('waec')
+  const [tab, setTab] = useState<'waec-result' | 'waec-reg' | 'jamb'>('waec-result')
 
-  // WAEC state
+  // WAEC Result Checker state
   const [waecPlans, setWaecPlans] = useState<Array<{ code: string; name: string; amount: number }>>([])
   const [waecPlan, setWaecPlan] = useState('')
   const [waecQty, setWaecQty] = useState(1)
+  const [waecPhone, setWaecPhone] = useState('')
+
+  // WAEC Registration state
+  const [waecRegPlans, setWaecRegPlans] = useState<Array<{ code: string; name: string; amount: number }>>([])
+  const [waecRegPlan, setWaecRegPlan] = useState('')
+  const [waecRegQty, setWaecRegQty] = useState(1)
+  const [waecRegPhone, setWaecRegPhone] = useState('')
 
   // JAMB state
   const [jambPlans, setJambPlans] = useState<Array<{ code: string; name: string; amount: number }>>([])
@@ -29,16 +36,23 @@ export default function EducationPage() {
     let mounted = true
     ;(async () => {
       try {
-        const [wRes, jRes] = await Promise.all([
+        const [wRes, wrRes, jRes] = await Promise.all([
           fetch('/api/bills/variations?serviceID=waec'),
+          fetch('/api/bills/variations?serviceID=waec-registration'),
           fetch('/api/bills/variations?serviceID=jamb'),
         ])
         const wj = await wRes.json()
+        const wrj = await wrRes.json()
         const jj = await jRes.json()
         if (mounted && wRes.ok && wj?.ok && Array.isArray(wj.result)) {
           const mapped = (wj.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
           setWaecPlans(mapped)
           if (mapped[0]?.code) setWaecPlan(mapped[0].code)
+        }
+        if (mounted && wrRes.ok && wrj?.ok && Array.isArray(wrj.result)) {
+          const mapped = (wrj.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
+          setWaecRegPlans(mapped)
+          if (mapped[0]?.code) setWaecRegPlan(mapped[0].code)
         }
         if (mounted && jRes.ok && jj?.ok && Array.isArray(jj.result)) {
           const mapped = (jj.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
@@ -57,17 +71,86 @@ export default function EducationPage() {
     return applyMarkup(found ? found.amount * (waecQty || 1) : 0)
   }
 
+  const waecRegDisplayPrice = () => {
+    const found = waecRegPlans.find(p => p.code === waecRegPlan)
+    return applyMarkup(found ? found.amount * (waecRegQty || 1) : 0)
+  }
+
   const jambDisplayPrice = () => {
     const found = jambPlans.find(p => p.code === jambPlan)
     return applyMarkup(found ? found.amount : 0)
   }
 
-  const handlePaySuccess = async (reference: string) => {
+  const handleCompletePurchase = async () => {
     try {
       if (!pendingPurchase) return toast.error('No pending purchase')
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...pendingPurchase, paystackReference: reference }) })
+      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pendingPurchase) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
+      
+      // Store transaction data for confirmation page
+      const transactionData: Record<string, unknown> = {
+        serviceID: pendingPurchase.serviceID,
+        // prefer VTpass returned total amount when available
+        amount: j.amount ?? j.result?.amount ?? pendingPurchase.amount,
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      
+      // Extract tokens/pins from response
+      // multiple possible shapes: content.transactions.cards, content.cards, cards, tokens, purchased_code string
+      const cards = j.result?.content?.transactions?.cards || j.result?.content?.cards || j.result?.cards || j.result?.content?.transactions?.tokens || j.result?.tokens
+      if (Array.isArray(cards) && cards.length) {
+        // Normalize arrays that may contain objects or token strings
+        const normalizedCards: Array<Record<string, string>> = []
+        for (const c of cards) {
+          if (!c) continue
+          if (typeof c === 'string') {
+            // token string
+            normalizedCards.push({ Serial: c, Pin: c })
+          } else if (typeof c === 'object') {
+            const obj = c as Record<string, unknown>
+            const Serial = String(obj['Serial'] ?? obj['serial'] ?? obj['unique_element'] ?? obj['unique'] ?? '')
+            const Pin = String(obj['Pin'] ?? obj['pin'] ?? obj['PinNumber'] ?? obj['pin_number'] ?? obj['PinCode'] ?? '')
+            normalizedCards.push({ Serial, Pin })
+          }
+        }
+        if (normalizedCards.length) transactionData.cards = normalizedCards
+      }
+
+      // tokens array
+      if (j.result?.tokens && Array.isArray(j.result.tokens)) {
+        transactionData.tokens = j.result.tokens
+      }
+
+      // purchased_code string may contain concatenated Serial/Pin pairs
+      if (j.result?.purchased_code) {
+        transactionData.purchased_code = j.result.purchased_code
+        const s = String(j.result.purchased_code)
+        if (s.includes('Serial') || /pin[:\s]/i.test(s) || /Pin\s*:/i.test(s)) {
+          try {
+            const parts = s.split('||').map(p => p.trim()).filter(Boolean)
+            const parsed: Array<Record<string, string>> = []
+            for (const p of parts) {
+              const mSerial = p.match(/Serial\s*No[:\s]*([^,|]+)/i)
+              const mPin = p.match(/pin[:\s]*([0-9A-Za-z]+)/i) || p.match(/Pin\s*[:\s]*([0-9A-Za-z]+)/i)
+              if (mSerial || mPin) {
+                parsed.push({ Serial: mSerial ? mSerial[1].trim() : '', Pin: mPin ? mPin[1].trim() : '' })
+              }
+            }
+            if (parsed.length) transactionData.cards = parsed
+          } catch (_) {}
+        }
+      }
+
+      // also capture direct Pin property if present (e.g., { Pin: 'Pin : 1234' })
+      if (j.result?.Pin) {
+        const raw = String(j.result.Pin)
+        const m = raw.match(/([0-9]{4,})/) || raw.match(/([0-9A-Za-z]{6,})/)
+        if (m) transactionData.pin = m[1]
+        else transactionData.pin = raw
+      }
+      
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Purchase successful')
       window.location.href = '/bills/confirmation'
     } catch {
@@ -79,7 +162,20 @@ export default function EducationPage() {
     const found = waecPlans.find(p => p.code === waecPlan)
     if (!found) return toast.error('Choose a plan')
     const payload: Record<string, unknown> = { serviceID: 'waec', variation_code: waecPlan, quantity: waecQty }
-    payload.amount = String(found.amount * (waecQty || 1))
+    // VTpass expects unit price in `amount` and quantity separately
+    payload.amount = String(found.amount)
+    if (waecPhone) payload.phone = waecPhone
+    setPendingPurchase(payload)
+    setPayOpen(open)
+  }
+
+  const startWaecRegPurchase = (open = true) => {
+    const found = waecRegPlans.find(p => p.code === waecRegPlan)
+    if (!found) return toast.error('Choose a WAEC Registration plan')
+    const payload: Record<string, unknown> = { serviceID: 'waec-registration', variation_code: waecRegPlan, quantity: waecRegQty }
+    // VTpass expects unit price in `amount` and quantity separately
+    payload.amount = String(found.amount)
+    if (waecRegPhone) payload.phone = waecRegPhone
     setPendingPurchase(payload)
     setPayOpen(open)
   }
@@ -88,6 +184,7 @@ export default function EducationPage() {
     const found = jambPlans.find(p => p.code === jambPlan)
     if (!found) return toast.error('Choose a JAMB item')
     if (!jambProfile) return toast.error('Enter JAMB profile/registration')
+    if (!jambPhone) return toast.error('Phone is required for JAMB')
     const payload: Record<string, unknown> = { serviceID: 'jamb', variation_code: jambPlan, billersCode: jambProfile, phone: jambPhone }
     payload.amount = String(found.amount)
     setPendingPurchase(payload)
@@ -123,21 +220,37 @@ export default function EducationPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="flex gap-2 mb-4">
-            <button onClick={() => setTab('waec')} className={`px-3 py-1 rounded ${tab === 'waec' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC</button>
-            <button onClick={() => setTab('jamb')} className={`px-3 py-1 rounded ${tab === 'jamb' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>JAMB</button>
+          <button onClick={() => setTab('waec-result')} className={`px-3 py-1 rounded ${tab === 'waec-result' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC Result</button>
+          <button onClick={() => setTab('waec-reg')} className={`px-3 py-1 rounded ${tab === 'waec-reg' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>WAEC Register</button>
+          <button onClick={() => setTab('jamb')} className={`px-3 py-1 rounded ${tab === 'jamb' ? 'bg-amber-500 text-stone-900' : 'bg-stone-100'}`}>JAMB</button>
           </div>
 
           <div className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <div className="p-6 sm:p-8 space-y-4">
-              {tab === 'waec' && (
+              {tab === 'waec-result' && (
                 <div className="space-y-3">
                   <select value={waecPlan} onChange={(e) => setWaecPlan(e.target.value)} className="w-full p-2 border rounded">
                     {waecPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
                   </select>
                   <input type="number" min={1} value={waecQty} onChange={(e) => setWaecQty(Number(e.target.value))} className="w-full p-2 border rounded" />
+                  <input placeholder="Phone" value={waecPhone} onChange={(e) => setWaecPhone(e.target.value)} className="w-full p-2 border rounded" />
                   <div className="text-sm">You will be charged: ₦{waecDisplayPrice().toLocaleString()}</div>
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecPurchase(true)}>Pay</button>
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startWaecPurchase(false); await handleCompletePurchase(); }}>Pay</button>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'waec-reg' && (
+                <div className="space-y-3">
+                  <select value={waecRegPlan} onChange={(e) => setWaecRegPlan(e.target.value)} className="w-full p-2 border rounded">
+                    {waecRegPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
+                  </select>
+                  <input type="number" min={1} value={waecRegQty} onChange={(e) => setWaecRegQty(Number(e.target.value))} className="w-full p-2 border rounded" />
+                  <input placeholder="Phone" value={waecRegPhone} onChange={(e) => setWaecRegPhone(e.target.value)} className="w-full p-2 border rounded" />
+                  <div className="text-sm">You will be charged: ₦{waecRegDisplayPrice().toLocaleString()}</div>
+                  <div className="flex gap-2">
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startWaecRegPurchase(false); await handleCompletePurchase(); }}>Pay</button>
                   </div>
                 </div>
               )}
@@ -148,7 +261,7 @@ export default function EducationPage() {
                     {jambPlans.map(p => <option key={p.code} value={p.code}>{p.name} — ₦{p.amount.toLocaleString()}</option>)}
                   </select>
                   <input placeholder="JAMB profile / registration" value={jambProfile} onChange={(e) => setJambProfile(e.target.value)} className="w-full p-2 border rounded" />
-                  <input placeholder="Phone (optional)" value={jambPhone} onChange={(e) => setJambPhone(e.target.value)} className="w-full p-2 border rounded" />
+                  <input placeholder="Phone (required)" value={jambPhone} onChange={(e) => setJambPhone(e.target.value)} className="w-full p-2 border rounded" required />
                   <div className="flex items-center gap-2">
                     <button className="px-3 py-1 rounded bg-stone-100" onClick={verifyJamb}>Verify</button>
                     <div className="text-sm">You will be charged: ₦{jambDisplayPrice().toLocaleString()}</div>
@@ -158,7 +271,7 @@ export default function EducationPage() {
                     <div className="border p-3 rounded bg-green-50">
                       <h3 className="font-semibold">Verify Result</h3>
                       <div className="mt-2 space-y-1 text-sm">
-                        {formatVerifyResult(jambVerifyResult, ['Customer_Name', 'fullName', 'Full_Name', 'profile', 'registrationNumber', 'Amount', 'Minimum_Amount']).map((item: { label: string; value: string }) => {
+                        {formatVerifyResult(filterVerifyResultByService(jambVerifyResult, ['Customer_Name', 'fullName', 'Full_Name'])).map((item: { label: string; value: string }) => {
                           const key = item.label
                           const val = item.value || ''
                           const lower = key.toLowerCase()
@@ -178,16 +291,14 @@ export default function EducationPage() {
                   )}
 
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startJambPurchase(true)}>Pay</button>
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startJambPurchase(false); await handleCompletePurchase(); }}>Pay</button>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {payOpen && pendingPurchase && (
-            <PaystackModal amount={Number(pendingPurchase.amount || 0)} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />
-          )}
+          {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
         </div>
       </div>
     </div>

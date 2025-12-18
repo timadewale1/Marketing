@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { PaystackModal } from '@/components/paystack-modal'
-import { applyMarkup, formatVerifyResult } from '@/services/vtpass/utils'
+// bypass Paystack: call VTpass directly
+import { applyMarkup, formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -17,16 +17,28 @@ export default function ElectricityPage() {
   const [discos, setDiscos] = useState<Array<{ id: string; name: string }>>([])
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
-  const [payOpen, setPayOpen] = useState(false)
+  const [phone, setPhone] = useState('')
 
   const displayPrice = () => applyMarkup(amount)
 
-  const handlePaySuccess = async (reference: string) => {
+  const handlePurchase = async () => {
     try {
-      const payload = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference }
+      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter }
+      // Electricity requires variation_code; prepaid/postpaid maps to it
+      const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
+      payload.variation_code = variationCode
+      if (phone) payload.phone = phone
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
+      // Store transaction data for confirmation page
+      const transactionData = {
+        serviceID: disco,
+        amount: Number(amount),
+        purchased_code: j.result?.purchased_code || j.result?.content?.transactions?.unique_element,
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Electricity paid')
       window.location.href = '/bills/confirmation'
     } catch (e) { console.error(e); toast.error('Error') }
@@ -63,7 +75,13 @@ export default function ElectricityPage() {
         setVerifying(false)
         return
       }
-      setVerifyResult(j.result || j)
+      // prefer the VTpass `content` object when present
+      const resObj = j.result?.content || j.result || j
+      setVerifyResult(resObj)
+      try {
+        const p = extractPhoneFromVerifyResult(resObj)
+        if (p) setPhone(p)
+      } catch {}
       toast.success('Verified')
     } catch (err) {
       console.error('verify error', err)
@@ -146,14 +164,20 @@ export default function ElectricityPage() {
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                     <p className="text-sm font-semibold text-green-900">Account Verified</p>
                   </div>
-                  <div className="space-y-2">
-                    {Object.entries(formatVerifyResult(verifyResult)).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-sm">
-                        <span className="text-green-800">{k}:</span>
-                        <span className="text-green-900 font-medium">{String(v)}</span>
+                      <div className="space-y-2">
+                        {formatVerifyResult(filterVerifyResultByService(verifyResult, ['Customer_Name', 'Address', 'Meter_Number', 'Minimum_Amount', 'Min_Purchase_Amount'])).map((item) => (
+                          <div key={item.label} className="flex justify-between text-sm">
+                            <span className="text-green-800">{item.label}:</span>
+                            <span className="text-green-900 font-medium">{item.value || 'N/A'}</span>
+                          </div>
+                        ))}
+                        {phone && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-green-800">Phone:</span>
+                            <span className="text-green-900 font-medium">{phone}</span>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
                 </div>
               )}
 
@@ -192,12 +216,12 @@ export default function ElectricityPage() {
 
                   {/* Action Button */}
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!amount) {
                         toast.error('Please enter amount')
                         return
                       }
-                      setPayOpen(true)
+                      await handlePurchase()
                     }}
                     className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
                   >
@@ -210,7 +234,7 @@ export default function ElectricityPage() {
         </div>
       </div>
 
-      {payOpen && <PaystackModal amount={displayPrice()} email={'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />}
+      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }

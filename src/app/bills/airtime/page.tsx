@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { applyMarkup } from '@/services/vtpass/utils'
-import { PaystackModal } from '@/components/paystack-modal'
+// bypass Paystack: call VTpass directly
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,18 +17,17 @@ export default function AirtimePage() {
   const [network, setNetwork] = useState('mtn')
   const [phone, setPhone] = useState('')
   const [amount, setAmount] = useState('')
-  const [payOpen, setPayOpen] = useState(false)
+  
   const [email, setEmail] = useState('')
 
   const displayPrice = () => applyMarkup(amount)
 
-  const handlePaySuccess = async (reference: string) => {
+  const handlePurchase = async () => {
     try {
       const payload = {
         serviceID: network,
         amount: String(amount),
         phone,
-        paystackReference: reference,
       }
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
@@ -36,8 +35,15 @@ export default function AirtimePage() {
         toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
         return
       }
+      // Store transaction data for confirmation page
+      const transactionData = {
+        serviceID: network,
+        amount: Number(amount),
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Transaction successful')
-      window.open('/bills/confirmation', '_self')
+      window.location.href = '/bills/confirmation'
     } catch (e) {
       console.error(e)
       toast.error('Purchase failed')
@@ -165,7 +171,7 @@ export default function AirtimePage() {
 
               {/* Action Button */}
               <Button
-                onClick={() => {
+                onClick={async () => {
                   if (!phone) {
                     toast.error('Please enter phone number')
                     return
@@ -174,7 +180,7 @@ export default function AirtimePage() {
                     toast.error('Please enter amount')
                     return
                   }
-                  setPayOpen(true)
+                  await handlePurchase()
                 }}
                 className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
               >
@@ -185,9 +191,7 @@ export default function AirtimePage() {
         </div>
       </div>
 
-      {payOpen && (
-        <PaystackModal amount={displayPrice()} email={email || 'no-reply@example.com'} onSuccess={handlePaySuccess} onClose={() => setPayOpen(false)} open={payOpen} />
-      )}
+      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }
