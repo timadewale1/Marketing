@@ -116,3 +116,210 @@
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
 [error] 
 [error] Error: An unexpected error has occurred.
+[debug] [2025-12-21T13:49:12.243Z] ----------------------------------------------------------------------
+[debug] [2025-12-21T13:49:12.247Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js login
+[debug] [2025-12-21T13:49:12.248Z] CLI Version:   15.1.0
+[debug] [2025-12-21T13:49:12.248Z] Platform:      win32
+[debug] [2025-12-21T13:49:12.248Z] Node Version:  v22.17.1
+[debug] [2025-12-21T13:49:12.249Z] Time:          Sun Dec 21 2025 14:49:12 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-21T13:49:12.249Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-21T13:49:12.728Z] Field "/firestore/indexes" in "firebase.json" is possibly invalid: must be string
+[debug] [2025-12-21T13:49:12.729Z] Field "/firestore" in "firebase.json" is possibly invalid: must be array
+[debug] [2025-12-21T13:49:12.729Z] Field "/firestore" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[info] Already logged in as timadewale1@gmail.com
+[debug] [2025-12-21T13:49:22.871Z] Error: Timed out.
+    at Timeout._onTimeout (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\utils.js:275:49)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2025-12-21T13:49:47.392Z] ----------------------------------------------------------------------
+[debug] [2025-12-21T13:49:47.398Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes --debug
+[debug] [2025-12-21T13:49:47.398Z] CLI Version:   15.1.0
+[debug] [2025-12-21T13:49:47.399Z] Platform:      win32
+[debug] [2025-12-21T13:49:47.399Z] Node Version:  v22.17.1
+[debug] [2025-12-21T13:49:47.399Z] Time:          Sun Dec 21 2025 14:49:47 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-21T13:49:47.400Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-21T13:52:03.837Z] Field "/firestore/indexes" in "firebase.json" is possibly invalid: must be string
+[debug] [2025-12-21T13:52:03.839Z] Field "/firestore" in "firebase.json" is possibly invalid: must be array
+[debug] [2025-12-21T13:52:03.839Z] Field "/firestore" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[debug] [2025-12-21T13:52:03.848Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-21T13:52:03.849Z] > authorizing via signed-in user (timadewale1@gmail.com)
+[debug] [2025-12-21T13:52:03.849Z] [iam] checking project blessing-636ca for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-21T13:52:03.852Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:03.853Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:03.855Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions [none]
+[debug] [2025-12-21T13:52:03.856Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-12-21T13:52:03.856Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-21T13:52:04.849Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions 200
+[debug] [2025-12-21T13:52:04.849Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'blessing-636ca'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-21T13:52:04.854Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:04.855Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:04.855Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/blessing-636ca/services/firestore.googleapis.com [none]
+[debug] [2025-12-21T13:52:04.856Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/blessing-636ca/services/firestore.googleapis.com x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-12-21T13:52:06.277Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/blessing-636ca/services/firestore.googleapis.com 200
+[debug] [2025-12-21T13:52:06.278Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/blessing-636ca/services/firestore.googleapis.com [omitted]
+[info] +  firestore: required API firestore.googleapis.com is enabled 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-21T13:52:06.294Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:06.294Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T13:52:06.295Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) [none]
+[debug] [2025-12-21T13:52:07.439Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) 200
+[debug] [2025-12-21T13:52:07.439Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) {"name":"projects/blessing-636ca/databases/(default)","uid":"4dc49e05-1b07-4eb0-8450-79fba0f6d798","createTime":"2025-08-24T07:05:27.690256Z","updateTime":"2025-08-24T07:05:27.690256Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-21T12:52:05.417574Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"INCRou3pzpEDMOPDiLjR348D"}
+[debug] [2025-12-21T13:52:07.944Z] TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received an instance of Object
+    at Object.isAbsolute (node:path:482:5)
+    at Config.path (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\config.js:137:18)
+    at prepareIndexes (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\firestore\prepare.js:22:40)
+    at default_1 (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\firestore\prepare.js:104:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async chain (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:43:9)
+    at async deploy (C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js:123:9)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2025-12-21T14:00:54.241Z] ----------------------------------------------------------------------
+[debug] [2025-12-21T14:00:54.255Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes --debug
+[debug] [2025-12-21T14:00:54.256Z] CLI Version:   15.1.0
+[debug] [2025-12-21T14:00:54.256Z] Platform:      win32
+[debug] [2025-12-21T14:00:54.256Z] Node Version:  v22.17.1
+[debug] [2025-12-21T14:00:54.257Z] Time:          Sun Dec 21 2025 15:00:54 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-21T14:00:54.257Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-21T14:01:46.695Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-21T14:01:46.839Z] > authorizing via signed-in user (timadewale1@gmail.com)
+[debug] [2025-12-21T14:01:46.840Z] [iam] checking project blessing-636ca for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-21T14:01:46.886Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:01:46.887Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:01:46.925Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions [none]
+[debug] [2025-12-21T14:01:46.926Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-12-21T14:01:46.926Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-21T14:01:50.779Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions 200
+[debug] [2025-12-21T14:01:50.780Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'blessing-636ca'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-21T14:01:50.791Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:01:50.792Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:01:50.792Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) [none]
+[debug] [2025-12-21T14:01:53.233Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) 200
+[debug] [2025-12-21T14:01:53.233Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) {"name":"projects/blessing-636ca/databases/(default)","uid":"4dc49e05-1b07-4eb0-8450-79fba0f6d798","createTime":"2025-08-24T07:05:27.690256Z","updateTime":"2025-08-24T07:05:27.690256Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-21T13:01:49.979010Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IMb2gITszpEDMOPDiLjR348D"}
+[error] 
+[error] Error: Parse Error in C:\Users\timad\OneDrive\Desktop\programming\blessing\firestore.indexes.json:
+
+Unexpected end of input at 33:1
+
+^
+File: "C:\Users\timad\OneDrive\Desktop\programming\blessing\firestore.indexes.json"
+[debug] [2025-12-21T14:09:25.098Z] ----------------------------------------------------------------------
+[debug] [2025-12-21T14:09:25.114Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes --debug
+[debug] [2025-12-21T14:09:25.115Z] CLI Version:   15.1.0
+[debug] [2025-12-21T14:09:25.115Z] Platform:      win32
+[debug] [2025-12-21T14:09:25.115Z] Node Version:  v22.17.1
+[debug] [2025-12-21T14:09:25.116Z] Time:          Sun Dec 21 2025 15:09:25 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-21T14:09:25.116Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-21T14:09:28.382Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-21T14:09:28.386Z] > authorizing via signed-in user (timadewale1@gmail.com)
+[debug] [2025-12-21T14:09:28.386Z] [iam] checking project blessing-636ca for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-21T14:09:28.389Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:09:28.390Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:09:28.392Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions [none]
+[debug] [2025-12-21T14:09:28.393Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-12-21T14:09:28.393Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-21T14:09:29.866Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions 200
+[debug] [2025-12-21T14:09:29.867Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'blessing-636ca'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-21T14:09:29.872Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:09:29.873Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:09:29.873Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) [none]
+[debug] [2025-12-21T14:09:30.983Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) 200
+[debug] [2025-12-21T14:09:30.983Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) {"name":"projects/blessing-636ca/databases/(default)","uid":"4dc49e05-1b07-4eb0-8450-79fba0f6d798","createTime":"2025-08-24T07:05:27.690256Z","updateTime":"2025-08-24T07:05:27.690256Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-21T13:09:28.987586Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IOvI8N7tzpEDMOPDiLjR348D"}
+[error] 
+[error] Error: Parse Error in C:\Users\timad\OneDrive\Desktop\programming\blessing\firestore.indexes.json:
+
+Unexpected token '"' at 31:5
+    "fieldOverrides": []
+    ^
+File: "C:\Users\timad\OneDrive\Desktop\programming\blessing\firestore.indexes.json"
+[debug] [2025-12-21T14:11:29.022Z] ----------------------------------------------------------------------
+[debug] [2025-12-21T14:11:29.035Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\timad\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:indexes --debug
+[debug] [2025-12-21T14:11:29.035Z] CLI Version:   15.1.0
+[debug] [2025-12-21T14:11:29.036Z] Platform:      win32
+[debug] [2025-12-21T14:11:29.036Z] Node Version:  v22.17.1
+[debug] [2025-12-21T14:11:29.036Z] Time:          Sun Dec 21 2025 15:11:29 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-21T14:11:29.036Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-21T14:11:55.717Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-21T14:11:55.719Z] > authorizing via signed-in user (timadewale1@gmail.com)
+[debug] [2025-12-21T14:11:55.719Z] [iam] checking project blessing-636ca for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-21T14:11:55.721Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:55.722Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:55.723Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions [none]
+[debug] [2025-12-21T14:11:55.724Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions x-goog-quota-user=projects/blessing-636ca
+[debug] [2025-12-21T14:11:55.724Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-21T14:11:56.940Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions 200
+[debug] [2025-12-21T14:11:56.941Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/blessing-636ca:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'blessing-636ca'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-21T14:11:56.947Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:56.947Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:56.948Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) [none]
+[debug] [2025-12-21T14:11:58.445Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) 200
+[debug] [2025-12-21T14:11:58.445Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) {"name":"projects/blessing-636ca/databases/(default)","uid":"4dc49e05-1b07-4eb0-8450-79fba0f6d798","createTime":"2025-08-24T07:05:27.690256Z","updateTime":"2025-08-24T07:05:27.690256Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-21T13:11:56.446486Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IPbhmKXuzpEDMOPDiLjR348D"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  firestore: deploying indexes... 
+[debug] [2025-12-21T14:11:58.448Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:58.449Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:58.449Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/indexes [none]
+[debug] [2025-12-21T14:11:58.782Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/indexes 200
+[debug] [2025-12-21T14:11:58.782Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/indexes {"indexes":[{"name":"projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes/CICAgJim14AK","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/blessing-636ca/databases/(default)/collectionGroups/campaigns/indexes/CICAgOjXh4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"ownerId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"}]}
+[debug] [2025-12-21T14:11:58.783Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:58.783Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:58.783Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* [none]
+[debug] [2025-12-21T14:11:59.076Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* 200
+[debug] [2025-12-21T14:11:59.077Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* {"fields":[{"name":"projects/blessing-636ca/databases/(default)/collectionGroups/__default__/fields/*","indexConfig":{"indexes":[{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"ASCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"DESCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","arrayConfig":"CONTAINS"}],"state":"READY"}]}}]}
+[debug] [2025-12-21T14:11:59.077Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:59.078Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:11:59.078Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) [none]
+[debug] [2025-12-21T14:11:59.331Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) 200
+[debug] [2025-12-21T14:11:59.332Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default) {"name":"projects/blessing-636ca/databases/(default)","uid":"4dc49e05-1b07-4eb0-8450-79fba0f6d798","createTime":"2025-08-24T07:05:27.690256Z","updateTime":"2025-08-24T07:05:27.690256Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-21T13:11:57.344877Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IIDNz6XuzpEDMOPDiLjR348D"}
+[info] i  firestore: The following indexes are defined in your project but are not present in your firestore indexes file:
+	(campaigns) -- (ownerId,ASCENDING) (createdAt,DESCENDING)  -- Density:SPARSE_ALL  
+[debug] [2025-12-21T14:13:56.779Z] Skipping existing index: {"collectionGroup":"earnerSubmissions","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-21T14:13:56.780Z] Creating new index: {"collectionGroup":"earnerSubmissions","queryScope":"COLLECTION","fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"campaignId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-21T14:13:56.780Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:13:56.781Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:13:56.781Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes [none]
+[debug] [2025-12-21T14:13:56.825Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes {"fields":[{"fieldPath":"userId","order":"ASCENDING"},{"fieldPath":"campaignId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"queryScope":"COLLECTION"}
+[debug] [2025-12-21T14:13:58.808Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes 200
+[debug] [2025-12-21T14:13:58.808Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes {"name":"projects/blessing-636ca/databases/(default)/operations/S0lvOUZqSmdBQ0lDDCoDIDc4NjZjZDY2MTdiZi1mZmY5LTI0ZjQtZWVhMy1jMzkzMDg4NiQac2VuaWxlcGlwCQpBEg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.IndexOperationMetadata","startTime":"2025-12-21T14:13:56.756972Z","index":"projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes/CICAgJjF9oIK","state":"INITIALIZING"}}
+[debug] [2025-12-21T14:13:58.808Z] Creating new index: {"collectionGroup":"earnerSubmissions","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-21T14:13:58.809Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:13:58.809Z] Checked if tokens are valid: true, expires at: 1766327420582
+[debug] [2025-12-21T14:13:58.809Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes [none]
+[debug] [2025-12-21T14:13:58.810Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes {"fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"queryScope":"COLLECTION"}
+[debug] [2025-12-21T14:13:59.252Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes 200
+[debug] [2025-12-21T14:13:59.253Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes {"name":"projects/blessing-636ca/databases/(default)/operations/S0U0ejdqSmdBQ0lDDCoDIDU4NDdkNDE0MzQ4NS05NGZiLTQwNTQtOGM1Yi03ODE2NzRjYSQac2VuaWxlcGlwCQpBEg","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.IndexOperationMetadata","startTime":"2025-12-21T14:13:57.216869Z","index":"projects/blessing-636ca/databases/(default)/collectionGroups/earnerSubmissions/indexes/CICAgJj7z4EK","state":"INITIALIZING"}}
+[info] +  firestore: deployed indexes in firestore.indexes.json successfully for (default) database 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/blessing-636ca/overview

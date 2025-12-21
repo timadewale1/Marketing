@@ -76,6 +76,19 @@ export async function POST(req: Request) {
         note: 'Budget allocated for campaign',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+
+      // Notify admin of new campaign created
+      const noteRef = db.collection('adminNotifications').doc()
+      t.set(noteRef, {
+        type: 'campaign_created',
+        title: 'New campaign created',
+        body: `${String(campaignData.title || 'Untitled')} was created by advertiser ${verifiedUid}`,
+        link: `/admin/campaigns/${campaignRef.id}`,
+        userId: verifiedUid,
+        campaignId: campaignRef.id,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
     })
 
     return NextResponse.json({ success: true, message: 'Campaign created using wallet funds' })

@@ -380,6 +380,23 @@ export default function CampaignDetailPage() {
         const docRef = await addDoc(collection(db, "earnerSubmissions"), submissionData);
         console.log("Submission created with ID:", docRef.id);
 
+        // Notify admin of new submission
+        try {
+          await addDoc(collection(db, "adminNotifications"), {
+            type: 'submission_created',
+            title: 'New task submission',
+            body: `${submissionData.campaignTitle || 'A campaign'} has a new submission from ${user.uid}`,
+            link: `/admin/submissions`,
+            userId: user.uid,
+            submissionId: docRef.id,
+            campaignId: submissionData.campaignId,
+            read: false,
+            createdAt: serverTimestamp(),
+          })
+        } catch (noteErr) {
+          console.error('Failed to notify admin of submission:', noteErr)
+        }
+
         toast.success("Submission sent. Awaiting review.");
         router.push("/earner/campaigns/done");
       } catch (submitError) {

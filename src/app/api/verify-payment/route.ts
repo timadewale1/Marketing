@@ -68,11 +68,30 @@ export async function POST(req: NextRequest) {
             paymentRef: reference,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
           })
+          // notify admin
+          await adminDb.collection('adminNotifications').add({
+            type: 'campaign_created',
+            title: 'New campaign (paid)',
+            body: `${String(campaignData.title || 'Untitled')} was created via payment`,
+            link: '/admin/campaigns',
+            campaignTitle: String(campaignData.title || ''),
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
         } else {
           await addDoc(collection(db, 'campaigns'), {
             ...campaignData,
             paymentRef: reference,
             createdAt: serverTimestamp()
+          })
+          await addDoc(collection(db, 'adminNotifications'), {
+            type: 'campaign_created',
+            title: 'New campaign (paid)',
+            body: `${String(campaignData.title || 'Untitled')} was created via payment`,
+            link: '/admin/campaigns',
+            campaignTitle: String(campaignData.title || ''),
+            read: false,
+            createdAt: serverTimestamp(),
           })
         }
 
@@ -99,6 +118,17 @@ export async function POST(req: NextRequest) {
             note: 'Wallet funded via Paystack',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           })
+          // notify admin of funding
+          await adminDb.collection('adminNotifications').add({
+            type: 'wallet_funding',
+            title: 'Wallet funded',
+            body: `Advertiser ${userId} funded wallet with ₦${amount}`,
+            link: '/admin/transactions',
+            userId,
+            amount,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
         } else {
           await addDoc(collection(db, 'advertiserTransactions'), {
             userId,
@@ -106,6 +136,16 @@ export async function POST(req: NextRequest) {
             amount,
             status: 'completed',
             note: 'Wallet funded via Paystack',
+            createdAt: serverTimestamp(),
+          })
+          await addDoc(collection(db, 'adminNotifications'), {
+            type: 'wallet_funding',
+            title: 'Wallet funded',
+            body: `Advertiser ${userId} funded wallet with ₦${amount}`,
+            link: '/admin/transactions',
+            userId,
+            amount,
+            read: false,
             createdAt: serverTimestamp(),
           })
         }

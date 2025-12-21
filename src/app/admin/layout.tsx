@@ -14,13 +14,26 @@ import {
   Wallet,
   LogOut,
 } from "lucide-react";
+import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch } from "firebase/firestore";
+import { useRef } from "react";
 
 // Admin password is stored in server environment (process.env.ADMIN_PASSWORD).
 // This client layout uses server routes to authenticate and manage an httpOnly cookie session.
 
 interface AdminLayoutProps {
   children: React.ReactNode;
+}
+
+interface AdminNotification {
+  id: string;
+  title: string;
+  body: string;
+  link?: string;
+  read: boolean;
+  createdAt: Timestamp;
 }
 
 const NAVIGATION = [
@@ -40,6 +53,16 @@ const NAVIGATION = [
     icon: BarChart2,
   },
   {
+    name: "Notifications",
+    href: "/admin/notifications",
+    icon: Bell,
+  },
+  {
+    name: "Direct Ads",
+    href: "/admin/direct-ad-requests",
+    icon: Megaphone,
+  },
+  {
     name: "Submissions",
     href: "/admin/submissions",
     icon: FileCheck,
@@ -55,6 +78,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<AdminNotification[]>([]);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogin = async () => {
     try {
@@ -95,6 +122,64 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
     })();
   }, []);
+
+  // subscribe to unread admin notifications
+  useEffect(() => {
+    const unreadQ = query(collection(db, "adminNotifications"), where("read", "==", false));
+    const unsubUnread = onSnapshot(unreadQ, (snap) => setUnreadCount(snap.size || 0), (err) => console.error('adminNotifications listen failed', err));
+
+    // Also keep a small recent list for the bell dropdown
+    const recentQ = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"), limit(6));
+    const unsubRecent = onSnapshot(recentQ, (snap) => setRecentNotes(snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) } as AdminNotification))), (err) => console.error('adminNotifications recent listen failed', err));
+
+    return () => { unsubUnread(); unsubRecent(); };
+  }, []);
+
+  // close dropdown on outside click
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'adminNotifications', id), { read: true });
+      setRecentNotes((prev) => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      console.error('markAsRead failed', err);
+      toast.error('Could not mark notification as read');
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      const batch = writeBatch(db);
+      let any = false;
+      recentNotes.forEach(n => {
+        if (!n.read) { batch.update(doc(db, 'adminNotifications', n.id), { read: true }); any = true; }
+      });
+      if (!any) return;
+      await batch.commit();
+      setRecentNotes(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('markAllRead failed', err);
+      toast.error('Could not mark all as read');
+    }
+  };
+
+  const handleNotificationClick = async (n: AdminNotification) => {
+    try {
+      if (!n.read) await markAsRead(n.id);
+    } finally {
+      if (n.link) window.location.href = n.link as string;
+    }
+  };
 
   if (!authenticated) {
     return (
@@ -149,7 +234,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         isActive ? "text-amber-600" : "text-stone-400"
                       }`}
                     />
-                    {item.name}
+                      <div className="flex items-center gap-2">
+                        <span>{item.name}</span>
+                        {item.href === "/admin/notifications" && unreadCount > 0 && (
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500 text-white">{unreadCount}</span>
+                        )}
+                      </div>
                   </Link>
                 );
               })}
@@ -180,7 +270,63 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="flex flex-col flex-1">
+        <div className="flex items-center justify-between p-4 border-b border-stone-200 bg-white/60 backdrop-blur">
+          <div />
+          <div className="flex items-center gap-3">
+              <div className="relative" ref={dropdownRef}>
+                <button onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }} className="relative p-2 rounded-lg hover:bg-stone-100">
+                  <Bell className="text-stone-700" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs px-1.5 py-0.5">{unreadCount}</span>
+                  )}
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white border rounded-md shadow-lg z-50">
+                    <div className="p-3 border-b">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Notifications</h4>
+                        <div className="flex items-center gap-3">
+                          <button onClick={markAllRead} className="text-sm text-stone-600 hover:text-stone-800">Mark all read</button>
+                          <Link href="/admin/notifications" className="text-sm text-amber-600">View all</Link>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {recentNotes.length === 0 ? (
+                        <div className="p-4 text-sm text-stone-600">No notifications</div>
+                      ) : (
+                        recentNotes.map(n => (
+                          <Link key={n.id} href={n.link || '#'} onClick={(e) => { e.preventDefault(); handleNotificationClick(n); }} className="block p-3 hover:bg-stone-50 border-b text-sm">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium">{n.title}</div>
+                                <div className="text-xs text-stone-600 mt-1 truncate">{n.body}</div>
+                              </div>
+                              {!n.read && <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); markAsRead(n.id); }} className="ml-3 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500 text-white">Mark</button>}
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+        </div>
         <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+
+        {/* Mobile notification button (visible on small screens) */}
+        <div className="md:hidden">
+          <Link href="/admin/notifications">
+            <button aria-label="Notifications" className="fixed bottom-4 right-4 z-50 bg-amber-500 text-white p-3 rounded-full shadow-lg relative">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-white text-amber-600 text-xs px-1.5 py-0.5 font-semibold">{unreadCount}</span>
+              )}
+            </button>
+          </Link>
+        </div>
       </div>
     </div>
   );

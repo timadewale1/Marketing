@@ -30,7 +30,7 @@ export default function AdvertiseDirectlyPage() {
     }
     setSubmitting(true)
     try {
-      await addDoc(collection(db, "directAdvertRequests"), {
+      const docRef = await addDoc(collection(db, "directAdvertRequests"), {
         businessName,
         contactName,
         email,
@@ -42,6 +42,21 @@ export default function AdvertiseDirectlyPage() {
         status: "pending",
         createdAt: serverTimestamp(),
       })
+
+      // notify admin
+      try {
+        await addDoc(collection(db, 'adminNotifications'), {
+          type: 'direct_ad_request',
+          title: 'New direct advert request',
+          body: `${businessName} submitted a direct advert request`,
+          link: `/admin/direct-ad-requests/${docRef.id}`,
+          requestId: docRef.id,
+          read: false,
+          createdAt: serverTimestamp(),
+        })
+      } catch (noteErr) {
+        console.error('Failed to create admin notification for direct advert request', noteErr)
+      }
       toast.success("Thanks — your request has been submitted")
       router.push("/advertise-directly/thank-you")
     } catch (err) {

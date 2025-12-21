@@ -125,8 +125,8 @@ export default function AdvertiserReferralsPage() {
           <Card className="bg-white/80 backdrop-blur p-6">
             <h3 className="text-sm font-medium text-stone-500 mb-2">Total Completed Referrals</h3>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-stone-800">{completedReferrals}</span>
-              <span className="text-stone-500">out of {referrals.length}</span>
+              <span className="text-3xl font-bold text-stone-800">{Array.isArray(completedReferrals) ? completedReferrals.length : completedReferrals}</span>
+              <span className="text-stone-500">out of {Array.isArray(referrals) ? referrals.length : referrals}</span>
             </div>
           </Card>
 
