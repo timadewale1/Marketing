@@ -165,8 +165,9 @@ export default function WalletPage() {
       // --- Advertiser transactions (for wallet totals) ---
       try {
         const txQ = query(collection(db, 'advertiserTransactions'), where('userId', '==', user.uid))
+        type AdvertiserTx = { type?: string; status?: string | null; amount?: number | string }
         const unsubTx = onSnapshot(txQ, (snap) => {
-          const txs = snap.docs.map((d) => d.data() as Record<string, any>)
+          const txs = snap.docs.map((d) => d.data() as AdvertiserTx)
           const deposited = txs
             .filter((t) => t.type === 'wallet_funding' && (t.status === 'completed' || t.status == null))
             .reduce((s, t) => s + (Number(t.amount) || 0), 0)

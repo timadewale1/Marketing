@@ -87,6 +87,19 @@ export async function POST(req: Request) {
         note: 'Withdrawal request pending admin approval',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+
+      // Notify admin of advertiser withdrawal request
+      const noteRef = db.collection('adminNotifications').doc()
+      t.set(noteRef, {
+        type: 'advertiser_withdrawal',
+        title: 'Advertiser withdrawal request',
+        body: `Advertiser ${userId} requested withdrawal of ₦${amount}`,
+        link: `/admin/advertiser-withdrawals`,
+        userId,
+        amount,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
     })
 
     return NextResponse.json({ success: true, message: 'Withdrawal request created and awaiting admin approval' })

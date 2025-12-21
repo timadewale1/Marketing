@@ -1,32 +1,30 @@
 {
-  {
-    "indexes": [
-      {
-        "collectionGroup": "earnerSubmissions",
-        "queryScope": "COLLECTION",
-        "fields": [
-          { "fieldPath": "userId", "order": "ASCENDING" },
-          { "fieldPath": "createdAt", "order": "DESCENDING" }
-        ]
-      }
-      ,
-      {
-        "collectionGroup": "earnerSubmissions",
-        "queryScope": "COLLECTION",
-        "fields": [
-          { "fieldPath": "userId", "order": "ASCENDING" },
-          { "fieldPath": "campaignId", "order": "ASCENDING" },
-          { "fieldPath": "createdAt", "order": "DESCENDING" }
-        ]
-      },
-      {
-        "collectionGroup": "earnerSubmissions",
-        "queryScope": "COLLECTION",
-        "fields": [
-          { "fieldPath": "status", "order": "ASCENDING" },
-          { "fieldPath": "createdAt", "order": "DESCENDING" }
-        ]
-      }
-    ],
-    "fieldOverrides": []
-  }
+  "indexes": [
+    {
+      "collectionGroup": "earnerSubmissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "earnerSubmissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "campaignId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "earnerSubmissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
