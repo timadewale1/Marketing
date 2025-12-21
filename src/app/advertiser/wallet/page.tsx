@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth, db } from "@/lib/firebase"
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from "firebase/firestore"
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, doc, getDoc } from "firebase/firestore"
 import { Timestamp } from "firebase/firestore"
 import { calculateWalletBalances } from "@/lib/wallet"
 import { onAuthStateChanged } from "firebase/auth"
@@ -65,6 +65,8 @@ export default function WalletPage() {
   };
   const [resumedCampaigns, setResumedCampaigns] = useState<ResumedCampaign[]>([])
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [totalDeposited, setTotalDeposited] = useState<number>(0)
+  const [withdrawableBalance, setWithdrawableBalance] = useState<number>(0)
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
@@ -159,6 +161,34 @@ export default function WalletPage() {
         }))
         setResumedCampaigns(data)
       })
+
+      // --- Advertiser transactions (for wallet totals) ---
+      try {
+        const txQ = query(collection(db, 'advertiserTransactions'), where('userId', '==', user.uid))
+        const unsubTx = onSnapshot(txQ, (snap) => {
+          const txs = snap.docs.map((d) => d.data() as Record<string, any>)
+          const deposited = txs
+            .filter((t) => t.type === 'wallet_funding' && (t.status === 'completed' || t.status == null))
+            .reduce((s, t) => s + (Number(t.amount) || 0), 0)
+          setTotalDeposited(deposited)
+        })
+        unsubWithdrawals = unsubWithdrawals || null
+      } catch (e) {
+        console.warn('Failed to listen to advertiserTransactions', e)
+      }
+
+      // --- Advertiser profile (balance) ---
+      ;(async () => {
+        try {
+          const advRef = doc(db, 'advertisers', user.uid)
+          const advSnap = await getDoc(advRef)
+          if (advSnap.exists()) {
+            setWithdrawableBalance(Number(advSnap.data()?.balance || 0))
+          }
+        } catch (e) {
+          console.warn('Failed to load advertiser profile for balance', e)
+        }
+      })()
     })
     return () => {
       if (unsubscribeAuth) unsubscribeAuth()
@@ -166,14 +196,7 @@ export default function WalletPage() {
     }
   }, [])
 
-  // Use central util to compute all balances including refundable
-  const { totalDeposited, totalSpent, refundableBalance, activeBalance } = calculateWalletBalances(
-    campaigns,
-    withdrawals,
-    reroutes,
-    resumedCampaigns
-  )
-
+  // Use advertiser transactions + profile balance for wallet totals
   const handleAdvertiserWithdraw = async (amount: number) => {
     const user = auth.currentUser
     if (!user) {
@@ -209,9 +232,7 @@ export default function WalletPage() {
 
   const stats = [
     { title: "Total Deposited", value: `₦${Math.max(0, totalDeposited).toLocaleString()}`, icon: Wallet },
-    { title: "Total Spent", value: `₦${Math.max(0, totalSpent).toLocaleString()}`, icon: TrendingUp },
-    { title: "Active Balance", value: `₦${Math.max(0, activeBalance).toLocaleString()}`, icon: DollarSign },
-    { title: "Refundable Balance", value: `₦${Math.max(0, refundableBalance).toLocaleString()}`, icon: RefreshCw },
+    { title: "Withdrawable Balance", value: `₦${Math.max(0, withdrawableBalance).toLocaleString()}`, icon: RefreshCw },
   ]
 
   
@@ -287,38 +308,7 @@ export default function WalletPage() {
                   </Button>
                 </div>
 
-                {/* Task Breakdown */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Task Breakdown</h3>
-                  {campaigns.length === 0 ? (
-                    <p className="text-primary-500">No active tasks</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {campaigns.map((c) => (
-                        <Card key={c.id} className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{c.title}</h4>
-                              <p className="text-sm text-primary-600">
-                                Status: {c.status} • Budget: ₦{c.budget.toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-primary-600">
-                                Leads: {c.generatedLeads || 0} / {c.estimatedLeads}
-                              </div>
-                              {c.costPerLead && (
-                                <div className="text-xs text-gold-600">
-                                  ₦{c.costPerLead} per lead
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* Task Breakdown removed for now — wallet shows fund & withdraw only */}
               </>
             )}
 
@@ -339,7 +329,7 @@ export default function WalletPage() {
           open={withdrawOpen}
           onClose={() => setWithdrawOpen(false)}
           onSubmit={handleAdvertiserWithdraw}
-          maxAmount={Math.max(0, refundableBalance)}
+          maxAmount={Math.max(0, withdrawableBalance)}
           bankDetails={
             bankDetails
               ? {

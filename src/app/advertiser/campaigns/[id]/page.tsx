@@ -108,49 +108,7 @@ export default function CampaignDetailsPage() {
     fetchAvg()
   }, [])
 
-  // 📋 Fetch latest verified submissions as leads
-  useEffect(() => {
-    if (!id) return
-    // Listen to earner submissions instead of leads collection
-    const qSubmissions = query(
-      collection(db, "earnerSubmissions"),
-      where("campaignId", "==", id),
-      where("status", "==", "Verified"), // Only show verified submissions
-      orderBy("createdAt", "desc"),
-      limit(10)
-    )
-    const unsub = onSnapshot(qSubmissions, (snap) => {
-      // Update campaign stats with verified count
-      const verifiedCount = snap.size;
-      setCampaign(prev => prev ? {
-        ...prev,
-        generatedLeads: verifiedCount
-      } : null);
-
-      const data: Lead[] = snap.docs.map((d) => {
-        const sub = d.data();
-        return {
-          id: d.id,
-          name: sub.fullName || "Anonymous",
-          proofUrl: sub.proofUrl || sub.socialHandle || sub.linkProof || null,
-          createdAt: sub.createdAt,
-        };
-      });
-      setLeads(data);
-
-      // If campaign is complete, update status
-      if (campaign?.budget && campaign.costPerLead) {
-        const targetLeads = Math.floor(campaign.budget / campaign.costPerLead);
-        if (verifiedCount >= targetLeads && campaign.status !== "Completed") {
-          updateDoc(doc(db, "campaigns", id as string), {
-            status: "Completed",
-            completedAt: serverTimestamp()
-          });
-        }
-      }
-    });
-    return () => unsub();
-  }, [id, campaign])
+  // Note: latest leads and realtime submission list removed to simplify details view.
 
   const updateStatus = async (): Promise<void> => {
     // Pause/Resume/Stop features have been disabled per product decision.
@@ -350,9 +308,9 @@ await updateDoc(campaignRef, {
 
   if (!campaign) return <p className="p-6">Task not found.</p>
 
-  const percent = campaign.estimatedLeads
-    ? Math.min((campaign.generatedLeads / campaign.estimatedLeads) * 100, 100)
-    : 0
+  const safeGenerated = Number(campaign.generatedLeads || 0)
+  const safeEstimated = Number(campaign.estimatedLeads || 0)
+  const percent = safeEstimated > 0 ? Math.min((safeGenerated / safeEstimated) * 100, 100) : 0
 
   const progressColor =
     percent >= 75
@@ -435,9 +393,7 @@ await updateDoc(campaignRef, {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Performance */}
         <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100 shadow-md space-y-4">
-          <h2 className="text-lg font-semibold text-stone-800">
-            Performance Overview
-          </h2>
+          <h2 className="text-lg font-semibold text-stone-800">Performance Overview</h2>
           <div>
             <div className="w-full bg-stone-200 rounded-full h-2">
               <div
@@ -446,77 +402,21 @@ await updateDoc(campaignRef, {
               />
             </div>
             <p className="text-xs text-stone-600 mt-1">
-              {campaign.generatedLeads} of {campaign.estimatedLeads} leads (
-              {percent.toFixed(1)}%)
+              {safeGenerated} of {safeEstimated > 0 ? safeEstimated : "N/A"} leads ({percent.toFixed(1)}%)
             </p>
-          </div>
-
-          {/* Leads Table */}
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-stone-700 mb-2">
-              Latest Leads
-            </h3>
-            {leads.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border border-stone-200 rounded">
-                  <thead className="bg-stone-100 text-stone-600">
-                    <tr>
-                      <th className="p-2 text-left">Name</th>
-                      <th className="p-2 text-left">Date</th>
-                      <th className="p-2 text-left">Proof</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leads.map((lead) => (
-                      <tr
-                        key={lead.id}
-                        className="border-t border-stone-200 hover:bg-stone-50"
-                      >
-                        <td className="p-2">{lead.name || "Anonymous"}</td>
-                        <td className="p-2">
-                          {lead.createdAt
-                            ? new Date(lead.createdAt.toDate()).toLocaleString()
-                            : "-"}
-                        </td>
-                        <td className="p-2">
-                          {lead.proofUrl ? (
-                            <a 
-                              href={lead.proofUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-amber-600 hover:underline"
-                            >
-                              View Proof
-                            </a>
-                          ) : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-xs text-stone-500">No leads yet.</p>
-            )}
           </div>
         </Card>
 
-        {/* Controls */}
+        {/* Controls: Keep basic actions for edit/delete */}
         <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
-          <h2 className="text-lg font-semibold text-stone-800 mb-4">
-            Manage Task
-          </h2>
+          <h2 className="text-lg font-semibold text-stone-800 mb-4">Actions</h2>
           <div className="flex flex-wrap gap-3">
-            {statusActions.map((btn, i) => (
-              <Button
-                key={i}
-                onClick={btn.action}
-                className={`${btn.color} flex gap-2`}
-                size="sm"
-              >
-                <btn.icon size={16} /> {btn.label}
-              </Button>
-            ))}
+            <Button onClick={() => router.push(`/advertiser/create-campaign?edit=${id}`)} size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
+              <Edit size={16} /> Edit
+            </Button>
+            <Button onClick={handleDelete} size="sm" className="bg-red-500 hover:bg-red-600 text-white">
+              <Trash size={16} /> Delete
+            </Button>
           </div>
         </Card>
       </div>
@@ -533,10 +433,7 @@ await updateDoc(campaignRef, {
           </div>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
-          <h2 className="text-lg font-semibold text-stone-800 mb-3">Insights</h2>
-          <p className="text-sm text-stone-700">{getInsights()}</p>
-        </Card>
+        {/* Insights removed per request */}
       </div>
 
       {/* Danger Zone */}

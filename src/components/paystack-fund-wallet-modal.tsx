@@ -26,7 +26,7 @@ export function PaystackFundWalletModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white/95">
         <div className="space-y-4">
           <div>
             <Label htmlFor="amount">Amount (₦)</Label>

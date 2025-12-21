@@ -46,7 +46,7 @@ type CampaignType =
   | "YouTube Like"
   | "YouTube Comment"
 
-const STEPS = ["Details", "Upload Media", "Budget", "Review & Pay"] as const
+const STEPS = ["Details", "Upload Task Link", "Budget", "Review & Pay"] as const
 
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
@@ -264,11 +264,6 @@ const compressed = await imageCompression(file, options)
       return
     }
 
-    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
-      toast.error("Paystack key not configured")
-      return
-    }
-
     if (!isStepValid()) {
       toast.error("Please complete all required fields")
       return
@@ -283,8 +278,8 @@ const compressed = await imageCompression(file, options)
         return
       }
       const ad = docs.docs[0].data() as Record<string, unknown>
-      if (!ad['onboarded'] && !ad['activated']) {
-        toast.error('Please complete advertiser onboarding/activation before creating tasks')
+      if (!ad['onboarded'] || !ad['activated']) {
+        toast.error('Please complete advertiser onboarding and activation before creating tasks')
         router.push('/advertiser/onboarding')
         return
       }
@@ -318,34 +313,35 @@ const compressed = await imageCompression(file, options)
       }
     }
 
+      // Attempt to create the campaign using wallet funds first
     try {
-      const paystackLib = (window as unknown as { PaystackPop?: PaystackPopInterface }).PaystackPop;
-      if (!paystackLib || typeof paystackLib.setup !== "function") {
-        toast.error("Payment library not ready - try again shortly")
+      const idToken = await user.getIdToken()
+      const res = await fetch('/api/advertiser/campaign/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ campaignData }),
+      })
+
+      if (res.ok) {
+        toast.success('Campaign created using wallet funds')
+        router.push('/advertiser')
         return
       }
 
-// Define PaystackPop interface outside component
-interface PaystackPopInterface {
-  setup: (config: Record<string, unknown>) => { openIframe: () => void };
-}
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 402 || /insufficient/i.test(String(data?.message || ''))) {
+        toast.error('Insufficient wallet balance — please fund wallet to continue')
+        router.push('/advertiser/wallet')
+        return
+      }
 
-const handler = paystackLib.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-        email: user.email,
-        amount: numericBudget * 100,
-        currency: "NGN",
-  label: `Task payment: ${title}`,
-        onClose: () => toast.error("Payment canceled"),
-        callback: (resp: { reference: string }) => {
-          verifyPayment(resp.reference, campaignData)
-        }
-      })
-
-      handler.openIframe()
+      toast.error(data?.message || 'Failed to create campaign using wallet')
     } catch (err) {
-      console.error("Payment error:", err)
-      toast.error("Payment initiation failed")
+      console.error('Wallet create error', err)
+      toast.error('Failed to create campaign — try again')
     }
   }
 
@@ -510,13 +506,16 @@ const getEmbeddedVideo = (url: string) => {
         return (
           <Card>
             <CardContent className="space-y-4 p-6">
-{category === "Video" && (
-                <Input
-                  placeholder="Paste your video link (e.g. YouTube or hosted URL)"
-                  value={videoLink}
-                  onChange={(e) => setVideoLink(e.target.value)}
-                />
-              )}
+{
+                // Video: keep the video link input
+                category === "Video" && (
+                  <Input
+                    placeholder="Paste your video link (e.g. YouTube or hosted URL)"
+                    value={videoLink}
+                    onChange={(e) => setVideoLink(e.target.value)}
+                  />
+                )
+              }
 
               {category === "Share my Product" && faceUploading && (
                 <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` — ${uploadProgress}%` : '...'}</div>
@@ -539,14 +538,32 @@ const getEmbeddedVideo = (url: string) => {
                   </p>
                 </div>
               )}
-              {(category === "Survey" ||
-                category === "other website tasks" ||
-                category === "App Download") && (
+
+              {(category === "Survey" || category === "other website tasks" || category === "App Download") && (
                 <Input
                   placeholder="Enter link (https://...)"
                   value={externalLink}
                   onChange={(e) => setExternalLink(e.target.value)}
                 />
+              )}
+
+              {/* For social tasks and simple link-based tasks show a generic task link / handle input */}
+              {[
+                'Instagram Follow','Instagram Like','Instagram Share',
+                'Twitter Follow','Twitter Retweet',
+                'Facebook Like','Facebook Share',
+                'TikTok Follow','TikTok Like','TikTok Share',
+                'YouTube Subscribe','YouTube Like','YouTube Comment',
+              ].includes(category as string) && (
+                <div>
+                  <label className="text-sm font-medium text-stone-700 block mb-2">Task link or social handle</label>
+                  <Input
+                    placeholder="Enter a link (https://...) or social handle (@username)"
+                    value={externalLink}
+                    onChange={(e) => setExternalLink(e.target.value)}
+                  />
+                  <p className="text-xs text-stone-500 mt-1">Provide the URL or handle needed to verify the task.</p>
+                </div>
               )}
 
               {uploadProgress !== null && (
@@ -810,3 +827,7 @@ const getEmbeddedVideo = (url: string) => {
     </div>
   )
 }
+function setFundModalOpen(arg0: boolean) {
+  throw new Error("Function not implemented.")
+}
+

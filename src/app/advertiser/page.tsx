@@ -39,6 +39,7 @@ export default function AdvertiserDashboard() {
   const sidebarRef = useRef<HTMLDivElement | null>(null)
   const [name, setName] = useState<string>("Advertiser")
   const [profilePic, setProfilePic] = useState("")
+  const [activated, setActivated] = useState<boolean>(true)
   const [stats, setStats] = useState({
     balance: 0,
     activeCampaigns: 0,
@@ -70,6 +71,7 @@ export default function AdvertiserDashboard() {
       if (snap.exists()) {
         setName(snap.data().name || "Advertiser")
         setProfilePic(snap.data().profilePic || "")
+        setActivated(Boolean(snap.data().activated))
       }
 
       // Campaigns
@@ -247,6 +249,24 @@ export default function AdvertiserDashboard() {
     // },
   ]
 
+  // If advertiser is not activated, show a quick action banner
+  const ActivationBanner = () => {
+    if (activated) return null
+    return (
+      <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-semibold text-stone-800">Account Not Activated</div>
+            <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+          </div>
+          <div>
+            <Button className="bg-amber-500 text-stone-900" onClick={() => router.push('/advertiser/onboarding')}>Activate Account</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const filteredCampaigns = campaigns.filter(
     (c) => c.status.toLowerCase() === filter.toLowerCase()
   )
@@ -355,6 +375,9 @@ export default function AdvertiserDashboard() {
             <BillsCard />
           </div>
         </div>
+
+        {/* Activation banner (if needed) */}
+        {ActivationBanner()}
 
         {/* Tasks Section */}
         <div className="flex items-center justify-between mb-4">

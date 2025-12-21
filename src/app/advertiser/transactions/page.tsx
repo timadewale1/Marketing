@@ -122,6 +122,8 @@ export default function AdvertiserTransactionsPage() {
                           ? `Task Payment: ${tx.campaignTitle || 'Untitled'}`
                           : tx.type === 'wallet_funding'
                           ? 'Wallet Funding'
+                          : tx.type === 'referral_bonus'
+                          ? 'Referral Bonus'
                           : tx.note || "Transaction"}
                       </div>
                       {tx.createdAt && (
@@ -143,9 +145,9 @@ export default function AdvertiserTransactionsPage() {
                         </span>
                       )}
                       <div className={`font-bold ${
-                        tx.type === 'campaign_payment' ? 'text-red-600' : 'text-green-600'
+                        tx.type === 'campaign_payment' || tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? 'text-red-600' : 'text-green-600'
                       }`}>
-                        {tx.type === 'campaign_payment' ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
+                        {tx.type === 'campaign_payment' || tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
                       </div>
                     </div>
                   </div>

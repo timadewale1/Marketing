@@ -59,8 +59,9 @@ export default function AdvertiserReferralsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const totalEarned = referrals.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const completedReferrals = referrals.filter(r => r.status === 'completed').length;
+  // Only completed referrals count toward total earned
+  const completedReferrals = referrals.filter(r => r.status === 'completed')
+  const totalEarned = completedReferrals.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -149,26 +150,25 @@ export default function AdvertiserReferralsPage() {
             <div className="space-y-4">
               {referrals.map((r) => (
                 <Card key={r.id} className="p-4 hover:shadow-md transition duration-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="font-medium text-stone-800">
-                        {r.email || r.name || "New advertiser"}
+                        {r.name || r.email || "New advertiser"}
                       </div>
                       <div className="text-sm text-stone-500 mt-1">
-                        {new Date((r.createdAt?.seconds ?? 0) * 1000 || Date.now()).toLocaleDateString()} at{" "}
-                        {new Date((r.createdAt?.seconds ?? 0) * 1000 || Date.now()).toLocaleTimeString()}
+                        {new Date((r.createdAt?.seconds ?? 0) * 1000 || Date.now()).toLocaleDateString()} at {new Date((r.createdAt?.seconds ?? 0) * 1000 || Date.now()).toLocaleTimeString()}
                       </div>
-                      {r.firstPaymentAmount && (
-                        <div className="text-xs text-amber-600 mt-1">
-                          First task payment: ₦{r.firstPaymentAmount.toLocaleString()}
-                        </div>
-                      )}
+                      <div className="text-xs text-stone-500 mt-2">
+                        {r.status === 'completed' ? (
+                          "This person has activated their account"
+                        ) : (
+                          "Please follow up with the person so you can earn your referral bonus"
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <div className={`mb-1 text-sm px-2 py-1 rounded-full ${
-                        r.status === 'completed' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-amber-100 text-amber-700'
+                        r.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {r.status === 'completed' ? 'Completed' : 'Pending'}
                       </div>

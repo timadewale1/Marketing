@@ -60,6 +60,9 @@ export default function HomePage() {
                 <Link href="/auth/sign-up">Start Earning</Link>
               </Button>
               <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
+                <Link href="/advertise-directly">Advertise Directly</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
                 <Link href="/auth/sign-up">Create Tasks</Link>
               </Button>
               <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
