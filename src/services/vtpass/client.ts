@@ -4,7 +4,10 @@ import axios from 'axios'
 const LIVE = process.env.VTPASS_LIVE_BASE_URL || 'https://vtpass.com/api'
 const SANDBOX = process.env.VTPASS_BASE_URL || 'https://sandbox.vtpass.com/api'
 
-const baseURL = (process.env.NODE_ENV === 'production' ? LIVE : SANDBOX)
+// Allow forcing sandbox via VTPASS_ENV (e.g. VTPASS_ENV=sandbox) even in production
+const baseURL = (process.env.VTPASS_ENV === 'sandbox')
+  ? SANDBOX
+  : (process.env.NODE_ENV === 'production' ? LIVE : SANDBOX)
 
 export const createVtpassClient = () => {
   const instance = axios.create({ baseURL, timeout: 20_000 })
