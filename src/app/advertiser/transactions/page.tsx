@@ -9,6 +9,7 @@ import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 interface Transaction {
   id: string;
@@ -189,13 +190,14 @@ export default function AdvertiserTransactionsPage() {
                     </div>
                   </div>
                 </Card>
-                <WithdrawDialog
-                  open={withdrawOpen}
-                  onClose={() => setWithdrawOpen(false)}
-                  onSubmit={handleAdvertiserWithdraw}
-                  maxAmount={Math.max(0, balance)}
-                />
               ))}
+              <WithdrawDialog
+                open={withdrawOpen}
+                onClose={() => setWithdrawOpen(false)}
+                onSubmit={handleAdvertiserWithdraw}
+                maxAmount={Math.max(0, balance)}
+                bankDetails={null}
+              />
             </div>
           )}
         </Card>
