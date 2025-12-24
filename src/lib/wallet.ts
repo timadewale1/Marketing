@@ -56,14 +56,14 @@ export const calculateWalletBalances = (
   // Pending/approved withdrawals reduce refundable balance
   const totalRequestedWithdrawals = Array.isArray(withdrawals)
     ? withdrawals
-        .filter((w) => ["Pending", "Approved"].includes(w.status || ""))
+        .filter((w) => ['pending', 'approved'].includes(String(w.status || '').toLowerCase()))
         .reduce((s, w) => s + (Number(w.amount) || 0), 0)
     : 0
 
   // Pending/approved reroutes reduce refundable balance
   const totalRequestedReroutes = Array.isArray(reroutes)
     ? reroutes
-        .filter((r) => ["Pending", "Approved"].includes(r.status || ""))
+        .filter((r) => ['pending', 'approved'].includes(String(r.status || '').toLowerCase()))
         .reduce(
           (s, r) =>
             s +
@@ -77,7 +77,7 @@ export const calculateWalletBalances = (
   // Resumed campaigns amount used (pending/approved) also reduce refundable balance
   const totalResumedUsed = Array.isArray(resumedCampaigns)
     ? resumedCampaigns
-        .filter((r) => ["Pending", "Approved"].includes(r.status || ""))
+        .filter((r) => ['pending', 'approved'].includes(String(r.status || '').toLowerCase()))
         .reduce((s, r) => s + (Number(r.amountUsed) || 0), 0)
     : 0
 

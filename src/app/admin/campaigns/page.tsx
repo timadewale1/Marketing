@@ -58,7 +58,7 @@ export default function CampaignsPage() {
     const q = query(collection(db, "campaigns"), orderBy("createdAt", "desc"));
 
     const unsubCampaigns = onSnapshot(q, (snap) => {
-      const campaignsData = snap.docs.map((doc) => {
+        const campaignsData = snap.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -69,7 +69,7 @@ export default function CampaignsPage() {
           earnerPrice: data.earnerPrice || 0,
           budget: data.budget || 0,
           generatedLeads: data.generatedLeads || 0,
-          targetLeads: data.targetLeads || 0,
+            targetLeads: data.targetLeads || data.estimatedLeads || 0,
           createdAt: data.createdAt || { seconds: Date.now() / 1000 },
           description: data.description || "",
           proofInstructions: data.proofInstructions || "",
@@ -198,10 +198,7 @@ export default function CampaignsPage() {
                       <div
                         className="h-full bg-amber-500 transition-all duration-500"
                         style={{
-                          width: `${Math.min(
-                            (campaign.generatedLeads / campaign.targetLeads) * 100,
-                            100
-                          )}%`,
+                          width: `${campaign.targetLeads > 0 ? Math.min((campaign.generatedLeads / campaign.targetLeads) * 100, 100) : 0}%`,
                         }}
                       />
                     </div>

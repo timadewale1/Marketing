@@ -270,6 +270,7 @@ const compressed = await imageCompression(file, options)
     }
 
     // Ensure advertiser profile is onboarded/activated before allowing task creation
+    let advertiserProfile: Record<string, unknown> | null = null
     try {
       const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
       if (docs.empty) {
@@ -277,8 +278,8 @@ const compressed = await imageCompression(file, options)
         router.push('/advertiser/onboarding')
         return
       }
-      const ad = docs.docs[0].data() as Record<string, unknown>
-      if (!ad['onboarded'] || !ad['activated']) {
+      advertiserProfile = docs.docs[0].data() as Record<string, unknown>
+      if (!advertiserProfile['onboarded'] || !advertiserProfile['activated']) {
         toast.error('Please complete advertiser onboarding and activation before creating tasks')
         router.push('/advertiser/onboarding')
         return
@@ -300,6 +301,11 @@ const compressed = await imageCompression(file, options)
       costPerLead: currentCPL,
       status: "Active",
       createdAt: serverTimestamp(),
+    }
+
+    // Attach advertiser display name for admin/reporting convenience
+    if (advertiserProfile) {
+      campaignData.advertiserName = String(advertiserProfile['fullName'] || advertiserProfile['businessName'] || advertiserProfile['name'] || user.email)
     }
 
     // If product campaign, attach face capture URL (preferred) and address
@@ -827,7 +833,5 @@ const getEmbeddedVideo = (url: string) => {
     </div>
   )
 }
-function setFundModalOpen(arg0: boolean) {
-  throw new Error("Function not implemented.")
-}
+// removed stray helper
 

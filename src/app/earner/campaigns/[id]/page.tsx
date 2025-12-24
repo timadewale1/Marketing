@@ -12,6 +12,8 @@ import {
   query,
   where,
   serverTimestamp,
+  runTransaction,
+  increment,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -343,18 +345,36 @@ export default function CampaignDetailPage() {
         return;
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todaySubmissionsQuery = query(
-        collection(db, "earnerSubmissions"),
-        where("userId", "==", user.uid),
-        where("createdAt", ">=", today)
-      );
-      const todaySubmissionsSnap = await getDocs(todaySubmissionsQuery);
-      if (todaySubmissionsSnap.size >= (campaignData?.dailyLimit || Infinity)) {
-        toast.error("You've reached the daily submission limit");
-        return;
-      }
+      const userSubsSnap = await getDocs(
+  query(
+    collection(db, "earnerSubmissions"),
+    where("userId", "==", user.uid)
+  )
+);
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const todayTime = today.getTime();
+
+const todayCount = userSubsSnap.docs.filter((d) => {
+  const createdAt = d.data().createdAt;
+  if (!createdAt) return false;
+
+  if (createdAt.toDate) {
+    return createdAt.toDate().getTime() >= todayTime;
+  }
+
+  if (createdAt.seconds) {
+    return createdAt.seconds * 1000 >= todayTime;
+  }
+
+  return false;
+}).length;
+
+if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
+  toast.error("You've reached the daily submission limit");
+  return;
+}
 
       console.log("Creating submission document...");
       try {
@@ -371,14 +391,44 @@ export default function CampaignDetailPage() {
           status: "Pending",
           createdAt: serverTimestamp(),
           earnerPrice: (campaign.category === "Video") ? 150 : Math.round((campaign.costPerLead || 0) / 2),
+          // reservedAmount will be set within a transaction to reserve campaign funds
+          reservedAmount: 0,
           reviewedAt: null,
           reviewedBy: null,
           rejectionReason: null,
         };
-        
-        console.log("Submission data prepared:", submissionData);
-        const docRef = await addDoc(collection(db, "earnerSubmissions"), submissionData);
-        console.log("Submission created with ID:", docRef.id);
+        // Create submission and reserve campaign funds atomically
+        const submissionsCol = collection(db, "earnerSubmissions");
+        const newSubRef = doc(submissionsCol);
+        const fullAmount = submissionData.earnerPrice * 2;
+
+        try {
+          await runTransaction(db, async (t) => {
+            const campaignRef = doc(db, "campaigns", campaign.id);
+            const cSnap = await t.get(campaignRef);
+            if (!cSnap.exists()) throw new Error('Task not found during reservation');
+            const cData = cSnap.data() as CampaignData;
+            const available = Number(cData.budget || 0);
+            if (available < fullAmount) throw new Error('Insufficient campaign budget to reserve funds');
+
+            // decrement available budget and increment reservedBudget
+            t.update(campaignRef, {
+              budget: increment(-fullAmount),
+              reservedBudget: increment(fullAmount),
+            });
+
+            // set reservedAmount on the submission
+            t.set(newSubRef, {
+              ...submissionData,
+              reservedAmount: fullAmount,
+              createdAt: serverTimestamp(),
+            });
+          });
+          console.log('Submission created with reservation');
+        } catch (txErr) {
+          console.error('Reservation transaction failed', txErr);
+          throw txErr;
+        }
 
         // Notify admin of new submission
         try {
@@ -388,7 +438,7 @@ export default function CampaignDetailPage() {
             body: `${submissionData.campaignTitle || 'A campaign'} has a new submission from ${user.uid}`,
             link: `/admin/submissions`,
             userId: user.uid,
-            submissionId: docRef.id,
+            submissionId: newSubRef.id,
             campaignId: submissionData.campaignId,
             read: false,
             createdAt: serverTimestamp(),

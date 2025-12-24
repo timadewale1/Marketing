@@ -5,16 +5,16 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 
 // Guard feature detection: some firebase-functions versions/environments may not
-// expose `functions.pubsub.schedule` (older/newer incompatibilities). If the
+// expose `functions.scheduler.onSchedule` (older/newer incompatibilities). If the
 // function is not available, skip registering scheduled functions so the
 // deployment static analysis doesn't crash.
-const hasPubsubSchedule = Boolean((functions as any).pubsub && typeof (functions as any).pubsub.schedule === 'function');
+const hasPubsubSchedule = Boolean((functions as any).scheduler && typeof (functions as any).scheduler.onSchedule === 'function');
 
+// Export named functions so deploy-time analysis can find them deterministically.
+let processDueActivations: any;
 if (hasPubsubSchedule) {
-	// Scheduled function to process due activation fees every 5 minutes
-	(exports as any).processDueActivations = (functions.pubsub as any)
-		.schedule('every 5 minutes')
-		.onRun(async (context: any) => {
+	processDueActivations = (functions as any).scheduler
+		.onSchedule('every 5 minutes', async (context: any) => {
 		const db = admin.firestore();
 		const now = admin.firestore.Timestamp.now();
 		const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 3; // approximate 3 months
@@ -80,19 +80,23 @@ if (hasPubsubSchedule) {
 					}
 				return null;
 			});
-		} else {
-		  console.warn('Skipping processDueActivations: functions.pubsub.schedule is not available in this firebase-functions install. Consider upgrading firebase-functions.');
-		}
+} else {
+	// Fallback HTTP function so the export exists during analysis (no-op)
+	processDueActivations = functions.https.onRequest((req, res) => {
+		res.status(200).send('processDueActivations: schedule unavailable');
+	});
+	console.warn('processDueActivations: schedule unavailable; exported fallback HTTP function');
+}
+exports.processDueActivations = processDueActivations;
 
-// Scheduled function to auto-verify submissions older than 10 minutes
+// Scheduled function to auto-verify submissions older than 5 minutes
 if (hasPubsubSchedule) {
-	(exports as any).autoVerifySubmissions = (functions.pubsub as any)
-		.schedule('every 2 minutes')
-		.onRun(async () => {
+	(exports as any).autoVerifySubmissions = (functions as any).scheduler
+		.onSchedule('every 2 minutes', async () => {
 		const db = admin.firestore();
 		const now = Date.now();
-		const tenMinutes = 1000 * 60 * 10;
-		const cutoff = admin.firestore.Timestamp.fromMillis(now - tenMinutes);
+		const fiveMinutes = 1000 * 60 * 5;
+		const cutoff = admin.firestore.Timestamp.fromMillis(now - fiveMinutes);
 
 		const q = db.collection('earnerSubmissions')
 			.where('status', '==', 'Pending')
@@ -103,41 +107,116 @@ if (hasPubsubSchedule) {
 		if (snap.empty) return null;
 
 		for (const sDoc of snap.docs) {
-			const data = sDoc.data();
 			try {
-				// Compute earner amount - try to infer from earnerPrice or campaign
-				let earnerAmount = Number(data.earnerPrice || 0);
-				if (!earnerAmount && data.campaignId) {
-					const c = await db.collection('campaigns').doc(data.campaignId).get();
-								if (c.exists) {
-									const cd = c.data();
-						const costPerLead = Number(cd?.costPerLead || 0);
-						earnerAmount = Math.round(costPerLead / 2) || 0;
+				await db.runTransaction(async (t) => {
+					const subRef = sDoc.ref;
+					const subSnap = await t.get(subRef);
+					if (!subSnap.exists) return;
+					const submission = subSnap.data() as any;
+					if ((submission.status || '') !== 'Pending') return;
+
+					// Determine earner amount
+					let earnerAmount = Number(submission.earnerPrice || 0);
+					const campaignId = submission.campaignId;
+					let campaign: any = null;
+					if ((!earnerAmount || earnerAmount === 0) && campaignId) {
+						const cSnap = await t.get(db.collection('campaigns').doc(campaignId));
+						if (cSnap.exists) {
+							campaign = cSnap.data();
+							const costPerLead = Number(campaign?.costPerLead || 0);
+							earnerAmount = Math.round(costPerLead / 2) || 0;
+						}
+					} else if (campaignId) {
+						const cSnap = await t.get(db.collection('campaigns').doc(campaignId));
+						if (cSnap.exists) campaign = cSnap.data();
 					}
-				}
 
-				// Mark as verified and credit earner
-				const updates: any = {
-					status: 'Verified',
-					reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-					autoVerified: true,
-				};
-				await sDoc.ref.update(updates);
+					const fullAmount = earnerAmount * 2;
+					// Prefer reservedAmount on the submission (reserved at creation time)
+					const reservedOnSubmission = Number(submission.reservedAmount || 0);
 
-				// Credit the earner wallet and create transaction
-				if (earnerAmount > 0 && data.userId) {
-					await db.collection('earnerTransactions').add({
-						userId: data.userId,
-						type: 'lead',
-						amount: earnerAmount,
-						status: 'completed',
-						note: `Auto-verified campaign submission ${sDoc.id}`,
-						createdAt: admin.firestore.FieldValue.serverTimestamp(),
+					// If reservation exists, ensure campaign has sufficient reservedBudget
+					if (campaign && reservedOnSubmission > 0) {
+						const reservedBudget = Number(campaign.reservedBudget || 0);
+						if (reservedBudget < reservedOnSubmission) {
+							throw new Error('Insufficient reserved budget for auto-verify');
+						}
+					}
+
+					const nowTimestamp = admin.firestore.FieldValue.serverTimestamp();
+
+					// 1) Update submission
+					t.update(subRef, {
+						status: 'Verified',
+						reviewedAt: nowTimestamp,
+						autoVerified: true,
 					});
-					await db.collection('earners').doc(data.userId).update({
-						balance: admin.firestore.FieldValue.increment(earnerAmount),
-					});
-				}
+
+					// 2) Update campaign (if present)
+					if (campaignId && campaign) {
+						const campaignRef = db.collection('campaigns').doc(campaignId);
+						const estimated = Number(campaign.estimatedLeads || 0);
+						const completedLeads = Number(campaign.generatedLeads || 0) + 1;
+						const completionRate = estimated > 0 ? (completedLeads / estimated) * 100 : 0;
+
+						// If reservation exists on the submission, consume reservedBudget; otherwise decrement budget directly
+						const campaignUpdates: any = {
+							generatedLeads: admin.firestore.FieldValue.increment(1),
+							completedLeads: admin.firestore.FieldValue.increment(1),
+							lastLeadAt: nowTimestamp,
+							completionRate,
+							dailySubmissionCount: admin.firestore.FieldValue.increment(1),
+						};
+						if (reservedOnSubmission > 0) {
+							campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(-reservedOnSubmission);
+						} else {
+							campaignUpdates.budget = admin.firestore.FieldValue.increment(-fullAmount);
+						}
+
+						if (completionRate >= 100) campaignUpdates.status = 'Completed';
+						t.update(campaignRef, campaignUpdates);
+					}
+
+					// 3) Earner transaction + balance
+					if (earnerAmount > 0 && submission.userId) {
+						const earnerTxRef = db.collection('earnerTransactions').doc();
+						t.set(earnerTxRef, {
+							userId: submission.userId,
+							campaignId: campaignId || null,
+							type: 'credit',
+							amount: earnerAmount,
+							status: 'completed',
+							note: `Auto-verified campaign submission ${sDoc.id}`,
+							createdAt: nowTimestamp,
+						});
+						t.update(db.collection('earners').doc(submission.userId), {
+							balance: admin.firestore.FieldValue.increment(earnerAmount),
+							leadsPaidFor: admin.firestore.FieldValue.increment(1),
+							totalEarned: admin.firestore.FieldValue.increment(earnerAmount),
+							lastEarnedAt: nowTimestamp,
+						});
+					}
+
+					// 4) Advertiser transaction + stats
+					const advertiserId = submission.advertiserId || (campaign && campaign.ownerId);
+					if (advertiserId) {
+						const advTxRef = db.collection('advertiserTransactions').doc();
+						t.set(advTxRef, {
+							userId: advertiserId,
+							campaignId: campaignId || null,
+							type: 'debit',
+							amount: fullAmount,
+							status: 'completed',
+							note: `Auto-payment for lead in ${submission.campaignTitle || ''}`,
+							createdAt: nowTimestamp,
+						});
+						t.update(db.collection('advertisers').doc(advertiserId), {
+							totalSpent: admin.firestore.FieldValue.increment(fullAmount),
+							leadsGenerated: admin.firestore.FieldValue.increment(1),
+							lastLeadAt: nowTimestamp,
+						});
+					}
+				});
 			} catch (err) {
 				console.error('Auto-verify submission error for', sDoc.id, err);
 			}
@@ -147,4 +226,18 @@ if (hasPubsubSchedule) {
 		});
 } else {
 	console.warn('Skipping autoVerifySubmissions: functions.pubsub.schedule is not available in this firebase-functions install. Consider upgrading firebase-functions.');
+}
+
+// Analyzer-friendly export guard: ensure a top-level named export exists
+try {
+	if (!(exports as any).autoVerifySubmissions) {
+		(exports as any).autoVerifySubmissions = functions.https.onRequest((req, res) => {
+			res.status(200).send('autoVerifySubmissions: schedule unavailable');
+		});
+		console.warn('autoVerifySubmissions: fallback HTTP export registered for static analysis');
+	} else {
+		exports.autoVerifySubmissions = (exports as any).autoVerifySubmissions;
+	}
+} catch (err) {
+	console.warn('autoVerifySubmissions export guard failed', err);
 }
