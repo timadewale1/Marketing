@@ -32,7 +32,16 @@ export default function TVPage() {
       } else {
         payload.amount = String(amount)
       }
-      if (phone) payload.phone = phone
+      // Ensure phone is provided or derived from verify result
+      let phoneToUse = phone || ''
+      if (!phoneToUse && verifyResult) {
+        try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
+      }
+      if (!phoneToUse) {
+        toast.error('Enter a phone number for this purchase')
+        return
+      }
+      payload.phone = phoneToUse
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')

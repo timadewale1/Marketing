@@ -40,6 +40,7 @@ export default function AdvertiserDashboard() {
   const [name, setName] = useState<string>("Advertiser")
   const [profilePic, setProfilePic] = useState("")
   const [activated, setActivated] = useState<boolean>(true)
+  const [onboarded, setOnboarded] = useState<boolean>(false)
   const [stats, setStats] = useState({
     balance: 0,
     activeCampaigns: 0,
@@ -72,6 +73,7 @@ export default function AdvertiserDashboard() {
         setName(snap.data().name || "Advertiser")
         setProfilePic(snap.data().profilePic || "")
         setActivated(Boolean(snap.data().activated))
+        setOnboarded(Boolean(snap.data().onboarded))
       }
 
       // Campaigns
@@ -252,6 +254,71 @@ export default function AdvertiserDashboard() {
   // If advertiser is not activated, show a quick action banner
   const ActivationBanner = () => {
     if (activated) return null
+    // If not onboarded, send them to onboarding. If onboarded but not activated, open Paystack inline to pay ₦2,000
+    const handleActivation = async () => {
+      const u = auth.currentUser
+      if (!u || !u.email) {
+        toast.error('You must be logged in to activate')
+        return
+      }
+      if (!onboarded) {
+        router.push('/advertiser/onboarding')
+        return
+      }
+
+      if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
+        toast.error('Payment configuration error')
+        return
+      }
+
+      try {
+        if (!document.querySelector('script[src*="paystack.co"]')) {
+          const script = document.createElement('script')
+          script.src = 'https://js.paystack.co/v1/inline.js'
+          document.head.appendChild(script)
+          await new Promise((resolve, reject) => {
+            script.onload = resolve
+            script.onerror = () => reject(new Error('Failed to load Paystack'))
+          })
+        }
+
+        const PaystackPop = (window as any).PaystackPop
+        const handler = PaystackPop.setup({
+          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+          email: u.email,
+          amount: 2000 * 100,
+          currency: 'NGN',
+          label: 'Advertiser Account Activation',
+          metadata: { userId: u.uid },
+          onClose: () => toast.error('Activation cancelled'),
+          callback: function(resp: { reference: string }) {
+            fetch('/api/advertiser/activate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference: resp.reference, userId: u.uid }),
+            })
+            .then(async (res) => {
+              if (res.ok) {
+                toast.success('Account activated successfully')
+                setActivated(true)
+                return
+              }
+              const data = await res.json().catch(() => ({}))
+              throw new Error(data?.message || 'Activation verification failed')
+            })
+            .catch((err) => {
+              console.error('Activation verify error', err)
+              toast.error(err.message || 'Activation verification failed')
+            })
+          }
+        })
+        handler.openIframe()
+      } catch (err) {
+        console.error('Activation error', err)
+        toast.error('Activation failed')
+      }
+    }
+
     return (
       <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
@@ -260,7 +327,7 @@ export default function AdvertiserDashboard() {
             <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
           </div>
           <div>
-            <Button className="bg-amber-500 text-stone-900" onClick={() => router.push('/advertiser/onboarding')}>Activate Account</Button>
+            <Button className="bg-amber-500 text-stone-900" onClick={handleActivation}>Activate Account</Button>
           </div>
         </div>
       </div>
@@ -316,6 +383,7 @@ export default function AdvertiserDashboard() {
             { label: "Dashboard", path: "/advertiser" },
             { label: "Tasks", path: "/advertiser/campaigns" },
             { label: "Wallet", path: "/advertiser/wallet" },
+            { label: "Bank", path: "/advertiser/bank" },
             { label: "Transactions", path: "/advertiser/transactions" },
             { label: "Referrals", path: "/advertiser/referrals" },
             { label: "Task Price List", path: "/advertiser/pricelist" },

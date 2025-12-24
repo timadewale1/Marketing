@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     }
 
     const balance = Number(advertiser?.balance || 0)
+    if (amount < 2000) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦2,000' }, { status: 400 })
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
 
     const fee = Math.round(amount * 0.1)
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
       t.set(txRef, {
         userId,
         type: 'withdrawal_request',
-        amount: 0,
+        amount: -amount,
         requestedAmount: amount,
         fee,
         net,
@@ -87,6 +88,9 @@ export async function POST(req: Request) {
         note: 'Withdrawal request pending admin approval',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+
+      // Reserve the withdrawn amount by decrementing advertiser balance immediately
+      t.update(advertiserRef, { balance: admin.firestore.FieldValue.increment(-amount) })
 
       // Notify admin of advertiser withdrawal request
       const noteRef = db.collection('adminNotifications').doc()

@@ -27,7 +27,22 @@ export default function ElectricityPage() {
       // Electricity requires variation_code; prepaid/postpaid maps to it
       const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
       payload.variation_code = variationCode
-      if (phone) payload.phone = phone
+      // Ensure phone is provided (try to derive from verify result if possible)
+      let phoneToUse = phone || ''
+      if (!phoneToUse && verifyResult) {
+        try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
+      }
+      if (!phoneToUse) {
+        toast.error('Enter a phone number for this purchase')
+        return
+      }
+      // Accept local (0XXXXXXXXXX) or international (+234XXXXXXXXXX) Nigerian formats
+      const phoneRegex = /^(?:\+234|0)\d{10}$/
+      if (!phoneRegex.test(phoneToUse)) {
+        toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
+        return
+      }
+      payload.phone = phoneToUse
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
@@ -171,12 +186,17 @@ export default function ElectricityPage() {
                             <span className="text-green-900 font-medium">{item.value || 'N/A'}</span>
                           </div>
                         ))}
-                        {phone && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-green-800">Phone:</span>
-                            <span className="text-green-900 font-medium">{phone}</span>
-                          </div>
-                        )}
+
+                        {/* Allow entering or overriding phone for services that don't return one */}
+                        <div className="mt-2">
+                          <label className="block text-sm font-semibold text-green-800 mb-2">Phone</label>
+                          <input
+                            placeholder="08061234567 or +2348061234567"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="w-full pl-3 pr-3 py-2.5 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                          />
+                        </div>
                       </div>
                 </div>
               )}
