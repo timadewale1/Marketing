@@ -34,8 +34,14 @@ export default function ReferralsPage() {
       router.push('/auth/sign-in');
       return;
     }
-    
-  setInviteLink(`https://alldaysjoy.vercel.app/auth/sign-up?ref=${u.uid}`);
+
+    // Use current origin so invite links remain correct across environments
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://pamba.vercel.app'
+      setInviteLink(`${origin}/auth/sign-up?ref=${u.uid}`)
+    } catch {
+      setInviteLink(`https://pamba.vercel.app/auth/sign-up?ref=${u.uid}`)
+    }
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
     const unsub = onSnapshot(q, (snap) => {
       setReferrals(snap.docs.map((d) => ({ 

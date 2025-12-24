@@ -80,7 +80,7 @@ export default function TermsOfServicePage() {
             <h2 className="text-xl font-semibold text-primary-800 mb-3">7. Limitation of Liability</h2>
             <div className="space-y-2 text-primary-600">
               <p>
-                AllDaysJoy is provided &quot;as is&quot; without any warranties. We are not liable for:
+                PAMBA is provided &quot;as is&quot; without any warranties. We are not liable for:
               </p>
               <ul className="list-disc pl-6">
                 <li>Service interruptions or technical issues</li>
@@ -108,7 +108,7 @@ export default function TermsOfServicePage() {
 
           <div className="mt-8 text-sm text-primary-500">
             <p>Last updated: October 26, 2023</p>
-            <p>For questions about these Terms, contact us at support@alldaysjoy.com</p>
+            <p>For questions about these Terms, contact us at support@pamba.com</p>
           </div>
         </Card>
       </div>

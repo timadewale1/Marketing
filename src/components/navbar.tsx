@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Menu, X, Smartphone } from "lucide-react"
 
 type BeforeInstallPromptEvent = Event & {
@@ -76,8 +77,8 @@ export default function Navbar() {
     <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-md border-b border-stone-200">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
-          <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md font-bold">ADJ</span>
-          <span className="font-semibold text-stone-900 text-lg">AllDaysJoy</span>
+          <Image src="/Pamba-phone.png" alt="PAMBA" width={36} height={36} className="rounded-md" />
+          <span className="sr-only">PAMBA</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">

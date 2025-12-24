@@ -21,7 +21,7 @@ export default function BillsIndex() {
       {/* Header */}
       <div className="bg-white/50 backdrop-blur-md border-b border-stone-200">
         <div className="container mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">AllDaysJoy Bills & Utilities</h1>
+            <h1 className="text-3xl font-bold text-stone-900 mb-2">PAMBA Bills & Utilities</h1>
           <p className="text-stone-600">Pay your bills quickly and securely</p>
         </div>
       </div>

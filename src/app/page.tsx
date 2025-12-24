@@ -25,12 +25,12 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-stone-900/95 to-stone-900/60 backdrop-blur-xl" />
         </div>
 
-        {/* Logo */}
+        {/* Logo (use image instead of short text) */}
         {/* <div className="relative">
           <div className="container mx-auto px-4 pt-6">
             <Link href="/" className="inline-flex items-center text-2xl font-bold text-white">
-              <span className="bg-amber-500 text-stone-900 px-3 py-1 rounded-md mr-2">ADJ</span>
-              AllDaysJoy
+                <img src="/Pamba-phone.png" alt="PAMBA" className="w-9 h-9 rounded mr-2" />
+              PAMBA
             </Link>
           </div>
         </div> */}
@@ -285,8 +285,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">ADJ</span>
-                <span className="text-white font-bold">AllDaysJoy</span>
+                <Image src="/Pamba-phone.png" alt="PAMBA" width={36} height={36} className="rounded" />
+                <span className="sr-only">PAMBA</span>
               </div>
               <ul className="space-y-2">
                 <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning/Create Tasks</Link></li>
@@ -317,7 +317,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 pt-8 border-t border-stone-800 text-center text-sm">
-            &copy; 2024 AllDaysJoy. All rights reserved.
+            &copy; 2024 PAMBA. All rights reserved.
           </div>
         </div>
       </footer>
