@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
+import toast, { Toaster } from "react-hot-toast"
 import {
   collection,
   query,
@@ -282,7 +283,14 @@ export default function AdvertiserDashboard() {
           })
         }
 
-        const PaystackPop = (window as any).PaystackPop
+        interface PaystackWindow extends Window {
+          PaystackPop: {
+            setup: (config: Record<string, unknown>) => {
+              openIframe: () => void
+            }
+          }
+        }
+        const PaystackPop = (window as unknown as PaystackWindow).PaystackPop
         const handler = PaystackPop.setup({
           key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
           email: u.email,
@@ -340,6 +348,7 @@ export default function AdvertiserDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
+      <Toaster />
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white/60 backdrop-blur sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -459,7 +468,7 @@ export default function AdvertiserDashboard() {
         </div>
 
         {/* Filter */}
-        <div className="flex gap-2 mb-6">
+        {/* <div className="flex gap-2 mb-6">
           {["Active", "Paused", "Stopped", "Pending"].map((status) => (
             <Button
               key={status}
@@ -474,7 +483,7 @@ export default function AdvertiserDashboard() {
               {status}
             </Button>
           ))}
-        </div>
+        </div> */}
 
         {/* Campaigns Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

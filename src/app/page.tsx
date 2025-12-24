@@ -57,13 +57,10 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
-                <Link href="/auth/sign-up">Start Earning</Link>
+                <Link href="/auth/sign-up">Start Earning/Create Tasks</Link>
               </Button>
               <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
                 <Link href="/advertise-directly">Advertise Directly</Link>
-              </Button>
-              <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
-                <Link href="/auth/sign-up">Create Tasks</Link>
               </Button>
               <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
                 <Link href="/auth/sign-in">Login</Link>
