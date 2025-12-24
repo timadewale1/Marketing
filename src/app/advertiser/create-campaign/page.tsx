@@ -130,7 +130,8 @@ export default function CreateCampaignPage() {
   const getThumbnailForCategory = (cat: string) => {
     if (!cat) return "/placeholders/default.jpg"
     const slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
-    return `/placeholders/${slug}.jpg`
+    // prefer vector icons in public/icons, fallback to placeholders
+    return `/icons/${slug}.svg`
   }
 
   // generate a thumbnail when user reaches review step (do not show on initial details)
@@ -271,24 +272,9 @@ const compressed = await imageCompression(file, options)
 
     // Ensure advertiser profile is onboarded/activated before allowing task creation
     let advertiserProfile: Record<string, unknown> | null = null
-    try {
-      const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
-      if (docs.empty) {
-        toast.error('Advertiser profile not found - please complete onboarding')
-        router.push('/advertiser/onboarding')
-        return
-      }
-      advertiserProfile = docs.docs[0].data() as Record<string, unknown>
-      if (!advertiserProfile['onboarded'] || !advertiserProfile['activated']) {
-        toast.error('Please complete advertiser onboarding and activation before creating tasks')
-        router.push('/advertiser/onboarding')
-        return
-      }
-    } catch (e) {
-      console.warn('Failed to validate advertiser profile', e)
-    }
 
-    const campaignData: Record<string, unknown> = {
+    // Build a temporary campaign payload early so we can persist it if activation is required
+    const tempCampaignData: Record<string, unknown> = {
       ownerId: user.uid,
       title: title.trim(),
       description: description.trim(),
@@ -302,6 +288,33 @@ const compressed = await imageCompression(file, options)
       status: "Active",
       createdAt: serverTimestamp(),
     }
+    try {
+      const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
+      if (docs.empty) {
+        toast.error('Advertiser profile not found - please complete onboarding')
+        router.push('/advertiser/onboarding')
+        return
+      }
+      advertiserProfile = docs.docs[0].data() as Record<string, unknown>
+      // If not onboarded, send to onboarding
+      if (!advertiserProfile['onboarded']) {
+        toast.error('Please complete advertiser onboarding before creating tasks')
+        router.push('/advertiser/onboarding')
+        return
+      }
+      // If onboarded but not activated, show an inline activation prompt instead of redirecting
+      if (!advertiserProfile['activated']) {
+        // show a prompt to the user to activate now
+        setShowActivatePrompt(true)
+        // keep campaignData persisted in state so we can continue after activation
+        setPendingCampaign(tempCampaignData)
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to validate advertiser profile', e)
+    }
+
+    const campaignData: Record<string, unknown> = { ...tempCampaignData }
 
     // Attach advertiser display name for admin/reporting convenience
     if (advertiserProfile) {
@@ -348,6 +361,73 @@ const compressed = await imageCompression(file, options)
     } catch (err) {
       console.error('Wallet create error', err)
       toast.error('Failed to create campaign — try again')
+    }
+  }
+
+  // Activation prompt state and helper
+  const [showActivatePrompt, setShowActivatePrompt] = useState(false)
+  const [pendingCampaign, setPendingCampaign] = useState<Record<string, unknown> | null>(null)
+
+  const triggerActivationPayment = async (campaignAfter?: Record<string, unknown> | null) => {
+    const user = auth.currentUser
+    if (!user || !user.email) {
+      toast.error('You must be logged in to activate')
+      return
+    }
+
+    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
+      toast.error('Payment configuration error')
+      return
+    }
+
+    try {
+      const PaystackPop = (window as unknown as { PaystackPop: { setup: (config: Record<string, unknown>) => { openIframe: () => void } } }).PaystackPop
+      if (!PaystackPop) throw new Error('Paystack not loaded')
+
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+        email: user.email,
+        amount: 2000 * 100,
+        currency: 'NGN',
+        label: 'Advertiser Account Activation',
+        metadata: { userId: user.uid },
+        onClose: () => toast.error('Activation cancelled'),
+        callback: async (resp: { reference: string }) => {
+          try {
+            const res = await fetch('/api/advertiser/activate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (res.ok && data.success) {
+              toast.success('Account activated successfully')
+              setShowActivatePrompt(false)
+              // after activation, continue with campaign creation if provided
+              if (campaignAfter || pendingCampaign) {
+                // small delay to allow backend updates to propagate
+                setTimeout(() => {
+                  if (campaignAfter) {
+                    // attempt to create campaign again (wallet flow)
+                    void handlePay()
+                  } else if (pendingCampaign) {
+                    void handlePay()
+                  }
+                }, 800)
+              }
+              return
+            }
+            throw new Error(data?.message || 'Activation verification failed')
+          } catch (err) {
+            console.error('Activation verify error', err)
+            toast.error((err as Error)?.message || 'Activation verification failed')
+          }
+        },
+      })
+      handler.openIframe()
+    } catch (err) {
+      console.error('Activation error', err)
+      toast.error('Activation failed')
     }
   }
 
@@ -635,7 +715,13 @@ const getEmbeddedVideo = (url: string) => {
 
               {bannerUrl && (
                 <div className="w-full max-h-56 overflow-hidden rounded">
-                  <Image src={bannerUrl} alt="banner" width={1200} height={400} className="w-full object-cover" />
+                  {bannerUrl.endsWith('.svg') ? (
+                    // svg icons served from public/icons — use img for predictable rendering
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={bannerUrl} alt="banner" className="w-full object-cover" />
+                  ) : (
+                    <Image src={bannerUrl} alt="banner" width={1200} height={400} className="w-full object-cover" />
+                  )}
                 </div>
               )}
 
@@ -763,6 +849,20 @@ const getEmbeddedVideo = (url: string) => {
     <div className="px-6 py-10 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 min-h-screen">
       <div className="max-w-4xl mx-auto space-y-6">
         {StepHeader}
+
+        {showActivatePrompt && (
+          <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-stone-800">Account Not Activated</div>
+                <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+              </div>
+              <div>
+                <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Activate Now</Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* stepper */}
         <div className="flex items-center justify-center gap-4">
