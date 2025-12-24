@@ -95,7 +95,7 @@ export default function CampaignsPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           {["All", "Active", "Paused", "Stopped", "Pending"].map((s) => (
             <Button
               key={s}
@@ -110,7 +110,7 @@ export default function CampaignsPage() {
               {s}
             </Button>
           ))}
-        </div>
+        </div> */}
       </div>
 
       {/* Campaigns Grid */}
