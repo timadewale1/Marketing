@@ -56,7 +56,7 @@ export function PaystackFundWalletModal({
           <div className="mt-4">
             {Number(amount) >= 100 && userEmail ? (
               <Button 
-                className="w-full bg-gold-500 hover:bg-gold-600 text-white"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900"
                 onClick={() => setPaystackOpen(true)}
               >
                 Pay Now

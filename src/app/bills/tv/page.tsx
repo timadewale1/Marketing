@@ -45,11 +45,13 @@ export default function TVPage() {
       const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
-      // Store transaction data for confirmation page
+      // Store transaction data for confirmation page (include VTpass transactionId when present)
+      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
       const transactionData = {
         serviceID: provider,
         amount: Number(amount),
         response_description: j.result?.response_description || 'SUCCESS',
+        transactionId: transactionId,
       }
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Subscription successful')

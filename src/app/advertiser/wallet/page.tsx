@@ -240,7 +240,7 @@ export default function WalletPage() {
 
   // Render wallet page with tabs
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-100 via-gold-100 to-primary-200 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -301,7 +301,7 @@ export default function WalletPage() {
               <>
                 {/* Action Buttons */}
                 <div className="flex gap-3 mb-6">
-                  <Button onClick={() => setFundModalOpen(true)} className="bg-gold-500 hover:bg-gold-600">
+                  <Button onClick={() => setFundModalOpen(true)} className="bg-amber-500 hover:bg-amber-600 text-stone-900">
                     Fund Wallet
                   </Button>
                   <Button variant="outline" onClick={() => router.push('/advertiser/transactions')}>
@@ -311,6 +311,43 @@ export default function WalletPage() {
 
                 {/* Task Breakdown removed for now — wallet shows fund & withdraw only */}
               </>
+            )}
+
+            {activeTab === 'withdraw' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-800">Withdraw</h3>
+                    <p className="text-sm text-stone-600">Request a withdrawal from your withdrawable balance.</p>
+                  </div>
+                  <div>
+                    <Button onClick={() => setWithdrawOpen(true)} className="bg-amber-500 hover:bg-amber-600 text-stone-900">Request Withdrawal</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {withdrawals.length === 0 ? (
+                    <div className="text-center py-8 text-stone-600">No withdrawal requests yet.</div>
+                  ) : (
+                    withdrawals.map((w) => (
+                      <Card key={w.id} className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-stone-800">₦{Number(w.amount).toLocaleString()}</div>
+                            <div className="text-sm text-stone-600">{w.fullName || ''} • {w.bank?.bankName || ''}</div>
+                          </div>
+                          <div className="text-sm text-right">
+                            <div className={`inline-block px-2 py-1 rounded-full text-xs ${w.status === 'pending' ? 'bg-amber-100 text-amber-700' : w.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-700'}`}>
+                              {w.status}
+                            </div>
+                            <div className="text-xs text-stone-500 mt-1">{w.createdAt ? new Date((w.createdAt as Timestamp).seconds * 1000).toLocaleString() : ''}</div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Reroute feature removed — tasks now run until funds exhaust */}

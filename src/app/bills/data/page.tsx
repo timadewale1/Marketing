@@ -79,11 +79,13 @@ export default function DataPage() {
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       // Store transaction data for confirmation page
       const matched2 = plans.find(p => p.code === plan)
-      const transactionData = {
+      const transactionData: Record<string, unknown> = {
         serviceID: service || 'data',
         amount: matched2?.amount || Number(payload.amount),
         response_description: j.result?.response_description || 'SUCCESS',
       }
+      const txid = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      if (txid) transactionData.transactionId = txid
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Purchase successful')
       window.location.href = '/bills/confirmation'

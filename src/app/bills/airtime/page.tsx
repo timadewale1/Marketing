@@ -36,11 +36,13 @@ export default function AirtimePage() {
         return
       }
       // Store transaction data for confirmation page
-      const transactionData = {
+      const transactionData: { serviceID: string; amount: number; response_description: string; transactionId?: string } = {
         serviceID: network,
         amount: Number(amount),
-        response_description: j.result?.response_description || 'SUCCESS',
+        response_description: (j.result?.response_description as string) || 'SUCCESS',
       }
+      const txid = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      if (txid) transactionData.transactionId = txid
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Transaction successful')
       window.location.href = '/bills/confirmation'
@@ -142,7 +144,7 @@ export default function AirtimePage() {
               </div>
 
               {/* Email Input */}
-              <div>
+              {/* <div>
                 <label className="block text-sm font-semibold text-stone-900 mb-2">Email (for receipt)</label>
                 <input
                   type="email"
@@ -151,7 +153,7 @@ export default function AirtimePage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
-              </div>
+              </div> */}
 
               {/* Price Summary */}
               {amount && (

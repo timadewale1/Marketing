@@ -47,11 +47,13 @@ export default function ElectricityPage() {
       const j = await res.json()
       if (!res.ok || !j?.ok) return toast.error('Purchase failed')
       // Store transaction data for confirmation page
+      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId || j.result?.content?.transactions?.unique_element
       const transactionData = {
         serviceID: disco,
         amount: Number(amount),
         purchased_code: j.result?.purchased_code || j.result?.content?.transactions?.unique_element,
         response_description: j.result?.response_description || 'SUCCESS',
+        transactionId: transactionId,
       }
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Electricity paid')
