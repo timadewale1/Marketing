@@ -152,11 +152,19 @@ export default function WithdrawalsPage() {
           });
         }
 
-        // Decrement user balance now that withdrawal has been processed
-        await updateDoc(doc(db, userCollection, data.userId), {
-          balance: increment(-Math.abs(data.amount)),
-          totalWithdrawn: increment(Number(data.amount) || 0),
-        });
+        // Decrement earner balance now that withdrawal has been processed.
+        // Advertisers were already debited at request time, so only update their totalWithdrawn counter.
+        if (source === 'earner') {
+          await updateDoc(doc(db, userCollection, data.userId), {
+            balance: increment(-Math.abs(data.amount)),
+            totalWithdrawn: increment(Number(data.amount) || 0),
+          });
+        } else {
+          // Advertiser: increment totalWithdrawn but do not change balance (already reserved)
+          await updateDoc(doc(db, userCollection, data.userId), {
+            totalWithdrawn: increment(Number(data.amount) || 0),
+          });
+        }
       } catch (e) {
         console.warn("Error finalizing withdrawal transaction", e);
       }
