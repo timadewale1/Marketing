@@ -83,7 +83,7 @@ export default function ConfirmationPage() {
           <h3 className="font-semibold text-amber-900 mb-3">Your Token</h3>
           <div className="bg-white p-4 rounded border border-amber-200 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-stone-600">Token Number:</span>
+              {/* <span className="text-sm font-medium text-stone-600">Token Number:</span> */}
               <code className="text-lg font-bold text-amber-600">{transaction.purchased_code}</code>
             </div>
             {transaction.amount && (

@@ -95,6 +95,9 @@ export default function EducationPage() {
         amount: j.amount ?? j.result?.amount ?? pendingPurchase.amount,
         response_description: j.result?.response_description || 'SUCCESS',
       }
+
+      const txId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      if (txId) transactionData.transactionId = txId
       
       // Extract tokens/pins from response
       // multiple possible shapes: content.transactions.cards, content.cards, cards, tokens, purchased_code string
