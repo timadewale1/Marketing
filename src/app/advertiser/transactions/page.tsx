@@ -5,6 +5,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,33 @@ export default function AdvertiserTransactionsPage() {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+
+  const handleAdvertiserWithdraw = async (amount: number) => {
+    const u = auth.currentUser
+    if (!u) {
+      toast.error('You must be signed in to withdraw')
+      return
+    }
+    try {
+      const idToken = await u.getIdToken()
+      const res = await fetch('/api/advertiser/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.message || 'Withdrawal failed')
+        return
+      }
+      toast.success(data?.message || 'Withdrawal request submitted')
+      setWithdrawOpen(false)
+    } catch (err) {
+      console.error('Withdraw error', err)
+      toast.error('Failed to create withdrawal request')
+    }
+  }
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -92,12 +120,21 @@ export default function AdvertiserTransactionsPage() {
                 Used for task payments
               </p>
             </div>
-            <Button
-              onClick={handleFundWallet}
-              className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
-            >
-              Fund Wallet
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleFundWallet}
+                className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
+              >
+                Fund Wallet
+              </Button>
+              <Button
+                onClick={() => setWithdrawOpen(true)}
+                variant="outline"
+                className="min-w-[120px]"
+              >
+                Withdraw
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -152,6 +189,12 @@ export default function AdvertiserTransactionsPage() {
                     </div>
                   </div>
                 </Card>
+                <WithdrawDialog
+                  open={withdrawOpen}
+                  onClose={() => setWithdrawOpen(false)}
+                  onSubmit={handleAdvertiserWithdraw}
+                  maxAmount={Math.max(0, balance)}
+                />
               ))}
             </div>
           )}

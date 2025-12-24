@@ -18,6 +18,7 @@ interface TransactionData {
   serviceID?: string
   amount?: number
   purchased_code?: string
+  transactionId?: string
   tokens?: string[]
   pin?: string
   card?: string
@@ -200,6 +201,17 @@ export default function ConfirmationPage() {
             <div className="flex justify-between">
               <span className="text-stone-600">Status:</span>
               <span className="font-medium text-green-600">{transaction.response_description}</span>
+            </div>
+          )}
+          {transaction.transactionId && (
+            <div className="flex justify-between">
+              <span className="text-stone-600">Transaction ID:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-stone-900">{String(transaction.transactionId)}</span>
+                <button onClick={() => copyToClipboard(String(transaction.transactionId))} className="p-1 hover:bg-stone-50 rounded">
+                  <Copy className="w-4 h-4 text-stone-600" />
+                </button>
+              </div>
             </div>
           )}
         </div>

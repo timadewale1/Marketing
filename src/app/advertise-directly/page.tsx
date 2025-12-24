@@ -18,7 +18,7 @@ export default function AdvertiseDirectlyPage() {
   const [phone, setPhone] = useState("")
   const [advertType, setAdvertType] = useState("")
   const [duration, setDuration] = useState("")
-  const [budget, setBudget] = useState("")
+  // const [budget, setBudget] = useState("")
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -37,7 +37,7 @@ export default function AdvertiseDirectlyPage() {
         phone,
         advertType: advertType || null,
         duration: duration || null,
-        budget: budget ? Number(budget) : null,
+        // budget: budget ? Number(budget) : null,
         message: message || null,
         status: "pending",
         createdAt: serverTimestamp(),
@@ -104,10 +104,10 @@ export default function AdvertiseDirectlyPage() {
                 <label className="text-xs text-stone-600">Duration</label>
                 <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g., 7 days" />
               </div>
-              <div>
+              {/* <div>
                 <label className="text-xs text-stone-600">Budget (₦)</label>
                 <Input value={budget} onChange={(e) => setBudget(e.target.value)} type="number" />
-              </div>
+              </div> */}
             </div>
 
             <div>

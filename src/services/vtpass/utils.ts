@@ -102,7 +102,8 @@ export function formatVerifyResult(result: Record<string, unknown> | null | unde
 export function extractPhoneFromVerifyResult(result: Record<string, unknown> | null | undefined): string | null {
   if (!result) return null
   // First pass: return any value whose key explicitly indicates phone-like data
-  const phoneKeys = ['phone', 'msisdn', 'mobile', 'telephone', 'customer_phone']
+  // include VTpass-specific keys such as Customer_Number which some services return
+  const phoneKeys = ['phone', 'msisdn', 'mobile', 'telephone', 'customer_phone', 'customer_number', 'customer_no', 'customerid']
   const seen = new Set<unknown>()
 
   function searchByKey(obj: unknown): string | null {
