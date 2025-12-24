@@ -35,8 +35,13 @@ export default function AdvertiserReferralsPage() {
       router.push('/auth/sign-in');
       return;
     }
-    
-  setInviteLink(`https://alldaysjoy.vercel.app/auth/sign-up?ref=${u.uid}&type=advertiser`);
+
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://pamba.vercel.app'
+      setInviteLink(`${origin}/auth/sign-up?ref=${u.uid}&type=advertiser`)
+    } catch {
+      setInviteLink(`https://pamba.vercel.app/auth/sign-up?ref=${u.uid}&type=advertiser`)
+    }
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
     const unsub = onSnapshot(q, (snap) => {
       setReferrals(snap.docs.map((d) => ({ 

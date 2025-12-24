@@ -14,7 +14,7 @@ export default function BillsCard() {
             <p className="text-sm text-stone-600">Pay electricity, data, TV or phone bills quickly and securely.</p>
           </div>
           <div>
-            {/* Open AllDaysJoy Bills in a new tab per project requirement */}
+            {/* Open PAMBA Bills in a new tab per project requirement */}
             <a href="/bills" target="_blank" rel="noreferrer">
               <Button className="bg-amber-500 text-stone-900">Pay Bill</Button>
             </a>
