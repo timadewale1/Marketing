@@ -285,7 +285,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <Image src="/Pamba.png" alt="PAMBA" width={36} height={36} className="rounded" />
+                <Image src="/Pamba.png" alt="PAMBA" width={70} height={30} className="rounded" />
                 <span className="sr-only">PAMBA</span>
               </div>
               <ul className="space-y-2">
