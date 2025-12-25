@@ -103,10 +103,10 @@ export default function AdvertiserAdminDetail({ params }: { params: Promise<{ id
             </div>
 
             <div>
-              <h4 className="font-medium">Campaigns created</h4>
+              <h4 className="font-medium">Tasks created</h4>
               <div className="mt-2">
                 {campaignsCreated.length === 0 ? (
-                  <div className="text-stone-500">No campaigns found</div>
+                  <div className="text-stone-500">No tasks found</div>
                 ) : (
                   <ul className="list-disc pl-5">
                     {campaignsCreated.map((c) => (

@@ -78,11 +78,11 @@ export default function CampaignsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl md:text-2xl font-bold text-stone-800">
-          Your Campaigns
+          Your Tasks
         </h1>
         <Link href="/advertiser/create-campaign">
           <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
-            <Plus size={16} /> New Campaign
+            <Plus size={16} /> New Task
           </Button>
         </Link>
       </div>
@@ -90,12 +90,12 @@ export default function CampaignsPage() {
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3 md:items-center mb-6">
         <Input
-          placeholder="Search campaigns..."
+          placeholder="Search tasks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           {["All", "Active", "Paused", "Stopped", "Pending"].map((s) => (
             <Button
               key={s}
@@ -110,7 +110,7 @@ export default function CampaignsPage() {
               {s}
             </Button>
           ))}
-        </div>
+        </div> */}
       </div>
 
       {/* Campaigns Grid */}
@@ -127,7 +127,7 @@ export default function CampaignsPage() {
                   <div className="relative">
                     <Image
                       src={c.bannerUrl || "/placeholders/default.jpg"}
-                      alt={c.title || 'Campaign banner'}
+                      alt={c.title || 'Task banner'}
                       fill
                       style={{ objectFit: 'cover' }}
                       className="w-full h-full object-cover"
@@ -173,7 +173,7 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <p className="p-4 text-sm text-stone-500">
-          No {filter} campaigns found.
+          No {filter} tasks found.
         </p>
       )}
     </div>

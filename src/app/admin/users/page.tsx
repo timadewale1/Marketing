@@ -122,6 +122,34 @@ export default function UsersPage() {
       const collectionName = userType === "earner" ? "earners" : "advertisers";
       await updateDoc(doc(db, collectionName, userId), { status });
       toast.success(`User ${status === "active" ? "activated" : status}`);
+
+      // If an advertiser was activated, finalize any pending referral for them.
+      if (userType === 'advertiser' && status === 'active') {
+        try {
+          const { getDocs, query, where, collection } = await import('firebase/firestore')
+          const snap = await getDocs(query(collection(db, 'referrals'), where('referredId', '==', userId)))
+          const pending = snap.docs.find(d => {
+            interface Referral {
+              userType: string;
+              status: string;
+              [key: string]: unknown;
+            }
+            const data = d.data() as Referral;
+            return data.userType === 'advertiser' && data.status === 'pending'
+          })
+          if (pending) {
+            // Call server-side referral finalize endpoint
+            await fetch('/api/referral', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ referralId: pending.id, action: 'activate' }),
+            })
+            toast.success('Referral finalized for activated advertiser')
+          }
+        } catch (err) {
+          console.error('Failed to finalize referral on advertiser activation', err)
+        }
+      }
     } catch (error) {
       console.error("Error updating user status:", error);
       toast.error("Failed to update user status");
@@ -232,9 +260,9 @@ export default function UsersPage() {
                 </TableCell>
                 <TableCell>₦{user.balance.toLocaleString()}</TableCell>
                 <TableCell>
-                  {user.type === "earner"
-                    ? `${user.leadsPaidFor} leads completed`
-                    : `${user.campaignsCreated} campaigns created`}
+          {user.type === "earner"
+            ? `${user.leadsPaidFor} leads completed`
+            : `${user.campaignsCreated} tasks created`}
                 </TableCell>
                 <TableCell>
                   <span
@@ -264,7 +292,7 @@ export default function UsersPage() {
                       </Button>
                     </DialogTrigger>
                     {selectedUser && (
-                      <DialogContent className="bg-white border-stone-200">
+                      <DialogContent className="bg-stone-50 border-stone-200">
                         <DialogHeader>
                           <DialogTitle className="text-xl">Manage User Account</DialogTitle>
                           <DialogDescription className="text-stone-600">
@@ -281,7 +309,7 @@ export default function UsersPage() {
                               )
                             }
                             variant="outline"
-                            className="bg-white hover:bg-green-50 text-green-700 border-green-200"
+                            className="bg-stone-50 hover:bg-green-50 text-green-700 border-green-200"
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Activate Account
@@ -295,7 +323,7 @@ export default function UsersPage() {
                               )
                             }
                             variant="outline"
-                            className="bg-white hover:bg-red-50 text-red-700 border-red-200"
+                            className="bg-stone-50 hover:bg-red-50 text-red-700 border-red-200"
                           >
                             <Ban className="w-4 h-4 mr-2" />
                             Suspend Account

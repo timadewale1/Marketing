@@ -1,89 +1,136 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Wallet, Users, TrendingUp } from 'lucide-react';
+import { ArrowRight, Coins, Target, UserCheck, Wallet, Users, TrendingUp, CheckCircle, Megaphone, Clipboard, SlidersHorizontal } from 'lucide-react';
+import Navbar from '@/components/navbar';
+import BillsCard from '@/components/bills/BillsCard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { TypedText } from '@/components/ui/typed-text';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
+      <Navbar />
+
       {/* Hero Section */}
-      <section className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-primary-50 via-gold-100 to-primary-100">
+      <section id="hero" className="relative h-[90vh] min-h-[600px] bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-gold-500/10 to-transparent" />
           <Image
             src="/hero-bg.jpg"
-            alt="Marketing campaign illustration"
+            alt="Marketing task illustration"
             fill
             className="object-cover"
             priority
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-900/95 to-stone-900/60 backdrop-blur-xl" />
         </div>
+
+        {/* Logo (use image instead of short text) */}
+        {/* <div className="relative">
+          <div className="container mx-auto px-4 pt-6">
+            <Link href="/" className="inline-flex items-center text-2xl font-bold text-white">
+                <img src="/Pamba-phone.png" alt="PAMBA" className="w-9 h-9 rounded mr-2" />
+              PAMBA
+            </Link>
+          </div>
+        </div> */}
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
           <div className="max-w-2xl">
-            <h1 className="text-5xl sm:text-6xl font-bold text-primary-900 mb-6">
-              Earn Money Through Social Impact
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+              <TypedText
+                strings={[
+                  'Earn Money Through Social Impact',
+                  'Get Paid for Social Engagement',
+                  'Monetize Your Social Reach',
+                  'Earn While Making an Impact',
+                  'YouTube Views, Likes & Subscriptions',
+                  'Social Media Engagements',
+                  'Product Advertisement & Promotions',
+                  'Grow Your Audience & Earn'
+                ]}
+                className="text-white"
+              />
             </h1>
-            <p className="text-xl text-primary-700 mb-8">
-              Join our platform to earn by participating in marketing campaigns or reach your target audience effectively through our network of engaged users.
+            <p className="text-lg text-white mb-8">
+              Join our fast-growing community to earn for simple marketing tasks — from watching short videos to sharing status updates. Advertisers get reliable reach; users get paid instantly and can withdraw to their bank or pay bills directly from their wallet.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button asChild className="h-12 px-8 text-lg bg-gold-500 hover:bg-gold-600 text-primary-900">
-                <Link href="/auth/sign-up">Start Earning</Link>
+              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                <Link href="/auth/sign-up">Start Earning/Create Tasks</Link>
               </Button>
-              <Button asChild variant="outline" className="h-12 px-8 text-lg">
-                <Link href="/auth/sign-up">Create Campaigns</Link>
+              <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
+                <Link href="/advertise-directly">Advertise Directly</Link>
               </Button>
+              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                <Link href="/auth/sign-in">Login</Link>
+              </Button>
+              
             </div>
             
-            <div className="mt-12 flex gap-8">
+            <div className="mt-12 flex flex-wrap gap-8 text-white">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">10k+ Active Users</span>
+                <Users className="w-6 h-6 text-amber-500" />
+                <span>10k+ Active Users</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">₦50M+ Paid Out</span>
+                <div className="flex items-center gap-2">
+                <Coins className="w-6 h-6 text-amber-500" />
+                <span>₦10M+ Paid Out</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-gold-600" />
-                <span className="text-primary-700">500+ Campaigns</span>
+                <div className="flex items-center gap-2">
+                <Target className="w-6 h-6 text-amber-500" />
+                <span>500+ Tasks</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
+      {/* Bills & Utilities */}
+      <section id="bills" className="py-12 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-primary-900 mb-12">
+          <h2 className="text-2xl font-semibold text-stone-900 mb-6">Bills & Utilities</h2>
+          <div className="max-w-3xl">
+            <BillsCard />
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-stone-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center text-stone-900 mb-8">
             Why Choose Our Platform?
           </h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <Wallet className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Earn Money</h3>
-              <p className="text-primary-600">
-                Participate in various marketing campaigns and get paid for your engagement. Complete tasks like surveys, social media interactions, and more.
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <Wallet className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Instant Withdrawals</h3>
+              <p className="text-stone-600">
+                Withdraw your earnings quickly — we surface withdrawal requests for fast manual processing and plan to enable instant transfers.
               </p>
             </Card>
-            
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <Users className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Build Community</h3>
-              <p className="text-primary-600">
-                Connect with like-minded individuals, refer friends, and grow your network while earning through our referral program.
+
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <Users className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 text-stone-900">Referral Bonuses</h3>
+              <p className="text-stone-600">
+                Earn referral bonuses when people you invite activate or make their first advertiser payment — a clear way to scale your earnings.
               </p>
             </Card>
-            
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <TrendingUp className="w-12 h-12 text-gold-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-3">Market Growth</h3>
-              <p className="text-primary-600">
-                Advertisers can reach their target audience effectively and track campaign performance in real-time.
+
+            <Card className="p-6 rounded-xl shadow-lg border border-stone-100 bg-white hover:scale-[1.01] transform transition">
+              <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 grid place-items-center mb-4">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2 text-stone-900">Pay Bills & Utilities</h3>
+              <p className="text-stone-600">
+                Use your wallet to pay utilities and bills directly. Earn, withdraw, or pay — all from one place.
               </p>
             </Card>
           </div>
@@ -91,57 +138,57 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-primary-50">
+      <section id="howitworks" className="py-20 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-primary-900 mb-12">
+          <h2 className="text-3xl font-bold text-center text-stone-900 mb-12">
             How It Works
           </h2>
 
           <div className="grid md:grid-cols-3 gap-12 items-center">
             <div className="space-y-8">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  1
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <UserCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Sign Up & Activate</h3>
-                  <p className="text-primary-600">
-                    Create your account and activate it with a one-time fee of ₦2,000 to start participating in campaigns.
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Sign Up & Activate</h3>
+                  <p className="text-stone-600">
+                    Create your account and activate it with a one-time fee of ₦2,000 to start participating in tasks.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  2
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Choose Campaigns</h3>
-                  <p className="text-primary-600">
-                    Browse available campaigns and select those that match your interests and skills.
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Choose Tasks</h3>
+                  <p className="text-stone-600">
+                    Browse available tasks and select those that match your interests and skills.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  3
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Complete Tasks</h3>
-                  <p className="text-primary-600">
-                    Follow campaign instructions and submit your work for review.
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Complete Tasks</h3>
+                  <p className="text-stone-600">
+                    Follow task instructions and submit your work for review.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  4
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Wallet className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Get Paid</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2 text-stone-900">Get Paid</h3>
+                  <p className="text-stone-600">
                     Receive payment directly to your wallet once your submission is approved.
                   </p>
                 </div>
@@ -150,7 +197,7 @@ export default function HomePage() {
 
             <div className="relative h-[500px] rounded-lg overflow-hidden">
               <Image
-                src="/how-it-works.jpg"
+                src="/howitworks.jpg"
                 alt="Platform demonstration"
                 fill
                 className="object-cover"
@@ -159,49 +206,49 @@ export default function HomePage() {
 
             <div className="space-y-8">
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A1
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Megaphone className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Advertiser — Sign Up & Fund</h3>
-                  <p className="text-primary-600">
-                    Create an account, verify your details, and fund your wallet to begin creating campaigns.
+                  <h3 className="text-xl font-semibold mb-2">Advertiser - Sign Up & Fund</h3>
+                  <p className="text-stone-600">
+                    Create an account, verify your details, and fund your wallet to begin creating tasks.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A2
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <Clipboard className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Create Campaign</h3>
-                  <p className="text-primary-600">
+                  <h3 className="text-xl font-semibold mb-2">Create Task</h3>
+                  <p className="text-stone-600">
                     Define your objective, target demographics, creatives and set the budget and cost-per-lead.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A3
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <SlidersHorizontal className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Target & Optimize</h3>
-                  <p className="text-primary-600">
-                    Choose who sees your campaign, set pacing and monitor performance to optimize for quality leads.
+                  <p className="text-stone-600">
+                    Choose who sees your task, set pacing and monitor performance to optimize for quality leads.
                   </p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-gold-500 text-white flex items-center justify-center flex-shrink-0">
-                  A4
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Launch & Track</h3>
-                  <p className="text-primary-600">
-                    Launch your campaign, review submissions, approve quality leads, and pay only for validated results.
+                  <p className="text-stone-600">
+                    Launch your task, review submissions, approve quality leads, and pay only for validated results.
                   </p>
                 </div>
               </div>
@@ -211,63 +258,66 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-gold-500 to-gold-600">
+      <section id="cta" className="py-20 bg-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-primary-900 mb-6">
+          <h2 className="text-3xl font-bold text-stone-900 mb-6">
             Ready to Start Your Journey?
           </h2>
-          <p className="text-xl text-primary-900/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of users who are already earning through our platform. Start participating in campaigns or create your own today.
+          <p className="text-xl text-stone-700 mb-8 max-w-2xl mx-auto">
+            Join thousands of users who are already earning through our platform. Start participating in tasks or create your own today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="h-12 px-8 text-lg bg-white hover:bg-white/90 text-gold-600">
-              <Link href="/auth/sign-up">
-                Start Earning Now <ArrowRight className="ml-2 w-5 h-5" />
+            <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                <Link href="/auth/sign-up">
+                Start Earning Now/Create Tasks <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
-              <Link href="/auth/sign-up">Create Your Campaign</Link>
+            <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
+              <Link href="/auth/sign-in">Login to your account</Link>
             </Button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-            <footer className="bg-primary-900 text-primary-400 py-12">
+            <footer className="bg-stone-900 text-stone-400 py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-bold mb-4">Platform</h3>
+              <div className="flex items-center gap-2 mb-6">
+                <Image src="/Pamba.png" alt="PAMBA" width={70} height={30} className="rounded" />
+                <span className="sr-only">PAMBA</span>
+              </div>
               <ul className="space-y-2">
-                <li><Link href="/auth/sign-up" className="hover:text-gold-500">Start Earning</Link></li>
-                <li><Link href="/auth/sign-up" className="hover:text-gold-500">Create Campaign</Link></li>
-                <li><Link href="/faq" className="hover:text-gold-500">FAQ</Link></li>
+                <li><Link href="/auth/sign-up" className="hover:text-amber-500">Start Earning/Create Tasks</Link></li>
+                <li><Link href="/auth/sign-in" className="hover:text-amber-500">Login to your account</Link></li>
+                <li><Link href="/faq" className="hover:text-amber-500">FAQ</Link></li>
               </ul>
             </div>
             
             <div>
-              <h3 className="font-bold mb-4">Legal</h3>
+              <h3 className="font-bold text-white mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><Link href="/contact" className="hover:text-gold-500">Contact Us</Link></li>
-                <li><Link href="/terms" className="hover:text-gold-500">Terms of Service</Link></li>
-                <li><Link href="/privacy" className="hover:text-gold-500">Privacy Policy</Link></li>
+                <li><Link href="/contact" className="hover:text-amber-500">Contact Us</Link></li>
+                <li><Link href="/terms" className="hover:text-amber-500">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-amber-500">Privacy Policy</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-bold mb-4">Follow Us</h3>
+              <h3 className="font-bold text-white mb-4">Follow Us</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-gold-500">Twitter</a></li>
-                <li><a href="#" className="hover:text-gold-500">Facebook</a></li>
-                <li><a href="#" className="hover:text-gold-500">Instagram</a></li>
-                <li><a href="#" className="hover:text-gold-500">LinkedIn</a></li>
+                <li><a href="#" className="hover:text-amber-500">Twitter</a></li>
+                <li><a href="#" className="hover:text-amber-500">Facebook</a></li>
+                <li><a href="#" className="hover:text-amber-500">Instagram</a></li>
+                <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li>
               </ul>
             </div>
 
           </div>
 
-          <div className="mt-12 pt-8 border-t border-primary-800 text-center text-sm">
-            &copy; 2024 Blessing. All rights reserved.
+          <div className="mt-12 pt-8 border-t border-stone-800 text-center text-sm">
+            &copy; 2024 PAMBA. All rights reserved.
           </div>
         </div>
       </footer>

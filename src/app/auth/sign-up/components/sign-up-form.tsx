@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -31,27 +31,21 @@ import { Eye, EyeOff } from "lucide-react"
 import toast from "react-hot-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 
-// ✅ Validation schema
+// Validation schema
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email"),
   phone: z
     .string()
     .regex(/^\d{10,15}$/, "Enter a valid phone number (10-15 digits)"),
-  password: z
-    .string()
-    .min(8, "Must be 8+ characters")
-    .regex(/[A-Z]/, "Must include an uppercase letter")
-    .regex(/[a-z]/, "Must include a lowercase letter")
-    .regex(/\d/, "Must include a number")
-    .regex(/[@$!%*?&]/, "Must include a special character"),
+  password: z.string().min(5, "Password must be at least 5 characters"),
   action: z.enum(["advertiser", "earner"], {
     message: "Please select what you want to do",
   }),
-  acceptTerms: z.boolean().refine(val => val === true, {
+  acceptTerms: z.boolean().refine((val) => val === true, {
     message: "You must accept the Terms of Service",
   }),
-  acceptPrivacy: z.boolean().refine(val => val === true, {
+  acceptPrivacy: z.boolean().refine((val) => val === true, {
     message: "You must accept the Privacy Policy",
   }),
 })
@@ -64,7 +58,7 @@ export function SignUpForm() {
   const [passwordStrength, setPasswordStrength] = useState(0)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const referralId = searchParams.get('ref')
+  const referralId = searchParams.get("ref")
 
   const {
     register,
@@ -74,23 +68,22 @@ export function SignUpForm() {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { action: "earner" },
+    defaultValues: { action: "earner", acceptTerms: false, acceptPrivacy: false },
   })
 
   const passwordValue = watch("password")
 
-  // ✅ Live password strength meter
+  // Live password strength meter
   const calcStrength = (password: string) => {
-    let score = 0
-    if (password.length >= 8) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[a-z]/.test(password)) score++
-    if (/\d/.test(password)) score++
-    if (/[@$!%*?&]/.test(password)) score++
-    return score
+    // Only measure basic length for strength (requirement: >=5 chars)
+    return password.length >= 5 ? 1 : 0
   }
 
-  // ✅ Check if email or phone already exists
+  useEffect(() => {
+    setPasswordStrength(calcStrength(passwordValue || ""))
+  }, [passwordValue])
+
+  // Check if email or phone already exists
   const checkUnique = async (email: string, phone: string) => {
     const collections = ["advertisers", "earners"]
     for (const coll of collections) {
@@ -106,7 +99,6 @@ export function SignUpForm() {
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
-      // ✅ Step 1: Check uniqueness
       const unique = await checkUnique(data.email, data.phone)
       if (!unique) {
         toast.error("Email or phone already exists")
@@ -114,60 +106,49 @@ export function SignUpForm() {
         return
       }
 
-      // ✅ Step 2: Create Auth user
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      ).catch((err) => {
-        let msg = "Signup failed. Try again"
-        if (err.code === "auth/email-already-in-use")
-          msg = "This email is already registered"
-        if (err.code === "auth/invalid-email") msg = "Invalid email format"
-        if (err.code === "auth/weak-password")
-          msg = "Password is too weak, please use a stronger one"
-        toast.error(msg)
-        throw err
-      })
+      const cred = await createUserWithEmailAndPassword(auth, data.email, data.password).catch(
+        (err) => {
+          let msg = "Signup failed. Try again"
+          if (err.code === "auth/email-already-in-use") msg = "This email is already registered"
+          if (err.code === "auth/invalid-email") msg = "Invalid email format"
+          if (err.code === "auth/weak-password") msg = "Password is too weak, please use a stronger one"
+          toast.error(msg)
+          throw err
+        }
+      )
 
-      // ✅ Step 3: Send verification email
       await sendEmailVerification(cred.user)
 
       try {
-        // ✅ Step 4: Save profile in Firestore
-        const ref = doc(db, data.action + "s", cred.user.uid)
-        await setDoc(ref, {
+        const refDoc = doc(db, data.action + "s", cred.user.uid)
+        await setDoc(refDoc, {
           name: data.name,
           email: data.email,
           phone: data.phone,
           createdAt: new Date(),
-          verified: false, // updated after email verification
-          onboarded: false, // ✅ force onboarding after login
-          referredBy: referralId || null, // track referral
+          verified: false,
+          onboarded: false,
+          referredBy: referralId || null,
         })
 
-        // If this user was referred, create a referral record
         if (referralId) {
-          // Store a pending referral. The business rule has changed: earner referrer
-          // will be paid only after the referred earner completes onboarding AND pays
-          // the activation fee. We set amount to 1000 and leave status as pending.
           await setDoc(doc(db, "referrals", `${referralId}_${cred.user.uid}`), {
             referrerId: referralId,
             referredId: cred.user.uid,
             email: data.email,
             name: data.name,
-            amount: 1000, // pay referrer ₦1000 when the referred earner activates
-            status: 'pending',
+            amount: 1000,
+            status: "pending",
             createdAt: new Date(),
-          });
+          })
         }
 
-        // ✅ Step 5: Show success + redirect
         toast.success("Signup successful! Please verify your email.")
-        setTimeout(() => router.push("/auth/sign-in"), 2000)
+        // Redirect user to the verify-email page so they can resend/check verification
+        setTimeout(() => router.push("/auth/verify-email"), 800)
       } catch (firestoreErr) {
         console.error("Firestore error:", firestoreErr)
-        await cred.user.delete() // rollback
+        await cred.user.delete()
         toast.error("Signup failed while saving data. Please try again.")
       }
     } catch (err) {
@@ -177,187 +158,89 @@ export function SignUpForm() {
     }
   }
 
-  // update password strength dynamically
-  if (passwordValue) {
-    const strength = calcStrength(passwordValue)
-    if (strength !== passwordStrength) setPasswordStrength(strength)
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 p-6">
       <div className="w-full max-w-lg bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 animate-fadeIn">
-        {/* Heading */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-extrabold text-white">
-            Create Your Account
-          </h1>
-          <p className="text-stone-300 mt-2">
-            Join us and start your journey 🚀
-          </p>
+          <h1 className="text-3xl font-extrabold text-white">Create Your Account</h1>
+          <p className="text-stone-300 mt-2">Join us and start your journey 🚀</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Name */}
           <div>
             <Label className="text-stone-200">Name</Label>
-            <Input
-              {...register("name")}
-              placeholder="John Doe"
-              className="bg-white/20 border-white/30 text-white placeholder:text-stone-400"
-            />
-            {errors.name && (
-              <p className="text-sm text-red-300 mt-1">{errors.name.message}</p>
-            )}
+            <Input {...register("name")} placeholder="John Doe" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400" />
+            {errors.name && <p className="text-sm text-red-300 mt-1">{errors.name.message}</p>}
           </div>
 
-          {/* Email */}
           <div>
             <Label className="text-stone-200">Email</Label>
-            <Input
-              type="email"
-              {...register("email")}
-              placeholder="you@example.com"
-              className="bg-white/20 border-white/30 text-white placeholder:text-stone-400"
-            />
-            {errors.email && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.email.message}
-              </p>
-            )}
+            <Input type="email" {...register("email")} placeholder="you@example.com" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400" />
+            {errors.email && <p className="text-sm text-red-300 mt-1">{errors.email.message}</p>}
           </div>
 
-          {/* Phone */}
           <div>
             <Label className="text-stone-200">Phone</Label>
-            <Input
-              {...register("phone")}
-              placeholder="08123456789"
-              className="bg-white/20 border-white/30 text-white placeholder:text-stone-400"
-            />
-            {errors.phone && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.phone.message}
-              </p>
-            )}
+            <Input {...register("phone")} placeholder="08123456789" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400" />
+            {errors.phone && <p className="text-sm text-red-300 mt-1">{errors.phone.message}</p>}
           </div>
 
-          {/* Password */}
           <div>
             <Label className="text-stone-200">Password</Label>
             <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                {...register("password")}
-                placeholder="••••••••"
-                className="bg-white/20 border-white/30 text-white placeholder:text-stone-400 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-stone-300 hover:text-white"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              <Input type={showPassword ? "text" : "password"} {...register("password")} placeholder="••••••••" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400 pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-stone-300 hover:text-white">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.password.message}
-              </p>
-            )}
-            {/* Strength bar */}
-            {passwordValue && (
-              <div className="mt-2 h-2 w-full bg-stone-700 rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    passwordStrength <= 2
-                      ? "bg-red-500 w-2/5"
-                      : passwordStrength === 3
-                      ? "bg-yellow-500 w-3/5"
-                      : "bg-green-500 w-full"
-                  }`}
-                />
+            {errors.password && <p className="text-sm text-red-300 mt-1">{errors.password.message}</p>}
+            <div className="mt-2">
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div style={{ width: `${passwordStrength ? 100 : 0}%` }} className={`h-full ${passwordStrength ? "bg-green-400" : "bg-red-500"}`} />
               </div>
-            )}
+              <p className="text-xs text-stone-300 mt-1">Password: {passwordStrength ? 'OK' : 'too short'}</p>
+            </div>
+            <p className="text-stone-400 text-sm">Password must be at least 5 characters long.</p>
           </div>
 
-          {/* Role Selection */}
           <div>
             <Label className="text-stone-200">What do you want to do?</Label>
-            <Select
-              onValueChange={(val) =>
-                setValue("action", val as "advertiser" | "earner")
-              }
-              defaultValue="earner"
-            >
+            <Select onValueChange={(val) => setValue("action", val as "advertiser" | "earner")} defaultValue="earner">
               <SelectTrigger className="bg-white/20 border-white/30 text-white">
                 <SelectValue placeholder="Choose an option" />
               </SelectTrigger>
               <SelectContent className="bg-stone-700 text-white">
-                <SelectItem value="advertiser">Advertise my products</SelectItem>
-                <SelectItem value="earner">Earn by promoting</SelectItem>
+                <SelectItem value="advertiser">Create Tasks</SelectItem>
+                <SelectItem value="earner">earn by performing tasks</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Terms and Privacy Policy */}
           <div className="space-y-3">
             <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                {...register("acceptTerms")}
-                className="mt-1"
-              />
-              <label className="text-sm text-stone-300">
-                I agree to the{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  className="text-yellow-400 hover:text-yellow-300 underline"
-                >
-                  Terms of Service
-                </a>
-              </label>
+              <input type="checkbox" {...register("acceptTerms")} className="mt-1" />
+              <label className="text-sm text-stone-300">I agree to the <a href="/terms" target="_blank" className="text-yellow-400 hover:text-yellow-300 underline">Terms of Service</a></label>
             </div>
-            {errors.acceptTerms && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.acceptTerms.message}
-              </p>
-            )}
+            {errors.acceptTerms && <p className="text-sm text-red-300 mt-1">{errors.acceptTerms.message}</p>}
 
             <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                {...register("acceptPrivacy")}
-                className="mt-1"
-              />
-              <label className="text-sm text-stone-300">
-                I agree to the{" "}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  className="text-yellow-400 hover:text-yellow-300 underline"
-                >
-                  Privacy Policy
-                </a>
-              </label>
+              <input type="checkbox" {...register("acceptPrivacy")} className="mt-1" />
+              <label className="text-sm text-stone-300">I agree to the <a href="/privacy" target="_blank" className="text-yellow-400 hover:text-yellow-300 underline">Privacy Policy</a></label>
             </div>
-            {errors.acceptPrivacy && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.acceptPrivacy.message}
-              </p>
-            )}
+            {errors.acceptPrivacy && <p className="text-sm text-red-300 mt-1">{errors.acceptPrivacy.message}</p>}
           </div>
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            className="w-full bg-yellow-500 hover:bg-yellow-400 text-stone-900 font-semibold"
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Create Account"}
-          </Button>
+          <Button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-400 text-stone-900 font-semibold" disabled={loading}>{loading ? "Creating account..." : "Create Account"}</Button>
         </form>
+        <div className="text-center mt-4">
+          <p className="text-stone-400 text-sm">
+            Already Have an account?{" "}
+            <a
+              href="/auth/sign-in"
+              className="text-amber-400 hover:underline"
+            >
+              Sign in
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   )

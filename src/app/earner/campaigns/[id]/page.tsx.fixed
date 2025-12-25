@@ -123,15 +123,15 @@ export default function CampaignDetailPage() {
       try {
         const snap = await getDoc(doc(db, "campaigns", id));
         if (!snap.exists()) {
-          toast.error("Campaign not found");
+          toast.error("Task not found");
           router.back();
           return;
         }
         const data = snap.data() as Campaign;
         setCampaign({ ...data, id: snap.id });
       } catch (err) {
-        console.error(err);
-        toast.error("Failed to load campaign");
+  console.error(err);
+  toast.error("Failed to load task");
       } finally {
         setLoading(false);
       }
@@ -283,7 +283,7 @@ export default function CampaignDetailPage() {
   if (!campaign) return (
     <div className="min-h-screen bg-gradient-to-br from-primary-200 via-gold-100 to-primary-300">
       <div className="px-6 py-8 max-w-3xl mx-auto text-center">
-        <p className="text-primary-700">Campaign not found</p>
+        <p className="text-primary-700">Task not found</p>
       </div>
     </div>
   );

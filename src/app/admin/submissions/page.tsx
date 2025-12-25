@@ -53,6 +53,7 @@ interface Submission {
   status: string;
   createdAt: { seconds: number };
   earnerPrice: number;
+  autoVerified?: boolean;
   reviewedAt?: { seconds: number };
   reviewedBy?: string;
   rejectionReason?: string;
@@ -80,6 +81,7 @@ export default function SubmissionsPage() {
         return {
           id: doc.id,
           userId: data.userId || "",
+          autoVerified: !!data.autoVerified,
           campaignId: data.campaignId || "",
           campaignTitle: data.campaignTitle || "",
           category: data.category || "",
@@ -99,129 +101,28 @@ export default function SubmissionsPage() {
 
   const markProofStatus = async (id: string, status: string) => {
     try {
-      const subRef = doc(db, "earnerSubmissions", id);
-      const subSnap = await getDoc(subRef);
-      if (!subSnap.exists()) {
-        toast.error("Submission not found");
-        return;
+      const user = auth.currentUser
+      if (!user) return toast.error('You must be signed in as admin')
+      const idToken = await user.getIdToken()
+
+      const res = await fetch('/api/admin/submissions/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ submissionId: id, action: status }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success) {
+        toast.success(`Marked as ${status}`)
+      } else {
+        toast.error(data?.message || 'Failed to update status')
       }
-      const submission = subSnap.data() as Omit<Submission, "id">;
-
-      // Get campaign data for stats
-      const campaignRef = doc(db, "campaigns", submission.campaignId);
-      const campaignSnap = await getDoc(campaignRef);
-      if (!campaignSnap.exists()) {
-        toast.error("Campaign not found");
-        return;
-      }
-      const campaign = campaignSnap.data();8
-
-      // Calculate stats
-      const completedLeads = (campaign.generatedLeads || 0) + 1;
-      const targetLeads = campaign.estimatedLeads || 0;
-      const completionRate = targetLeads > 0 ? (completedLeads / targetLeads) * 100 : 0;
-
-      // Get daily submissions count
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dailySubmissionsQuery = query(
-        collection(db, "earnerSubmissions"),
-        where("campaignId", "==", submission.campaignId),
-        where("createdAt", ">=", today)
-      );
-      const dailySubmissionsSnap = await getDocs(dailySubmissionsQuery);
-      const dailyCount = dailySubmissionsSnap.size;
-
-      // Update submission with complete details
-      await updateDoc(subRef, {
-        status,
-        reviewedAt: serverTimestamp(),
-        reviewedBy: auth.currentUser?.uid || null,
-        completionRate: completionRate,
-        campaignProgress: completionRate,
-        dailySubmissionCount: dailyCount,
-        metrics: {
-          timeToReview: (Date.now() - submission.createdAt.seconds * 1000) / (1000 * 60), // minutes
-          reviewerId: auth.currentUser?.uid,
-          updatedAt: serverTimestamp()
-        }
-      });
-
-      // If marking verified, update all related collections atomically
-      if (status === "Verified") {
-        const userId = submission.userId;
-        const amount = Number(submission.earnerPrice || 0);
-        const fullAmount = amount * 2; // Total cost including advertiser portion
-        const advertiserId = campaign.ownerId;
-
-        // Get advertiser data
-        const advertiserRef = doc(db, "advertisers", advertiserId);
-        const advertiserSnap = await getDoc(advertiserRef);
-        if (!advertiserSnap.exists()) {
-          toast.error("Advertiser not found");
-          return;
-        }
-
-        if (userId && amount > 0) {
-          // 1. Update campaign stats with completion metrics
-          await updateDoc(campaignRef, {
-            generatedLeads: increment(1),
-            budget: increment(-fullAmount),
-            completedLeads: increment(1),
-            lastLeadAt: serverTimestamp(),
-            completionRate: completionRate,
-            dailySubmissionCount: dailyCount,
-            status: completionRate >= 100 ? "Completed" : "Active",
-            metrics: {
-              completionRate,
-              dailyCount,
-              averageReviewTime: campaign.metrics?.averageReviewTime || 0,
-              totalSpent: (campaign.metrics?.totalSpent || 0) + fullAmount,
-              lastUpdate: serverTimestamp()
-            }
-          });
-
-          // 2. Create earner transaction and update balance
-          await addDoc(collection(db, "earnerTransactions"), {
-            userId,
-            campaignId: submission.campaignId,
-            type: "credit",
-            amount: amount,
-            status: "completed",
-            note: `Payment for ${submission.campaignTitle}`,
-            createdAt: serverTimestamp(),
-          });
-
-          await updateDoc(doc(db, "earners", userId), {
-            balance: increment(amount),
-            leadsPaidFor: increment(1),
-            totalEarned: increment(amount),
-            lastEarnedAt: serverTimestamp(),
-          });
-
-          // 3. Update advertiser stats and create transaction
-          await addDoc(collection(db, "advertiserTransactions"), {
-            userId: advertiserId,
-            campaignId: submission.campaignId,
-            type: "debit",
-            amount: fullAmount,
-            status: "completed",
-            note: `Payment for lead in ${submission.campaignTitle}`,
-            createdAt: serverTimestamp(),
-          });
-
-          await updateDoc(advertiserRef, {
-            totalSpent: increment(fullAmount),
-            leadsGenerated: increment(1),
-            lastLeadAt: serverTimestamp(),
-          });
-        }
-      }
-
-      toast.success(`Marked as ${status}`);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to update status");
+      console.error('Review API error', err)
+      toast.error('Failed to update status')
     }
   };
 
@@ -297,6 +198,9 @@ export default function SubmissionsPage() {
                   </a>
                   {submission.note && (
                     <p className="text-sm text-stone-500 mt-1">Note: {submission.note}</p>
+                  )}
+                  {submission.autoVerified && (
+                    <div className="inline-block ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">Auto</div>
                   )}
                 </TableCell>
                 <TableCell>{submission.category}</TableCell>

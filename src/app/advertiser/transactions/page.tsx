@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, getDoc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 interface Transaction {
   id: string;
@@ -28,6 +30,35 @@ export default function AdvertiserTransactionsPage() {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
+  const [withdrawableBalance, setWithdrawableBalance] = useState<number>(0);
+  const [bankDetails, setBankDetails] = useState<{ accountNumber: string; bankName: string; accountName: string } | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+
+  const handleAdvertiserWithdraw = async (amount: number) => {
+    const u = auth.currentUser
+    if (!u) {
+      toast.error('You must be signed in to withdraw')
+      return
+    }
+    try {
+      const idToken = await u.getIdToken()
+      const res = await fetch('/api/advertiser/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ amount }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.message || 'Withdrawal failed')
+        return
+      }
+      toast.success(data?.message || 'Withdrawal request submitted')
+      setWithdrawOpen(false)
+    } catch (err) {
+      console.error('Withdraw error', err)
+      toast.error('Failed to create withdrawal request')
+    }
+  }
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -54,11 +85,26 @@ export default function AdvertiserTransactionsPage() {
       });
       const sorted = txs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setHistory(sorted);
-      // compute balance from transactions (sum of amounts)
+      // keep local balance in case needed (not used for withdrawable amount)
       const bal = sorted.reduce((s, t) => s + (t.amount || 0), 0)
       setBalance(bal)
       setLoading(false);
     });
+
+    // fetch advertiser profile for withdrawable balance and bank details
+    ;(async () => {
+      try {
+        const advRef = doc(db, 'advertisers', u.uid)
+        const advSnap = await getDoc(advRef)
+        if (advSnap.exists()) {
+          const data = advSnap.data() || {}
+          setWithdrawableBalance(Number(data.balance || 0))
+          setBankDetails(data.bank || null)
+        }
+      } catch (e) {
+        console.warn('Failed to load advertiser profile for transactions page', e)
+      }
+    })()
 
     return () => {
       unsubTx();
@@ -89,15 +135,24 @@ export default function AdvertiserTransactionsPage() {
                 ₦{balance.toLocaleString()}
               </p>
               <p className="text-sm text-stone-600 mt-1">
-                Used for campaign payments
+                Used for task payments
               </p>
             </div>
-            <Button
-              onClick={handleFundWallet}
-              className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
-            >
-              Fund Wallet
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleFundWallet}
+                className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
+              >
+                Fund Wallet
+              </Button>
+              <Button
+                onClick={() => setWithdrawOpen(true)}
+                variant="outline"
+                className="min-w-[120px]"
+              >
+                Withdraw
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -105,7 +160,7 @@ export default function AdvertiserTransactionsPage() {
         <Card className="bg-white/80 backdrop-blur p-6">
           <h3 className="text-lg font-semibold text-stone-800 mb-4">Transaction History</h3>
           
-          {loading ? (
+              {loading ? (
             <PageLoader />
           ) : history.length === 0 ? (
             <div className="text-center py-8">
@@ -117,13 +172,9 @@ export default function AdvertiserTransactionsPage() {
                 <Card key={tx.id} className="p-4 hover:shadow-md transition duration-200">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="font-medium text-stone-800">
-                        {tx.type === 'campaign_payment' 
-                          ? `Campaign Payment: ${tx.campaignTitle || 'Untitled'}`
-                          : tx.type === 'wallet_funding'
-                          ? 'Wallet Funding'
-                          : tx.note || "Transaction"}
-                      </div>
+                      <h4 className="font-medium text-stone-800">
+                        {tx.type === 'campaign_payment' ? 'Task Payment' : tx.type === 'deposit' ? 'Deposit' : tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? 'Withdrawal' : tx.note || "Transaction"}
+                      </h4>
                       {tx.createdAt && (
                         <div className="text-sm text-stone-500 mt-1">
                           {new Date(tx.createdAt.seconds * 1000).toLocaleDateString()} at{" "}
@@ -132,7 +183,7 @@ export default function AdvertiserTransactionsPage() {
                       )}
                       {tx.campaignId && (
                         <div className="text-xs text-amber-600 mt-1">
-                          Campaign ID: {tx.campaignId}
+                          Task ID: {tx.campaignId}
                         </div>
                       )}
                     </div>
@@ -143,9 +194,9 @@ export default function AdvertiserTransactionsPage() {
                         </span>
                       )}
                       <div className={`font-bold ${
-                        tx.type === 'campaign_payment' ? 'text-red-600' : 'text-green-600'
+                        tx.type === 'campaign_payment' || tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? 'text-red-600' : 'text-green-600'
                       }`}>
-                        {tx.type === 'campaign_payment' ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
+                        {tx.type === 'campaign_payment' || tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? '-' : '+'}₦{Math.abs(tx.amount).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -153,6 +204,14 @@ export default function AdvertiserTransactionsPage() {
               ))}
             </div>
           )}
+          {/* Withdraw dialog should always be mounted so button opens it even with no history */}
+          <WithdrawDialog
+            open={withdrawOpen}
+            onClose={() => setWithdrawOpen(false)}
+            onSubmit={handleAdvertiserWithdraw}
+            maxAmount={Math.max(0, withdrawableBalance)}
+            bankDetails={bankDetails}
+          />
         </Card>
       </div>
     </div>

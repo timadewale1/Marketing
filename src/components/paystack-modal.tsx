@@ -1,110 +1,120 @@
-import React from "react"
+﻿import React, { useEffect, useRef } from 'react'
+import toast from 'react-hot-toast'
 
 export type PaystackModalProps = {
-  amount: number
-  email: string
+  amount: number // final amount in Naira (includes any markup)
+  email?: string
   onSuccess: (reference: string) => void
   onClose: () => void
   open: boolean
 }
 
-export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onSuccess, onClose, open }) => {
-  React.useEffect(() => {
-    if (!open) return
+let scriptLoadingPromise: Promise<void> | null = null
 
-    // Load Paystack script
-    const loadScript = async () => {
-      // If script already exists and we have PaystackPop, proceed
-      // @ts-expect-error PaystackPop is not typed
-      if (document.getElementById("paystack-script") && window.PaystackPop) {
-        handlePay()
-        return
-      }
+function loadPaystackScript(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('No window'))
+  // If Paystack already loaded, resolve immediately
+  if (typeof window !== 'undefined' && (window as unknown as { PaystackPop?: unknown }).PaystackPop) return Promise.resolve()
+  if (scriptLoadingPromise) return scriptLoadingPromise
 
-      // Create and load the script
-      return new Promise<void>((resolve) => {
-        const script = document.createElement("script")
-        script.id = "paystack-script"
-        script.src = "https://js.paystack.co/v1/inline.js"
-        script.async = true
-        script.onload = () => {
-          handlePay()
-          resolve()
-        }
-        document.body.appendChild(script)
-      })
-    }
-
-    loadScript()
-  }, [open])
-
-  const handlePay = React.useCallback(() => {
-    // PaystackPop type definition
-    interface PaystackPopInterface {
-      setup: (config: {
-        key: string;
-        email: string;
-        amount: number;
-        currency: string;
-        callback: (response: { reference: string }) => void;
-        onClose: () => void;
-      }) => {
-        openIframe: () => void;
-      };
-    }
-
-    // Get Paystack instance
-    // @ts-expect-error PaystackPop is not typed
-    const PaystackPop = window.PaystackPop as PaystackPopInterface | undefined;
-
-    if (!PaystackPop) {
-      console.error('Paystack not loaded')
+  scriptLoadingPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById('paystack-script')
+    if (existing) {
+      // give the browser a short tick to initialise
+      setTimeout(() => resolve(), 50)
       return
     }
+    const script = document.createElement('script')
+    script.id = 'paystack-script'
+    script.src = 'https://js.paystack.co/v1/inline.js'
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Paystack script failed to load'))
+    document.body.appendChild(script)
+  })
 
-    const handler = PaystackPop.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_KEY || '',
-      email,
-      amount: amount * 100, // Paystack expects kobo
-      currency: "NGN",
-      callback: function (response: { reference: string }) {
-        onSuccess(response.reference)
-      },
-      onClose,
-    })
+  return scriptLoadingPromise
+}
 
-    // Open payment modal
-    handler.openIframe()
-  }, [amount, email, onSuccess, onClose])
+export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onSuccess, onClose, open }) => {
+  const mounted = useRef(true)
 
-  React.useEffect(() => {
+  useEffect(() => {
+    return () => { mounted.current = false }
+  }, [])
+
+  useEffect(() => {
     if (!open) return
 
-    // Load Paystack script
-    const loadScript = async () => {
-      // If script already exists and we have PaystackPop, proceed
-      // @ts-expect-error PaystackPop is not typed
-      if (document.getElementById("paystack-script") && window.PaystackPop) {
-        handlePay()
+    const start = async () => {
+
+      const key = process.env.NEXT_PUBLIC_PAYSTACK_KEY || ''
+      if (!key) {
+        console.error('Missing NEXT_PUBLIC_PAYSTACK_KEY')
+        toast.error('Payment key not configured')
+        if (mounted.current) onClose()
         return
       }
 
-      // Create and load the script
-      return new Promise<void>((resolve) => {
-        const script = document.createElement("script")
-        script.id = "paystack-script"
-        script.src = "https://js.paystack.co/v1/inline.js"
-        script.async = true
-        script.onload = () => {
-          handlePay()
-          resolve()
+      const amountN = Number(amount || 0)
+      if (!amountN || Number.isNaN(amountN) || amountN <= 0) {
+        toast.error('Invalid payment amount')
+        if (mounted.current) onClose()
+        return
+      }
+
+      const amountKobo = Math.round(amountN * 100)
+
+      try {
+        await loadPaystackScript()
+      } catch (err) {
+        console.error('Failed to load Paystack script', err)
+        toast.error('Failed to load payment provider')
+        if (mounted.current) onClose()
+        return
+      }
+
+      const PaystackPop = (window as unknown as { PaystackPop?: { setup: (opts: Record<string, unknown>) => { openIframe?: () => void }; open?: () => void } }).PaystackPop
+      if (!PaystackPop) {
+        console.error('PaystackPop not available')
+        toast.error('Payment provider failed to load')
+        if (mounted.current) onClose()
+        return
+      }
+
+      try {
+        const handler = PaystackPop.setup({
+          key,
+          email: email || 'no-reply@example.com',
+          amount: amountKobo,
+          currency: 'NGN',
+          callback: function (response: { reference: string }) {
+            try { if (mounted.current) onSuccess(response.reference) } catch (e) { console.error(e) }
+          },
+          onClose: function () {
+            try { if (mounted.current) onClose() } catch (e) { console.error(e) }
+          },
+        })
+
+        if (handler && typeof handler.openIframe === 'function') {
+          handler.openIframe()
+        } else if (typeof PaystackPop.open === 'function') {
+          PaystackPop.open()
+        } else {
+          console.error('Paystack handler not usable')
+          toast.error('Unable to open payment window')
         }
-        document.body.appendChild(script)
-      })
+      } catch (err) {
+        console.error('Error starting Paystack', err)
+        toast.error('Payment initialization failed')
+        if (mounted.current) onClose()
+      }
     }
 
-    loadScript()
-  }, [open, handlePay])
+    start()
 
-  return null // Modal is handled by Paystack iframe
+    return () => { /* cleanup */ }
+  }, [open, amount, email, onSuccess, onClose])
+
+  return null
 }

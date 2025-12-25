@@ -15,7 +15,10 @@ function Dialog({
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+  // Use `asChild` so consumers can pass a Button (or any interactive element)
+  // without Radix wrapping it in another <button>, which causes nested-button
+  // invalid HTML and hydration errors.
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" asChild {...props} />
 }
 
 function DialogPortal({

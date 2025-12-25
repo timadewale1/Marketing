@@ -48,11 +48,11 @@ export async function POST(req: Request) {
           condition: 'activation'
         })
       } else if (userType === 'advertiser') {
-        // Advertiser referral (0.5% of first campaign payment)
+        // Advertiser referral (₦1,000 after advertiser activation)
         transaction.set(referralRef, {
           ...referralDoc,
-          percentage: 0.5,
-          condition: 'first_campaign'
+          amount: 1000,
+          condition: 'activation'
         })
       } else {
         throw new Error('Invalid user type')
@@ -105,73 +105,55 @@ export async function PUT(req: Request) {
 
       // Generate unique transaction ID
       const transactionId = `${referralId}-${action}-${Date.now()}`
-      const txRef = adminDb.collection('earnerTransactions').doc(transactionId)
 
-      // Check for existing transaction
+      // We'll determine whether the referrer is an earner or advertiser and update accordingly
+      const earnerRef = adminDb.collection('earners').doc(referral.referrerId)
+      const advertiserRef = adminDb.collection('advertisers').doc(referral.referrerId)
+
+      const earnerSnap = await transaction.get(earnerRef)
+      const advertiserSnap = await transaction.get(advertiserRef)
+
+      let targetCollectionName: string | null = null
+      if (earnerSnap.exists) targetCollectionName = 'earnerTransactions'
+      else if (advertiserSnap.exists) targetCollectionName = 'advertiserTransactions'
+      else throw new Error('Referrer account not found')
+
+      const txRef = adminDb.collection(targetCollectionName).doc(transactionId)
       const txSnap = await transaction.get(txRef)
-      if (txSnap.exists) {
-        throw new Error('Transaction already processed')
-      }
+      if (txSnap.exists) throw new Error('Transaction already processed')
 
-      // Process payment based on referral type
-      if (referral.userType === 'earner' && action === 'activate') {
-        // Pay earner referral bonus on activation
-        const amount = referral.amount || 1000 // Default to ₦1000 if not specified
-        
-        // Update referrer balance
-        transaction.update(adminDb.collection('earners').doc(referral.referrerId), {
+      // Process payment based on referral type/action
+      const amount = referral.amount || 1000
+      if (!(amount > 0)) throw new Error('Invalid referral amount')
+
+      // Credit the referrer (earner or advertiser)
+      if (earnerSnap.exists) {
+        transaction.update(earnerRef, {
           balance: admin.firestore.FieldValue.increment(amount)
         })
-
-        // Log transaction
-        transaction.set(txRef, {
-          userId: referral.referrerId,
-          type: 'referral_bonus',
-          amount,
-          status: 'completed',
-          note: `Referral bonus for ${referral.referredId} activation`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp()
+      } else if (advertiserSnap.exists) {
+        transaction.update(advertiserRef, {
+          balance: admin.firestore.FieldValue.increment(amount)
         })
-
-        // Mark referral completed
-        transaction.update(referralRef, {
-          status: 'completed',
-          bonusPaid: true,
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
-          paidAmount: amount
-        })
-
-      } else if (referral.userType === 'advertiser' && action === 'campaign_payment' && campaignAmount) {
-        // Calculate and pay advertiser referral bonus (0.5% of first campaign)
-        const percentage = referral.percentage || 0.5
-        const amount = Math.round((percentage / 100) * Number(campaignAmount))
-
-        if (amount > 0) {
-          // Credit referrer balance
-          transaction.update(adminDb.collection('earners').doc(referral.referrerId), {
-            balance: admin.firestore.FieldValue.increment(amount)
-          })
-
-          // Log transaction
-          transaction.set(txRef, {
-            userId: referral.referrerId,
-            type: 'referral_bonus',
-            amount,
-            status: 'completed',
-            note: `Referral bonus for ${referral.referredId}'s first campaign`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-          })
-
-          // Mark referral completed
-          transaction.update(referralRef, {
-            status: 'completed',
-            bonusPaid: true,
-            paidAt: admin.firestore.FieldValue.serverTimestamp(),
-            paidAmount: amount,
-            campaignAmount: Number(campaignAmount)
-          })
-        }
       }
+
+      // Log transaction in the correct transactions collection
+      transaction.set(txRef, {
+        userId: referral.referrerId,
+        type: 'referral_bonus',
+        amount,
+        status: 'completed',
+        note: `Referral bonus for ${referral.referredId} ${action}`,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      // Mark referral completed
+      transaction.update(referralRef, {
+        status: 'completed',
+        bonusPaid: true,
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAmount: amount
+      })
 
       return { success: true }
     })

@@ -33,27 +33,45 @@ export async function POST(req: Request) {
 
     const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
 
-    // Mark earner activated and set activatedAt
-    await adminDb.collection('earners').doc(userId).update({ activated: true, activatedAt: admin.firestore.FieldValue.serverTimestamp() })
+    // Mark earner activated and set activatedAt and nextActivationDue (3 months from now)
+    const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 3;
+    const nextDue = admin.firestore.Timestamp.fromMillis(Date.now() + THREE_MONTHS_MS);
+    await adminDb.collection('earners').doc(userId).update({
+      activated: true,
+      activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      nextActivationDue: nextDue,
+    })
 
-    // Finalize pending referrals for this user: mark completed and credit referrer (amount set on referral doc)
+    // Finalize pending referrals for this user (transaction-safe per-referral)
     const refsSnap = await adminDb.collection('referrals').where('referredId', '==', userId).where('status', '==', 'pending').get()
     for (const rDoc of refsSnap.docs) {
       const r = rDoc.data()
       const bonus = Number(r.amount || 0)
       const referrerId = r.referrerId as string | undefined
-      // mark referral completed
-      await adminDb.collection('referrals').doc(rDoc.id).update({ status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp() })
-      if (referrerId && bonus > 0) {
-        await adminDb.collection('earnerTransactions').add({
-          userId: referrerId,
-          type: 'referral_bonus',
-          amount: bonus,
-          status: 'completed',
-          note: `Referral bonus for referring ${userId}`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      try {
+        const rRef = adminDb.collection('referrals').doc(rDoc.id)
+        await adminDb.runTransaction(async (t) => {
+          const snap = await t.get(rRef)
+          if (!snap.exists) return
+          const status = snap.data()?.status
+          if (status !== 'pending') return
+          t.update(rRef, { status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp() })
+          if (referrerId && bonus > 0) {
+            const txRef = adminDb.collection('earnerTransactions').doc()
+            t.set(txRef, {
+              userId: referrerId,
+              type: 'referral_bonus',
+              amount: bonus,
+              status: 'completed',
+              note: `Referral bonus for referring ${userId}`,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            })
+            const referrerRef = adminDb.collection('earners').doc(referrerId)
+            t.update(referrerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
+          }
         })
-        await adminDb.collection('earners').doc(referrerId).update({ balance: admin.firestore.FieldValue.increment(bonus) })
+      } catch (e) {
+        console.error('Failed finalizing referral', rDoc.id, e)
       }
     }
 

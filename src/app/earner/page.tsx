@@ -15,7 +15,9 @@ import {
   where,
 } from "firebase/firestore"
 import Image from "next/image"
+import toast from 'react-hot-toast'
 import { Card, CardContent } from "@/components/ui/card"
+import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import {
   Wallet,
@@ -59,6 +61,7 @@ export default function EarnerDashboard() {
     campaignApproved: 0,
   })
   const [activated, setActivated] = useState<boolean>(false)
+  const [needsReactivation, setNeedsReactivation] = useState<boolean>(false)
 
   const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
@@ -82,7 +85,7 @@ export default function EarnerDashboard() {
         return
       }
       // Profile and stats
-      const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
+          const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
         if (snap.exists()) {
           const d = snap.data()
           setUserName(d.fullName || d.name || "User")
@@ -95,6 +98,7 @@ export default function EarnerDashboard() {
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
           setActivated(!!d.activated)
+          setNeedsReactivation(!!d.needsReactivation)
         }
       })
 
@@ -194,6 +198,88 @@ export default function EarnerDashboard() {
     router.push("/auth/sign-in")
   }
 
+  // Inline activation using Paystack (opens modal)
+  const handleActivation = async () => {
+    const user = auth.currentUser
+    if (!user || !user.email) {
+      toast.error('You must be logged in to activate')
+      return
+    }
+
+    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
+      toast.error('Payment configuration error')
+      return
+    }
+
+    try {
+      // Load Paystack script if not already loaded
+      if (!document.querySelector('script[src*="paystack.co"]')) {
+        const script = document.createElement('script')
+        script.src = 'https://js.paystack.co/v1/inline.js'
+        document.head.appendChild(script)
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve
+          script.onerror = () => reject(new Error('Failed to load Paystack'))
+        })
+      }
+
+      interface PaystackConfig {
+        key: string;
+        email: string;
+        amount: number;
+        currency: string;
+        label?: string;
+        metadata: { [key: string]: string };
+        onClose: () => void;
+        callback: (response: { reference: string }) => void;
+      }
+
+      interface PaystackWindow extends Window {
+        PaystackPop: {
+          setup: (config: PaystackConfig) => { openIframe: () => void };
+        };
+      }
+
+      const PaystackPop = (window as unknown as PaystackWindow).PaystackPop;
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY!,
+        email: user.email,
+        amount: 2000 * 100, // ₦2000 in kobo
+        currency: 'NGN',
+        label: 'Account Activation',
+        metadata: { userId: user.uid },
+        onClose: () => toast.error('Activation cancelled'),
+        callback: function(resp: { reference: string }) {
+          fetch('/api/earner/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
+          })
+          .then(res => {
+            if (res.ok) {
+              toast.success('Account activated successfully')
+              setActivated(true)
+              return
+            }
+            return res.json().then(data => {
+              throw new Error(data?.message || 'Activation verification failed')
+            })
+          })
+          .catch(err => {
+            console.error('Activation verify error', err)
+            toast.error(err.message || 'Activation verification failed')
+          })
+        }
+      })
+
+      handler.openIframe()
+    } catch (err) {
+      console.error('Activation error', err)
+      toast.error('Activation failed')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
       {/* Header */}
@@ -207,6 +293,8 @@ export default function EarnerDashboard() {
           </button>
           <h1 className="font-semibold text-stone-800 text-lg">Earner Dashboard</h1>
         </div>
+
+        {/* Bills & Utilities (moved into cards) */}
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (
             <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
@@ -219,8 +307,8 @@ export default function EarnerDashboard() {
       </header>
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
-        {/* Top Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+  {/* Top Cards */}
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {/* Balance */}
           <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
             <CardContent className="p-6 flex items-center gap-5">
@@ -232,23 +320,30 @@ export default function EarnerDashboard() {
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    className="bg-amber-500 text-stone-900"
-                    onClick={() => router.push("/earner/transactions")}
-                  >
-                    Withdraw
-                  </Button>
-                  {activated ? (
-                    <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => router.push("/earner/activate")}>Activate to Participate (₦2,000)</Button>
-                  )}
-                </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      className="bg-amber-500 text-stone-900"
+                      onClick={() => router.push("/earner/transactions")}
+                    >
+                      Withdraw
+                    </Button>
+                    {activated ? (
+                      <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
+                    ) : needsReactivation ? (
+                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
+                    )}
+                  </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Bills card */}
+          <div>
+            <BillsCard />
+          </div>
 
           {/* Rotating middle card with Framer Motion */}
           <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden">
@@ -353,15 +448,15 @@ export default function EarnerDashboard() {
           className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-md"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-stone-800">Campaign Stats</h3>
-            <Button
-              size="sm"
-              className="bg-stone-900 text-white"
-              onClick={() => router.push("/earner/campaigns")}
-            >
-              View Campaigns
-            </Button>
-          </div>
+              <h3 className="text-lg font-semibold text-stone-800">Task Stats</h3>
+              <Button
+                size="sm"
+                className="bg-stone-900 text-white"
+                onClick={() => router.push("/earner/campaigns")}
+              >
+                View Tasks
+              </Button>
+            </div>
           <div className="divide-y divide-stone-200">
             {[
                 { label: "Submitted", icon: <Grid size={18} />, value: stats.campaignSubmitted },
@@ -416,7 +511,7 @@ export default function EarnerDashboard() {
                     setOpenDropdown(openDropdown === "campaigns" ? null : "campaigns")
                   }
                 >
-                  Participate in Campaigns
+                  Participate in Tasks
                   {openDropdown === "campaigns" ? <ChevronUp /> : <ChevronDown />}
                 </button>
                 <AnimatePresence>
@@ -432,14 +527,14 @@ export default function EarnerDashboard() {
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/campaigns")}
                       >
-                        Available Campaigns
+                        Available Tasks
                       </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/campaigns/done")}
                       >
-                        Done Campaigns
+                        Done Tasks
                       </Button>
                     </motion.div>
                   )}
@@ -493,7 +588,7 @@ export default function EarnerDashboard() {
                         className="w-full justify-start"
                         onClick={() => router.push("/earner/pricelist")}
                       >
-                        Campaign Price List
+                        Task Price List
                       </Button>
                     </motion.div>
                   )}

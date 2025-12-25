@@ -7,26 +7,30 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function AdvertiserPriceListPage() {
-  // canonical campaign types and CPL map (should match create-campaign)
+  // canonical task types and CPL map (should match create-campaign)
   const CPL_MAP: Record<string, number> = {
-    Video: 250,
-    Picture: 150,
-    "Third-Party Task": 100,
+    Video: 100,
+    "Share my Product": 150,
+    "other website tasks": 100,
     Survey: 100,
     "App Download": 200,
-    "Instagram Follow": 80,
+    "Instagram Follow": 50,
     "Instagram Like": 50,
-    "Instagram Share": 60,
-    "Twitter Follow": 80,
-    "Twitter Retweet": 60,
+    "Instagram Share": 100,
+    "Twitter Follow": 50,
+    "Twitter Retweet": 50,
     "Facebook Like": 50,
-    "Facebook Share": 60,
-    "TikTok Follow": 80,
+    "Facebook Share": 100,
+    "TikTok Follow": 50,
     "TikTok Like": 50,
-    "TikTok Share": 60,
-    "YouTube Subscribe": 100,
-    "YouTube Like": 60,
-    "YouTube Comment": 70,
+    "TikTok Share": 50,
+    "YouTube Subscribe": 50,
+    "YouTube Like": 50,
+    "YouTube Comment": 50,
+    "WhatsApp Status": 100,
+    "WhatsApp Group Join": 100,
+    "Telegram Group Join": 100,
+    "Facebook Group Join": 100,
   };
   const campaignTypes = Object.keys(CPL_MAP).map((k) => ({
     category: k,
@@ -41,26 +45,30 @@ export default function AdvertiserPriceListPage() {
           <Button variant="ghost" onClick={() => router.back()} className="hover:bg-white/20">
             <ArrowLeft size={16} className="mr-2" /> Back
           </Button>
-          <h1 className="text-2xl font-semibold text-stone-800">Campaign Price List</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">Task Price List</h1>
         </div>
 
         <Card className="bg-white/80 backdrop-blur p-6">
-          <h2 className="text-lg font-semibold text-stone-800 mb-4">Campaign Types & Cost Per Lead</h2>
+          <h2 className="text-lg font-semibold text-stone-800 mb-4">Task Types & Cost</h2>
           <div className="divide-y divide-stone-200">
-            {campaignTypes.map((c) => (
-              <div key={c.category} className="flex items-center justify-between py-4">
-                <div>
-                  <div className="font-medium text-stone-800">{c.category}</div>
-                  <div className="text-sm text-stone-500 mt-1">
-                    ₦{(c.price * 100).toLocaleString()} budget = {100} leads
+            {campaignTypes.map((c) => {
+              const lower = c.category.toLowerCase()
+              const isShareOrProduct = lower.includes('share') || lower.includes('product')
+              return (
+                <div key={c.category} className="flex items-center justify-between py-4">
+                  <div>
+                    <div className="font-medium text-stone-800">{c.category}</div>
+                    {isShareOrProduct && (
+                      <div className="text-xs text-stone-500 mt-1">1 lead paid for guarantees up to 50 views.</div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-stone-500">Cost per lead</div>
+                    <div className="font-bold text-amber-600 text-lg">₦{c.price.toLocaleString()}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs text-stone-500">Cost per lead</div>
-                  <div className="font-bold text-amber-600 text-lg">₦{c.price.toLocaleString()}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card>
       </div>

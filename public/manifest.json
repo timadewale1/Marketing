@@ -1,0 +1,27 @@
+{
+  "short_name": "PAMBA",
+  "name": "PAMBA",
+  "description": "PAMBA - Earn rewards by participating in marketing campaigns",
+  "icons": [
+    {
+      "src": "/pamba-phone.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pamba-phone.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "prefer_related_applications": false,
+  "categories": ["marketing", "business", "social"]
+}

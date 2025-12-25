@@ -102,7 +102,7 @@ export default function ContactPage() {
                 <Mail className="text-amber-600 mt-1" />
                 <div>
                   <h3 className="font-medium text-stone-800">Email</h3>
-                  <p className="text-stone-600">support@blessedtoken.com</p>
+                  <p className="text-stone-600">support@pamba.com</p>
                 </div>
               </div>
             </Card>

@@ -64,16 +64,17 @@ export default function Page() {
         const totalCampaigns = campaignsSnap.size;
 
         // Total earnings calculation
-        // 1. Get campaign earnings (half of paid campaign amounts)
-        const campaignEarningsSnap = await getDocs(
-          query(collection(db, "campaigns"), where("status", "in", ["Completed", "Stopped"]))
-        );
-        const campaignEarnings = campaignEarningsSnap.docs.reduce(
-          (sum, doc) => sum + (doc.data().budget || 0) / 2, // Platform takes 50% of campaign payments
-          0
-        );
+        // Get total amount paid by advertisers for campaigns and take 50%
+        const campaignEarnings = campaignsSnap.docs.reduce((sum, doc) => {
+          const data = doc.data();
+          // Only include campaign if it has a payment reference (meaning payment was successful)
+          if (data.paymentRef) {
+            return sum + (data.budget || 0) / 2;  // Platform takes 50% of all campaign payments
+          }
+          return sum;
+        }, 0);
 
-        // 2. Get activation fees
+        // Add activation fees
         const activatedEarnersSnap = await getDocs(
           query(collection(db, "earners"), where("activated", "==", true))
         );
@@ -169,6 +170,7 @@ export default function Page() {
     );
 
     fetchStats();
+    // VTpass manager data can be loaded via admin APIs in a follow-up task
     setLoading(false);
 
     return () => {
@@ -247,7 +249,7 @@ export default function Page() {
           changeType="positive"
         />
         <StatCard
-          title="Total Campaigns"
+          title="Total Tasks"
           value={stats.totalCampaigns}
           icon={BarChart3}
           change="+5 this week"
@@ -277,6 +279,22 @@ export default function Page() {
       </div>
 
       {/* Recent Activity */}
+      {/* VTpass Manager Card */}
+      <div className="mt-6">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-stone-600">VTpass Manager</h3>
+              <p className="text-lg font-bold text-stone-900">Overview & transactions</p>
+            </div>
+            <div>
+              <Link href="/admin/vtpass">
+                <Button variant="ghost">Open VTpass Manager</Button>
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Submissions */}
         <Card className="p-6">

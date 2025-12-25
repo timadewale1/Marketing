@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
+import toast, { Toaster } from "react-hot-toast"
 import {
   collection,
   query,
@@ -14,6 +15,7 @@ import {
 } from "firebase/firestore"
 
 import { Card, CardContent } from "@/components/ui/card"
+import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle, CheckCircle } from "lucide-react"
@@ -38,6 +40,8 @@ export default function AdvertiserDashboard() {
   const sidebarRef = useRef<HTMLDivElement | null>(null)
   const [name, setName] = useState<string>("Advertiser")
   const [profilePic, setProfilePic] = useState("")
+  const [activated, setActivated] = useState<boolean>(true)
+  const [onboarded, setOnboarded] = useState<boolean>(false)
   const [stats, setStats] = useState({
     balance: 0,
     activeCampaigns: 0,
@@ -69,6 +73,8 @@ export default function AdvertiserDashboard() {
       if (snap.exists()) {
         setName(snap.data().name || "Advertiser")
         setProfilePic(snap.data().profilePic || "")
+        setActivated(Boolean(snap.data().activated))
+        setOnboarded(Boolean(snap.data().onboarded))
       }
 
       // Campaigns
@@ -208,11 +214,11 @@ export default function AdvertiserDashboard() {
       actionLabel: "Fund Wallet",
     },
     {
-      title: "Active Campaigns",
+      title: "Active Tasks",
       value: stats.activeCampaigns,
       icon: TrendingUp,
       action: () => router.push("/advertiser/campaigns"),
-      actionLabel: "View Campaigns",
+      actionLabel: "View Tasks",
     },
     {
       title: "Leads Paid For",
@@ -224,27 +230,117 @@ export default function AdvertiserDashboard() {
       value: stats.leadsGenerated,
       icon: Users,
     },
-    {
-      title: "Campaigns Submitted",
-      value: stats.campaignSubmitted,
-      icon: Grid,
-    },
-    {
-      title: "Pending Submissions",
-      value: stats.campaignPending,
-      icon: Clock,
-    },
-    {
-      title: "Rejected Submissions",
-      value: stats.campaignRejected,
-      icon: XCircle,
-    },
-    {
-      title: "Approved Submissions",
-      value: stats.campaignApproved,
-      icon: CheckCircle,
-    },
+    // {
+    //   title: "Tasks Submitted",
+    //   value: stats.campaignSubmitted,
+    //   icon: Grid,
+    // },
+    // {
+    //   title: "Pending Submissions",
+    //   value: stats.campaignPending,
+    //   icon: Clock,
+    // },
+    // {
+    //   title: "Rejected Submissions",
+    //   value: stats.campaignRejected,
+    //   icon: XCircle,
+    // },
+    // {
+    //   title: "Approved Submissions",
+    //   value: stats.campaignApproved,
+    //   icon: CheckCircle,
+    // },
   ]
+
+  // If advertiser is not activated, show a quick action banner
+  const ActivationBanner = () => {
+    if (activated) return null
+    // If not onboarded, send them to onboarding. If onboarded but not activated, open Paystack inline to pay ₦2,000
+    const handleActivation = async () => {
+      const u = auth.currentUser
+      if (!u || !u.email) {
+        toast.error('You must be logged in to activate')
+        return
+      }
+      if (!onboarded) {
+        router.push('/advertiser/onboarding')
+        return
+      }
+
+      if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
+        toast.error('Payment configuration error')
+        return
+      }
+
+      try {
+        if (!document.querySelector('script[src*="paystack.co"]')) {
+          const script = document.createElement('script')
+          script.src = 'https://js.paystack.co/v1/inline.js'
+          document.head.appendChild(script)
+          await new Promise((resolve, reject) => {
+            script.onload = resolve
+            script.onerror = () => reject(new Error('Failed to load Paystack'))
+          })
+        }
+
+        interface PaystackWindow extends Window {
+          PaystackPop: {
+            setup: (config: Record<string, unknown>) => {
+              openIframe: () => void
+            }
+          }
+        }
+        const PaystackPop = (window as unknown as PaystackWindow).PaystackPop
+        const handler = PaystackPop.setup({
+          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+          email: u.email,
+          amount: 2000 * 100,
+          currency: 'NGN',
+          label: 'Advertiser Account Activation',
+          metadata: { userId: u.uid },
+          onClose: () => toast.error('Activation cancelled'),
+          callback: function(resp: { reference: string }) {
+            fetch('/api/advertiser/activate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference: resp.reference, userId: u.uid }),
+            })
+            .then(async (res) => {
+              if (res.ok) {
+                toast.success('Account activated successfully')
+                setActivated(true)
+                return
+              }
+              const data = await res.json().catch(() => ({}))
+              throw new Error(data?.message || 'Activation verification failed')
+            })
+            .catch((err) => {
+              console.error('Activation verify error', err)
+              toast.error(err.message || 'Activation verification failed')
+            })
+          }
+        })
+        handler.openIframe()
+      } catch (err) {
+        console.error('Activation error', err)
+        toast.error('Activation failed')
+      }
+    }
+
+    return (
+      <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-semibold text-stone-800">Account Not Activated</div>
+            <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+          </div>
+          <div>
+            <Button className="bg-amber-500 text-stone-900" onClick={handleActivation}>Activate Account</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const filteredCampaigns = campaigns.filter(
     (c) => c.status.toLowerCase() === filter.toLowerCase()
@@ -252,6 +348,7 @@ export default function AdvertiserDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
+      <Toaster />
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white/60 backdrop-blur sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -263,6 +360,8 @@ export default function AdvertiserDashboard() {
           </button>
           <h1 className="font-semibold text-stone-800 text-lg">Advertiser Dashboard</h1>
         </div>
+
+        {/* Bills & Utilities (moved into top stat cards) */}
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (
             <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
@@ -291,11 +390,12 @@ export default function AdvertiserDashboard() {
           {/* ...existing code for nav items... */}
           {[
             { label: "Dashboard", path: "/advertiser" },
-            { label: "Campaigns", path: "/advertiser/campaigns" },
+            { label: "Tasks", path: "/advertiser/campaigns" },
             { label: "Wallet", path: "/advertiser/wallet" },
+            { label: "Bank", path: "/advertiser/bank" },
             { label: "Transactions", path: "/advertiser/transactions" },
             { label: "Referrals", path: "/advertiser/referrals" },
-            { label: "Campaign Price List", path: "/advertiser/pricelist" },
+            { label: "Task Price List", path: "/advertiser/pricelist" },
             { label: "Profile", path: "/advertiser/profile" },
           ].map((item) => (
             <button
@@ -323,7 +423,7 @@ export default function AdvertiserDashboard() {
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
         {/* Top Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {statCards.map((card, i) => (
             <Card key={i} className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
               <CardContent className="p-6 flex items-center gap-5">
@@ -346,21 +446,29 @@ export default function AdvertiserDashboard() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Bills card */}
+          <div>
+            <BillsCard />
+          </div>
         </div>
 
-        {/* Campaigns Section */}
+        {/* Activation banner (if needed) */}
+        {ActivationBanner()}
+
+        {/* Tasks Section */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-stone-800">Your Campaigns</h2>
+          <h2 className="text-lg font-semibold text-stone-800">Your Tasks</h2>
           <Link href="/advertiser/create-campaign">
             <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
               <Plus size={16} />
-              Create Campaign
+              Create Task
             </Button>
           </Link>
         </div>
 
         {/* Filter */}
-        <div className="flex gap-2 mb-6">
+        {/* <div className="flex gap-2 mb-6">
           {["Active", "Paused", "Stopped", "Pending"].map((status) => (
             <Button
               key={status}
@@ -375,7 +483,7 @@ export default function AdvertiserDashboard() {
               {status}
             </Button>
           ))}
-        </div>
+        </div> */}
 
         {/* Campaigns Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -431,10 +539,10 @@ export default function AdvertiserDashboard() {
             })
           ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-12">
-              <p className="text-lg text-stone-600 mb-3">No {filter} campaigns found.</p>
+              <p className="text-lg text-stone-600 mb-3">No {filter} tasks found.</p>
               <Link href="/advertiser/create-campaign">
                 <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow">
-                  <Plus size={18} className="mr-2" /> Create Your First Campaign
+                  <Plus size={18} className="mr-2" /> Create Your First Task
                 </Button>
               </Link>
             </div>

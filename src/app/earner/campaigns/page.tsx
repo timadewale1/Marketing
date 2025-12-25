@@ -72,7 +72,7 @@ export default function AvailableCampaignsPage() {
           <Button variant="ghost" onClick={() => router.back()} className="hover:bg-white/20">
             <ArrowLeft size={16} className="mr-2" /> Back
           </Button>
-          <h1 className="text-2xl font-semibold text-stone-800">Available Campaigns</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">Available Tasks</h1>
         </div>
 
         {loading ? (
@@ -91,20 +91,20 @@ export default function AvailableCampaignsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCampaigns.length === 0 ? (
                 <div className="col-span-full text-center py-8">
-                  <p className="text-stone-600">No active campaigns right now.</p>
+                  <p className="text-stone-600">No active tasks right now.</p>
                 </div>
               ) : (
                 filteredCampaigns.map((c) => {
                   const already = participatedIds.includes(c.id)
                   // Calculate earner price as half of cost per lead (not total budget)
-                  const earnerPrice = Math.round((c.costPerLead || 0) / 2);
+                  const earnerPrice = (c.category === "Video") ? 150 : Math.round((c.costPerLead || 0) / 2);
 
                   return (
                     <Card key={c.id} className="overflow-hidden bg-white/80 backdrop-blur hover:shadow-xl transition duration-300">
                       <div className="relative h-48 overflow-hidden">
                         <div className="h-full w-full bg-stone-100">
                           <div className="w-full h-full relative">
-                            <Image src={c.bannerUrl || "/placeholders/default.jpg"} alt={c.title || 'campaign banner'} fill style={{ objectFit: 'cover' }} />
+                            <Image src={c.bannerUrl || "/placeholders/default.jpg"} alt={c.title || 'task banner'} fill style={{ objectFit: 'cover' }} />
                           </div>
                         </div>
                         <div className="absolute top-3 right-3">
@@ -125,12 +125,12 @@ export default function AvailableCampaignsPage() {
                           onClick={() => {
                             const user = auth.currentUser
                             if (!user) {
-                              toast.error("Please login to participate in campaigns")
+                              toast.error("Please login to participate in tasks")
                               router.push('/auth/sign-in')
                               return
                             }
                             if (already) {
-                              toast("You've already participated in this campaign", { icon: 'ℹ️' })
+                              toast("You've already participated in this task", { icon: 'ℹ️' })
                               return
                             }
                             router.push(`/earner/campaigns/${c.id}`)
