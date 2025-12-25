@@ -74,18 +74,18 @@ export default function Navbar() {
 }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/60 backdrop-blur-md border-b border-stone-200">
+    <header className="fixed inset-x-0 top-0 z-50 bg-white/5 backdrop-blur-md border-b border-stone-200">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
-          <Image src="/Pamba-phone.png" alt="PAMBA" width={36} height={36} className="rounded-md" />
+          <Image src="/Pamba.png" alt="PAMBA" width={36} height={36} className="rounded-md" />
           <span className="sr-only">PAMBA</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <a href="#howitworks" className="text-stone-700 hover:text-amber-500">How it works</a>
-          <a href="#why" className="text-stone-700 hover:text-amber-500">Why choose us</a>
-          <a href="#features" className="text-stone-700 hover:text-amber-500">Features</a>
-          <a href="#cta" className="text-stone-700 hover:text-amber-500">Get started</a>
+          <a href="#howitworks" className="text-white hover:text-amber-500">How it works</a>
+          <a href="#why" className="text-white hover:text-amber-500">Why choose us</a>
+          <a href="#features" className="text-white hover:text-amber-500">Features</a>
+          <a href="#cta" className="text-white hover:text-amber-500">Get started</a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export default function Navbar() {
           )}
 
           <div className="md:hidden">
-            <button onClick={() => setOpen(!open)} className="p-2 rounded-md text-stone-700 hover:bg-stone-100">
+            <button onClick={() => setOpen(!open)} className="p-2 rounded-md text-white hover:bg-stone-100">
               {open ? <X /> : <Menu />}
             </button>
           </div>
