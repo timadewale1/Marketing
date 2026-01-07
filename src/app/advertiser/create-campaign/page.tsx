@@ -435,6 +435,8 @@ const compressed = await imageCompression(file, options)
         })().catch((e) => console.error('Activation callback error', e))
       }
 
+      console.debug('Paystack activation (create-campaign): callback type', typeof onActivationCallback, 'onClose type', typeof (() => {}))
+      console.debug('Activation callback (create-campaign) defined, handler about to be created')
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
         email: user.email,
@@ -443,7 +445,15 @@ const compressed = await imageCompression(file, options)
         label: 'Advertiser Account Activation',
         metadata: { userId: user.uid },
         onClose: function () { toast.error('Activation cancelled') },
-        callback: onActivationCallback,
+        callback: function (resp: { reference: string }) {
+          console.debug('Create-campaign activation callback invoked, resp:', resp)
+          if (!resp || !resp.reference) {
+            console.error('Activation callback missing reference', resp)
+            toast.error('Payment callback missing reference')
+            return
+          }
+          return onActivationCallback(resp)
+        },
       })
       handler.openIframe()
     } catch (err) {

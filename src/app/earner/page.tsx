@@ -250,7 +250,13 @@ export default function EarnerDashboard() {
         label: 'Account Activation',
         metadata: { userId: user.uid },
         onClose: () => toast.error('Activation cancelled'),
-        callback: function(resp: { reference: string }) {
+        callback: function (resp: { reference: string }) {
+          console.debug('Earner activation callback invoked, resp:', resp)
+          if (!resp || !resp.reference) {
+            console.error('Activation callback missing reference', resp)
+            toast.error('Payment callback missing reference')
+            return
+          }
           fetch('/api/earner/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

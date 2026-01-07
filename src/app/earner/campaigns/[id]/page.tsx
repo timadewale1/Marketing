@@ -216,22 +216,28 @@ export default function CampaignDetailPage() {
         currency: "NGN",
         label: "Account Activation",
         onClose: () => toast.error("Activation cancelled"),
-        callback: async (response: { reference: string }) => {
-          // Verify payment and activate account
-          const res = await fetch('/api/earner/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: response.reference, userId: user.uid }),
-          })
-
-          if (res.ok) {
-            toast.success('Account activated successfully!')
-            // Proceed with submission
-            submitParticipation()
-          } else {
-            const data = await res.json().catch(() => ({}))
-            toast.error(data?.message || 'Activation verification failed')
+        callback: function (response: { reference: string }) {
+          console.debug('Campaign activation callback invoked, resp:', response)
+          if (!response || !response.reference) {
+            console.error('Activation callback missing reference', response)
+            toast.error('Payment callback missing reference')
+            return
           }
+          ;(async () => {
+            const res = await fetch('/api/earner/activate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference: response.reference, userId: user.uid }),
+            })
+
+            if (res.ok) {
+              toast.success('Account activated successfully!')
+              submitParticipation()
+            } else {
+              const data = await res.json().catch(() => ({}))
+              toast.error(data?.message || 'Activation verification failed')
+            }
+          })().catch((e) => console.error('Activation callback error', e))
         }
       });
 

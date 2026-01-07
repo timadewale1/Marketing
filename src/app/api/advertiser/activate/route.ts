@@ -13,9 +13,19 @@ export async function POST(req: Request) {
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
     })
-    const verifyData = await verifyRes.json()
-    if (!verifyData.status || verifyData.data.status !== 'success') {
+    let verifyData: { status?: boolean; data?: { status?: string; amount?: number; metadata?: { userId?: string } } } | null = null
+    try {
+      verifyData = await verifyRes.json()
+    } catch (e) {
+      console.error('Failed parsing Paystack verify response JSON', e)
+      const text = await verifyRes.text().catch(() => '')
+      console.error('Paystack verify raw response:', text)
       return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 })
+    }
+
+    console.log('Paystack verify status:', verifyRes.status, 'body:', JSON.stringify(verifyData))
+    if (!verifyData || !verifyData.status || verifyData.data?.status !== 'success') {
+      return NextResponse.json({ success: false, message: 'Payment verification failed', details: verifyData }, { status: 400 })
     }
 
     const paidAmount = Number(verifyData.data.amount || 0) / 100

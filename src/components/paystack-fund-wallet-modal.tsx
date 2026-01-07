@@ -29,6 +29,33 @@ export function PaystackFundWalletModal({
   const mounted = useRef(true)
   const handledRef = useRef(false)
 
+  const handlePaymentSuccess = async (reference: string) => {
+  setPaystackOpen(false)
+
+  try {
+    const res = await fetch('/api/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reference,
+        type: 'wallet_funding',
+        amount,
+        userId: auth.currentUser?.uid,
+      }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message)
+
+    toast.success('Wallet funded successfully')
+    onClose()
+  } catch (err) {
+    console.error(err)
+    toast.error('Wallet funding verification failed')
+  }
+}
+
+
   return (
 <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent className="sm:max-w-md bg-white/95">
@@ -89,51 +116,13 @@ export function PaystackFundWalletModal({
 
         {paystackOpen && (
           <PaystackModal
-            amount={Number(amount)}
-            email={userEmail}
-            open={paystackOpen}
-                onSuccess={async (reference) => {
-  if (handledRef.current) return
-  try {
-    handledRef.current = true
-    const userId = auth.currentUser?.uid
+  amount={Number(amount)}
+  email={userEmail || ""}
+  open={paystackOpen}
+  onSuccess={handlePaymentSuccess}
+  onClose={() => setPaystackOpen(false)}
+/>
 
-    const res = await fetch('/api/verify-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reference,
-        type: 'wallet_funding',
-        userId,
-        amount: Number(amount),
-      }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      toast.error(data?.message || 'Verification failed')
-      try { localStorage.removeItem('pamba_pending_payment') } catch (e) { /* ignore */ }
-      return
-    }
-
-    toast.success('Wallet funded successfully')
-
-    setAmount('')
-    setPaystackOpen(false)
-    try { localStorage.removeItem('pamba_pending_payment') } catch (e) { /* ignore */ }
-    onSuccess()          // refresh wallet
-    onClose()            // NOW close modal
-  } catch (err) {
-    console.error(err)
-    toast.error('Payment verification failed')
-  }
-}}
-
-            onClose={() => {
-  setPaystackOpen(false)
-}}
-          />
         )}
       </DialogContent>
     </Dialog>

@@ -18,7 +18,9 @@ function loadPaystackScript(): Promise<void> {
   if (scriptLoadingPromise) return scriptLoadingPromise
 
   scriptLoadingPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.getElementById('paystack-script')
+    const existingById = document.getElementById('paystack-script')
+    const existingBySrc = document.querySelector('script[src*="paystack.co"]')
+    const existing = existingById || existingBySrc
     if (existing) {
       // give the browser a short tick to initialise
       setTimeout(() => resolve(), 50)
@@ -44,7 +46,11 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
   }, [])
 
   useEffect(() => {
-    if (!open) return
+  if (!open) return
+
+  startPayment()
+}, [open])
+
 
     const start = async () => {
 
@@ -83,6 +89,7 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
       }
 
       try {
+        console.debug('Paystack start: onSuccess type', typeof onSuccess, 'onClose type', typeof onClose)
         const handler = PaystackPop.setup({
           key,
           email: email || 'no-reply@example.com',
@@ -121,3 +128,10 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
 
   return null
 }
+const startPayment = async () => {
+  await start()
+}
+function startPayment() {
+  throw new Error('Function not implemented.')
+}
+

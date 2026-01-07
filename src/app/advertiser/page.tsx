@@ -291,15 +291,14 @@ export default function AdvertiserDashboard() {
           }
         }
         const PaystackPop = (window as unknown as PaystackWindow).PaystackPop
-        const handler = PaystackPop.setup({
-          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-          email: u.email,
-          amount: 2000 * 100,
-          currency: 'NGN',
-          label: 'Advertiser Account Activation',
-          metadata: { userId: u.uid },
-          onClose: () => toast.error('Activation cancelled'),
-          callback: async function(resp: { reference: string }) {
+        const onActivationCallback = function (resp: { reference: string }) {
+          console.debug('Activation callback invoked, resp:', resp)
+          if (!resp || !resp.reference) {
+            console.error('Activation callback missing reference', resp)
+            toast.error('Payment callback missing reference')
+            return
+          }
+          ;(async () => {
             let res: Response | null = null
             try {
               res = await fetch('/api/advertiser/activate', {
@@ -313,7 +312,6 @@ export default function AdvertiserDashboard() {
               return
             }
 
-            // attempt to read response text for better diagnostics
             let text = ''
             try {
               text = await res.text()
@@ -337,7 +335,19 @@ export default function AdvertiserDashboard() {
             const message = data?.message || text || `Activation failed (status ${res.status})`
             console.error('Activation verify error', { status: res.status, message, data, text })
             toast.error(message)
-          }
+          })().catch((e) => console.error('Activation callback error', e))
+        }
+
+        console.debug('Paystack activation (advertiser page): onActivationCallback type', typeof onActivationCallback)
+        const handler = PaystackPop.setup({
+          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+          email: u.email,
+          amount: 2000 * 100,
+          currency: 'NGN',
+          label: 'Advertiser Account Activation',
+          metadata: { userId: u.uid },
+          onClose: () => toast.error('Activation cancelled'),
+          callback: onActivationCallback
         })
         handler.openIframe()
       } catch (err) {
