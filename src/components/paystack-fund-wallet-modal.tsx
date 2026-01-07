@@ -105,7 +105,7 @@ export function PaystackFundWalletModal({
                   return
                 }
 
-                let data: any = {}
+                let data: { message?: string } = {}
                 try { data = await res.json() } catch (e) { data = {} }
                 console.log('Verify payment response', { status: res.status, data })
                 if (!res.ok) {
