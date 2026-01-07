@@ -29,7 +29,7 @@ export function PaystackFundWalletModal({
   const mounted = useRef(true)
 
   return (
-<Dialog open={open} onOpenChange={() => {}}>
+<Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent className="sm:max-w-md bg-white/95">
         <DialogTitle className="sr-only">Fund Wallet</DialogTitle>
         <div className="space-y-4">
