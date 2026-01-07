@@ -29,7 +29,7 @@ export function PaystackFundWalletModal({
   const mounted = useRef(true)
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+<Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md bg-white/95">
         <DialogTitle className="sr-only">Fund Wallet</DialogTitle>
         <div className="space-y-4">
@@ -92,59 +92,42 @@ export function PaystackFundWalletModal({
             email={userEmail}
             open={paystackOpen}
             onSuccess={async (reference) => {
-              // Verify the payment server-side and record the wallet funding
-              try {
-                const userId = auth.currentUser?.uid
-                console.log('Verifying paystack reference', { reference, userId, amount })
-                let res: Response | null = null
-                try {
-                  res = await fetch('/api/verify-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reference, type: 'wallet_funding', userId, amount: Number(amount) }),
-                  })
-                } catch (networkErr) {
-                  console.error('Network error verifying payment', networkErr)
-                  toast.error('Network error verifying payment')
-                  if (mounted.current) {
-                    setPaystackOpen(false)
-                    onClose()
-                  }
-                  return
-                }
+  try {
+    const userId = auth.currentUser?.uid
 
-                let data: { message?: string } = {}
-                try { data = await res.json() } catch (e) { data = {} }
-                console.log('Verify payment response', { status: res.status, data })
-                if (!res.ok) {
-                  console.error('Verify payment failed', data)
-                  toast.error(data?.message || 'Failed to verify payment')
-                  if (mounted.current) {
-                    setPaystackOpen(false)
-                    onClose()
-                  }
-                  return
-                }
+    const res = await fetch('/api/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reference,
+        type: 'wallet_funding',
+        userId,
+        amount: Number(amount),
+      }),
+    })
 
-                // success
-                console.log('Payment verified, calling onSuccess()')
-                onSuccess()
-                setAmount("")
-                setPaystackOpen(false)
-              } catch (err) {
-                console.error('Error verifying payment', err)
-                toast.error('Failed to process payment')
-                if (mounted.current) {
-                  setPaystackOpen(false)
-                  onClose()
-                }
-              }
-            }}
+    const data = await res.json()
+
+    if (!res.ok) {
+      toast.error(data?.message || 'Verification failed')
+      return
+    }
+
+    toast.success('Wallet funded successfully')
+
+    setAmount('')
+    setPaystackOpen(false)
+    onSuccess()          // refresh wallet
+    onClose()            // NOW close modal
+  } catch (err) {
+    console.error(err)
+    toast.error('Payment verification failed')
+  }
+}}
+
             onClose={() => {
-              onClose()
-              setAmount("")
-              setPaystackOpen(false)
-            }}
+  setPaystackOpen(false)
+}}
           />
         )}
       </DialogContent>
