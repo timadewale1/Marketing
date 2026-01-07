@@ -62,7 +62,15 @@ export function PaystackFundWalletModal({
             {Number(amount) >= 100 && userEmail ? (
               <Button 
                 className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900"
-                onClick={() => setPaystackOpen(true)}
+                onClick={() => {
+                  try {
+                    const pending = { type: 'wallet_funding', amount: Number(amount), email: userEmail, userId: auth.currentUser?.uid }
+                    localStorage.setItem('pamba_pending_payment', JSON.stringify(pending))
+                  } catch (e) {
+                    console.warn('Failed saving pending payment', e)
+                  }
+                  setPaystackOpen(true)
+                }}
               >
                 Pay Now
               </Button>
