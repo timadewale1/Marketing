@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import toast from 'react-hot-toast'
 import Link from "next/link"
 import Image from "next/image"
 import { Menu, X, Smartphone } from "lucide-react"
@@ -52,29 +53,37 @@ export default function Navbar() {
   }, [])
 
   const handleInstall = async () => {
-  if (!deferredPrompt) return
-
-  deferredPrompt.prompt()
-  const choice = await deferredPrompt.userChoice
-
-  setShowInstall(false)
-  setDeferredPrompt(null)
-
-  try {
-    const userChoice = choice as { outcome: string; platform?: string } | undefined
-
-    if (userChoice?.outcome === 'dismissed') {
-      localStorage.setItem('pwa_install_dismissed', '1')
+    if (!deferredPrompt) {
+      toast('To install the app: open your browser menu and choose "Install" or "Add to Home screen"', { icon: '📥' })
+      return
     }
-  } catch {
-    /* ignore */
+
+    try {
+      deferredPrompt.prompt()
+      const choice = await deferredPrompt.userChoice
+
+      setShowInstall(false)
+      setDeferredPrompt(null)
+
+      try {
+        const userChoice = choice as { outcome: string; platform?: string } | undefined
+
+        if (userChoice?.outcome === 'dismissed') {
+          localStorage.setItem('pwa_install_dismissed', '1')
+        }
+      } catch {
+        /* ignore */
+      }
+
+      console.log("PWA install choice:", choice)
+    } catch (err) {
+      console.warn('Install prompt failed', err)
+      toast('To install the app: open your browser menu and choose "Install" or "Add to Home screen"', { icon: '📥' })
+    }
   }
 
-  console.log("PWA install choice:", choice)
-}
-
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/5 backdrop-blur-md border-b border-stone-200">
+    <header className="fixed inset-x-0 top-0 z-50 bg-white border-b border-stone-200 shadow-sm">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
           <Image src="/Pamba.png" alt="PAMBA" width={70} height={30} className="rounded-md" />
@@ -82,29 +91,25 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <a href="#howitworks" className="text-white hover:text-amber-500">How it works</a>
-          <a href="#why" className="text-white hover:text-amber-500">Why choose us</a>
-          <a href="#features" className="text-white hover:text-amber-500">Features</a>
-          <a href="#cta" className="text-white hover:text-amber-500">Get started</a>
+          <a href="#howitworks" className="text-stone-900 hover:text-amber-500">How it works</a>
+          <a href="#about" className="text-stone-900 hover:text-amber-500">About us</a>
+          <a href="#features" className="text-stone-900 hover:text-amber-500">Features</a>
+          <a href="#cta" className="text-stone-900 hover:text-amber-500">Get started</a>
         </nav>
 
         <div className="flex items-center gap-3">
-          {showInstall && (
-            // desktop/tablet button
-            <button onClick={handleInstall} className="hidden md:inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-1 rounded-md text-sm">
-              <Smartphone className="w-4 h-4" /> Add to home
-            </button>
-          )}
+          {/* desktop/tablet button */}
+          <button onClick={handleInstall} className="hidden md:inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-1 rounded-md text-sm">
+            <Smartphone className="w-4 h-4" /> Add to home
+          </button>
 
-          {showInstall && (
-            // mobile button (visible on small screens)
-            <button onClick={handleInstall} className="md:hidden p-2 rounded-md bg-amber-500 text-stone-900">
-              <Smartphone className="w-5 h-5" />
-            </button>
-          )}
+          {/* mobile button (visible on small screens) */}
+          <button onClick={handleInstall} className="md:hidden p-2 rounded-md bg-amber-500 text-stone-900">
+            <Smartphone className="w-5 h-5" />
+          </button>
 
           <div className="md:hidden">
-            <button onClick={() => setOpen(!open)} className="p-2 rounded-md text-white hover:bg-stone-100">
+            <button onClick={() => setOpen(!open)} className="p-2 rounded-md text-stone-900 hover:bg-stone-100">
               {open ? <X /> : <Menu />}
             </button>
           </div>
@@ -115,14 +120,12 @@ export default function Navbar() {
         <div className="md:hidden bg-white border-t border-stone-100">
           <div className="px-4 py-4 space-y-3">
             <a href="#howitworks" onClick={() => setOpen(false)} className="block">How it works</a>
-            <a href="#why" onClick={() => setOpen(false)} className="block">Why choose us</a>
+            <a href="#about" onClick={() => setOpen(false)} className="block">About us</a>
             <a href="#features" onClick={() => setOpen(false)} className="block">Features</a>
             <a href="#cta" onClick={() => setOpen(false)} className="block">Get started</a>
-            {showInstall && (
-              <button onClick={() => { handleInstall(); setOpen(false); }} className="w-full text-left mt-2 inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-2 rounded-md text-sm">
-                <Smartphone className="w-4 h-4" /> Install App
-              </button>
-            )}
+            <button onClick={() => { handleInstall(); setOpen(false); }} className="w-full text-left mt-2 inline-flex items-center gap-2 bg-amber-500 text-stone-900 px-3 py-2 rounded-md text-sm">
+              <Smartphone className="w-4 h-4" /> Install App
+            </button>
           </div>
         </div>
       )}

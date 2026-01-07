@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { toast } from "react-hot-toast"
+import { auth } from "@/lib/firebase"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { PaystackModal } from "@/components/paystack-modal"
+
 
 interface PaystackFundWalletModalProps {
   open: boolean
@@ -23,6 +26,7 @@ export function PaystackFundWalletModal({
   const [amount, setAmount] = useState("")
   const [userEmail, setUserEmail] = useState(email)
   const [paystackOpen, setPaystackOpen] = useState(false)
+  const mounted = useRef(true)
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -78,10 +82,38 @@ export function PaystackFundWalletModal({
             amount={Number(amount)}
             email={userEmail}
             open={paystackOpen}
-            onSuccess={(reference) => {
-              onSuccess()
-              setAmount("")
-              setPaystackOpen(false)
+            onSuccess={async (reference) => {
+              // Verify the payment server-side and record the wallet funding
+              try {
+                const userId = auth.currentUser?.uid
+                const res = await fetch('/api/verify-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ reference, type: 'wallet_funding', userId, amount: Number(amount) }),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) {
+                  console.error('Verify payment failed', data)
+                  toast.error(data?.message || 'Failed to verify payment')
+                  if (mounted.current) {
+                    setPaystackOpen(false)
+                    onClose()
+                  }
+                  return
+                }
+
+                // success
+                onSuccess()
+                setAmount("")
+                setPaystackOpen(false)
+              } catch (err) {
+                console.error('Error verifying payment', err)
+                toast.error('Failed to process payment')
+                if (mounted.current) {
+                  setPaystackOpen(false)
+                  onClose()
+                }
+              }
             }}
             onClose={() => {
               onClose()

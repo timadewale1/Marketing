@@ -10,6 +10,34 @@ type FAQItem = {
 
 const faqs: FAQItem[] = [
   {
+    question: "Is PAMBA an investment platform?",
+    answer: "No. PAMBA does not offer investments, interest, or guaranteed returns."
+  },
+  {
+    question: "How do I withdraw my earnings?",
+    answer: "Earnings can be withdrawn directly to your bank account or used to pay bills through your wallet."
+  },
+  {
+    question: "Is my money safe?",
+    answer: "Yes. All payments are processed through licensed and regulated payment partners."
+  },
+  {
+    question: "What can I advertise on PAMBA?",
+    answer: "Products, services, websites, social media pages, apps, videos, and online platforms."
+  },
+  {
+    question: "Do I get real engagement?",
+    answer: "Yes. Tasks are completed by real users within the PAMBA community."
+  },
+  {
+    question: "How do I pay for ads?",
+    answer: "You fund your wallet and create tasks. Payments are handled securely via our payment partners."
+  },
+  {
+    question: "Are there content restrictions?",
+    answer: "Yes. Illegal, misleading, or prohibited content is not allowed."
+  },
+  {
     question: "What is PAMBA?",
     answer: "PAMBA is a platform that connects advertisers with users who can earn rewards by engaging with advertisements and completing simple tasks like watching videos, filling surveys, or engaging with social media content."
   },

@@ -346,14 +346,14 @@ const compressed = await imageCompression(file, options)
 
       if (res.ok) {
         toast.success('Campaign created using wallet funds')
-        router.push('/advertiser')
+        setTimeout(() => router.push('/advertiser'), 600)
         return
       }
 
       const data = await res.json().catch(() => ({}))
       if (res.status === 402 || /insufficient/i.test(String(data?.message || ''))) {
-        toast.error('Insufficient wallet balance — please fund wallet to continue')
-        router.push('/advertiser/wallet')
+        toast.error('Insufficient wallet balance - please fund wallet to continue')
+        setTimeout(() => router.push('/advertiser/wallet'), 700)
         return
       }
 

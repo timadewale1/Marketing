@@ -9,7 +9,7 @@ import { TypedText } from '@/components/ui/typed-text';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pt-16">
       <Navbar />
 
       {/* Hero Section */}
@@ -96,11 +96,41 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* About Section */}
+      <section id="about" className="py-16 bg-gradient-to-br from-emerald-50/60 via-emerald-100/40 to-emerald-50/30 backdrop-blur-sm">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-stone-900">
+            <h2 className="text-3xl font-bold text-center mb-4">About Us</h2>
+            <p className="text-stone-700 text-center mb-6">
+              PAMBA is a fully registered digital advertising and services platform, duly incorporated with the Corporate Affairs Commission (CAC) of Nigeria. PAMBA provides a structured marketplace that connects advertisers, businesses, content creators, and everyday users through compliant digital marketing and promotional services.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="p-6 rounded-xl shadow border border-stone-100 bg-white">
+                <h4 className="text-sm font-semibold text-amber-600 mb-2">Mission Statement</h4>
+                <h3 className="text-xl font-bold mb-3">Our Mission</h3>
+                <p className="text-stone-700 text-sm">
+                  To provide a secure, compliant, and technology-driven digital advertising ecosystem that connects advertisers with real audiences, enables individuals to earn through legitimate marketing activities, and supports seamless payments and bill services.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-xl shadow border border-stone-100 bg-white">
+                <h4 className="text-sm font-semibold text-amber-600 mb-2">Vision Statement</h4>
+                <h3 className="text-xl font-bold mb-3">Our Vision</h3>
+                <p className="text-stone-700 text-sm">
+                  To become Nigeria’s most trusted and people-focused digital advertising platform — empowering businesses to grow, promoting innovative products and services, and creating sustainable earning opportunities through transparent digital engagement.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-stone-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center text-stone-900 mb-8">
-            Why Choose Our Platform?
+            Features of PAMBA
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8">

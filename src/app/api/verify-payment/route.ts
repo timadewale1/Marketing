@@ -118,6 +118,13 @@ export async function POST(req: NextRequest) {
             note: 'Wallet funded via Paystack',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           })
+          // increment advertiser balance
+          try {
+            const advRef = adminDb.collection('advertisers').doc(userId)
+            await advRef.update({ balance: admin.firestore.FieldValue.increment(Number(amount)) })
+          } catch (updErr) {
+            console.warn('Failed to increment advertiser balance', updErr)
+          }
           // notify admin of funding
           await adminDb.collection('adminNotifications').add({
             type: 'wallet_funding',
