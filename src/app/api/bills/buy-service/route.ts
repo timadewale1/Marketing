@@ -23,6 +23,11 @@ export async function POST(req: NextRequest) {
 
     const vtRes = await vtpassClient.post('/pay', payload)
     const vtData = vtRes?.data
+    // Determine amounts from request or VTpass response
+    const recordedAmount = Number(amount ?? (vtData?.amount ?? vtData?.content?.amount ?? 0))
+    const paidAmount = Number(recordedAmount || 0) + SERVICE_CHARGE
+    const markup = SERVICE_CHARGE
+
     // If VTpass returns a non-success code, surface as failure to client
     const vtCode = vtData?.code
     if (vtCode && String(vtCode) !== '000') {
@@ -50,10 +55,6 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ ok: false, message }, { status: 400 })
     }
-
-    const recordedAmount = Number(amount ?? (vtRes?.data?.amount ?? vtRes?.data?.content?.amount ?? 0))
-    const paidAmount = Number(recordedAmount || 0) + SERVICE_CHARGE
-    const markup = SERVICE_CHARGE
 
     try {
       const { dbAdmin } = await initFirebaseAdmin()
