@@ -87,12 +87,27 @@ export function PaystackFundWalletModal({
               // Verify the payment server-side and record the wallet funding
               try {
                 const userId = auth.currentUser?.uid
-                const res = await fetch('/api/verify-payment', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ reference, type: 'wallet_funding', userId, amount: Number(amount) }),
-                })
-                const data = await res.json().catch(() => ({}))
+                console.log('Verifying paystack reference', { reference, userId, amount })
+                let res: Response | null = null
+                try {
+                  res = await fetch('/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reference, type: 'wallet_funding', userId, amount: Number(amount) }),
+                  })
+                } catch (networkErr) {
+                  console.error('Network error verifying payment', networkErr)
+                  toast.error('Network error verifying payment')
+                  if (mounted.current) {
+                    setPaystackOpen(false)
+                    onClose()
+                  }
+                  return
+                }
+
+                let data: any = {}
+                try { data = await res.json() } catch (e) { data = {} }
+                console.log('Verify payment response', { status: res.status, data })
                 if (!res.ok) {
                   console.error('Verify payment failed', data)
                   toast.error(data?.message || 'Failed to verify payment')
@@ -104,6 +119,7 @@ export function PaystackFundWalletModal({
                 }
 
                 // success
+                console.log('Payment verified, calling onSuccess()')
                 onSuccess()
                 setAmount("")
                 setPaystackOpen(false)

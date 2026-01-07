@@ -89,10 +89,13 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
           amount: amountKobo,
           currency: 'NGN',
           callback: function (response: { reference: string }) {
-            try { if (mounted.current) onSuccess(response.reference) } catch (e) { console.error(e) }
+            try {
+              console.log('Paystack callback received reference:', response.reference)
+              if (mounted.current) onSuccess(response.reference)
+            } catch (e) { console.error('Error in Paystack callback handler', e) }
           },
           onClose: function () {
-            try { if (mounted.current) onClose() } catch (e) { console.error(e) }
+            try { if (mounted.current) onClose() } catch (e) { console.error('Error in Paystack onClose', e) }
           },
         })
 

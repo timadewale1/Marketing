@@ -7,6 +7,7 @@ import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    console.log('verify-payment called with body:', JSON.stringify(body))
     const { reference, campaignData, type, userId, amount } = body
 
     if (!reference) {
