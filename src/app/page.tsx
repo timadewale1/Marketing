@@ -35,7 +35,7 @@ export default function HomePage() {
           </div>
         </div> */}
         
-        <div className="relative container mx-auto px-4 h-full flex items-center">
+        <div className="relative container mx-auto px-4 h-full flex items-start sm:items-center pt-8 sm:pt-0">
           <div className="max-w-2xl">
             <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
               <TypedText
