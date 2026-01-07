@@ -384,15 +384,9 @@ const compressed = await imageCompression(file, options)
       const PaystackPop = (window as unknown as { PaystackPop: { setup: (config: Record<string, unknown>) => { openIframe: () => void } } }).PaystackPop
       if (!PaystackPop) throw new Error('Paystack not loaded')
 
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-        email: user.email,
-        amount: 2000 * 100,
-        currency: 'NGN',
-        label: 'Advertiser Account Activation',
-        metadata: { userId: user.uid },
-        onClose: () => toast.error('Activation cancelled'),
-        callback: async (resp: { reference: string }) => {
+      // Use a non-async callback wrapper (Paystack validates that `callback` is a function)
+      const onActivationCallback = function (resp: { reference: string }) {
+        ;(async () => {
           let res: Response | null = null
           try {
             res = await fetch('/api/advertiser/activate', {
@@ -423,12 +417,9 @@ const compressed = await imageCompression(file, options)
           if (res.ok && data?.success) {
             toast.success('Account activated successfully')
             setShowActivatePrompt(false)
-            // after activation, continue with campaign creation if provided
             if (campaignAfter || pendingCampaign) {
-              // small delay to allow backend updates to propagate
               setTimeout(() => {
                 if (campaignAfter) {
-                  // attempt to create campaign again (wallet flow)
                   void handlePay()
                 } else if (pendingCampaign) {
                   void handlePay()
@@ -441,7 +432,18 @@ const compressed = await imageCompression(file, options)
           const message = data?.message || text || `Activation failed (status ${res.status})`
           console.error('Activation verify error', { status: res.status, message, data, text })
           toast.error(String(message))
-        },
+        })().catch((e) => console.error('Activation callback error', e))
+      }
+
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+        email: user.email,
+        amount: 2000 * 100,
+        currency: 'NGN',
+        label: 'Advertiser Account Activation',
+        metadata: { userId: user.uid },
+        onClose: function () { toast.error('Activation cancelled') },
+        callback: onActivationCallback,
       })
       handler.openIframe()
     } catch (err) {

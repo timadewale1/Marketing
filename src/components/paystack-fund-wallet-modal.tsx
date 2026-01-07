@@ -27,6 +27,7 @@ export function PaystackFundWalletModal({
   const [userEmail, setUserEmail] = useState(email)
   const [paystackOpen, setPaystackOpen] = useState(false)
   const mounted = useRef(true)
+  const handledRef = useRef(false)
 
   return (
 <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
@@ -91,8 +92,10 @@ export function PaystackFundWalletModal({
             amount={Number(amount)}
             email={userEmail}
             open={paystackOpen}
-            onSuccess={async (reference) => {
+                onSuccess={async (reference) => {
+  if (handledRef.current) return
   try {
+    handledRef.current = true
     const userId = auth.currentUser?.uid
 
     const res = await fetch('/api/verify-payment', {
@@ -110,6 +113,7 @@ export function PaystackFundWalletModal({
 
     if (!res.ok) {
       toast.error(data?.message || 'Verification failed')
+      try { localStorage.removeItem('pamba_pending_payment') } catch (e) { /* ignore */ }
       return
     }
 
@@ -117,6 +121,7 @@ export function PaystackFundWalletModal({
 
     setAmount('')
     setPaystackOpen(false)
+    try { localStorage.removeItem('pamba_pending_payment') } catch (e) { /* ignore */ }
     onSuccess()          // refresh wallet
     onClose()            // NOW close modal
   } catch (err) {

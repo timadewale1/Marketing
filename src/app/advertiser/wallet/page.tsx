@@ -77,6 +77,39 @@ export default function WalletPage() {
   ])
 
   useEffect(() => {
+    // helper to refresh advertiser totals on demand
+    async function refreshTotals() {
+      try {
+        const user = auth.currentUser
+        if (!user) return
+
+        // refresh advertiser profile balance
+        try {
+          const advRef = doc(db, 'advertisers', user.uid)
+          const advSnap = await getDoc(advRef)
+          if (advSnap.exists()) {
+            setWithdrawableBalance(Number(advSnap.data()?.balance || 0))
+          }
+        } catch (e) {
+          console.warn('Failed to refresh advertiser profile', e)
+        }
+
+        // refresh total deposited from advertiserTransactions
+        try {
+          const txQ = query(collection(db, 'advertiserTransactions'), where('userId', '==', user.uid))
+          const snap = await getDocs(txQ)
+          const txs = snap.docs.map((d) => d.data() as { type?: string; status?: string | null; amount?: number | string })
+          const deposited = txs
+            .filter((t) => t.type === 'wallet_funding' && (t.status === 'completed' || t.status == null))
+            .reduce((s, t) => s + (Number(t.amount) || 0), 0)
+          setTotalDeposited(deposited)
+        } catch (e) {
+          console.warn('Failed to refresh advertiser transactions', e)
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
     let unsubCampaigns: (() => void) | null = null
     let unsubWithdrawals: (() => void) | null = null
     let unsubReroutes: (() => void) | null = null
@@ -358,9 +391,30 @@ export default function WalletPage() {
           open={fundModalOpen}
           email={userEmail || undefined}
           onClose={() => setFundModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setFundModalOpen(false)
             toast.success("Wallet funded")
+            // attempt to proactively refresh totals
+            try { await (async () => {
+              const user = auth.currentUser
+              if (!user) return
+              // refresh advertiser profile balance
+              try {
+                const advRef = doc(db, 'advertisers', user.uid)
+                const advSnap = await getDoc(advRef)
+                if (advSnap.exists()) setWithdrawableBalance(Number(advSnap.data()?.balance || 0))
+              } catch (e) { console.warn('Failed to refresh profile after funding', e) }
+              // refresh transactions
+              try {
+                const txQ = query(collection(db, 'advertiserTransactions'), where('userId', '==', user.uid))
+                const snap = await getDocs(txQ)
+                const txs = snap.docs.map((d) => d.data() as { type?: string; status?: string | null; amount?: number | string })
+                const deposited = txs
+                  .filter((t) => t.type === 'wallet_funding' && (t.status === 'completed' || t.status == null))
+                  .reduce((s, t) => s + (Number(t.amount) || 0), 0)
+                setTotalDeposited(deposited)
+              } catch (e) { console.warn('Failed to refresh transactions after funding', e) }
+            })() } catch (e) { /* ignore */ }
           }}
         />
         <WithdrawDialog
