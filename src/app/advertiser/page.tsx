@@ -299,25 +299,44 @@ export default function AdvertiserDashboard() {
           label: 'Advertiser Account Activation',
           metadata: { userId: u.uid },
           onClose: () => toast.error('Activation cancelled'),
-          callback: function(resp: { reference: string }) {
-            fetch('/api/advertiser/activate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: resp.reference, userId: u.uid }),
-            })
-            .then(async (res) => {
-              if (res.ok) {
-                toast.success('Account activated successfully')
-                setActivated(true)
-                return
-              }
-              const data = await res.json().catch(() => ({}))
-              throw new Error(data?.message || 'Activation verification failed')
-            })
-            .catch((err) => {
-              console.error('Activation verify error', err)
-              toast.error(err.message || 'Activation verification failed')
-            })
+          callback: async function(resp: { reference: string }) {
+            let res: Response | null = null
+            try {
+              res = await fetch('/api/advertiser/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reference: resp.reference, userId: u.uid }),
+              })
+            } catch (networkErr) {
+              console.error('Activation network error', networkErr)
+              toast.error('Network request failed during activation')
+              return
+            }
+
+            // attempt to read response text for better diagnostics
+            let text = ''
+            try {
+              text = await res.text()
+            } catch (e) {
+              console.error('Failed reading activation response text', e)
+            }
+
+            let data: { success?: boolean; message?: string } = {}
+            try {
+              data = text ? JSON.parse(text) : {}
+            } catch (e) {
+              // not JSON
+            }
+
+            if (res.ok && data?.success) {
+              toast.success('Account activated successfully')
+              setActivated(true)
+              return
+            }
+
+            const message = data?.message || text || `Activation failed (status ${res.status})`
+            console.error('Activation verify error', { status: res.status, message, data, text })
+            toast.error(message)
           }
         })
         handler.openIframe()

@@ -393,35 +393,54 @@ const compressed = await imageCompression(file, options)
         metadata: { userId: user.uid },
         onClose: () => toast.error('Activation cancelled'),
         callback: async (resp: { reference: string }) => {
+          let res: Response | null = null
           try {
-            const res = await fetch('/api/advertiser/activate', {
+            res = await fetch('/api/advertiser/activate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
             })
-            const data = await res.json().catch(() => ({}))
-            if (res.ok && data.success) {
-              toast.success('Account activated successfully')
-              setShowActivatePrompt(false)
-              // after activation, continue with campaign creation if provided
-              if (campaignAfter || pendingCampaign) {
-                // small delay to allow backend updates to propagate
-                setTimeout(() => {
-                  if (campaignAfter) {
-                    // attempt to create campaign again (wallet flow)
-                    void handlePay()
-                  } else if (pendingCampaign) {
-                    void handlePay()
-                  }
-                }, 800)
-              }
-              return
-            }
-            throw new Error(data?.message || 'Activation verification failed')
-          } catch (err) {
-            console.error('Activation verify error', err)
-            toast.error((err as Error)?.message || 'Activation verification failed')
+          } catch (networkErr) {
+            console.error('Activation network error', networkErr)
+            toast.error('Network request failed during activation')
+            return
           }
+
+          let text = ''
+          try {
+            text = await res.text()
+          } catch (e) {
+            console.error('Failed reading activation response text', e)
+          }
+
+          let data: Record<string, unknown> = {}
+          try {
+            data = text ? JSON.parse(text) : {}
+          } catch (e) {
+            // ignore non-JSON
+          }
+
+          if (res.ok && data?.success) {
+            toast.success('Account activated successfully')
+            setShowActivatePrompt(false)
+            // after activation, continue with campaign creation if provided
+            if (campaignAfter || pendingCampaign) {
+              // small delay to allow backend updates to propagate
+              setTimeout(() => {
+                if (campaignAfter) {
+                  // attempt to create campaign again (wallet flow)
+                  void handlePay()
+                } else if (pendingCampaign) {
+                  void handlePay()
+                }
+              }, 800)
+            }
+            return
+          }
+
+          const message = data?.message || text || `Activation failed (status ${res.status})`
+          console.error('Activation verify error', { status: res.status, message, data, text })
+          toast.error(String(message))
         },
       })
       handler.openIframe()
