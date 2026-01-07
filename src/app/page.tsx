@@ -53,7 +53,10 @@ export default function HomePage() {
               />
             </h1>
             <p className="text-lg text-white mb-8">
-              Join our fast-growing community to earn for simple marketing tasks — from watching short videos to sharing status updates. Advertisers get reliable reach; users get paid instantly and can withdraw to their bank or pay bills directly from their wallet.
+              Grow Your Brand, Earn from Digital Advertising and Get Paid Instantly.
+PAMBA is a trusted digital advertising platform where businesses gain real visibility and users earn by completing simple, verified marketing tasks.
+Advertisers reach genuine audiences for their products, services, websites, YouTube channels, and business pages — while users earn by engaging with ads, watching short videos, and sharing approved promotional content.
+Earnings are credited instantly to your wallet and can be withdrawn directly to your bank account or used to pay bills on the platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">

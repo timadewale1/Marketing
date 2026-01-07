@@ -3,7 +3,7 @@
 import { useState, useRef } from "react"
 import { toast } from "react-hot-toast"
 import { auth } from "@/lib/firebase"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,7 @@ export function PaystackFundWalletModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-white/95">
+        <DialogTitle className="sr-only">Fund Wallet</DialogTitle>
         <div className="space-y-4">
           <div>
             <Label htmlFor="amount">Amount (₦)</Label>

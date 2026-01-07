@@ -1,4 +1,4 @@
-/* Minimal service worker to help meet PWA installability requirements. */
+/* Service worker with basic runtime caching for same-origin assets. */
 const CACHE_NAME = 'bt-static-v1';
 const OFFLINE_URL = '/';
 
@@ -13,22 +13,39 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// runtime cache name for fetched assets
+const RUNTIME = 'bt-runtime-v1'
+
 self.addEventListener('fetch', (event) => {
-  // Network-first for navigation, otherwise try network then cache
-  if (event.request.mode === 'navigate') {
+  const { request } = event
+
+  // Network-first for navigations
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((resp) => {
-          return resp;
-        })
-        .catch(() => caches.match(OFFLINE_URL))
-    );
-    return;
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
+    )
+    return
+  }
+
+  // Only handle same-origin GET requests (images, icons, static)
+  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) {
+    return
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then((resp) => resp)
-      .catch(() => caches.match(event.request))
-  );
-});
+    caches.open(RUNTIME).then(async (cache) => {
+      try {
+        const response = await fetch(request)
+        // clone and store in runtime cache for offline use
+        try { cache.put(request, response.clone()) } catch (e) { /* ignore cache failures */ }
+        return response
+      } catch (err) {
+        // network failed — try cache
+        const cached = await cache.match(request)
+        if (cached) return cached
+        // fallback to general cache
+        return caches.match(OFFLINE_URL)
+      }
+    })
+  )
+})

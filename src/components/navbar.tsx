@@ -18,8 +18,6 @@ export default function Navbar() {
 
   useEffect(() => {
     const handler = (e: Event) => {
-      // Prevent automatic prompt
-      e.preventDefault()
       const evt = e as BeforeInstallPromptEvent
       // don't show the install prompt UI repeatedly if user already dismissed or installed
       try {
@@ -29,8 +27,14 @@ export default function Navbar() {
       } catch {
         /* ignore */
       }
-      setDeferredPrompt(evt)
-      setShowInstall(true)
+      // attempt to show the install prompt immediately (browsers may still require user gesture)
+      try {
+        evt.prompt && evt.prompt()
+      } catch (err) {
+        // if prompt fails, save it for later use via button
+        setDeferredPrompt(evt)
+        setShowInstall(true)
+      }
     }
 
     window.addEventListener("beforeinstallprompt", handler)

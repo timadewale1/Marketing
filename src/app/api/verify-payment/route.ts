@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 
 export async function POST(req: NextRequest) {
@@ -155,6 +155,19 @@ export async function POST(req: NextRequest) {
             read: false,
             createdAt: serverTimestamp(),
           })
+          // attempt to increment advertiser profile balance in client-firestore path
+          try {
+            const advRef = doc(db, 'advertisers', userId)
+            const advSnap = await getDoc(advRef)
+            if (advSnap.exists()) {
+              const prev = Number(advSnap.data()?.balance || 0)
+              await updateDoc(advRef, { balance: prev + Number(amount) })
+            } else {
+              await setDoc(advRef, { balance: Number(amount) }, { merge: true })
+            }
+          } catch (updErr) {
+            console.warn('Failed to update advertiser balance (client path)', updErr)
+          }
         }
       } catch (e) {
         console.error('Failed to record wallet funding:', e)
