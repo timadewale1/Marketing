@@ -22,3 +22,16 @@
 body {
   background-color: rgb(250 250 249);
 }
+
+/* When Paystack inline overlay is active we want the injected iframe to
+   receive pointer events. Radix Dialog inserts an overlay and content
+   that can intercept clicks; toggle a class on body to make the dialog
+   non-interactive so Paystack's UI works as expected. */
+.paystack-active [data-slot="dialog-overlay"] {
+  pointer-events: none !important;
+  background: transparent !important;
+  z-index: 40 !important;
+}
+.paystack-active [data-slot="dialog-content"] {
+  pointer-events: none !important;
+}

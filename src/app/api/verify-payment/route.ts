@@ -23,22 +23,29 @@ export async function POST(req: NextRequest) {
       console.warn('PAYSTACK_SECRET_KEY not configured — skipping remote verification')
     } else {
       try {
-        const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-          headers: { 
+        // encode reference to avoid problems when reference contains special chars
+        const encodedRef = encodeURIComponent(String(reference))
+        const res = await fetch(`https://api.paystack.co/transaction/verify/${encodedRef}`, {
+          headers: {
             Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-            'Content-Type': 'application/json'
+            Accept: 'application/json',
           },
         })
         
         if (!res.ok) {
-          console.error('Payment verification request failed:', await res.text())
-          return NextResponse.json({ success: false, message: 'Failed to verify payment with provider' }, { status: 500 })
+          const text = await res.text().catch(() => '')
+          console.error('Payment verification request failed:', res.status, text)
+          return NextResponse.json({ success: false, message: 'Failed to verify payment with provider', details: text }, { status: 500 })
         }
 
         const verifyData = await res.json()
         
         if (!verifyData.status) {
           console.error('Payment verification error:', verifyData)
+          // helpful hint when Paystack returns transaction not found
+          if ((verifyData.message || '').toString().toLowerCase().includes('transaction reference not found')) {
+            return NextResponse.json({ success: false, message: 'Transaction reference not found. Ensure server PAYSTACK_SECRET_KEY and client NEXT_PUBLIC_PAYSTACK_KEY are from the same Paystack account/mode.', details: verifyData }, { status: 400 })
+          }
           return NextResponse.json({ success: false, message: verifyData.message || 'Reference not found' }, { status: 400 })
         }
 

@@ -75,6 +75,9 @@ export default function AdvertiserDashboard() {
         setProfilePic(snap.data().profilePic || "")
         setActivated(Boolean(snap.data().activated))
         setOnboarded(Boolean(snap.data().onboarded))
+        // Use advertiser profile balance as the available balance displayed on dashboard
+        const profBal = Number(snap.data().balance || 0)
+        setStats((prev) => ({ ...prev, balance: profBal }))
       }
 
       // Campaigns
@@ -141,9 +144,16 @@ export default function AdvertiserDashboard() {
       }
 
       // helper to compute when arrays update
-      const recompute = () => {
-        const result = calculateWalletBalances(current.campaigns, current.withdrawals, current.reroutes, current.resumed)
-        setStats((prev) => ({ ...prev, balance: result.refundableBalance }))
+       const recompute = () => {
+         // Recompute derived transaction totals if needed but do not
+         // overwrite the dashboard `stats.balance` which should come
+         // from the advertiser profile (server source-of-truth).
+         calculateWalletBalances(
+           current.campaigns,
+           current.withdrawals,
+           current.reroutes,
+           current.resumed
+         )
       }
 
       // wire the existing snapshots to update 'current' and recompute

@@ -230,6 +230,8 @@ export default function WalletPage() {
     }
   }, [])
 
+  // withdrawableBalance is driven by the advertiser profile balance (server-side source of truth).
+
   // Use advertiser transactions + profile balance for wallet totals
   const handleAdvertiserWithdraw = async (amount: number) => {
     const user = auth.currentUser

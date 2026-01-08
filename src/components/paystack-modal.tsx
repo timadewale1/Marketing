@@ -7,6 +7,7 @@ export type PaystackModalProps = {
   onSuccess: (reference: string) => void
   onClose: () => void
   open: boolean
+  onReady?: () => void
 }
 
 let scriptLoadingPromise: Promise<void> | null = null
@@ -21,11 +22,12 @@ function loadPaystackScript(): Promise<void> {
     const existingById = document.getElementById('paystack-script')
     const existingBySrc = document.querySelector('script[src*="paystack.co"]')
     const existing = existingById || existingBySrc
+    
     if (existing) {
-      // give the browser a short tick to initialise
-      setTimeout(() => resolve(), 50)
+      resolve()
       return
     }
+    
     const script = document.createElement('script')
     script.id = 'paystack-script'
     script.src = 'https://js.paystack.co/v1/inline.js'
@@ -38,7 +40,7 @@ function loadPaystackScript(): Promise<void> {
   return scriptLoadingPromise
 }
 
-export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onSuccess, onClose, open }) => {
+export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onSuccess, onClose, open, onReady }) => {
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -46,22 +48,9 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
   }, [])
 
   useEffect(() => {
-  if (!open) return
-
-  startPayment()
-}, [open])
-
+    if (!open) return
 
     const start = async () => {
-
-      const key = process.env.NEXT_PUBLIC_PAYSTACK_KEY || ''
-      if (!key) {
-        console.error('Missing NEXT_PUBLIC_PAYSTACK_KEY')
-        toast.error('Payment key not configured')
-        if (mounted.current) onClose()
-        return
-      }
-
       const amountN = Number(amount || 0)
       if (!amountN || Number.isNaN(amountN) || amountN <= 0) {
         toast.error('Invalid payment amount')
@@ -91,14 +80,21 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
       try {
         console.debug('Paystack start: onSuccess type', typeof onSuccess, 'onClose type', typeof onClose)
         const handler = PaystackPop.setup({
-          key,
+          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY || '',
           email: email || 'no-reply@example.com',
           amount: amountKobo,
           currency: 'NGN',
           callback: function (response: { reference: string }) {
             try {
               console.log('Paystack callback received reference:', response.reference)
-              if (mounted.current) onSuccess(response.reference)
+              try { (window as Window & { __paystack_last_reference?: string }).__paystack_last_reference = response.reference } catch (e) {}
+              // Call onSuccess regardless of mounted state so verification runs even
+              // if React unmounted this component briefly while Paystack posts back.
+              try {
+                onSuccess(response.reference)
+              } catch (cbErr) {
+                console.error('Error invoking onSuccess callback', cbErr)
+              }
             } catch (e) { console.error('Error in Paystack callback handler', e) }
           },
           onClose: function () {
@@ -107,8 +103,10 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
         })
 
         if (handler && typeof handler.openIframe === 'function') {
+          try { if (typeof onReady === 'function') onReady() } catch (e) {}
           handler.openIframe()
         } else if (typeof PaystackPop.open === 'function') {
+          try { if (typeof onReady === 'function') onReady() } catch (e) {}
           PaystackPop.open()
         } else {
           console.error('Paystack handler not usable')
@@ -124,14 +122,7 @@ export const PaystackModal: React.FC<PaystackModalProps> = ({ amount, email, onS
     start()
 
     return () => { /* cleanup */ }
-  }, [open, amount, email, onSuccess, onClose])
+  }, [open, amount, email, onSuccess, onClose, onReady])
 
   return null
 }
-const startPayment = async () => {
-  await start()
-}
-function startPayment() {
-  throw new Error('Function not implemented.')
-}
-

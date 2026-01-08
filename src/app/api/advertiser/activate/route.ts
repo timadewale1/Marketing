@@ -10,10 +10,15 @@ export async function POST(req: Request) {
 
     if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
 
-    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    // encode reference to avoid problems when reference contains special chars
+    const encodedRef = encodeURIComponent(String(reference))
+    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodedRef}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        Accept: 'application/json',
+      },
     })
-    let verifyData: { status?: boolean; data?: { status?: string; amount?: number; metadata?: { userId?: string } } } | null = null
+    let verifyData: { status?: boolean; message?: string; data?: { status?: string; amount?: number; metadata?: { userId?: string } } } | null = null
     try {
       verifyData = await verifyRes.json()
     } catch (e) {
@@ -25,6 +30,14 @@ export async function POST(req: Request) {
 
     console.log('Paystack verify status:', verifyRes.status, 'body:', JSON.stringify(verifyData))
     if (!verifyData || !verifyData.status || verifyData.data?.status !== 'success') {
+      // Helpful hint for common misconfiguration
+      if (verifyData && (verifyData.message || '').toString().toLowerCase().includes('transaction reference not found')) {
+        return NextResponse.json({
+          success: false,
+          message: 'Transaction reference not found. This often means the Paystack secret key does not match the environment (test vs live) that created the transaction. Ensure your `NEXT_PUBLIC_PAYSTACK_KEY` and `PAYSTACK_SECRET_KEY` are from the same Paystack account/mode.',
+          details: verifyData,
+        }, { status: 400 })
+      }
       return NextResponse.json({ success: false, message: 'Payment verification failed', details: verifyData }, { status: 400 })
     }
 
