@@ -8,13 +8,33 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 interface Props {
-  id: string;
+  id: string
+}
+
+type CampaignAdmin = {
+  id?: string
+  title?: string
+  name?: string
+  status?: string
+  budget?: number
+  reservedBudget?: number
+  earnerPrice?: number
+  costPerLead?: number
+  description?: string
+  proofInstructions?: string
+  ownerId?: string
+}
+
+type Advertiser = {
+  id?: string
+  name?: string
+  email?: string
 }
 
 export default function ClientCampaignDetail({ id }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [campaign, setCampaign] = useState<Record<string, unknown> | null>(null);
-  const [advertiser, setAdvertiser] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true)
+  const [campaign, setCampaign] = useState<CampaignAdmin | null>(null)
+  const [advertiser, setAdvertiser] = useState<Advertiser | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -22,18 +42,18 @@ export default function ClientCampaignDetail({ id }: Props) {
       const cRef = doc(db, "campaigns", id);
       const cSnap = await getDoc(cRef);
       if (!cSnap.exists()) {
-        setCampaign(null);
-        setLoading(false);
-        return;
+        setCampaign(null)
+        setLoading(false)
+        return
       }
-      const cData = cSnap.data();
-      setCampaign({ ...(cData as Record<string, unknown>), id: cSnap.id });
+      const cData = cSnap.data() as CampaignAdmin
+      setCampaign({ ...cData, id: cSnap.id })
 
       // fetch advertiser
-      if ((cData as Record<string, unknown>).ownerId) {
-        const ownerId = String((cData as Record<string, unknown>).ownerId);
-        const aSnap = await getDoc(doc(db, "advertisers", ownerId));
-        if (aSnap.exists()) setAdvertiser({ ...(aSnap.data() as Record<string, unknown>), id: aSnap.id });
+      if (cData.ownerId) {
+        const ownerId = String(cData.ownerId)
+        const aSnap = await getDoc(doc(db, "advertisers", ownerId))
+        if (aSnap.exists()) setAdvertiser({ ...(aSnap.data() as Advertiser), id: aSnap.id })
       }
 
       setLoading(false);
@@ -122,10 +142,10 @@ export default function ClientCampaignDetail({ id }: Props) {
           <div className="mt-3 text-sm">
             <div>Status: {String(campaign.status)}</div>
             <div>
-              Available: ₦{(Number(campaign.budget || 0) + Number((campaign as any).reservedBudget || 0)).toLocaleString()}
+              Available: ₦{(Number(campaign.budget || 0) + Number(campaign.reservedBudget ?? 0)).toLocaleString()}
             </div>
-            {Number((campaign as any).reservedBudget || 0) > 0 && (
-              <div className="text-sm text-stone-600">Reserved: ₦{Number((campaign as any).reservedBudget || 0).toLocaleString()}</div>
+            {Number(campaign.reservedBudget ?? 0) > 0 && (
+              <div className="text-sm text-stone-600">Reserved: ₦{Number(campaign.reservedBudget ?? 0).toLocaleString()}</div>
             )}
             <div>Price per lead: ₦{Number(campaign.earnerPrice || campaign.costPerLead || 0).toLocaleString()}</div>
           </div>

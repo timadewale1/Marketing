@@ -83,7 +83,7 @@ export default function AdvertiserDashboard() {
 
       // Campaigns
       const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid))
-      unsubCampaigns = onSnapshot(q, (snapshot) => {
+        unsubCampaigns = onSnapshot(q, (snapshot) => {
         const data: Campaign[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...(doc.data() as Omit<Campaign, "id">),
@@ -159,11 +159,14 @@ export default function AdvertiserDashboard() {
 
       // wire the existing snapshots to update 'current' and recompute
       // campaigns handler (replace above inline behaviour)
-      if (unsubCampaigns) {
+        if (unsubCampaigns) {
         // replace with a fresh onSnapshot that updates current.campaigns and recomputes
         if (unsubCampaigns) unsubCampaigns()
         unsubCampaigns = onSnapshot(q, (snapshot) => {
-      current.campaigns = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Campaign, 'id'>), reservedBudget: (d.data() as any).reservedBudget || 0 }))
+      current.campaigns = snapshot.docs.map((d) => {
+            const docData = d.data() as Omit<Campaign, 'id'>
+            return { id: d.id, ...docData, reservedBudget: docData.reservedBudget ?? 0 }
+          })
           // update stats counts from campaigns
           setCampaigns(current.campaigns as Campaign[])
           setStats((prev) => ({
