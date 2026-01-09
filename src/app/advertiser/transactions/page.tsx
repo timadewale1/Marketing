@@ -54,6 +54,7 @@ export default function AdvertiserTransactionsPage() {
       }
       toast.success(data?.message || 'Withdrawal request submitted')
       setWithdrawOpen(false)
+      try { router.refresh() } catch (e) { /* ignore */ }
     } catch (err) {
       console.error('Withdraw error', err)
       toast.error('Failed to create withdrawal request')

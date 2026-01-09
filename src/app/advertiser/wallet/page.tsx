@@ -145,7 +145,7 @@ export default function WalletPage() {
         setUserEmail(u?.email || null)
       })
       // --- Withdrawals ---
-      const q2 = query(collection(db, "withdrawals"), where("userId", "==", user.uid))
+      const q2 = query(collection(db, "advertiserWithdrawals"), where("userId", "==", user.uid))
       unsubWithdrawals = onSnapshot(q2, (snap) => {
         const data: Withdrawal[] = snap.docs.map((d) => ({
           id: d.id,
@@ -257,6 +257,7 @@ export default function WalletPage() {
       }
       toast.success(data?.message || 'Withdrawal request submitted')
       setWithdrawOpen(false)
+      try { router.refresh() } catch (e) { /* ignore */ }
     } catch (err) {
       console.error('Withdraw error', err)
       toast.error('Failed to create withdrawal request')

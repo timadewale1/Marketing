@@ -79,6 +79,7 @@ export async function POST(req: Request) {
       // Create a lightweight transaction record and decrement balance immediately
       t.set(txRef, {
         userId,
+        withdrawalId: withdrawalRef.id,
         type: 'withdrawal_request',
         amount: -amount,
         requestedAmount: amount,

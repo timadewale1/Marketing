@@ -82,6 +82,7 @@ export async function POST(req: Request) {
       // Create a lightweight transaction record to show a pending request in UI.
       t.set(txRef, {
         userId,
+        withdrawalId: withdrawalRef.id,
         type: 'withdrawal_request',
         amount: -amount,
         requestedAmount: amount,

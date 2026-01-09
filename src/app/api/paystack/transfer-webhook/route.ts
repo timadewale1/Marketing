@@ -57,12 +57,21 @@ export async function POST(req: Request) {
             // finalize transactions: find pending withdrawal_request txs and mark completed
             const txCollection = col === 'advertiserWithdrawals' ? 'advertiserTransactions' : 'earnerTransactions'
             const userCollection = col === 'advertiserWithdrawals' ? 'advertisers' : 'earners'
-            const txsSnap = await db.collection(txCollection)
-              .where('userId', '==', wd.userId)
-              .where('type', '==', 'withdrawal_request')
-              .where('requestedAmount', '==', wd.amount)
-              .where('status', '==', 'pending')
+
+            // Prefer matching by withdrawalId to avoid creating duplicate transactions
+            let txsSnap = await db.collection(txCollection)
+              .where('withdrawalId', '==', d.id)
               .get()
+
+            if (txsSnap.empty) {
+              // fallback to legacy matching
+              txsSnap = await db.collection(txCollection)
+                .where('userId', '==', wd.userId)
+                .where('type', '==', 'withdrawal_request')
+                .where('requestedAmount', '==', wd.amount)
+                .where('status', '==', 'pending')
+                .get()
+            }
 
             if (!txsSnap.empty) {
               const batch = db.batch()
@@ -78,6 +87,7 @@ export async function POST(req: Request) {
             } else {
               await db.collection(txCollection).add({
                 userId: wd.userId,
+                withdrawalId: d.id,
                 type: 'withdrawal',
                 amount: -Math.abs(wd.amount || 0),
                 fee: wd.fee || 0,
