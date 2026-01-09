@@ -104,7 +104,7 @@ export default function SubmissionsPage() {
   const markProofStatus = async (id: string, status: string) => {
     try {
       const user = auth.currentUser
-      let res: Response
+      
       const opts: RequestInit = {
         method: 'POST',
         credentials: 'include',
@@ -115,11 +115,12 @@ export default function SubmissionsPage() {
       if (user) {
         const idToken = await user.getIdToken()
         // attach Authorization but still include credentials so adminSession cookie (if any) is sent
-        const headers = opts.headers as any
+        const headers = opts.headers as Record<string, string>
         headers.Authorization = `Bearer ${idToken}`
+        opts.headers = headers
       }
 
-      res = await fetch('/api/admin/submissions/review', opts)
+      const res = await fetch('/api/admin/submissions/review', opts)
 
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {
