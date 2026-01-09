@@ -2,18 +2,48 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 
+// Firebase types
+type AdminModule = typeof import('firebase-admin')
+type Firestore = import('firebase-admin').firestore.Firestore
+type FirestoreFieldValue = import('firebase-admin').firestore.FieldValue
+type FirestoreTimestamp = import('firebase-admin').firestore.Timestamp
+
+interface Submission {
+  status?: string
+  earnerPrice?: number | string
+  campaignId?: string
+  reservedAmount?: number | string
+  userId?: string
+  advertiserId?: string
+  campaignTitle?: string
+  createdAt?: FirestoreTimestamp | null
+  [key: string]: unknown
+}
+
+interface Campaign {
+  costPerLead?: number | string
+  reservedBudget?: number | string
+  generatedLeads?: number | string
+  estimatedLeads?: number | string
+  ownerId?: string
+  [key: string]: unknown
+}
+
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies()
     const val = cookieStore.get('adminSession')?.value
     if (val !== '1') return NextResponse.json({ ok: false, message: 'unauthorized' }, { status: 401 })
 
-    const { admin, dbAdmin } = await initFirebaseAdmin()
+    const { admin, dbAdmin } = (await initFirebaseAdmin()) as {
+      admin: AdminModule | null
+      dbAdmin: Firestore | null
+    }
     if (!admin || !dbAdmin) return NextResponse.json({ ok: false, message: 'no admin db' }, { status: 500 })
 
     const now = Date.now()
     const fiveMinutes = 1000 * 60 * 5
-    const cutoff = admin.firestore.Timestamp.fromMillis(now - fiveMinutes)
+    const cutoff: FirestoreTimestamp = admin.firestore.Timestamp.fromMillis(now - fiveMinutes)
 
     const q = dbAdmin.collection('earnerSubmissions')
       .where('status', '==', 'Pending')
@@ -30,16 +60,16 @@ export async function POST(req: Request) {
           const subRef = sDoc.ref
           const subSnap = await t.get(subRef)
           if (!subSnap.exists) return
-          const submission = subSnap.data() as Record<string, any>
+          const submission = subSnap.data() as Submission
           if ((submission.status || '') !== 'Pending') return
 
           let earnerAmount = Number(submission.earnerPrice || 0)
           const campaignId = submission.campaignId
-          let campaign: Record<string, any> | null = null
+          let campaign: Campaign | null = null
           if ((!earnerAmount || earnerAmount === 0) && campaignId) {
             const cSnap = await t.get(dbAdmin.collection('campaigns').doc(campaignId))
             if (cSnap.exists) {
-              campaign = cSnap.data() || null
+              campaign = cSnap.data() as Campaign || null
               const costPerLead = Number(campaign?.costPerLead || 0)
               earnerAmount = Math.round(costPerLead / 2) || 0
             }
@@ -72,7 +102,7 @@ export async function POST(req: Request) {
             const estimated = Number(campaign.estimatedLeads || 0)
             const completionRate = estimated > 0 ? (completedLeads / estimated) * 100 : 0
 
-            const campaignUpdates: Record<string, any> = {
+            const campaignUpdates: Record<string, FirestoreFieldValue | number | string | null> = {
               generatedLeads: admin.firestore.FieldValue.increment(1),
               completedLeads: admin.firestore.FieldValue.increment(1),
               lastLeadAt: nowTimestamp,
