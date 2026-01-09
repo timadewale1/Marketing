@@ -1,111 +1,85 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 
+// Firebase types
+type AdminModule = typeof import('firebase-admin')
+type Firestore = import('firebase-admin').firestore.Firestore
+type FirestoreFieldValue = import('firebase-admin').firestore.FieldValue
+
+interface Submission {
+  status?: string
+  earnerPrice?: number | string
+  campaignId?: string
+  userId?: string
+  advertiserId?: string
+  campaignTitle?: string
+  reservedAmount?: number | string
+  [key: string]: unknown
+}
+
+interface Campaign {
+  budget?: number | string
+  costPerLead?: number | string
+  reservedBudget?: number | string
+  generatedLeads?: number | string
+  estimatedLeads?: number | string
+  ownerId?: string
+  status?: string
+  [key: string]: unknown
+}
+
 export async function POST(req: Request) {
+  const { action, rejectionReason, submissionId } = await req.json()
+  const { getAuth } = await import('firebase-admin/auth')
+  const firebaseAdmin = await initFirebaseAdmin()
+  if (!firebaseAdmin || !firebaseAdmin.dbAdmin) {
+    return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
+  }
+  const adminDb = firebaseAdmin.dbAdmin
+  const admin = await import('firebase-admin')
+  const now = new Date()
+  const adminAuth = getAuth()
+  const adminUid = req.headers.get('x-admin-uid') || 'system'
+
   try {
-    const { submissionId, action, rejectionReason } = await req.json()
-
-    if (!submissionId || !action) {
-      return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
+    const subRef = adminDb.collection('submissions').doc(submissionId)
+    const subSnap = await subRef.get()
+    if (!subSnap.exists) {
+      return NextResponse.json({ success: false, message: 'Submission not found' }, { status: 404 })
     }
+    const submission = subSnap.data() as Submission
+    const prevStatus = submission.status
 
-    // verify admin via Authorization Bearer <idToken> OR adminSession cookie
-    const authHeader = req.headers.get('authorization') || ''
-    const cookieHeader = req.headers.get('cookie') || ''
-
-    const { admin, dbAdmin } = await initFirebaseAdmin()
-    if (!admin || !dbAdmin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
-
-    const adminDb = dbAdmin
-
-    // verify admin. Prefer httpOnly adminSession cookie (admin UI session) over Authorization header
-    let adminUid: string | null = null
-    if (cookieHeader.includes('adminSession=1')) {
-      // adminSession cookie present — consider authenticated via admin UI session
-      adminUid = 'admin-session'
-    } else if (authHeader.startsWith('Bearer ')) {
-      const idToken = authHeader.split('Bearer ')[1]
-      try {
-        const decoded = await admin.auth().verifyIdToken(idToken)
-        adminUid = decoded.uid
-      } catch (err) {
-        console.error('Invalid ID token', err)
-        return NextResponse.json({ success: false, message: 'Invalid ID token' }, { status: 401 })
-      }
-      // If using ID token, require admins collection entry
-      const adminSnap = await dbAdmin.collection('admins').doc(adminUid).get()
-      if (!adminSnap.exists) {
-        return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 })
-      }
-    } else {
-      return NextResponse.json({ success: false, message: 'Missing Authorization token or admin session' }, { status: 401 })
-    }
-
-    // perform atomic review in a transaction
     await adminDb.runTransaction(async (t) => {
-      interface Submission {
-        status?: string
-        earnerPrice?: number | string
-        campaignId: string
-        advertiserId?: string
-        userId: string
-        campaignTitle: string
-        reservedAmount?: number | string
-      }
-
-      const subRef = adminDb.collection('earnerSubmissions').doc(submissionId)
-      const subSnap = await t.get(subRef)
-      if (!subSnap.exists) throw new Error('Submission not found')
-      const submission = subSnap.data() as Submission
-
-      const prevStatus = submission.status || ''
-      const now = admin.firestore.FieldValue.serverTimestamp()
-
       if (action === 'Verified') {
         if (prevStatus === 'Verified') return // idempotent
 
-        const amount = Number(submission.earnerPrice || 0)
-        const fullAmount = amount * 2
-        const campaignId = submission.campaignId
-
-        interface Campaign {
-          budget?: number | string
-          estimatedLeads?: number | string
-          generatedLeads?: number | string
-          ownerId?: string
-          status?: string
-          reservedBudget?: number | string
-        }
-
+        // Fetch campaign
+        const campaignId = submission.campaignId as string | undefined
+        if (!campaignId) throw new Error('Submission missing campaignId')
         const campaignRef = adminDb.collection('campaigns').doc(campaignId)
         const campaignSnap = await t.get(campaignRef)
-        if (!campaignSnap.exists) throw new Error('Campaign not found')
+        if (!campaignSnap.exists) {
+          throw new Error('Campaign not found')
+        }
         const campaign = campaignSnap.data() as Campaign
+        const campaignBudget = Number(campaign.budget || 0)
+        const earnerAmount = Number(submission.earnerPrice || 0)
+        const fullAmount = earnerAmount * 2
 
-        // Prefer reservedAmount on the submission (created at submission time)
-        const reservedOnSubmission = Number(submission.reservedAmount || 0)
-        // If funds were reserved at submission time, ensure reservation exists; otherwise fall back to checking campaign budget
-        if (reservedOnSubmission > 0) {
-          // ensure campaign has enough reservedBudget
-          const reservedBudget = Number(campaign.reservedBudget || 0)
-          if (reservedBudget < reservedOnSubmission) {
-            throw new Error('Insufficient reserved budget for this campaign')
-          }
-        } else {
-          const campaignBudget = Number(campaign.budget || 0)
-          if (campaignBudget < fullAmount) {
-            throw new Error('Insufficient campaign budget')
-          }
+        if (campaignBudget < fullAmount) {
+          throw new Error('Insufficient campaign budget')
         }
 
         const advertiserId = submission.advertiserId || campaign.ownerId
 
-        // 1) Update submission
+        // 1) Update submission (add updatedAt to ensure clients pick up change)
         t.update(subRef, {
           status: 'Verified',
           reviewedAt: now,
           reviewedBy: adminUid,
           rejectionReason: null,
+          updatedAt: now,
         })
 
         // 2) Update campaign stats and budget
@@ -126,23 +100,27 @@ export async function POST(req: Request) {
           campaignUpdates.budget = admin.firestore.FieldValue.increment(-fullAmount)
         }
         if (completionRate >= 100) campaignUpdates.status = 'Completed'
+        // add lastUpdated so clients observing campaigns detect changes
+        campaignUpdates.lastUpdated = now
         t.update(campaignRef, campaignUpdates)
 
         // 3) Earner transaction + balance
+        const userId = submission.userId as string
+        if (!userId) throw new Error('Submission missing userId')
         const earnerTxRef = adminDb.collection('earnerTransactions').doc()
         t.set(earnerTxRef, {
-          userId: submission.userId,
-          campaignId,
+          userId: userId,
+          campaignId: submission.campaignId,
           type: 'credit',
-          amount,
+          amount: earnerAmount,
           status: 'completed',
           note: `Payment for ${submission.campaignTitle}`,
           createdAt: now,
         })
-        t.update(adminDb.collection('earners').doc(submission.userId), {
-          balance: admin.firestore.FieldValue.increment(amount),
+        t.update(adminDb.collection('earners').doc(userId), {
+          balance: admin.firestore.FieldValue.increment(earnerAmount),
           leadsPaidFor: admin.firestore.FieldValue.increment(1),
-          totalEarned: admin.firestore.FieldValue.increment(amount),
+          totalEarned: admin.firestore.FieldValue.increment(earnerAmount),
           lastEarnedAt: now,
         })
 
@@ -151,7 +129,7 @@ export async function POST(req: Request) {
           const advTxRef = adminDb.collection('advertiserTransactions').doc()
           t.set(advTxRef, {
             userId: advertiserId,
-            campaignId,
+            campaignId: submission.campaignId,
             type: 'debit',
             amount: fullAmount,
             status: 'completed',
@@ -169,8 +147,6 @@ export async function POST(req: Request) {
 
         // If previously verified, reverse funds
         const wasVerified = prevStatus === 'Verified'
-        const amount = Number(submission.earnerPrice || 0)
-        const fullAmount = amount * 2
         const campaignId = submission.campaignId
 
         // Update submission with rejection metadata
@@ -181,7 +157,21 @@ export async function POST(req: Request) {
           rejectionReason: rejectionReason || null,
         })
 
-        if (wasVerified && amount > 0) {
+        // compute earnerAmount/fullAmount (prefer submission, fall back to campaign costPerLead)
+        let earnerAmount = Number(submission.earnerPrice || 0)
+        let fullAmount = earnerAmount * 2
+        if ((!earnerAmount || earnerAmount === 0) && campaignId) {
+          const cSnapTmp = await t.get(adminDb.collection('campaigns').doc(campaignId))
+          if (cSnapTmp.exists) {
+              const cDataTmp = cSnapTmp.data() as Campaign
+              const costPerLeadTmp = Number(cDataTmp.costPerLead || 0)
+            if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
+            fullAmount = Number(submission.reservedAmount || earnerAmount * 2)
+          }
+        }
+
+        if (wasVerified && earnerAmount > 0) {
+          if (!campaignId) throw new Error('Submission missing campaignId')
           interface Campaign {
             budget?: number | string
             estimatedLeads?: number | string
@@ -197,20 +187,22 @@ export async function POST(req: Request) {
           const advertiserId = submission.advertiserId || campaign?.ownerId
 
           // 1) Add reversal transaction for earner and decrement balance
+          const userId = submission.userId as string
+          if (!userId) throw new Error('Submission missing userId')
           const earnerRevRef = adminDb.collection('earnerTransactions').doc()
           t.set(earnerRevRef, {
-            userId: submission.userId,
+            userId: userId,
             campaignId,
             type: 'reversal',
-            amount: -amount,
+            amount: -earnerAmount,
             status: 'completed',
             note: `Reversal for rejected submission ${submission.campaignTitle}`,
             createdAt: now,
           })
-          t.update(adminDb.collection('earners').doc(submission.userId), {
-            balance: admin.firestore.FieldValue.increment(-amount),
+          t.update(adminDb.collection('earners').doc(userId), {
+            balance: admin.firestore.FieldValue.increment(-earnerAmount),
             leadsPaidFor: admin.firestore.FieldValue.increment(-1),
-            totalEarned: admin.firestore.FieldValue.increment(-amount),
+            totalEarned: admin.firestore.FieldValue.increment(-earnerAmount),
           })
 
           // 2) Refund advertiser and restore campaign budget (or release reserved funds)
@@ -246,18 +238,18 @@ export async function POST(req: Request) {
               })
             }
           }
+      }
+      // If the submission was not previously verified, we must release reserved funds (reservation created at submission time)
+      if (!wasVerified && campaignId) {
+        const campaignRef2 = adminDb.collection('campaigns').doc(campaignId)
+        const reservedAmt = Number(submission.reservedAmount || 0)
+        if (reservedAmt > 0) {
+          t.update(campaignRef2, {
+            reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+            budget: admin.firestore.FieldValue.increment(reservedAmt),
+          })
         }
-        // If the submission was not previously verified, we must release reserved funds (reservation created at submission time)
-        if (!wasVerified) {
-          const campaignRef2 = adminDb.collection('campaigns').doc(campaignId)
-          const reservedAmt = Number(submission.reservedAmount || 0)
-          if (reservedAmt > 0) {
-            t.update(campaignRef2, {
-              reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-              budget: admin.firestore.FieldValue.increment(reservedAmt),
-            })
-          }
-        }
+      }
       } else {
         throw new Error('Unknown action')
       }

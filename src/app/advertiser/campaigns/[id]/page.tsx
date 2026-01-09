@@ -34,7 +34,6 @@ type Campaign = {
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending" | "Deleted" | "Completed"
   budget: number
-  reservedBudget?: number
   estimatedLeads: number
   generatedLeads: number
   costPerLead: number
@@ -433,10 +432,7 @@ await updateDoc(campaignRef, {
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Billing</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
-            <p>Available: ₦{(Number(campaign.budget || 0) + Number(campaign.reservedBudget ?? 0)).toLocaleString()}</p>
-            {(Number(campaign.reservedBudget ?? 0) > 0) && (
-              <p className="text-sm text-stone-600">Reserved: ₦{Number(campaign.reservedBudget ?? 0).toLocaleString()}</p>
-            )}
+            <p>Total Budget: ₦{campaign.budget}</p>
             <p>Estimated Leads: {campaign.estimatedLeads}</p>
             <p>Cost per Lead: ₦{campaign.costPerLead}</p>
           </div>

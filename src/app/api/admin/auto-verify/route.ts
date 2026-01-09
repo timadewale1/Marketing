@@ -94,6 +94,7 @@ export async function POST(req: Request) {
             status: 'Verified',
             reviewedAt: nowTimestamp,
             autoVerified: true,
+            updatedAt: nowTimestamp,
           })
 
           if (campaignId && campaign) {
@@ -115,6 +116,7 @@ export async function POST(req: Request) {
               campaignUpdates.budget = admin.firestore.FieldValue.increment(-fullAmount)
             }
             if (completionRate >= 100) campaignUpdates.status = 'Completed'
+            campaignUpdates.lastUpdated = nowTimestamp
             t.update(campaignRef, campaignUpdates)
           }
 
