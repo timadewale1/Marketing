@@ -105,25 +105,20 @@ export default function SubmissionsPage() {
     try {
       const user = auth.currentUser
       let res: Response
+      const opts: RequestInit = {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId: id, action: status }),
+      }
+
       if (user) {
         const idToken = await user.getIdToken()
-        res = await fetch('/api/admin/submissions/review', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ submissionId: id, action: status }),
-        })
-      } else {
-        // No Firebase admin signed in — rely on httpOnly adminSession cookie set by admin login
-        res = await fetch('/api/admin/submissions/review', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submissionId: id, action: status }),
-        })
+        // attach Authorization but still include credentials so adminSession cookie (if any) is sent
+        (opts.headers as any).Authorization = `Bearer ${idToken}`
       }
+
+      res = await fetch('/api/admin/submissions/review', opts)
 
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {

@@ -18,9 +18,12 @@ export async function POST(req: Request) {
 
     const adminDb = dbAdmin
 
-    // verify token and admin status. Accept either a Firebase ID token (Authorization) or the adminSession cookie.
+    // verify admin. Prefer httpOnly adminSession cookie (admin UI session) over Authorization header
     let adminUid: string | null = null
-    if (authHeader.startsWith('Bearer ')) {
+    if (cookieHeader.includes('adminSession=1')) {
+      // adminSession cookie present — consider authenticated via admin UI session
+      adminUid = 'admin-session'
+    } else if (authHeader.startsWith('Bearer ')) {
       const idToken = authHeader.split('Bearer ')[1]
       try {
         const decoded = await admin.auth().verifyIdToken(idToken)
@@ -34,9 +37,6 @@ export async function POST(req: Request) {
       if (!adminSnap.exists) {
         return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 })
       }
-    } else if (cookieHeader.includes('adminSession=1')) {
-      // adminSession cookie present — consider authenticated via admin UI session
-      adminUid = 'admin-session'
     } else {
       return NextResponse.json({ success: false, message: 'Missing Authorization token or admin session' }, { status: 401 })
     }
