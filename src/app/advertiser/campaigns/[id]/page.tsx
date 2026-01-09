@@ -17,6 +17,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore"
+import type { Timestamp } from "firebase/firestore"
 import { getAuth } from "firebase/auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,7 @@ type Campaign = {
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending" | "Deleted" | "Completed"
   budget: number
+  reservedBudget?: number
   estimatedLeads: number
   generatedLeads: number
   costPerLead: number
@@ -44,7 +46,25 @@ type Lead = {
   id: string
   name: string
   proofUrl?: string
-  createdAt?: { toDate: () => Date }
+  createdAt?: Timestamp | { toDate: () => Date }
+}
+
+interface PaystackResponse {
+  reference?: string
+}
+
+interface WindowWithPaystack extends Window {
+  PaystackPop?: {
+    setup: (options: {
+      key: string
+      email: string
+      amount: number
+      currency?: string
+      label?: string
+      onClose?: () => void
+      callback?: (response: PaystackResponse) => void
+    }) => { openIframe: () => void }
+  }
 }
 
 export default function CampaignDetailsPage() {
@@ -155,55 +175,42 @@ export default function CampaignDetailsPage() {
   try {
     // If deposit is required
     if (deposit > 0) {
-  interface WindowWithPaystack extends Window {
-    PaystackPop?: {
-      setup: (options: {
-        key: string
-        email: string
-        amount: number
-        currency?: string
-        label?: string
-        onClose?: () => void
-        callback?: (response: unknown) => void
-      }) => { openIframe: () => void }
-    }
-  }
-  const win = window as WindowWithPaystack;
-  if (!win.PaystackPop) {
+    const win = window as WindowWithPaystack
+    if (!win.PaystackPop) {
     toast.error("Payment library not loaded yet")
     setProcessing(false)
     return
   }
 
-  const paystackPop = (window as WindowWithPaystack).PaystackPop;
-  const handler = paystackPop!.setup({
-    key: process.env.NEXT_PUBLIC_PAYSTACK_KEY ?? "",
-    email: user.email || "",
-    amount: Math.round(deposit * 100),
-    currency: "NGN",
-    label: `Deposit for ${campaign.title}`,
-    onClose: () => {
-      toast.error("Payment cancelled")
-      setProcessing(false)
-    },
-    callback: (response: unknown) => {
-      (async () => { // ✅ Wrap in parentheses
-        try {
-          const resp = response as { reference?: string }
+    const paystackPop = (window as WindowWithPaystack).PaystackPop
+    const handler = paystackPop!.setup({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_KEY ?? "",
+      email: user.email || "",
+      amount: Math.round(deposit * 100),
+      currency: "NGN",
+      label: `Deposit for ${campaign.title}`,
+      onClose: () => {
+        toast.error("Payment cancelled")
+        setProcessing(false)
+      },
+      callback: (response: PaystackResponse) => {
+        ;(async () => {
+          try {
+            const resp = response || {}
           // record transaction
           await addDoc(collection(db, "transactions"), {
             userId: user.uid,
             campaignId: campaign.id,
             type: "deposit",
             amount: deposit,
-            reference: resp?.reference || null,
+              reference: resp.reference || null,
             status: "Success",
             createdAt: serverTimestamp(),
           })
 
           // only deduct the refund amount entered
           if (useRefund > 0) {
-            await addDoc(collection(db, "resumedCampaigns"), {
+              await addDoc(collection(db, "resumedCampaigns"), {
               userId: user.uid,
               campaignId: campaign.id,
               amountUsed: useRefund,
@@ -222,7 +229,7 @@ await addDoc(collection(campaignRef, "resumes"), {
   resumedAt: serverTimestamp(),
   costPerLead: campaign.costPerLead,
   estimatedLeads: Math.floor((deposit + useRefund) / campaign.costPerLead),
-  reference: resp?.reference || null,
+  reference: undefined,
   status: "Active",
 })
 
@@ -258,7 +265,6 @@ await addDoc(collection(campaignRef, "resumes"), {
   resumedAt: serverTimestamp(),
   costPerLead: campaign.costPerLead,
   estimatedLeads: Math.floor((deposit + useRefund) / campaign.costPerLead),
-  // reference: resp?.reference || null,
   status: "Active",
 })
 
@@ -427,9 +433,9 @@ await updateDoc(campaignRef, {
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Billing</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
-            <p>Available: ₦{(Number(campaign.budget || 0) + Number((campaign as any).reservedBudget || 0)).toLocaleString()}</p>
-            {(Number((campaign as any).reservedBudget || 0) > 0) && (
-              <p className="text-sm text-stone-600">Reserved: ₦{Number((campaign as any).reservedBudget || 0).toLocaleString()}</p>
+            <p>Available: ₦{(Number(campaign.budget || 0) + Number(campaign.reservedBudget ?? 0)).toLocaleString()}</p>
+            {(Number(campaign.reservedBudget ?? 0) > 0) && (
+              <p className="text-sm text-stone-600">Reserved: ₦{Number(campaign.reservedBudget ?? 0).toLocaleString()}</p>
             )}
             <p>Estimated Leads: {campaign.estimatedLeads}</p>
             <p>Cost per Lead: ₦{campaign.costPerLead}</p>
