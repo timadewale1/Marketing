@@ -298,7 +298,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-96 bg-white border rounded-md shadow-lg z-50">
+                  <div className="absolute right-0 mt-2 w-96 bg-white border rounded-md shadow-lg z-[9999]">
                     <div className="p-3 border-b">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Notifications</h4>

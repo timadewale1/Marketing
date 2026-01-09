@@ -9,31 +9,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
     }
 
-    // verify admin via Authorization Bearer <idToken>
+    // verify admin via Authorization Bearer <idToken> OR adminSession cookie
     const authHeader = req.headers.get('authorization') || ''
-    if (!authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ success: false, message: 'Missing Authorization token' }, { status: 401 })
-    }
-    const idToken = authHeader.split('Bearer ')[1]
+    const cookieHeader = req.headers.get('cookie') || ''
 
     const { admin, dbAdmin } = await initFirebaseAdmin()
     if (!admin || !dbAdmin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
 
     const adminDb = dbAdmin
 
-    // verify token and admin status
-    let adminUid: string
-    try {
-      const decoded = await admin.auth().verifyIdToken(idToken)
-      adminUid = decoded.uid
-    } catch (err) {
-      console.error('Invalid ID token', err)
-      return NextResponse.json({ success: false, message: 'Invalid ID token' }, { status: 401 })
-    }
-
-    const adminSnap = await adminDb.collection('admins').doc(adminUid).get()
-    if (!adminSnap.exists) {
-      return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 })
+    // verify token and admin status. Accept either a Firebase ID token (Authorization) or the adminSession cookie.
+    let adminUid: string | null = null
+    if (authHeader.startsWith('Bearer ')) {
+      const idToken = authHeader.split('Bearer ')[1]
+      try {
+        const decoded = await admin.auth().verifyIdToken(idToken)
+        adminUid = decoded.uid
+      } catch (err) {
+        console.error('Invalid ID token', err)
+        return NextResponse.json({ success: false, message: 'Invalid ID token' }, { status: 401 })
+      }
+      // If using ID token, require admins collection entry
+      const adminSnap = await dbAdmin.collection('admins').doc(adminUid).get()
+      if (!adminSnap.exists) {
+        return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 })
+      }
+    } else if (cookieHeader.includes('adminSession=1')) {
+      // adminSession cookie present — consider authenticated via admin UI session
+      adminUid = 'admin-session'
+    } else {
+      return NextResponse.json({ success: false, message: 'Missing Authorization token or admin session' }, { status: 401 })
     }
 
     // perform atomic review in a transaction

@@ -39,6 +39,7 @@ interface Campaign {
   status: string;
   earnerPrice: number;
   budget: number;
+  reservedBudget?: number;
   generatedLeads: number;
   targetLeads: number;
   createdAt: { seconds: number };
@@ -70,6 +71,7 @@ export default function CampaignsPage() {
           status: data.status || "",
           earnerPrice: data.earnerPrice || 0,
           budget: data.budget || 0,
+          reservedBudget: data.reservedBudget || 0,
           generatedLeads: data.generatedLeads || 0,
             targetLeads: data.targetLeads || data.estimatedLeads || 0,
           createdAt: data.createdAt || { seconds: Date.now() / 1000 },
@@ -212,8 +214,11 @@ export default function CampaignsPage() {
                 <TableCell>
                   <div>
                     <div className="font-medium">
-                      ₦{campaign.budget.toLocaleString()}
+                      ₦{(Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)).toLocaleString()} (available)
                     </div>
+                    {Number(campaign.reservedBudget || 0) > 0 && (
+                      <div className="text-sm text-stone-600">Reserved: ₦{Number(campaign.reservedBudget || 0).toLocaleString()}</div>
+                    )}
                     <div className="text-sm text-stone-600">
                       ₦{campaign.earnerPrice.toLocaleString()} per lead
                     </div>

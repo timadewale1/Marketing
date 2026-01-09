@@ -21,6 +21,8 @@ interface AdminNotification {
 export default function AdminNotificationsPage() {
   const [notes, setNotes] = useState<AdminNotification[]>([])
   const [loading, setLoading] = useState(true)
+  const [perPage] = useState(15)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     const q = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"))
@@ -60,7 +62,7 @@ export default function AdminNotificationsPage() {
         {loading ? <p>Loading…</p> : (
           <div className="space-y-4">
             {notes.length === 0 && <p className="text-sm text-stone-600">No notifications</p>}
-            {notes.map(n => (
+            {notes.slice((page - 1) * perPage, page * perPage).map(n => (
               <Card key={n.id} className="p-4">
                 <div className="flex justify-between items-start gap-4">
                   <div>
@@ -80,6 +82,15 @@ export default function AdminNotificationsPage() {
                 </div>
               </Card>
             ))}
+
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, notes.length)} of {notes.length}</div>
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1 border rounded" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
+                <span className="text-sm">{page} / {Math.max(1, Math.ceil(notes.length / perPage))}</span>
+                <button className="px-3 py-1 border rounded" onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(notes.length / perPage)), p + 1))} disabled={page >= Math.ceil(notes.length / perPage)}>Next</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

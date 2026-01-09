@@ -121,7 +121,12 @@ export default function ClientCampaignDetail({ id }: Props) {
           <h3 className="font-semibold">Overview</h3>
           <div className="mt-3 text-sm">
             <div>Status: {String(campaign.status)}</div>
-            <div>Budget: ₦{Number(campaign.budget || 0).toLocaleString()}</div>
+            <div>
+              Available: ₦{(Number(campaign.budget || 0) + Number((campaign as any).reservedBudget || 0)).toLocaleString()}
+            </div>
+            {Number((campaign as any).reservedBudget || 0) > 0 && (
+              <div className="text-sm text-stone-600">Reserved: ₦{Number((campaign as any).reservedBudget || 0).toLocaleString()}</div>
+            )}
             <div>Price per lead: ₦{Number(campaign.earnerPrice || campaign.costPerLead || 0).toLocaleString()}</div>
           </div>
         </Card>

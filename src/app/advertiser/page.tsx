@@ -29,6 +29,7 @@ type Campaign = {
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending"
   budget: number
+  reservedBudget?: number
   estimatedLeads: number
   generatedLeads?: number
   costPerLead?: number
@@ -162,7 +163,7 @@ export default function AdvertiserDashboard() {
         // replace with a fresh onSnapshot that updates current.campaigns and recomputes
         if (unsubCampaigns) unsubCampaigns()
         unsubCampaigns = onSnapshot(q, (snapshot) => {
-    current.campaigns = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Campaign, 'id'>) }))
+      current.campaigns = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Campaign, 'id'>), reservedBudget: (d.data() as any).reservedBudget || 0 }))
           // update stats counts from campaigns
           setCampaigns(current.campaigns as Campaign[])
           setStats((prev) => ({
@@ -559,7 +560,7 @@ export default function AdvertiserDashboard() {
                       </h3>
                       <p className="text-xs text-stone-500">{c.category}</p>
                       <div className="flex justify-between text-xs text-stone-600 mt-1">
-                        <span>₦{c.budget.toLocaleString()}</span>
+                        <span>₦{(Number(c.budget || 0) + Number(c.reservedBudget || 0)).toLocaleString()}</span>
                         <span>{(c.estimatedLeads || 0).toLocaleString()} leads</span>
                       </div>
 
