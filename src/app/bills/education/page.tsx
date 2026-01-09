@@ -1,11 +1,16 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import { PaystackModal } from '@/components/paystack-modal'
+import { postBuyService } from '@/lib/postBuyService'
 // bypass Paystack: call VTpass directly
 import { applyMarkup, formatVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { User, Hash, Calendar, DollarSign, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
+import { auth, db } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 
 export default function EducationPage() {
   const [tab, setTab] = useState<'waec-result' | 'waec-reg' | 'jamb'>('waec-result')
@@ -31,6 +36,11 @@ export default function EducationPage() {
 
   const [payOpen, setPayOpen] = useState(false)
   const [pendingPurchase, setPendingPurchase] = useState<Record<string, unknown> | null>(null)
+  const [paystackOpen, setPaystackOpen] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [processingWallet, setProcessingWallet] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -66,27 +76,61 @@ export default function EducationPage() {
     return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    let unsubBalance: (() => void) | null = null
+    const setup = async (uid: string) => {
+      try {
+        const advRef = doc(db, 'advertisers', uid)
+        const advSnap = await getDoc(advRef)
+        if (advSnap.exists()) {
+          setWalletBalance(Number(advSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(advRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        const earRef = doc(db, 'earners', uid)
+        const earSnap = await getDoc(earRef)
+        if (earSnap.exists()) {
+          setWalletBalance(Number(earSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(earRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        setWalletBalance(null)
+      } catch (e) { console.warn('wallet balance fetch error', e) }
+    }
+    const authUnsub = onAuthStateChanged(auth, (u) => {
+      if (!u) { setWalletBalance(null); return }
+      setup(u.uid)
+    })
+    return () => { authUnsub(); if (unsubBalance) try { unsubBalance() } catch {} }
+  }, [])
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
+    return () => unsub()
+  }, [])
+
   const waecDisplayPrice = () => {
     const found = waecPlans.find(p => p.code === waecPlan)
-    return applyMarkup(found ? found.amount * (waecQty || 1) : 0)
+    return found ? found.amount * (waecQty || 1) : 0
   }
 
   const waecRegDisplayPrice = () => {
     const found = waecRegPlans.find(p => p.code === waecRegPlan)
-    return applyMarkup(found ? found.amount * (waecRegQty || 1) : 0)
+    return found ? found.amount * (waecRegQty || 1) : 0
   }
 
   const jambDisplayPrice = () => {
     const found = jambPlans.find(p => p.code === jambPlan)
-    return applyMarkup(found ? found.amount : 0)
+    return found ? found.amount : 0
   }
 
   const handleCompletePurchase = async () => {
     try {
       if (!pendingPurchase) return toast.error('No pending purchase')
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pendingPurchase) })
-      const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Purchase failed')
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await postBuyService(pendingPurchase, { idToken })
+      const j = res.body
+      if (!res.ok) return toast.error('Purchase failed')
       
       // Store transaction data for confirmation page
       const transactionData: Record<string, unknown> = {
@@ -161,6 +205,31 @@ export default function EducationPage() {
     }
   }
 
+  const payNowWithWallet = async (payload: Record<string, unknown>) => {
+    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
+    setProcessingWallet(true)
+    try {
+      const idToken = await auth.currentUser.getIdToken()
+      payload.payFromWallet = true
+      const res = await postBuyService(payload, { idToken })
+      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
+      const j = res.body
+      const transactionData: Record<string, unknown> = {
+        serviceID: payload.serviceID,
+        amount: j.amount ?? j.result?.amount ?? payload.amount,
+        response_description: j.result?.response_description || 'SUCCESS',
+      }
+      const txId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      if (txId) transactionData.transactionId = txId
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Purchase successful')
+      window.location.href = '/bills/confirmation'
+    } catch (e) {
+      console.error(e)
+      toast.error('Error completing purchase')
+    } finally { setProcessingWallet(false) }
+  }
+
   const startWaecPurchase = (open = true) => {
     const found = waecPlans.find(p => p.code === waecPlan)
     if (!found) return toast.error('Choose a plan')
@@ -169,7 +238,7 @@ export default function EducationPage() {
     payload.amount = String(found.amount)
     if (waecPhone) payload.phone = waecPhone
     setPendingPurchase(payload)
-    setPayOpen(open)
+    setPaystackOpen(open)
   }
 
   const startWaecRegPurchase = (open = true) => {
@@ -180,7 +249,7 @@ export default function EducationPage() {
     payload.amount = String(found.amount)
     if (waecRegPhone) payload.phone = waecRegPhone
     setPendingPurchase(payload)
-    setPayOpen(open)
+    setPaystackOpen(open)
   }
 
   const startJambPurchase = (open = true) => {
@@ -191,7 +260,18 @@ export default function EducationPage() {
     const payload: Record<string, unknown> = { serviceID: 'jamb', variation_code: jambPlan, billersCode: jambProfile, phone: jambPhone }
     payload.amount = String(found.amount)
     setPendingPurchase(payload)
-    setPayOpen(open)
+    setPaystackOpen(open)
+  }
+
+  const onPaystackSuccess = async (reference: string) => {
+    if (!pendingPurchase) return toast.error('No pending purchase')
+    setProcessing(true)
+    try {
+      pendingPurchase.paystackReference = reference
+      await handleCompletePurchase()
+    } catch (e) {
+      console.error(e)
+    } finally { setProcessing(false); setPaystackOpen(false) }
   }
 
   const verifyJamb = async () => {
@@ -239,7 +319,10 @@ export default function EducationPage() {
                   <input placeholder="Phone" value={waecPhone} onChange={(e) => setWaecPhone(e.target.value)} className="w-full p-2 border rounded" />
                   <div className="text-sm">You will be charged: ₦{waecDisplayPrice().toLocaleString()}</div>
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startWaecPurchase(false); await handleCompletePurchase(); }}>Pay</button>
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecPurchase(true)}>Pay with Paystack</button>
+                    {isLoggedIn && (
+                      <button disabled={walletBalance !== null && waecDisplayPrice() > walletBalance} className="bg-amber-600 text-white px-4 py-2 rounded" onClick={() => { const found = waecPlans.find(p => p.code === waecPlan); if (!found) return toast.error('Choose a plan'); const payload: Record<string, unknown> = { serviceID: 'waec', variation_code: waecPlan, quantity: waecQty, amount: String(found.amount) }; if (waecPhone) payload.phone = waecPhone; payNowWithWallet(payload) }}>{walletBalance !== null && waecDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}</button>
+                    )}
                   </div>
                 </div>
               )}
@@ -253,7 +336,10 @@ export default function EducationPage() {
                   <input placeholder="Phone" value={waecRegPhone} onChange={(e) => setWaecRegPhone(e.target.value)} className="w-full p-2 border rounded" />
                   <div className="text-sm">You will be charged: ₦{waecRegDisplayPrice().toLocaleString()}</div>
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startWaecRegPurchase(false); await handleCompletePurchase(); }}>Pay</button>
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecRegPurchase(true)}>Pay with Paystack</button>
+                    {isLoggedIn && (
+                      <button disabled={walletBalance !== null && waecRegDisplayPrice() > walletBalance} className="bg-amber-600 text-white px-4 py-2 rounded" onClick={() => { const found = waecRegPlans.find(p => p.code === waecRegPlan); if (!found) return toast.error('Choose a WAEC Registration plan'); const payload: Record<string, unknown> = { serviceID: 'waec-registration', variation_code: waecRegPlan, quantity: waecRegQty, amount: String(found.amount) }; if (waecRegPhone) payload.phone = waecRegPhone; payNowWithWallet(payload) }}>{walletBalance !== null && waecRegDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}</button>
+                    )}
                   </div>
                 </div>
               )}
@@ -294,14 +380,20 @@ export default function EducationPage() {
                   )}
 
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={async () => { startJambPurchase(false); await handleCompletePurchase(); }}>Pay</button>
+                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startJambPurchase(true)}>Pay with Paystack</button>
+                    {isLoggedIn && (
+                      <button disabled={walletBalance !== null && jambDisplayPrice() > walletBalance} className="bg-amber-600 text-white px-4 py-2 rounded" onClick={() => { const found = jambPlans.find(p => p.code === jambPlan); if (!found) return toast.error('Choose a JAMB item'); if (!jambProfile) return toast.error('Enter JAMB profile/registration'); if (!jambPhone) return toast.error('Phone is required for JAMB'); const payload: Record<string, unknown> = { serviceID: 'jamb', variation_code: jambPlan, billersCode: jambProfile, phone: jambPhone, amount: String(found.amount) }; payNowWithWallet(payload) }}>{walletBalance !== null && jambDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}</button>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
+          {/* Paystack modal (opened when user starts a purchase) */}
+          {paystackOpen && (
+            <PaystackModal amount={Number(pendingPurchase?.amount || 0)} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+          )}
         </div>
       </div>
     </div>

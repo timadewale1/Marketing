@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import { PaystackModal } from '@/components/paystack-modal'
+import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
 import { applyMarkup } from '@/services/vtpass/utils'
 // bypass Paystack: call VTpass directly
@@ -8,6 +10,9 @@ import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Smartphone, Zap } from 'lucide-react'
+import { auth, db } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 
 export default function AirtimePage() {
   type Service = { serviceID?: string; code?: string; id?: string; name?: string; title?: string }
@@ -19,23 +24,73 @@ export default function AirtimePage() {
   const [amount, setAmount] = useState('')
   
   const [email, setEmail] = useState('')
+  const [paystackOpen, setPaystackOpen] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [processingWallet, setProcessingWallet] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
 
-  const displayPrice = () => applyMarkup(amount)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
+    return () => unsub()
+  }, [])
 
-  const handlePurchase = async () => {
-    try {
-      const payload = {
-        serviceID: network,
-        amount: String(amount),
-        phone,
+  useEffect(() => {
+    let unsubBalance: (() => void) | null = null
+    const setup = async (uid: string) => {
+      try {
+        const advRef = doc(db, 'advertisers', uid)
+        const advSnap = await getDoc(advRef)
+        if (advSnap.exists()) {
+          setWalletBalance(Number(advSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(advRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        const earRef = doc(db, 'earners', uid)
+        const earSnap = await getDoc(earRef)
+        if (earSnap.exists()) {
+          setWalletBalance(Number(earSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(earRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        setWalletBalance(null)
+      } catch (e) {
+        console.warn('wallet balance fetch error', e)
       }
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      const j = await res.json()
-      if (!res.ok || !j?.ok) {
-        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+    }
+
+    const authUnsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        setWalletBalance(null)
         return
       }
-      // Store transaction data for confirmation page
+      setup(u.uid)
+    })
+
+    return () => {
+      authUnsub()
+      if (unsubBalance) try { unsubBalance() } catch {}
+    }
+  }, [])
+
+  const displayPrice = () => Number(amount || 0)
+
+  const handlePurchase = async () => {
+    // Open Paystack modal first; server will verify reference before calling VTpass
+    setPaystackOpen(true)
+  }
+
+  const handleWalletPurchase = async () => {
+    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
+    if (!phone) return toast.error('Please enter phone number')
+    if (!amount || Number(amount) <= 0) return toast.error('Please enter amount')
+    setProcessingWallet(true)
+    try {
+      const idToken = await auth.currentUser.getIdToken()
+      const payload = { serviceID: network, amount: String(amount), phone, payFromWallet: true }
+      const res = await postBuyService(payload, { idToken })
+      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
+      const j = res.body
       const transactionData: { serviceID: string; amount: number; response_description: string; transactionId?: string } = {
         serviceID: network,
         amount: Number(amount),
@@ -49,6 +104,43 @@ export default function AirtimePage() {
     } catch (e) {
       console.error(e)
       toast.error('Purchase failed')
+    } finally {
+      setProcessingWallet(false)
+    }
+  }
+
+  const onPaystackSuccess = async (reference: string) => {
+    setPaystackOpen(false)
+    setProcessing(true)
+    try {
+      const payload = {
+        serviceID: network,
+        amount: String(amount),
+        phone,
+        paystackReference: reference,
+      }
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await postBuyService(payload, { idToken })
+      const j = res.body
+      if (!res.ok) {
+        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+        return
+      }
+      const transactionData: { serviceID: string; amount: number; response_description: string; transactionId?: string } = {
+        serviceID: network,
+        amount: Number(amount),
+        response_description: (j.result?.response_description as string) || 'SUCCESS',
+      }
+      const txid = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      if (txid) transactionData.transactionId = txid
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Transaction successful')
+      window.location.href = '/bills/confirmation'
+    } catch (e) {
+      console.error(e)
+      toast.error('Purchase failed')
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -159,35 +251,36 @@ export default function AirtimePage() {
               {amount && (
                 <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-4 rounded-lg border border-amber-200">
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-stone-600">Service charge:</span>
-                      <span className="text-stone-900">₦50</span>
-                    </div>
                     <div className="border-t border-amber-200 pt-2 flex justify-between">
-                      <span className="font-semibold text-stone-900">Total charge:</span>
+                      <span className="font-semibold text-stone-900">Total:</span>
                       <span className="text-lg font-bold text-amber-600">₦{displayPrice().toLocaleString()}</span>
                     </div>
+                    {isLoggedIn && walletBalance !== null && (
+                      <div className="flex justify-between text-sm text-stone-600">
+                        <span>Wallet balance:</span>
+                        <span className="font-medium">₦{Number(walletBalance).toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Action Button */}
-              <Button
-                onClick={async () => {
-                  if (!phone) {
-                    toast.error('Please enter phone number')
-                    return
-                  }
-                  if (!amount) {
-                    toast.error('Please enter amount')
-                    return
-                  }
-                  await handlePurchase()
-                }}
-                className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
-              >
-                Proceed to Payment
-              </Button>
+              <>
+                <div className="space-y-2">
+                  {isLoggedIn ? (
+                    <>
+                      <Button onClick={handleWalletPurchase} disabled={processing || processingWallet || (walletBalance !== null && Number(amount) > walletBalance)} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && Number(amount) > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
+                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } if (!amount || Number(amount) <= 0) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } if (!amount || Number(amount) <= 0) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                    </>
+                  )}
+                  <PaystackModal amount={Number(amount)} email={email} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+                </div>
+              </>
             </CardContent>
           </Card>
         </div>

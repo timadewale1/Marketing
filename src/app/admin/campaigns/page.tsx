@@ -52,6 +52,8 @@ export default function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [perPage] = useState(15)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     setLoading(true);
@@ -103,6 +105,9 @@ export default function CampaignsPage() {
       campaign.description.toLowerCase().includes(search.toLowerCase());
     return matchesStatus && matchesCategory && matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / perPage))
+  const paginated = filteredCampaigns.slice((page - 1) * perPage, page * perPage)
 
   if (loading) {
     return (
@@ -176,7 +181,7 @@ export default function CampaignsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCampaigns.map((campaign) => (
+            {paginated.map((campaign) => (
               <TableRow key={campaign.id}>
                 <TableCell>
                   <div>
@@ -274,6 +279,14 @@ export default function CampaignsPage() {
             )}
           </TableBody>
         </Table>
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, filteredCampaigns.length)} of {filteredCampaigns.length}</div>
+          <div className="flex items-center gap-2">
+            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page===1}>Prev</button>
+            <span className="text-sm">{page} / {totalPages}</span>
+            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page===totalPages}>Next</button>
+          </div>
+        </div>
       </Card>
     </div>
   );

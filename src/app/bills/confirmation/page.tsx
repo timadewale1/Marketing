@@ -6,6 +6,9 @@ import { CheckCircle2, Copy, ArrowLeft, Home, CreditCard } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { auth } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { useUserRole } from '@/hooks/useUserRole'
 
 interface Card {
   Serial?: string
@@ -31,6 +34,8 @@ interface TransactionData {
 export default function ConfirmationPage() {
   const [transaction, setTransaction] = useState<TransactionData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { role } = useUserRole()
 
   useEffect(() => {
     // Get transaction data from session storage (passed from purchase flow)
@@ -44,6 +49,13 @@ export default function ConfirmationPage() {
       }
     }
     setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user)
+    })
+    return () => unsub()
   }, [])
 
   const copyToClipboard = (text: string) => {
@@ -288,10 +300,10 @@ export default function ConfirmationPage() {
                 Pay Another Bill
               </Button>
             </Link>
-            <Link href="/" className="block">
+            <Link href={isLoggedIn ? (role === 'advertiser' ? '/advertiser' : role === 'earner' ? '/earner' : '/dashboard') : '/'} className="block">
               <Button variant="outline" className="w-full border-stone-300 text-stone-900 rounded-lg h-11 gap-2 hover:bg-stone-50">
                 <Home className="w-4 h-4" />
-                Back Home
+                {isLoggedIn ? 'Back to Dashboard' : 'Back Home'}
               </Button>
             </Link>
           </div>

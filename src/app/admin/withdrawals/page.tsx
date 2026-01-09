@@ -42,6 +42,8 @@ export default function WithdrawalsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [perPage] = useState(15)
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     setLoading(true);
@@ -186,6 +188,9 @@ export default function WithdrawalsPage() {
     return matchesStatus && matchesSearch;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredWithdrawals.length / perPage))
+  const paginated = filteredWithdrawals.slice((page - 1) * perPage, page * perPage)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -238,7 +243,7 @@ export default function WithdrawalsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredWithdrawals.map((withdrawal) => (
+            {paginated.map((withdrawal) => (
               <TableRow key={withdrawal.id}>
                 <TableCell className="font-medium">
                   {withdrawal.bank.bankName}
@@ -295,6 +300,14 @@ export default function WithdrawalsPage() {
             )}
           </TableBody>
         </Table>
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, filteredWithdrawals.length)} of {filteredWithdrawals.length}</div>
+          <div className="flex items-center gap-2">
+            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page===1}>Prev</button>
+            <span className="text-sm">{page} / {totalPages}</span>
+            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page===totalPages}>Next</button>
+          </div>
+        </div>
       </Card>
     </div>
   );

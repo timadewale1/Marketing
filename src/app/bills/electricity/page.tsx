@@ -1,12 +1,17 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import { PaystackModal } from '@/components/paystack-modal'
+import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
 // bypass Paystack: call VTpass directly
 import { applyMarkup, formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
+import { auth, db } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { Card, CardContent } from '@/components/ui/card'
 
 export default function ElectricityPage() {
@@ -18,13 +23,59 @@ export default function ElectricityPage() {
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [phone, setPhone] = useState('')
+  const [paystackOpen, setPaystackOpen] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [processingWallet, setProcessingWallet] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  const displayPrice = () => applyMarkup(amount)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
+    return () => unsub()
+  }, [])
+
+  const displayPrice = () => Number(amount || 0)
 
   const handlePurchase = async () => {
+    setPaystackOpen(true)
+  }
+
+  const handleWalletPurchase = async () => {
+    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
+    const phoneToUse = phone || ''
+    if (!phoneToUse) return toast.error('Enter a phone number for this purchase')
+    const phoneRegex = /^(?:\+234|0)\d{10}$/
+    if (!phoneRegex.test(phoneToUse)) return toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
+    if (!amount) return toast.error('Please enter amount')
+    setProcessingWallet(true)
     try {
-      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter }
-      // Electricity requires variation_code; prepaid/postpaid maps to it
+      const idToken = await auth.currentUser.getIdToken()
+      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, payFromWallet: true }
+      const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
+      payload.variation_code = variationCode
+      payload.phone = phoneToUse
+      const res = await postBuyService(payload, { idToken })
+      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
+      const j = res.body
+      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      const transactionData = {
+        serviceID: disco,
+        amount: Number(amount),
+        purchased_code: j.result?.purchased_code || j.result?.content?.transactions?.unique_element,
+        response_description: j.result?.response_description || 'SUCCESS',
+        transactionId: transactionId,
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Electricity paid')
+      window.location.href = '/bills/confirmation'
+    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
+  }
+
+  const onPaystackSuccess = async (reference: string) => {
+    setPaystackOpen(false)
+    setProcessing(true)
+    try {
+      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference }
       const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
       payload.variation_code = variationCode
       // Ensure phone is provided (try to derive from verify result if possible)
@@ -34,19 +85,20 @@ export default function ElectricityPage() {
       }
       if (!phoneToUse) {
         toast.error('Enter a phone number for this purchase')
+        setProcessing(false)
         return
       }
-      // Accept local (0XXXXXXXXXX) or international (+234XXXXXXXXXX) Nigerian formats
       const phoneRegex = /^(?:\+234|0)\d{10}$/
       if (!phoneRegex.test(phoneToUse)) {
         toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
+        setProcessing(false)
         return
       }
       payload.phone = phoneToUse
-      const res = await fetch('/api/bills/buy-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      const j = await res.json()
-      if (!res.ok || !j?.ok) return toast.error('Purchase failed')
-      // Store transaction data for confirmation page
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await postBuyService(payload, { idToken })
+      const j = res.body
+      if (!res.ok) return toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
       const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId || j.result?.content?.transactions?.unique_element
       const transactionData = {
         serviceID: disco,
@@ -58,7 +110,7 @@ export default function ElectricityPage() {
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Electricity paid')
       window.location.href = '/bills/confirmation'
-    } catch (e) { console.error(e); toast.error('Error') }
+    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessing(false) }
   }
 
   useEffect(() => {
@@ -77,6 +129,34 @@ export default function ElectricityPage() {
       }
     })()
     return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    let unsubBalance: (() => void) | null = null
+    const setup = async (uid: string) => {
+      try {
+        const advRef = doc(db, 'advertisers', uid)
+        const advSnap = await getDoc(advRef)
+        if (advSnap.exists()) {
+          setWalletBalance(Number(advSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(advRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        const earRef = doc(db, 'earners', uid)
+        const earSnap = await getDoc(earRef)
+        if (earSnap.exists()) {
+          setWalletBalance(Number(earSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(earRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+          return
+        }
+        setWalletBalance(null)
+      } catch (e) { console.warn('wallet balance fetch error', e) }
+    }
+    const authUnsub = onAuthStateChanged(auth, (u) => {
+      if (!u) { setWalletBalance(null); return }
+      setup(u.uid)
+    })
+    return () => { authUnsub(); if (unsubBalance) try { unsubBalance() } catch {} }
   }, [])
 
   const handleVerify = async () => {
@@ -224,31 +304,36 @@ export default function ElectricityPage() {
                   {amount && (
                     <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-4 rounded-lg border border-amber-200">
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-stone-600">Service charge:</span>
-                          <span className="text-stone-900">₦50</span>
-                        </div>
                         <div className="border-t border-amber-200 pt-2 flex justify-between">
-                          <span className="font-semibold text-stone-900">Total charge:</span>
+                          <span className="font-semibold text-stone-900">Total:</span>
                           <span className="text-lg font-bold text-amber-600">₦{displayPrice().toLocaleString()}</span>
                         </div>
+                        {isLoggedIn && walletBalance !== null && (
+                          <div className="flex justify-between text-sm text-stone-600">
+                            <span>Wallet balance:</span>
+                            <span className="font-medium">₦{Number(walletBalance).toLocaleString()}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Action Button */}
-                  <Button
-                    onClick={async () => {
-                      if (!amount) {
-                        toast.error('Please enter amount')
-                        return
-                      }
-                      await handlePurchase()
-                    }}
-                    className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
-                  >
-                    Proceed to Payment
-                  </Button>
+                  <>
+                    <div className="space-y-2">
+                      {isLoggedIn ? (
+                        <>
+                          <Button onClick={handleWalletPurchase} disabled={processing || processingWallet} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : 'Pay from wallet'}</Button>
+                          <Button onClick={async () => { if (!amount) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button onClick={async () => { if (!amount) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                        </>
+                      )}
+                      <PaystackModal amount={displayPrice()} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+                    </div>
+                  </>
                 </>
               )}
             </CardContent>

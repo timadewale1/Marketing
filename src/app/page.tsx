@@ -35,9 +35,9 @@ export default function HomePage() {
           </div>
         </div> */}
         
-        <div className="relative container mx-auto px-4 h-full flex items-start sm:items-center pt-8 sm:pt-0">
+        <div className="relative container mx-auto px-4 h-full flex items-center sm:items-center pt-8 sm:pt-0">
           <div className="max-w-2xl">
-            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6 text-center">
               <TypedText
                 strings={[
                   'Earn Money Through Social Impact',
@@ -52,10 +52,10 @@ export default function HomePage() {
                 className="text-white"
               />
             </h1>
-            <p className="text-lg text-white mb-8">
+            <p className="text-lg text-white mb-8 text-center sm:text-center">
               Grow Your Brand, Earn from Digital Advertising and Get Paid Instantly.
 PAMBA is a trusted digital advertising platform where businesses gain real visibility and users earn by completing simple, verified marketing tasks.
-Advertisers reach genuine audiences for their products, services, websites, YouTube channels, and business pages — while users earn by engaging with ads, watching short videos, and sharing approved promotional content.
+Advertisers reach genuine audiences for their products, services, websites, YouTube channels, and business pages - while users earn by engaging with ads, watching short videos, and sharing approved promotional content.
 Earnings are credited instantly to your wallet and can be withdrawn directly to your bank account or used to pay bills on the platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -121,7 +121,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
                 <h4 className="text-sm font-semibold text-amber-600 mb-2">Vision Statement</h4>
                 <h3 className="text-xl font-bold mb-3">Our Vision</h3>
                 <p className="text-stone-700 text-sm">
-                  To become Nigeria’s most trusted and people-focused digital advertising platform — empowering businesses to grow, promoting innovative products and services, and creating sustainable earning opportunities through transparent digital engagement.
+                  To become Nigeria’s most trusted and people-focused digital advertising platform - empowering businesses to grow, promoting innovative products and services, and creating sustainable earning opportunities through transparent digital engagement.
                 </p>
               </div>
             </div>
@@ -143,7 +143,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
               </div>
               <h3 className="text-xl font-semibold mb-3 text-stone-900">Instant Withdrawals</h3>
               <p className="text-stone-600">
-                Withdraw your earnings quickly — we surface withdrawal requests for fast manual processing and plan to enable instant transfers.
+                Withdraw your earnings quickly - we surface withdrawal requests for fast manual processing and plan to enable instant transfers.
               </p>
             </Card>
 
@@ -153,7 +153,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
               </div>
               <h3 className="text-xl font-semibold mb-3 text-stone-900">Referral Bonuses</h3>
               <p className="text-stone-600">
-                Earn referral bonuses when people you invite activate or make their first advertiser payment — a clear way to scale your earnings.
+                Earn referral bonuses when people you invite activate or make their first advertiser payment - a clear way to scale your earnings.
               </p>
             </Card>
 
@@ -163,7 +163,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
               </div>
               <h3 className="text-xl font-semibold mb-2 text-stone-900">Pay Bills & Utilities</h3>
               <p className="text-stone-600">
-                Use your wallet to pay utilities and bills directly. Earn, withdraw, or pay — all from one place.
+                Use your wallet to pay utilities and bills directly. Earn, withdraw, or pay - all from one place.
               </p>
             </Card>
           </div>
@@ -308,6 +308,9 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
             <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
               <Link href="/auth/sign-in">Login to your account</Link>
             </Button>
+            <Button asChild variant="outline" className="h-12 px-8 text-lg border-amber-500 text-amber-500 hover:bg-amber-50">
+              <Link href="/advertise-directly">Advertise Directly on Homepage</Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -340,17 +343,17 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
             <div>
               <h3 className="font-bold text-white mb-4">Follow Us</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="hover:text-amber-500">Twitter</a></li>
+                {/* <li><a href="#" className="hover:text-amber-500">Twitter</a></li> */}
                 <li><a href="#" className="hover:text-amber-500">Facebook</a></li>
                 <li><a href="#" className="hover:text-amber-500">Instagram</a></li>
-                <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li>
+                {/* <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li> */}
               </ul>
             </div>
 
           </div>
 
           <div className="mt-12 pt-8 border-t border-stone-800 text-center text-sm">
-            &copy; 2024 PAMBA. All rights reserved.
+            &copy; 2025 PAMBA. All rights reserved.
           </div>
         </div>
       </footer>

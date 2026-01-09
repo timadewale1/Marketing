@@ -826,6 +826,45 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
               </div>
             )}
 
+              {[
+                "Instagram Follow",
+                "Instagram Like",
+                "Instagram Share",
+                "Twitter Follow",
+                "Twitter Retweet",
+                "Facebook Like",
+                "Facebook Share",
+                "TikTok Follow",
+                "TikTok Like",
+                "TikTok Share",
+                "YouTube Subscribe",
+                "YouTube Like",
+                "YouTube Comment",
+              ].includes(campaign.category || "") && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
+                    <div className="space-y-1 text-center">
+                      <div className="text-sm text-stone-600">
+                        <label htmlFor="social-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
+                          <span>Upload screenshot</span>
+                          <input
+                            id="social-screenshot-upload"
+                            type="file"
+                            accept="image/*,video/*"
+                            onChange={handleFileSelect}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="pl-1 text-stone-600">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-stone-500">Screenshot showing your social handle and proof of task completion</p>
+                      {file && <p className="text-sm text-amber-600">{file.name}</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             <div className="flex gap-3 pt-4">
               <Button
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium h-12"

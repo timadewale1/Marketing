@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import vtpassClient from '@/services/vtpass/client'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { SERVICE_CHARGE, generateRequestId } from '@/services/vtpass/utils'
+import { generateRequestId } from '@/services/vtpass/utils'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,12 +21,131 @@ export async function POST(req: NextRequest) {
     if (amount) payload.amount = String(amount)
     if (metadata) payload.metadata = metadata
 
+    // Wallet payment flow: if `payFromWallet` is set in the body, reserve funds
+    // from the user's wallet (advertiser or earner) and then call VTpass. If
+    // VTpass fails we restore the reserved funds and mark the transaction failed.
+    const { payFromWallet } = body || {}
+    if (payFromWallet) {
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json({ ok: false, message: 'Missing Authorization token' }, { status: 401 })
+      }
+      const idToken = authHeader.split('Bearer ')[1]
+
+      const { admin, dbAdmin } = await initFirebaseAdmin()
+      if (!admin || !dbAdmin) return NextResponse.json({ ok: false, message: 'Server admin unavailable' }, { status: 500 })
+
+      let verifiedUid: string
+      try {
+        const decoded = await admin.auth().verifyIdToken(idToken)
+        verifiedUid = decoded.uid
+      } catch (err) {
+        console.error('Invalid ID token', err)
+        return NextResponse.json({ ok: false, message: 'Invalid ID token' }, { status: 401 })
+      }
+
+      const db = dbAdmin as import('firebase-admin').firestore.Firestore
+      const amountN = Number(payload.amount || 0)
+      if (!amountN || amountN <= 0) return NextResponse.json({ ok: false, message: 'Invalid amount' }, { status: 400 })
+
+      const advertiserRef = db.collection('advertisers').doc(verifiedUid)
+      const earnerRef = db.collection('earners').doc(verifiedUid)
+      const advSnap = await advertiserRef.get()
+      const earSnap = await earnerRef.get()
+      let userType: 'advertiser' | 'earner' | null = null
+      let userRef: import('firebase-admin').firestore.DocumentReference
+      let txCollection = ''
+      if (advSnap.exists) { userType = 'advertiser'; userRef = advertiserRef; txCollection = 'advertiserTransactions' }
+      else if (earSnap.exists) { userType = 'earner'; userRef = earnerRef; txCollection = 'earnerTransactions' }
+      else {
+        return NextResponse.json({ ok: false, message: 'User wallet not found' }, { status: 404 })
+      }
+
+      const txDocRef = db.collection(txCollection).doc()
+      try {
+        await db.runTransaction(async (t) => {
+          const uSnap = await t.get(userRef)
+          const bal = Number(uSnap.data()?.balance || 0)
+          if (bal < amountN) throw new Error('Insufficient balance')
+
+          t.update(userRef, { balance: admin.firestore.FieldValue.increment(-amountN) })
+          t.set(txDocRef, {
+            userId: verifiedUid,
+            type: 'vtpass_purchase',
+            amount: -amountN,
+            status: 'pending',
+            request_id: reqId,
+            serviceID: serviceID || null,
+            phone: phone || null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+        })
+      } catch (e: unknown) {
+        const msg = (e instanceof Error && e.message) || 'Insufficient funds'
+        const status = msg.includes('Insufficient') ? 402 : 500
+        return NextResponse.json({ ok: false, message: msg }, { status })
+      }
+
+      // Call VTpass now that funds are reserved
+      try {
+        const vtRes2 = await vtpassClient.post('/pay', payload)
+        const vtData2 = vtRes2?.data
+        const vtCode2 = vtData2?.code
+        if (vtCode2 && String(vtCode2) !== '000') {
+          try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
+          try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (e) { console.error('Failed to restore balance', e) }
+          return NextResponse.json({ ok: false, message: vtData2?.response_description || 'VTpass purchase failed', details: vtData2 }, { status: 400 })
+        }
+
+        try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
+
+        return NextResponse.json({ ok: true, result: vtData2 })
+      } catch (e) {
+        console.error('VTpass call after wallet reserve failed', e)
+        try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', error: String(e), updatedAt: new Date().toISOString() }) } catch {}
+        try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (err) { console.error('Failed to restore balance', err) }
+        return NextResponse.json({ ok: false, message: 'Failed to process purchase' }, { status: 500 })
+      }
+    }
+
+    if (process.env.PAYSTACK_SECRET_KEY) {
+      if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Paystack first.' }, { status: 400 })
+      try {
+        const enc = encodeURIComponent(String(paystackReference))
+        const res = await fetch(`https://api.paystack.co/transaction/verify/${enc}`, {
+          headers: {
+            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            Accept: 'application/json',
+          },
+        })
+        if (!res.ok) {
+          const text = await res.text().catch(() => '')
+          console.error('Paystack verify failed', res.status, text)
+          return NextResponse.json({ ok: false, message: 'Failed to verify payment with provider' }, { status: 502 })
+        }
+        const vd = await res.json()
+        if (!vd.status || vd.data?.status !== 'success') {
+          return NextResponse.json({ ok: false, message: 'Payment not successful' }, { status: 400 })
+        }
+        // Ensure paid amount matches expected (Paystack amounts in kobo)
+        const paidN = Number(vd.data?.amount || 0) / 100
+        const expected = Number(amount || payload.amount || 0)
+        if (expected > 0 && paidN < expected) {
+          return NextResponse.json({ ok: false, message: 'Paid amount does not match expected amount' }, { status: 400 })
+        }
+      } catch (e) {
+        console.error('Paystack verification error', e)
+        return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
+      }
+    }
+
     const vtRes = await vtpassClient.post('/pay', payload)
     const vtData = vtRes?.data
     // Determine amounts from request or VTpass response
+    // Use the service price only (no service charge markup)
     const recordedAmount = Number(amount ?? (vtData?.amount ?? vtData?.content?.amount ?? 0))
-    const paidAmount = Number(recordedAmount || 0) + SERVICE_CHARGE
-    const markup = SERVICE_CHARGE
+    const paidAmount = Number(recordedAmount || 0)
+    const markup = 0
 
     // If VTpass returns a non-success code, surface as failure to client
     const vtCode = vtData?.code
@@ -73,6 +192,49 @@ export async function POST(req: NextRequest) {
           userId: userId || null,
           createdAt: new Date().toISOString(),
         })
+      }
+      // If caller provided an Authorization token, also create a user-facing transaction
+      try {
+        const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const idToken = authHeader.split('Bearer ')[1]
+          const { admin, dbAdmin: dbAdminInstance } = await initFirebaseAdmin()
+          if (admin && dbAdminInstance) {
+            try {
+              const decoded = await admin.auth().verifyIdToken(idToken)
+              const uid = decoded.uid
+              const advertiserRef = dbAdminInstance.collection('advertisers').doc(uid)
+              const earnerRef = dbAdminInstance.collection('earners').doc(uid)
+              const advSnap = await advertiserRef.get()
+              const earSnap = await earnerRef.get()
+              let txCollection = ''
+              if (advSnap.exists) txCollection = 'advertiserTransactions'
+              else if (earSnap.exists) txCollection = 'earnerTransactions'
+              if (txCollection) {
+                try {
+                  await dbAdminInstance.collection(txCollection).add({
+                    userId: uid,
+                    type: 'vtpass_purchase',
+                    amount: -Math.abs(paidAmount || 0),
+                    status: 'completed',
+                    request_id: reqId,
+                    serviceID: serviceID || null,
+                    phone: phone || null,
+                    paystackReference: paystackReference || null,
+                    createdAt: new Date().toISOString(),
+                    response: vtRes.data || null,
+                  })
+                } catch (e) {
+                  console.warn('Failed to create user tx for vtpass purchase', e)
+                }
+              }
+            } catch (e) {
+              // ignore token verification errors for non-authenticated requests
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error creating user transaction', e)
       }
     } catch (e) {
       console.warn('Failed to save transaction', e)

@@ -5,7 +5,8 @@ import React, { useEffect, useState } from 'react'
 export default function AdminVtpassPage() {
   const [stats, setStats] = useState<{ totalTransacted?: number; totalTransactions?: number; totalMarkup?: number } | null>(null)
   const [transactions, setTransactions] = useState<Array<Record<string, unknown>>>([])
-  const [limit, setLimit] = useState(50)
+  const [perPage, setPerPage] = useState(15)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -14,7 +15,7 @@ export default function AdminVtpassPage() {
       try {
         const [sRes, tRes] = await Promise.all([
           fetch('/api/admin/vtpass/stats'),
-          fetch(`/api/admin/vtpass/transactions?limit=${limit}`),
+          fetch(`/api/admin/vtpass/transactions?limit=${perPage}&page=${page}`),
         ])
         const sj = await sRes.json()
         const tj = await tRes.json()
@@ -31,9 +32,9 @@ export default function AdminVtpassPage() {
     setLoading(true)
     try {
       const [sRes, tRes] = await Promise.all([
-        fetch('/api/admin/vtpass/stats'),
-        fetch(`/api/admin/vtpass/transactions?limit=${limit}`),
-      ])
+          fetch('/api/admin/vtpass/stats'),
+          fetch(`/api/admin/vtpass/transactions?limit=${perPage}&page=${page}`),
+        ])
       const sj = await sRes.json()
       const tj = await tRes.json()
       if (sRes.ok && sj?.ok) setStats(sj.stats)
@@ -74,12 +75,17 @@ export default function AdminVtpassPage() {
     <p className="text-sm text-stone-500">Transactions are stored in the vtpassTransactions collection.</p>
         <div className="mt-4">
           <div className="flex items-center gap-2 mb-2">
-            <label className="text-sm">Limit</label>
-            <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="p-1 border rounded">
+            <label className="text-sm">Per page</label>
+            <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} className="p-1 border rounded">
+              <option value={15}>15</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
-              <option value={100}>100</option>
             </select>
+            <div className="ml-auto flex items-center gap-2">
+              <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+              <span className="text-sm">Page {page}</span>
+              <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => p + 1)}>Next</button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

@@ -13,6 +13,8 @@ import {
   FileCheck,
   Wallet,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -80,6 +82,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [recentNotes, setRecentNotes] = useState<AdminNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -270,8 +273,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="flex flex-col flex-1">
-        <div className="flex items-center justify-between p-4 border-b border-stone-200 bg-white/60 backdrop-blur">
-          <div />
+        <div className="flex items-center justify-between p-4 md:p-4 border-b border-stone-200 bg-white/60 backdrop-blur">
+          <div className="flex items-center gap-3">
+            {/* Mobile menu button */}
+            <button
+              className="md:hidden inline-flex items-center justify-center p-2 rounded-lg hover:bg-stone-100"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu className="w-5 h-5 text-stone-700" />
+            </button>
+            <div className="hidden md:flex items-center gap-2">
+              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+              <h1 className="text-sm font-semibold text-stone-900">Admin</h1>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
               <div className="relative" ref={dropdownRef}>
                 <button onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }} className="relative p-2 rounded-lg hover:bg-stone-100">
@@ -314,7 +330,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </div>
             </div>
         </div>
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto">{children}</main>
 
         {/* Mobile notification button (visible on small screens) */}
         <div className="md:hidden">
@@ -327,6 +343,60 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </button>
           </Link>
         </div>
+        {/* Mobile Sidebar Overlay */}
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-72 bg-white/95 backdrop-blur border-r border-stone-200 p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+                  <h1 className="text-lg font-semibold text-stone-900">Admin</h1>
+                </div>
+                <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-stone-100" aria-label="Close menu"><X className="w-5 h-5 text-stone-700" /></button>
+              </div>
+
+              <nav className="space-y-2">
+                {NAVIGATION.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center px-3 py-3 text-sm rounded-lg ${isActive ? 'bg-amber-100 text-amber-700' : 'text-stone-700 hover:bg-stone-100'}`}
+                    >
+                      <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-amber-600' : 'text-stone-400'}`} />
+                      <span>{item.name}</span>
+                      {item.href === "/admin/notifications" && unreadCount > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500 text-white">{unreadCount}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="mt-6">
+                <Button
+                  onClick={() => {
+                    fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
+                      .finally(() => {
+                        setAuthenticated(false);
+                        setPassword('');
+                        setMobileOpen(false);
+                        toast.success('Logged out successfully');
+                      });
+                  }}
+                  variant="ghost"
+                  className="w-full flex items-center justify-start px-3 py-3 text-sm font-medium text-stone-700 hover:bg-stone-100 rounded-lg"
+                >
+                  <LogOut className="mr-3 h-5 w-5 text-stone-400" />
+                  Log Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
