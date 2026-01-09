@@ -115,7 +115,8 @@ export default function SubmissionsPage() {
       if (user) {
         const idToken = await user.getIdToken()
         // attach Authorization but still include credentials so adminSession cookie (if any) is sent
-        (opts.headers as any).Authorization = `Bearer ${idToken}`
+        const headers = opts.headers as any
+        headers.Authorization = `Bearer ${idToken}`
       }
 
       res = await fetch('/api/admin/submissions/review', opts)
