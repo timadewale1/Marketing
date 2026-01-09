@@ -26,7 +26,7 @@ export default function AdminVtpassPage() {
       }
     })()
     return () => { mounted = false }
-  }, [limit])
+  }, [perPage, page])
 
   const refresh = async () => {
     setLoading(true)
