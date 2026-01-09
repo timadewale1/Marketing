@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
 
 export async function POST(req: Request) {
   try {
@@ -50,15 +51,11 @@ export async function POST(req: Request) {
     const balance = Number(earner?.balance || 0)
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
 
+    // Platform fee (10%) — send net amount via Paystack
     const fee = Math.round(amount * 0.1)
     const net = amount - fee
 
-    // PAYSTACK DVA is not available currently. Instead of initiating an automatic
-    // transfer, create a withdrawal request record for admin review. Admin will
-    // mark the request as 'sent' once processing with Paystack is complete.
-    // We do NOT decrement the earner balance here; the admin should handle
-    // finalization and accounting when marking as completed.
-
+    // Create withdrawal request, decrement earner balance and attempt instant transfer
     const withdrawalRef = db.collection('earnerWithdrawals').doc()
     const txRef = db.collection('earnerTransactions').doc()
 
@@ -68,32 +65,33 @@ export async function POST(req: Request) {
       const currentBal = Number(snap.data()?.balance || 0)
       if (currentBal < amount) throw new Error('Insufficient balance')
 
-      // Create a pending withdrawal request
+      // Create withdrawal request (processing while transfer is attempted)
       t.set(withdrawalRef, {
         userId,
         amount,
         fee,
         net,
-        status: 'pending',
+        status: 'processing',
         bank,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      // Create a lightweight transaction record to show a pending request in UI.
-      // Do not alter balance yet; admin will create the final transaction on approval.
+      // Create a lightweight transaction record and decrement balance immediately
       t.set(txRef, {
         userId,
         type: 'withdrawal_request',
-        amount: 0,
+        amount: -amount,
         requestedAmount: amount,
         fee,
         net,
         status: 'pending',
-        note: 'Withdrawal request pending admin approval',
+        note: 'Withdrawal request pending transfer',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      // Notify admin of withdrawal request
+      t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(-amount) })
+
+      // Notify admin
       const noteRef = db.collection('adminNotifications').doc()
       t.set(noteRef, {
         type: 'earner_withdrawal',
@@ -107,7 +105,36 @@ export async function POST(req: Request) {
       })
     })
 
-    return NextResponse.json({ success: true, message: 'Withdrawal request created and awaiting admin approval' })
+    // Attempt Paystack recipient + transfer
+    // Attempt Paystack recipient + transfer
+    try {
+      const recipientName = earner.fullName || bank.accountName || 'Pamba User'
+      console.log('[withdraw][earner] creating paystack recipient for', userId, { name: recipientName, bank })
+      const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' })
+      console.log('[withdraw][earner] recipient created', recipientCode)
+      await earnerRef.update({ paystackRecipientCode: recipientCode })
+
+      const amountToSend = net
+      console.log('[withdraw][earner] initiating transfer', recipientCode, amountToSend)
+      const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` })
+      console.log('[withdraw][earner] transfer initiated', transferData)
+
+      await withdrawalRef.update({
+        paystackRecipient: recipientCode,
+        paystackTransferId: transferData.id || null,
+        paystackTransferReference: transferData.reference || transferData.transfer_code || null,
+        paystackStatus: transferData.status || null,
+        initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    } catch (payErr) {
+      console.error('Paystack transfer initiation failed', payErr)
+      try { await withdrawalRef.update({ status: 'pending', paystackError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after paystack error', e) }
+      // restore balance since transfer didn't start
+      try { await earnerRef.update({ balance: admin.firestore.FieldValue.increment(amount) }) } catch (e) { console.error('Failed to restore earner balance after paystack error', e) }
+      return NextResponse.json({ success: false, message: 'Failed to initiate transfer; admin will review' }, { status: 502 })
+    }
+
+    return NextResponse.json({ success: true, message: 'Withdrawal initiated — transfer in progress' })
   } catch (err) {
     console.error('Withdrawal error', err)
     return NextResponse.json({ success: false, message: (err as Error).message || 'Server error' }, { status: 500 })
