@@ -104,17 +104,26 @@ export default function SubmissionsPage() {
   const markProofStatus = async (id: string, status: string) => {
     try {
       const user = auth.currentUser
-      if (!user) return toast.error('You must be signed in as admin')
-      const idToken = await user.getIdToken()
-
-      const res = await fetch('/api/admin/submissions/review', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ submissionId: id, action: status }),
-      })
+      let res: Response
+      if (user) {
+        const idToken = await user.getIdToken()
+        res = await fetch('/api/admin/submissions/review', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ submissionId: id, action: status }),
+        })
+      } else {
+        // No Firebase admin signed in — rely on httpOnly adminSession cookie set by admin login
+        res = await fetch('/api/admin/submissions/review', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submissionId: id, action: status }),
+        })
+      }
 
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {

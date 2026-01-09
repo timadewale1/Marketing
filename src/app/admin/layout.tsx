@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch } from "firebase/firestore";
 import { useRef } from "react";
+import { createPortal } from "react-dom";
 
 // Admin password is stored in server environment (process.env.ADMIN_PASSWORD).
 // This client layout uses server routes to authenticate and manage an httpOnly cookie session.
@@ -85,6 +86,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [recentNotes, setRecentNotes] = useState<AdminNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   const handleLogin = async () => {
     try {
@@ -147,6 +149,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
   }, []);
+
+  // compute dropdown bounding rect when opened
+  useLayoutEffect(() => {
+    if (dropdownOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      setDropdownRect(rect);
+    }
+  }, [dropdownOpen]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -296,9 +306,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs px-1.5 py-0.5">{unreadCount}</span>
                   )}
                 </button>
-
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-96 bg-white border rounded-md shadow-lg z-[9999]">
+                {dropdownOpen && dropdownRect && createPortal(
+                  <div style={{ position: 'fixed', top: dropdownRect.bottom + 8, right: Math.max(8, window.innerWidth - dropdownRect.right), width: 384 }} className="bg-white border rounded-md shadow-lg z-[99999]">
                     <div className="p-3 border-b">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Notifications</h4>
@@ -325,8 +334,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         ))
                       )}
                     </div>
-                  </div>
-                )}
+                  </div>, document.body)
+                }
               </div>
             </div>
         </div>
