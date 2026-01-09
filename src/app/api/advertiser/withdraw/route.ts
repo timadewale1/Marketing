@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     try {
       const recipientName = advertiser.fullName || bank.accountName || 'Pamba User'
       console.log('[withdraw][advertiser] creating paystack recipient for', userId, { name: recipientName, bank })
-      const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' })
+      const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' }) as string
       console.log('[withdraw][advertiser] recipient created', recipientCode)
 
       // Store recipientCode on advertiser doc for reuse.
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
 
       const amountToSend = net
       console.log('[withdraw][advertiser] initiating transfer', recipientCode, amountToSend)
-      const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` })
+      const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` }) as { id?: string; reference?: string; transfer_code?: string; status?: string }
       console.log('[withdraw][advertiser] transfer initiated', transferData)
 
       // Record transfer identifiers on withdrawal doc. We'll rely on webhook to finalize.
