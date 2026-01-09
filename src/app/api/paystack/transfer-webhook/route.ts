@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { verifyWebhookSignature } from '@/services/paystack'
 
+interface WithdrawalUpdate {
+  paystackStatus: string | null
+  updatedAt: import('firebase-admin').firestore.FieldValue
+  status?: string
+  sentAt?: import('firebase-admin').firestore.FieldValue | undefined
+  failedAt?: import('firebase-admin').firestore.FieldValue | undefined
+}
+
 export async function POST(req: Request) {
   try {
     const raw = await req.text()
@@ -34,7 +42,7 @@ export async function POST(req: Request) {
       const docs = [...qById.docs, ...qByRef.docs]
       for (const d of docs) {
         const wd = d.data()
-        const updates: any = { paystackStatus: status, updatedAt: admin.firestore.FieldValue.serverTimestamp() }
+        const updates: WithdrawalUpdate = { paystackStatus: status, updatedAt: admin.firestore.FieldValue.serverTimestamp() }
         if (event === 'transfer.success' || status === 'success') {
           updates.status = 'sent'
           updates.sentAt = admin.firestore.FieldValue.serverTimestamp()
@@ -43,7 +51,7 @@ export async function POST(req: Request) {
           updates.failedAt = admin.firestore.FieldValue.serverTimestamp()
         }
         try {
-          await d.ref.update(updates)
+          await d.ref.update(Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)))
 
           if (updates.status === 'sent') {
             // finalize transactions: find pending withdrawal_request txs and mark completed
