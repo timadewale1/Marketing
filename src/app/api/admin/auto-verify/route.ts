@@ -30,22 +30,22 @@ export async function POST(req: Request) {
           const subRef = sDoc.ref
           const subSnap = await t.get(subRef)
           if (!subSnap.exists) return
-          const submission = subSnap.data() as any
+          const submission = subSnap.data() as Record<string, any>
           if ((submission.status || '') !== 'Pending') return
 
           let earnerAmount = Number(submission.earnerPrice || 0)
           const campaignId = submission.campaignId
-          let campaign: any = null
+          let campaign: Record<string, any> | null = null
           if ((!earnerAmount || earnerAmount === 0) && campaignId) {
             const cSnap = await t.get(dbAdmin.collection('campaigns').doc(campaignId))
             if (cSnap.exists) {
-              campaign = cSnap.data()
+              campaign = cSnap.data() || null
               const costPerLead = Number(campaign?.costPerLead || 0)
               earnerAmount = Math.round(costPerLead / 2) || 0
             }
           } else if (campaignId) {
             const cSnap = await t.get(dbAdmin.collection('campaigns').doc(campaignId))
-            if (cSnap.exists) campaign = cSnap.data()
+            if (cSnap.exists) campaign = cSnap.data() || null
           }
 
           const fullAmount = earnerAmount * 2
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
             const estimated = Number(campaign.estimatedLeads || 0)
             const completionRate = estimated > 0 ? (completedLeads / estimated) * 100 : 0
 
-            const campaignUpdates: any = {
+            const campaignUpdates: Record<string, any> = {
               generatedLeads: admin.firestore.FieldValue.increment(1),
               completedLeads: admin.firestore.FieldValue.increment(1),
               lastLeadAt: nowTimestamp,
