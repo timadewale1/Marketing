@@ -116,7 +116,7 @@ export async function POST(req: Request) {
 
       const amountToSend = net
       console.log('[withdraw][earner] initiating transfer', recipientCode, amountToSend)
-      const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` })
+      const transferData = await initiateTransfer({ recipient: String(recipientCode), amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` }) as { id?: string | number; reference?: string; transfer_code?: string; status?: string }
       console.log('[withdraw][earner] transfer initiated', transferData)
 
       await withdrawalRef.update({
