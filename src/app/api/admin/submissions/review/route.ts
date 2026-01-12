@@ -29,7 +29,8 @@ interface Campaign {
 }
 
 export async function POST(req: Request) {
-  const { action, rejectionReason, submissionId } = await req.json()
+  const body = await req.json()
+  const { action, rejectionReason, submissionId, userId: bodyUserId, campaignId: bodyCampaignId } = body
   const { getAuth } = await import('firebase-admin/auth')
   const firebaseAdmin = await initFirebaseAdmin()
   if (!firebaseAdmin || !firebaseAdmin.dbAdmin) {
@@ -42,8 +43,28 @@ export async function POST(req: Request) {
   const adminUid = req.headers.get('x-admin-uid') || 'system'
 
   try {
-    const subRef = adminDb.collection('submissions').doc(submissionId)
-    const subSnap = await subRef.get()
+    // Try direct lookup in possible collections
+    let subRef = adminDb.collection('submissions').doc(submissionId)
+    let subSnap = await subRef.get()
+    if (!subSnap.exists) {
+      subRef = adminDb.collection('earnerSubmissions').doc(submissionId)
+      subSnap = await subRef.get()
+    }
+    // Fallback: try to locate submission by campaignId + userId if provided
+    if (!subSnap.exists && bodyUserId && bodyCampaignId) {
+      const q = adminDb.collection('earnerSubmissions')
+        .where('userId', '==', bodyUserId)
+        .where('campaignId', '==', bodyCampaignId)
+        .where('status', '==', 'Pending')
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+      const snaps = await q.get()
+      if (!snaps.empty) {
+        const docFound = snaps.docs[0]
+        subRef = docFound.ref
+        subSnap = await subRef.get()
+      }
+    }
     if (!subSnap.exists) {
       return NextResponse.json({ success: false, message: 'Submission not found' }, { status: 404 })
     }

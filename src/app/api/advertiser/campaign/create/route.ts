@@ -50,11 +50,14 @@ export async function POST(req: Request) {
       // Prepare campaign doc ref
       const campaignRef = db.collection('campaigns').doc()
 
-      // Set campaign
+      // Preserve original budget as the advertiser-entered total so advertiser views
+      // always show the original task amount (originalBudget). Also initialize reservedBudget.
       t.set(campaignRef, {
         ...campaignData,
         ownerId: verifiedUid,
         status: 'Active',
+        originalBudget: budget,
+        reservedBudget: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 

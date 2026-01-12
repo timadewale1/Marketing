@@ -224,7 +224,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex flex-col flex-grow pt-5 bg-white/70 backdrop-blur border-r border-stone-200">
           <div className="flex items-center flex-shrink-0 px-4 mb-5">
             <div className="flex items-center gap-2">
-              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">PAMBA</span>
               <h1 className="text-lg font-semibold text-stone-900">Admin</h1>
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Menu className="w-5 h-5 text-stone-700" />
             </button>
             <div className="hidden md:flex items-center gap-2">
-              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+              <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">PAMBA</span>
               <h1 className="text-sm font-semibold text-stone-900">Admin</h1>
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <div className="absolute left-0 top-0 bottom-0 w-72 bg-white/95 backdrop-blur border-r border-stone-200 p-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">BT</span>
+                  <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">PAMBA</span>
                   <h1 className="text-lg font-semibold text-stone-900">Admin</h1>
                 </div>
                 <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-stone-100" aria-label="Close menu"><X className="w-5 h-5 text-stone-700" /></button>

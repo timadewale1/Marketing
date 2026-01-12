@@ -101,15 +101,19 @@ export default function SubmissionsPage() {
     return () => unsubSubmissions();
   }, []);
 
-  const markProofStatus = async (id: string, status: string) => {
+  const markProofStatus = async (submissionIdOrObj: string | Submission, status: string) => {
     try {
       const user = auth.currentUser
-      
       const opts: RequestInit = {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submissionId: id, action: status }),
+        body: JSON.stringify({
+          submissionId: typeof submissionIdOrObj === 'string' ? submissionIdOrObj : submissionIdOrObj.id,
+          action: status,
+          userId: typeof submissionIdOrObj === 'string' ? undefined : submissionIdOrObj.userId,
+          campaignId: typeof submissionIdOrObj === 'string' ? undefined : submissionIdOrObj.campaignId,
+        }),
       }
 
       if (user) {
@@ -250,7 +254,7 @@ export default function SubmissionsPage() {
                   <div className="flex justify-end gap-2">
                     {submission.status !== "Verified" && (
                       <Button
-                        onClick={() => markProofStatus(submission.id, "Verified")}
+                          onClick={() => markProofStatus(submission, "Verified")}
                         variant="outline"
                         size="sm"
                         className="text-green-700"
@@ -260,7 +264,7 @@ export default function SubmissionsPage() {
                     )}
                     {submission.status !== "Rejected" && (
                       <Button
-                        onClick={() => markProofStatus(submission.id, "Rejected")}
+                        onClick={() => markProofStatus(submission, "Rejected")}
                         variant="outline"
                         size="sm"
                         className="text-red-700"

@@ -749,30 +749,29 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
               />
             </div>
 
-            {(campaign.category === "Survey" || campaign.category === "Third-Party Task") && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
-                  <div className="space-y-1 text-center">
-                    <div className="text-sm text-stone-600">
-                      <label htmlFor="proof-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
-                        <span>Upload screenshot</span>
-                        <input
-                          id="proof-screenshot-upload"
-                          type="file"
-                          accept="image/*,video/*"
-                          onChange={handleFileSelect}
-                          className="sr-only"
-                        />
-                      </label>
-                      <p className="pl-1 text-stone-600">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-stone-500">A clear screenshot or image of completion</p>
-                    {file && <p className="text-sm text-amber-600">{file.name}</p>}
+            {/* Always show upload field for proof (required for all tasks) */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
+                <div className="space-y-1 text-center">
+                  <div className="text-sm text-stone-600">
+                    <label htmlFor="proof-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
+                      <span>Upload screenshot</span>
+                      <input
+                        id="proof-screenshot-upload"
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleFileSelect}
+                        className="sr-only"
+                      />
+                    </label>
+                    <p className="pl-1 text-stone-600">or drag and drop</p>
                   </div>
+                  <p className="text-xs text-stone-500">A clear screenshot or image of completion</p>
+                  {file && <p className="text-sm text-amber-600">{file.name}</p>}
                 </div>
               </div>
-            )}
+            </div>
 
             {[
               "Instagram Follow",

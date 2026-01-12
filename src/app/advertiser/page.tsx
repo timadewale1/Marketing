@@ -29,9 +29,11 @@ type Campaign = {
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending"
   budget: number
+  reservedBudget?: number
   estimatedLeads: number
   generatedLeads?: number
   costPerLead?: number
+  originalBudget?: number
 }
 
 export default function AdvertiserDashboard() {
@@ -561,10 +563,10 @@ export default function AdvertiserDashboard() {
                         {c.title}
                       </h3>
                       <p className="text-xs text-stone-500">{c.category}</p>
-                      <div className="flex justify-between text-xs text-stone-600 mt-1">
-                        <span>₦{(Number(c.budget || 0)).toLocaleString()}</span>
-                        <span>{(c.estimatedLeads || 0).toLocaleString()} leads</span>
-                      </div>
+                              <div className="flex justify-between text-xs text-stone-600 mt-1">
+                                <span>₦{(Number(c.originalBudget || (Number(c.budget || 0) + Number(c.reservedBudget || 0)))).toLocaleString()}</span>
+                                <span>{(c.estimatedLeads || 0).toLocaleString()} leads</span>
+                              </div>
 
                       {total > 0 && (
                         <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2">

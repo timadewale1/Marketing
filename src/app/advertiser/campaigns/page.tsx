@@ -25,9 +25,11 @@ type Campaign = {
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending"
   budget: number
+  reservedBudget?: number // Made optional
   estimatedLeads: number
   generatedLeads?: number
   createdAt?: string
+  originalBudget?: number // Added as optional
 }
 
 export default function CampaignsPage() {
@@ -153,7 +155,11 @@ export default function CampaignsPage() {
                     </h3>
                     <p className="text-xs text-stone-500">{c.category}</p>
                     <div className="flex justify-between text-xs text-stone-600 mt-1">
-                      <span>₦{c.budget}</span>
+                      <span>
+  ₦{(
+    Number(c.originalBudget || (Number(c.budget || 0) + Number(c.reservedBudget || 0)))
+  ).toLocaleString()}
+</span>
                       <span>{c.estimatedLeads} leads</span>
                     </div>
 

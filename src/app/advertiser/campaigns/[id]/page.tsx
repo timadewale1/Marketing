@@ -39,6 +39,8 @@ type Campaign = {
   costPerLead: number
   createdAt?: string
   paymentRef?: string
+  reservedBudget?: number
+  originalBudget?: number
 }
 
 type Lead = {
@@ -413,7 +415,7 @@ await updateDoc(campaignRef, {
         </Card>
 
         {/* Controls: Keep basic actions for edit/delete */}
-        <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
+        {/* <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Actions</h2>
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => router.push(`/advertiser/create-campaign?edit=${id}`)} size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
@@ -423,7 +425,7 @@ await updateDoc(campaignRef, {
               <Trash size={16} /> Delete
             </Button>
           </div>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Billing + Insights */}
@@ -432,7 +434,7 @@ await updateDoc(campaignRef, {
           <h2 className="text-lg font-semibold text-stone-800 mb-4">Billing</h2>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
-            <p>Total Budget: ₦{campaign.budget}</p>
+            <p>Total Budget: ₦{(Number(campaign.originalBudget || (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)))).toLocaleString()}</p>
             <p>Estimated Leads: {campaign.estimatedLeads}</p>
             <p>Cost per Lead: ₦{campaign.costPerLead}</p>
           </div>
