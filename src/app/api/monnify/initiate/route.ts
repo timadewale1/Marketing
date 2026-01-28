@@ -25,10 +25,11 @@ export async function POST(req: NextRequest) {
     try {
       const res = await monnify.initiateTransaction(payload)
       return NextResponse.json({ success: true, data: res })
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Don't escalate provider errors to a 500 — let the client fallback to SDK flow.
-      console.debug('Monnify initiate provider error (handled):', err?.status ?? err?.message ?? err)
-      return NextResponse.json({ success: false, message: 'Provider initiation failed', details: err?.body ?? String(err) })
+      const error = err as Record<string, unknown>
+      console.debug('Monnify initiate provider error (handled):', error?.status ?? error?.message ?? err)
+      return NextResponse.json({ success: false, message: 'Provider initiation failed', details: error?.body ?? String(err) })
     }
   } catch (err) {
     console.error('Monnify initiate error:', err)

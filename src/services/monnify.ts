@@ -110,4 +110,26 @@ export async function verifyTransaction(reference: string) {
   throw new Error(`Monnify verify failed: ${JSON.stringify({ status: last.res.status, body: last.json })}`)
 }
 
-export default { verifyTransaction }
+export async function initiateTransaction(payload: Record<string, unknown>) {
+  const token = await getAuthToken()
+
+  const res = await fetch(`${BASE}/api/v1/sdk/transactions/init-transaction`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(`Monnify initiate failed: ${JSON.stringify(json)}`)
+  }
+
+  return json
+}
+
+export default { verifyTransaction, initiateTransaction }
