@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
+import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
 // bypass Paystack: call VTpass directly
-import { applyMarkup, formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
-import { Hash, Zap, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+import { Hash, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { auth, db } from '@/lib/firebase'
@@ -24,16 +24,16 @@ export default function TVPage() {
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [phone, setPhone] = useState('')
-  const [paystackOpen, setPaystackOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
 
   const displayPrice = () => Number(amount || 0)
 
   const handlePurchase = async () => {
-    setPaystackOpen(true)
+    setShowPaymentSelector(true)
   }
 
   useEffect(() => {
@@ -108,11 +108,11 @@ export default function TVPage() {
     } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
   }
 
-  const onPaystackSuccess = async (reference: string) => {
-    setPaystackOpen(false)
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+    setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard, paystackReference: reference }
+      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard, paystackReference: reference, provider }
       const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
       if (matched) {
         payload.variation_code = matched.code
@@ -139,7 +139,10 @@ export default function TVPage() {
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(payload, { idToken })
       const j = res.body
-      if (!res.ok) return toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+      if (!res.ok) {
+        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+        return
+      }
       const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
       const transactionData = {
         serviceID: provider,
@@ -371,7 +374,14 @@ export default function TVPage() {
                         <Button onClick={async () => await handlePurchase()} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                       </>
                     )}
-                    <PaystackModal amount={displayPrice()} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+                    <PaymentSelector
+                      open={showPaymentSelector}
+                      amount={displayPrice()}
+                      email={auth.currentUser?.email || ''}
+                      description={`${provider} - ₦${displayPrice().toLocaleString()}`}
+                      onClose={() => setShowPaymentSelector(false)}
+                      onPaymentSuccess={onPaymentSuccess}
+                    />
                   </div>
                 </>
               )}

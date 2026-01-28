@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
+import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
 // bypass Paystack: call VTpass directly
-import { applyMarkup, formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ export default function ElectricityPage() {
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [phone, setPhone] = useState('')
-  const [paystackOpen, setPaystackOpen] = useState(false)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -37,7 +37,7 @@ export default function ElectricityPage() {
   const displayPrice = () => Number(amount || 0)
 
   const handlePurchase = async () => {
-    setPaystackOpen(true)
+    setShowPaymentSelector(true)
   }
 
   const handleWalletPurchase = async () => {
@@ -71,11 +71,11 @@ export default function ElectricityPage() {
     } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
   }
 
-  const onPaystackSuccess = async (reference: string) => {
-    setPaystackOpen(false)
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+    setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference }
+      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference, provider }
       const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
       payload.variation_code = variationCode
       // Ensure phone is provided (try to derive from verify result if possible)
@@ -98,7 +98,10 @@ export default function ElectricityPage() {
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(payload, { idToken })
       const j = res.body
-      if (!res.ok) return toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+      if (!res.ok) {
+        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+        return
+      }
       const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId || j.result?.content?.transactions?.unique_element
       const transactionData = {
         serviceID: disco,
@@ -331,7 +334,14 @@ export default function ElectricityPage() {
                           <Button onClick={async () => { if (!amount) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                         </>
                       )}
-                      <PaystackModal amount={displayPrice()} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+                      <PaymentSelector
+                        open={showPaymentSelector}
+                        amount={displayPrice()}
+                        email={auth.currentUser?.email || ''}
+                        description="Bill Payment"
+                        onClose={() => setShowPaymentSelector(false)}
+                        onPaymentSuccess={onPaymentSuccess}
+                      />
                     </div>
                   </>
                 </>

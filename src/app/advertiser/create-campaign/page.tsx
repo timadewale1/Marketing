@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
 import { serverTimestamp, getDocs, query, where, collection, updateDoc } from "firebase/firestore"
-
+import { PaymentSelector } from "@/components/payment-selector"
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
 import { motion, AnimatePresence } from "framer-motion"
@@ -141,18 +141,6 @@ export default function CreateCampaignPage() {
     }
   }, [step, category, bannerUrl])
 
-  // Load Paystack script once
-  useEffect(() => {
-    const id = "paystack-inline-script"
-    if (!document.getElementById(id)) {
-      const script = document.createElement("script")
-      script.id = id
-      script.src = "https://js.paystack.co/v1/inline.js"
-      script.async = true
-      document.body.appendChild(script)
-    }
-  }, [])
-
   // compress images client-side
   const compressImage = async (file: File) => {
     try {
@@ -235,13 +223,13 @@ const compressed = await imageCompression(file, options)
   }
 
   // Verify payment server-side
-  const verifyPayment = async (reference: string, campaignData: Record<string, unknown>) => {
+  const verifyPayment = async (reference: string, campaignData: Record<string, unknown>, provider: 'paystack' | 'monnify' = 'paystack') => {
     const t = toast.loading("Verifying payment...")
     try {
       const res = await fetch("/api/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference, campaignData }),
+        body: JSON.stringify({ reference, campaignData, provider }),
       })
       const data = await res.json()
       toast.dismiss(t)
@@ -357,7 +345,9 @@ const compressed = await imageCompression(file, options)
         return
       }
 
-      toast.error(data?.message || 'Failed to create campaign using wallet')
+      // Show payment selector for payment via card
+      setPendingCampaignForPayment(campaignData)
+      setShowPaymentSelector(true)
     } catch (err) {
       console.error('Wallet create error', err)
       toast.error('Failed to create campaign — try again')
@@ -367,6 +357,9 @@ const compressed = await imageCompression(file, options)
   // Activation prompt state and helper
   const [showActivatePrompt, setShowActivatePrompt] = useState(false)
   const [pendingCampaign, setPendingCampaign] = useState<Record<string, unknown> | null>(null)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
+  const [pendingCampaignForPayment, setPendingCampaignForPayment] = useState<Record<string, unknown> | null>(null)
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
 
   const triggerActivationPayment = async (campaignAfter?: Record<string, unknown> | null) => {
     const user = auth.currentUser
@@ -374,92 +367,9 @@ const compressed = await imageCompression(file, options)
       toast.error('You must be logged in to activate')
       return
     }
-
-    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
-      toast.error('Payment configuration error')
-      return
-    }
-
-    try {
-      const PaystackPop = (window as unknown as { PaystackPop: { setup: (config: Record<string, unknown>) => { openIframe: () => void } } }).PaystackPop
-      if (!PaystackPop) throw new Error('Paystack not loaded')
-
-      // Use a non-async callback wrapper (Paystack validates that `callback` is a function)
-      const onActivationCallback = function (resp: { reference: string }) {
-        ;(async () => {
-          let res: Response | null = null
-          try {
-            res = await fetch('/api/advertiser/activate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
-            })
-          } catch (networkErr) {
-            console.error('Activation network error', networkErr)
-            toast.error('Network request failed during activation')
-            return
-          }
-
-          let text = ''
-          try {
-            text = await res.text()
-          } catch (e) {
-            console.error('Failed reading activation response text', e)
-          }
-
-          let data: Record<string, unknown> = {}
-          try {
-            data = text ? JSON.parse(text) : {}
-          } catch (e) {
-            // ignore non-JSON
-          }
-
-          if (res.ok && data?.success) {
-            toast.success('Account activated successfully')
-            setShowActivatePrompt(false)
-            if (campaignAfter || pendingCampaign) {
-              setTimeout(() => {
-                if (campaignAfter) {
-                  void handlePay()
-                } else if (pendingCampaign) {
-                  void handlePay()
-                }
-              }, 800)
-            }
-            return
-          }
-
-          const message = data?.message || text || `Activation failed (status ${res.status})`
-          console.error('Activation verify error', { status: res.status, message, data, text })
-          toast.error(String(message))
-        })().catch((e) => console.error('Activation callback error', e))
-      }
-
-      console.debug('Paystack activation (create-campaign): callback type', typeof onActivationCallback, 'onClose type', typeof (() => {}))
-      console.debug('Activation callback (create-campaign) defined, handler about to be created')
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-        email: user.email,
-        amount: 2000 * 100,
-        currency: 'NGN',
-        label: 'Advertiser Account Activation',
-        metadata: { userId: user.uid },
-        onClose: function () { toast.error('Activation cancelled') },
-        callback: function (resp: { reference: string }) {
-          console.debug('Create-campaign activation callback invoked, resp:', resp)
-          if (!resp || !resp.reference) {
-            console.error('Activation callback missing reference', resp)
-            toast.error('Payment callback missing reference')
-            return
-          }
-          return onActivationCallback(resp)
-        },
-      })
-      handler.openIframe()
-    } catch (err) {
-      console.error('Activation error', err)
-      toast.error('Activation failed')
-    }
+    // Show payment selector for activation fee
+    setPendingCampaign(campaignAfter || null)
+    setShowActivationPaymentSelector(true)
   }
 
   // helpers
@@ -961,6 +871,65 @@ const getEmbeddedVideo = (url: string) => {
           </div>
         </div>
       </div>
+
+      {/* Payment selector for campaign creation */}
+      {pendingCampaignForPayment && (
+        <PaymentSelector
+          open={showPaymentSelector}
+          amount={Number(pendingCampaignForPayment.budget) || 0}
+          email={auth.currentUser?.email || undefined}
+          fullName={auth.currentUser?.displayName || 'Advertiser'}
+          description={`${pendingCampaignForPayment.title || 'Campaign'} - ${Number(pendingCampaignForPayment.estimatedLeads || 0)} leads`}
+          onClose={() => {
+            setShowPaymentSelector(false)
+            setPendingCampaignForPayment(null)
+          }}
+          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+            setShowPaymentSelector(false)
+            await verifyPayment(reference, pendingCampaignForPayment, provider)
+            setPendingCampaignForPayment(null)
+          }}
+        />
+      )}
+
+      {/* Payment selector for account activation */}
+      <PaymentSelector
+        open={showActivationPaymentSelector}
+        amount={2000}
+        email={auth.currentUser?.email || undefined}
+        fullName={auth.currentUser?.displayName || 'Advertiser'}
+        description="Advertiser Account Activation"
+        onClose={() => {
+          setShowActivationPaymentSelector(false)
+          setShowActivatePrompt(false)
+        }}
+        onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+          setShowActivationPaymentSelector(false)
+          try {
+            const res = await fetch('/api/advertiser/activate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+            })
+            const data = await res.json()
+            if (res.ok && data.success) {
+              toast.success('Account activated successfully')
+              setShowActivatePrompt(false)
+              // If there was a pending campaign, proceed with payment after a short delay
+              if (pendingCampaign) {
+                setTimeout(() => {
+                  void handlePay()
+                }, 600)
+              }
+            } else {
+              toast.error(data?.message || 'Activation failed')
+            }
+          } catch (err) {
+            console.error('Activation error', err)
+            toast.error('Activation request failed')
+          }
+        }}
+      />
     </div>
   )
 }

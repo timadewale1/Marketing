@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
+import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 // bypass Paystack: call VTpass directly
-import { applyMarkup, formatVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+import { formatVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { User, Hash, Calendar, DollarSign, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -34,9 +34,8 @@ export default function EducationPage() {
   const [jambPhone, setJambPhone] = useState('')
   const [jambVerifyResult, setJambVerifyResult] = useState<Record<string, unknown> | null>(null)
 
-  const [payOpen, setPayOpen] = useState(false)
   const [pendingPurchase, setPendingPurchase] = useState<Record<string, unknown> | null>(null)
-  const [paystackOpen, setPaystackOpen] = useState(false)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -185,7 +184,7 @@ export default function EducationPage() {
               }
             }
             if (parsed.length) transactionData.cards = parsed
-          } catch (_) {}
+          } catch { /* ignore */ }
         }
       }
 
@@ -238,7 +237,7 @@ export default function EducationPage() {
     payload.amount = String(found.amount)
     if (waecPhone) payload.phone = waecPhone
     setPendingPurchase(payload)
-    setPaystackOpen(open)
+    setShowPaymentSelector(open)
   }
 
   const startWaecRegPurchase = (open = true) => {
@@ -249,7 +248,7 @@ export default function EducationPage() {
     payload.amount = String(found.amount)
     if (waecRegPhone) payload.phone = waecRegPhone
     setPendingPurchase(payload)
-    setPaystackOpen(open)
+    setShowPaymentSelector(open)
   }
 
   const startJambPurchase = (open = true) => {
@@ -260,18 +259,22 @@ export default function EducationPage() {
     const payload: Record<string, unknown> = { serviceID: 'jamb', variation_code: jambPlan, billersCode: jambProfile, phone: jambPhone }
     payload.amount = String(found.amount)
     setPendingPurchase(payload)
-    setPaystackOpen(open)
+    setShowPaymentSelector(open)
   }
 
-  const onPaystackSuccess = async (reference: string) => {
-    if (!pendingPurchase) return toast.error('No pending purchase')
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify'): Promise<void> => {
+    if (!pendingPurchase) {
+      toast.error('No pending purchase')
+      return
+    }
     setProcessing(true)
     try {
       pendingPurchase.paystackReference = reference
+      pendingPurchase.provider = provider
       await handleCompletePurchase()
     } catch (e) {
       console.error(e)
-    } finally { setProcessing(false); setPaystackOpen(false) }
+    } finally { setProcessing(false); setShowPaymentSelector(false) }
   }
 
   const verifyJamb = async () => {
@@ -390,9 +393,16 @@ export default function EducationPage() {
             </div>
           </div>
 
-          {/* Paystack modal (opened when user starts a purchase) */}
-          {paystackOpen && (
-            <PaystackModal amount={Number(pendingPurchase?.amount || 0)} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+          {/* Payment selector (opened when user starts a purchase) */}
+          {showPaymentSelector && (
+            <PaymentSelector
+              open={showPaymentSelector}
+              amount={Number(pendingPurchase?.amount || 0)}
+              email={auth.currentUser?.email || ''}
+              description="Bill Payment"
+              onClose={() => setShowPaymentSelector(false)}
+              onPaymentSuccess={onPaymentSuccess}
+            />
           )}
         </div>
       </div>

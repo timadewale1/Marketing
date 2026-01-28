@@ -6,7 +6,7 @@ import { generateRequestId } from '@/services/vtpass/utils'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity } = body || {}
+    const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
 
     if (!serviceID) return NextResponse.json({ ok: false, message: 'serviceID is required' }, { status: 400 })
 
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (process.env.PAYSTACK_SECRET_KEY) {
+    if (process.env.PAYSTACK_SECRET_KEY && provider === 'paystack') {
       if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Paystack first.' }, { status: 400 })
       try {
         const enc = encodeURIComponent(String(paystackReference))

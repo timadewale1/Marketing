@@ -1,12 +1,11 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
+import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
 // bypass Paystack: call VTpass directly
 import DataPlanSelector from '@/components/bills/DataPlanSelector'
-import { applyMarkup } from '@/services/vtpass/utils'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,11 +25,11 @@ export default function DataPage() {
   const [phone, setPhone] = useState('')
   
   const [loading, setLoading] = useState(true)
-  const [paystackOpen, setPaystackOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
@@ -113,7 +112,7 @@ export default function DataPage() {
   }, [service])
 
   const handlePurchase = async () => {
-    setPaystackOpen(true)
+    setShowPaymentSelector(true)
   }
 
   const handleWalletPurchase = async () => {
@@ -145,17 +144,20 @@ export default function DataPage() {
     } finally { setProcessingWallet(false) }
   }
 
-  const onPaystackSuccess = async (reference: string) => {
-    setPaystackOpen(false)
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify'): Promise<void> => {
+    setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference }
+      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference, provider }
       const matched = plans.find(p => p.code === plan)
       if (matched) payload.amount = String(matched.amount)
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(payload, { idToken })
       const j = res.body
-      if (!res.ok) return toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+      if (!res.ok) {
+        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+        return
+      }
       const matched2 = plans.find(p => p.code === plan)
       const transactionData: Record<string, unknown> = {
         serviceID: service || 'data',
@@ -262,7 +264,14 @@ export default function DataPage() {
                       <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                     </>
                   )}
-                  <PaystackModal amount={displayPrice()} email={''} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
+                      <PaymentSelector
+                        open={showPaymentSelector}
+                        amount={displayPrice()}
+                        email={auth.currentUser?.email || ''}
+                        description="Bill Payment"
+                        onClose={() => setShowPaymentSelector(false)}
+                        onPaymentSuccess={onPaymentSuccess}
+                      />
                 </div>
               </>
             </CardContent>

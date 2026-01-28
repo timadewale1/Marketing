@@ -37,7 +37,7 @@ export default function HomePage() {
         
         <div className="relative container mx-auto px-4 h-full flex items-center sm:items-center pt-8 sm:pt-0">
           <div className="max-w-2xl">
-            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6 text-center">
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
               <TypedText
                 strings={[
                   'Earn Money Through Social Impact',
@@ -52,7 +52,7 @@ export default function HomePage() {
                 className="text-white"
               />
             </h1>
-            <p className="text-lg text-white mb-8 text-center sm:text-center">
+            <p className="text-lg text-white mb-8">
               Grow Your Brand, Earn from Digital Advertising and Get Paid Instantly.
 PAMBA is a trusted digital advertising platform where businesses gain real visibility and users earn by completing simple, verified marketing tasks.
 Advertisers reach genuine audiences for their products, services, websites, YouTube channels, and business pages - while users earn by engaging with ads, watching short videos, and sharing approved promotional content.
@@ -92,8 +92,8 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
       {/* Bills & Utilities */}
       <section id="bills" className="py-12 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-semibold text-stone-900 mb-6">Bills & Utilities</h2>
-          <div className="max-w-3xl">
+          <h2 className="text-2xl font-semibold text-center text-stone-900 mb-6">Bills & Utilities</h2>
+          <div className="max-w-3xl mx-auto">
             <BillsCard />
           </div>
         </div>

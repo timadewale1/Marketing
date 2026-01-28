@@ -10,7 +10,7 @@ import { onAuthStateChanged } from "firebase/auth"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { PaystackFundWalletModal } from "@/components/paystack-fund-wallet-modal"
+import { FundWalletModal } from "@/components/fund-wallet-modal"
 import { WithdrawDialog } from '@/components/withdraw-dialog'
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from "lucide-react"
 import { toast } from "react-hot-toast"
@@ -390,7 +390,7 @@ export default function WalletPage() {
           </div>
         </div>
 
-        <PaystackFundWalletModal
+        <FundWalletModal
           open={fundModalOpen}
           email={userEmail || undefined}
           onClose={() => setFundModalOpen(false)}

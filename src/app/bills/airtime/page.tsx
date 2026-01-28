@@ -1,10 +1,9 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { PaystackModal } from '@/components/paystack-modal'
+import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
-import { applyMarkup } from '@/services/vtpass/utils'
 // bypass Paystack: call VTpass directly
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -22,13 +21,11 @@ export default function AirtimePage() {
   const [network, setNetwork] = useState('mtn')
   const [phone, setPhone] = useState('')
   const [amount, setAmount] = useState('')
-  
-  const [email, setEmail] = useState('')
-  const [paystackOpen, setPaystackOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [showPaymentSelector, setShowPaymentSelector] = useState(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
@@ -76,8 +73,15 @@ export default function AirtimePage() {
   const displayPrice = () => Number(amount || 0)
 
   const handlePurchase = async () => {
-    // Open Paystack modal first; server will verify reference before calling VTpass
-    setPaystackOpen(true)
+    if (!phone) {
+      toast.error('Please enter phone number')
+      return
+    }
+    if (!amount || Number(amount) <= 0) {
+      toast.error('Please enter amount')
+      return
+    }
+    setShowPaymentSelector(true)
   }
 
   const handleWalletPurchase = async () => {
@@ -109,8 +113,8 @@ export default function AirtimePage() {
     }
   }
 
-  const onPaystackSuccess = async (reference: string) => {
-    setPaystackOpen(false)
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+    setShowPaymentSelector(false)
     setProcessing(true)
     try {
       const payload = {
@@ -118,6 +122,7 @@ export default function AirtimePage() {
         amount: String(amount),
         phone,
         paystackReference: reference,
+        provider,
       }
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(payload, { idToken })
@@ -271,16 +276,23 @@ export default function AirtimePage() {
                   {isLoggedIn ? (
                     <>
                       <Button onClick={handleWalletPurchase} disabled={processing || processingWallet || (walletBalance !== null && Number(amount) > walletBalance)} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && Number(amount) > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
-                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } if (!amount || Number(amount) <= 0) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
+                      <Button onClick={handlePurchase} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Card</Button>
                     </>
                   ) : (
-                    <>
-                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } if (!amount || Number(amount) <= 0) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
-                    </>
+                    <Button onClick={handlePurchase} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                   )}
-                  <PaystackModal amount={Number(amount)} email={email} open={paystackOpen} onClose={() => setPaystackOpen(false)} onSuccess={onPaystackSuccess} />
                 </div>
               </>
+
+              {/* Payment Selector Modal */}
+              <PaymentSelector
+                open={showPaymentSelector}
+                amount={Number(amount) || 0}
+                email={auth.currentUser?.email || ''}
+                description={`${network} - ₦${displayPrice().toLocaleString()}`}
+                onClose={() => setShowPaymentSelector(false)}
+                onPaymentSuccess={onPaymentSuccess}
+              />
             </CardContent>
           </Card>
         </div>
