@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import toast from 'react-hot-toast'
 
 interface MonnifyResponse {
   status: string
@@ -78,7 +77,6 @@ const loadMonnifySDK = (): Promise<void> => {
 }
 
 // Suppress the harmless DOM error from Monnify SDK cleanup
-const originalError = window.addEventListener
 if (typeof window !== 'undefined') {
   const originalErrorHandler = window.onerror
   window.onerror = function(msg: string | Event, url: string | undefined, lineNo: number | undefined, columnNo: number | undefined, error: Error | undefined) {

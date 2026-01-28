@@ -3,7 +3,6 @@ import { db } from '@/lib/firebase'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
-import monnify from '@/services/monnify'
 
 export async function POST(req: NextRequest) {
   try {
