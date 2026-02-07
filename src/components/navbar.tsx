@@ -90,7 +90,7 @@ export default function Navbar() {
     <header className="fixed inset-x-0 top-0 z-50 bg-white border-b border-stone-200 shadow-sm">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="inline-flex items-center gap-3">
-          <Image src="/Pamba.png" alt="PAMBA" width={70} height={30} className="rounded-md" />
+          <Image src="/Pamba.png" alt="PAMBA" width={120} height={50} className="rounded-md" />
           <span className="sr-only">PAMBA</span>
         </Link>
 

@@ -114,8 +114,8 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <div className="mt-8 text-sm text-primary-500">
-            <p>Last updated: October 26, 2023</p>
-            <p>For privacy-related questions, contact us at privacy@pamba.com</p>
+            <p>Last updated: October 26, 2025</p>
+            <p>For privacy-related questions, contact us at support@pamba.com</p>
           </div>
         </Card>
       </div>

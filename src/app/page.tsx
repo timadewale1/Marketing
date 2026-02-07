@@ -321,7 +321,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-6">
-                <Image src="/Pamba.png" alt="PAMBA" width={70} height={30} className="rounded" />
+                <Image src="/Pamba.png" alt="PAMBA" width={120} height={50} className="rounded" />
                 <span className="sr-only">PAMBA</span>
               </div>
               <ul className="space-y-2">
@@ -344,8 +344,9 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
               <h3 className="font-bold text-white mb-4">Follow Us</h3>
               <ul className="space-y-2">
                 {/* <li><a href="#" className="hover:text-amber-500">Twitter</a></li> */}
-                <li><a href="#" className="hover:text-amber-500">Facebook</a></li>
-                <li><a href="#" className="hover:text-amber-500">Instagram</a></li>
+                <li><a href="https://www.facebook.com/share/17sDa24NET/" className="hover:text-amber-500">Facebook</a></li>
+                <li><a href="https://www.instagram.com/pambaadverts?" className="hover:text-amber-500">Instagram</a></li>
+                <li><a href="https://www.tiktok.com/@pambaadverts?" className="hover:text-amber-500">TikTok</a></li>
                 {/* <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li> */}
               </ul>
             </div>

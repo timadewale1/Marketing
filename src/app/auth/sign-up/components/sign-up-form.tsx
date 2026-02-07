@@ -209,7 +209,7 @@ export function SignUpForm() {
               </SelectTrigger>
               <SelectContent className="bg-stone-700 text-white">
                 <SelectItem value="advertiser">Create Tasks</SelectItem>
-                <SelectItem value="earner">earn by performing tasks</SelectItem>
+                <SelectItem value="earner">Earn by performing tasks</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -37,10 +37,10 @@ export default function ReferralsPage() {
 
     // Use current origin so invite links remain correct across environments
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://pamba.vercel.app'
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://pambaadverts.com'
       setInviteLink(`${origin}/auth/sign-up?ref=${u.uid}`)
     } catch {
-      setInviteLink(`https://pamba.vercel.app/auth/sign-up?ref=${u.uid}`)
+      setInviteLink(`https://pambaadverts.com/auth/sign-up?ref=${u.uid}`)
     }
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
     const unsub = onSnapshot(q, (snap) => {

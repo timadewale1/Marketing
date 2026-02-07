@@ -113,7 +113,7 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-medium text-stone-800">Office</h3>
                   <p className="text-stone-600">
-                    Lagos, Nigeria
+                    Abuja, Nigeria
                   </p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default function ContactPage() {
                 <Phone className="text-amber-600 mt-1" />
                 <div>
                   <h3 className="font-medium text-stone-800">Phone</h3>
-                  <p className="text-stone-600">+234 XXX XXX XXXX</p>
+                  <p className="text-stone-600">+234 8146532678</p>
                   <p className="text-xs text-stone-500 mt-1">
                     Mon-Fri 9am-5pm WAT
                   </p>

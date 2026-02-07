@@ -32,8 +32,8 @@ const formSchema = z.object({
   gender: z.enum(["Male", "Female"], { message: "Please select gender" }),
   dob: z.string().min(1, "Date of birth is required"),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
-  skills: z.string().min(3, "Please list at least one skill"),
-  preferredCampaigns: z.string().min(3, "Enter preferred task types"),
+  // skills: z.string().min(3, "Please list at least one skill"),
+  // preferredCampaigns: z.string().min(3, "Enter preferred task types"),
   bankCode: z.string().min(2, "Select your bank"),
   accountNumber: z
     .string()
@@ -203,8 +203,8 @@ export default function EarnerOnboarding() {
           gender: data.gender,
           dob: data.dob,
           bio: data.bio,
-          skills: data.skills,
-          preferredCampaigns: data.preferredCampaigns,
+          // skills: data.skills,
+          // preferredCampaigns: data.preferredCampaigns,
           bankCode: data.bankCode,
           bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
           accountNumber: data.accountNumber,
@@ -305,16 +305,16 @@ export default function EarnerOnboarding() {
           </div>
 
           {/* Skills */}
-          <div>
+          {/* <div>
             <Label className="text-stone-200">Skills</Label>
             <Input {...register("skills")} placeholder="E.g. social media, writing" className="bg-white/20 border-white/30 text-white" />
-          </div>
+          </div> */}
 
           {/* Preferred Campaigns */}
-          <div>
+          {/* <div>
             <Label className="text-stone-200">Preferred Campaigns</Label>
             <Input {...register("preferredCampaigns")} placeholder="E.g. video, survey, affiliate links" className="bg-white/20 border-white/30 text-white" />
-          </div>
+          </div> */}
 
           {/* Bank Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
