@@ -19,14 +19,24 @@ export default function ContactPage() {
     setLoading(true)
 
     try {
-      // Here you would typically send this to your backend
-      // For now, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
-      toast.success("Message sent successfully!")
-      setName('')
-      setEmail('')
-      setMessage('')
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast.success("Message sent successfully!")
+        setName('')
+        setEmail('')
+        setMessage('')
+      } else {
+        toast.error(data.message || "Failed to send message")
+      }
     } catch (error) {
+      console.error('Contact form error:', error)
       toast.error("Failed to send message")
     } finally {
       setLoading(false)

@@ -89,6 +89,18 @@ export async function initiateTransfer({ recipient, amountKobo, reason }: { reci
   return transferData
 }
 
+export async function refundTransaction({ transactionRef, amountKobo, reason }: { transactionRef: string; amountKobo?: number; reason?: string }) {
+  const body: Record<string, unknown> = {
+    transaction: transactionRef,
+    reason: reason || 'Bill payment service failed - automatic refund',
+  }
+  if (amountKobo) {
+    body.amount = amountKobo
+  }
+  const j = await call('/refund', body)
+  return j.data
+}
+
 export function verifyWebhookSignature(rawBody: string, signature: string | null) {
   if (!SECRET) return false
   if (!signature) return false
@@ -96,4 +108,4 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
   return hmac === signature
 }
 
-export default { createTransferRecipient, initiateTransfer, verifyWebhookSignature }
+export default { createTransferRecipient, initiateTransfer, refundTransaction, verifyWebhookSignature }

@@ -11,6 +11,7 @@ import {
   ActivitySquare,
   TrendingUp,
   Clock,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -24,6 +25,7 @@ export default function Page() {
     totalEarnings: 0,
     pendingWithdrawals: 0,
     pendingSubmissions: 0,
+    unreadContactMessages: 0,
   });
 
   interface Submission {
@@ -46,8 +48,19 @@ export default function Page() {
     };
   }
 
+  interface ContactMessage {
+    id: string;
+    name: string;
+    email: string;
+    message: string;
+    status: string;
+    createdAt: { seconds: number };
+  }
+
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
   const [recentWithdrawals, setRecentWithdrawals] = useState<Withdrawal[]>([]);
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [unreadContactCount, setUnreadContactCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -107,12 +120,19 @@ export default function Page() {
         );
         const pendingSubmissions = submissionsSnap.size;
 
+        // Unread contact messages
+        const contactSnap = await getDocs(
+          query(collection(db, "contactMessages"), where("status", "==", "unread"))
+        );
+        const unreadContactMessages = contactSnap.size;
+
         setStats({
           totalUsers,
           totalCampaigns,
           totalEarnings,
           pendingWithdrawals,
           pendingSubmissions,
+          unreadContactMessages,
         });
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -169,6 +189,30 @@ export default function Page() {
       }
     );
 
+    // Fetch recent contact messages
+    const unsubContactMessages = onSnapshot(
+      query(
+        collection(db, "contactMessages"),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      ),
+      (snap) => {
+        setContactMessages(
+          snap.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data.name || "",
+              email: data.email || "",
+              message: data.message || "",
+              status: data.status || "",
+              createdAt: data.createdAt || { seconds: Date.now() / 1000 }
+            };
+          })
+        );
+      }
+    );
+
     fetchStats();
     // VTpass manager data can be loaded via admin APIs in a follow-up task
     setLoading(false);
@@ -176,6 +220,7 @@ export default function Page() {
     return () => {
       unsubSubmissions();
       unsubWithdrawals();
+      unsubContactMessages();
     };
   }, []);
 
@@ -275,6 +320,13 @@ export default function Page() {
           icon={TrendingUp}
           change="Needs review"
           changeType={stats.pendingSubmissions > 20 ? "negative" : "neutral"}
+        />
+        <StatCard
+          title="Unread Messages"
+          value={stats.unreadContactMessages}
+          icon={Mail}
+          change="Contact form messages"
+          changeType={stats.unreadContactMessages > 0 ? "negative" : "neutral"}
         />
       </div>
 
@@ -383,6 +435,52 @@ export default function Page() {
           </div>
         </Card>
       </div>
+
+      {/* Recent Contact Messages */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-stone-800">
+            Recent Contact Messages
+          </h2>
+          <Link href="/admin/contact-messages">
+            <Button variant="ghost" className="text-amber-600">
+              View All
+            </Button>
+          </Link>
+        </div>
+        <div className="space-y-4">
+          {contactMessages.length === 0 ? (
+            <p className="text-stone-600">No messages yet.</p>
+          ) : (
+            contactMessages.map((msg) => (
+              <div
+                key={msg.id}
+                className="flex items-center justify-between py-3 border-b last:border-0"
+              >
+                <div>
+                  <p className="font-medium text-stone-800">{msg.name}</p>
+                  <p className="text-sm text-stone-600">{msg.email}</p>
+                  <p className="text-sm text-stone-600 line-clamp-1">{msg.message}</p>
+                  <p className="text-xs text-stone-500 mt-1">
+                    {new Date(msg.createdAt?.seconds * 1000).toLocaleString()}
+                  </p>
+                </div>
+                <span
+                  className={`px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap ml-4 ${
+                    msg.status === "unread"
+                      ? "bg-amber-100 text-amber-700"
+                      : msg.status === "replied"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {msg.status}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

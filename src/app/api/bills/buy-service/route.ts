@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import vtpassClient from '@/services/vtpass/client'
+import * as paystack from '@/services/paystack'
+import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
 
@@ -133,8 +135,37 @@ export async function POST(req: NextRequest) {
         if (expected > 0 && paidN < expected) {
           return NextResponse.json({ ok: false, message: 'Paid amount does not match expected amount' }, { status: 400 })
         }
+        // Store Paystack verification data for potential refund
+        payload.paystackVerificationData = vd.data
       } catch (e) {
         console.error('Paystack verification error', e)
+        return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
+      }
+    }
+
+    // Handle Monnify verification similarly
+    if (process.env.MONNIFY_API_KEY && provider === 'monnify') {
+      if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Monnify first.' }, { status: 400 })
+      try {
+        const verifyData = await monnify.verifyTransaction(paystackReference)
+        if (!verifyData?.requestSuccessful) {
+          return NextResponse.json({ ok: false, message: 'Payment verification failed' }, { status: 400 })
+        }
+        const monnifyData = (verifyData.responseBody || {}) as Record<string, unknown>
+        if (monnifyData?.paymentStatus !== 'PAID' && monnifyData?.paymentStatus !== 'SUCCESSFUL') {
+          return NextResponse.json({ ok: false, message: 'Payment not successful' }, { status: 400 })
+        }
+        // Extract amount (could be in kobo or Naira depending on endpoint)
+        const amountReceived = Number(monnifyData?.amountPaid || monnifyData?.amount || 0)
+        const amountInNaira = amountReceived > 100000 ? amountReceived / 100 : amountReceived
+        const expected = Number(amount || payload.amount || 0)
+        if (expected > 0 && amountInNaira < expected) {
+          return NextResponse.json({ ok: false, message: 'Paid amount does not match expected amount' }, { status: 400 })
+        }
+        // Store Monnify verification data for potential refund
+        payload.monnifyVerificationData = monnifyData
+      } catch (e) {
+        console.error('Monnify verification error', e)
         return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
       }
     }
@@ -151,6 +182,50 @@ export async function POST(req: NextRequest) {
     const vtCode = vtData?.code
     if (vtCode && String(vtCode) !== '000') {
       const message = vtData?.response_description || vtData?.content || 'Service currently unavailable'
+      
+      // Attempt automatic refund if payment was made
+      let refundStatus = 'none'
+      let refundError: string | null = null
+      
+      if (provider === 'paystack' && paystackReference) {
+        try {
+          console.log(`[REFUND] Initiating Paystack refund for reference: ${paystackReference}`)
+          const paystackVerifyData = (payload as Record<string, unknown>).paystackVerificationData as Record<string, unknown> | undefined
+          const amountKobo = Number((paystackVerifyData as Record<string, unknown>)?.amount || (Number(amount) * 100))
+          await paystack.refundTransaction({
+            transactionRef: paystackReference,
+            amountKobo: amountKobo,
+            reason: `Bill payment failed for ${serviceID}: ${message}. Automatic refund.`
+          })
+          refundStatus = 'initiated'
+          console.log(`[REFUND] Paystack refund successfully initiated`)
+        } catch (refundErr) {
+          refundStatus = 'failed'
+          refundError = refundErr instanceof Error ? refundErr.message : String(refundErr)
+          console.error(`[REFUND] Paystack refund failed: ${refundError}`)
+        }
+      }
+      
+      if (provider === 'monnify' && paystackReference) {
+        try {
+          console.log(`[REFUND] Initiating Monnify refund for reference: ${paystackReference}`)
+          const monnifyVerifyData = (payload as Record<string, unknown>).monnifyVerificationData as Record<string, unknown> | undefined
+          const amountPaid = typeof monnifyVerifyData === 'object' && monnifyVerifyData !== null && 'amountPaid' in monnifyVerifyData ? Number(monnifyVerifyData.amountPaid) : 0
+          const amountKobo = amountPaid > 0 ? amountPaid * 100 : (Number(amount) * 100)
+          await monnify.refundTransaction({
+            transactionRef: paystackReference,
+            amountKobo: amountKobo,
+            reason: `Bill payment failed for ${serviceID}: ${message}. Automatic refund.`
+          })
+          refundStatus = 'initiated'
+          console.log(`[REFUND] Monnify refund successfully initiated`)
+        } catch (refundErr) {
+          refundStatus = 'failed'
+          refundError = refundErr instanceof Error ? refundErr.message : String(refundErr)
+          console.error(`[REFUND] Monnify refund failed: ${refundError}`)
+        }
+      }
+      
       try {
         const { dbAdmin } = await initFirebaseAdmin()
         if (dbAdmin) {
@@ -164,15 +239,26 @@ export async function POST(req: NextRequest) {
             markup,
             phone: phone || null,
             paystackReference: paystackReference || null,
+            provider: provider || null,
             response: vtRes.data || null,
             userId: userId || null,
+            vtpassFailed: true,
+            refundStatus: refundStatus,
+            refundError: refundError,
             createdAt: new Date().toISOString(),
           })
         }
       } catch (e) {
         console.warn('Failed to save transaction', e)
       }
-      return NextResponse.json({ ok: false, message }, { status: 400 })
+      
+      const errorMsg = refundStatus === 'initiated' 
+        ? `${message}. Your payment of ₦${paidAmount} has been refunded. Please wait for your refund and try again.`
+        : refundStatus === 'failed'
+        ? `${message}. Refund processing failed (${refundError}). Please contact support(support@pambaadverts.com).`
+        : message
+      
+      return NextResponse.json({ ok: false, message: errorMsg, refundStatus }, { status: 400 })
     }
 
     try {

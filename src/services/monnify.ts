@@ -132,4 +132,34 @@ export async function initiateTransaction(payload: Record<string, unknown>) {
   return json
 }
 
-export default { verifyTransaction, initiateTransaction }
+export async function refundTransaction({ transactionRef, amountKobo, reason }: { transactionRef: string; amountKobo?: number; reason?: string }) {
+  const token = await getAuthToken()
+
+  const body: Record<string, unknown> = {
+    transactionReference: transactionRef,
+    reason: reason || 'Bill payment service failed - automatic refund',
+  }
+  if (amountKobo) {
+    body.amount = amountKobo / 100 // Monnify uses Naira, not kobo
+  }
+
+  const res = await fetch(`${BASE}/api/v1/transactions/refunds`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(`Monnify refund failed: ${JSON.stringify(json)}`)
+  }
+
+  return json
+}
+
+export default { verifyTransaction, initiateTransaction, refundTransaction }
