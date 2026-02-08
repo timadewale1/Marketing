@@ -35,54 +35,69 @@ export default function HomePage() {
           </div>
         </div> */}
         
-        <div className="relative container mx-auto px-4 h-full flex items-center sm:items-center pt-8 sm:pt-0">
-          <div className="max-w-2xl">
-            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
-              <TypedText
-                strings={[
-                  'Earn Money Through Social Impact',
-                  'Get Paid for Social Engagement',
-                  'Monetize Your Social Reach',
-                  'Earn While Making an Impact',
-                  'YouTube Views, Likes & Subscriptions',
-                  'Social Media Engagements',
-                  'Product Advertisement & Promotions',
-                  'Grow Your Audience & Earn'
-                ]}
-                className="text-white"
-              />
-            </h1>
-            <p className="text-lg text-white mb-8">
-              Grow Your Brand, Earn from Digital Advertising and Get Paid Instantly.
+        <div className="relative container mx-auto px-4 h-full flex items-center pt-8 sm:pt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 w-full items-center">
+            {/* Left side - Text content */}
+            <div>
+              <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+                <TypedText
+                  strings={[
+                    'Earn Money Through Social Impact',
+                    'Get Paid for Social Engagement',
+                    'Monetize Your Social Reach',
+                    'Earn While Making an Impact',
+                    'YouTube Views, Likes & Subscriptions',
+                    'Social Media Engagements',
+                    'Product Advertisement & Promotions',
+                    'Grow Your Audience & Earn'
+                  ]}
+                  className="text-white"
+                />
+              </h1>
+              <p className="text-lg text-white mb-8">
+                Grow Your Brand, Earn from Digital Advertising and Get Paid Instantly.
 PAMBA is a trusted digital advertising platform where businesses gain real visibility and users earn by completing simple, verified marketing tasks.
 Advertisers reach genuine audiences for their products, services, websites, YouTube channels, and business pages - while users earn by engaging with ads, watching short videos, and sharing approved promotional content.
 Earnings are credited instantly to your wallet and can be withdrawn directly to your bank account or used to pay bills on the platform.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
-                <Link href="/auth/sign-up">Start Earning/Create Tasks</Link>
-              </Button>
-              <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
-                <Link href="/advertise-directly">Advertise Directly</Link>
-              </Button>
-              <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
-                <Link href="/auth/sign-in">Login</Link>
-              </Button>
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                  <Link href="/auth/sign-up">Start Earning/Create Tasks</Link>
+                </Button>
+                <Button asChild variant="outline" className="h-12 px-8 text-lg border-white text-white hover:bg-white/10">
+                  <Link href="/advertise-directly">Advertise Directly</Link>
+                </Button>
+                <Button asChild className="h-12 px-8 text-lg bg-amber-500 hover:bg-amber-600 text-stone-900">
+                  <Link href="/auth/sign-in">Login</Link>
+                </Button>
+              </div>
               
+              <div className="mt-12 flex flex-wrap gap-8 text-white">
+                <div className="flex items-center gap-2">
+                  <Users className="w-6 h-6 text-amber-500" />
+                  <span>10k+ Active Users</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Coins className="w-6 h-6 text-amber-500" />
+                  <span>₦10M+ Paid Out</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Target className="w-6 h-6 text-amber-500" />
+                  <span>500+ Tasks</span>
+                </div>
+              </div>
             </div>
-            
-            <div className="mt-12 flex flex-wrap gap-8 text-white">
-              <div className="flex items-center gap-2">
-                <Users className="w-6 h-6 text-amber-500" />
-                <span>10k+ Active Users</span>
-              </div>
-                <div className="flex items-center gap-2">
-                <Coins className="w-6 h-6 text-amber-500" />
-                <span>₦10M+ Paid Out</span>
-              </div>
-                <div className="flex items-center gap-2">
-                <Target className="w-6 h-6 text-amber-500" />
-                <span>500+ Tasks</span>
+
+            {/* Right side - Image */}
+            <div className="flex justify-center items-center">
+              <div className="relative w-full max-w-sm h-96 rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                <Image
+                  src="/image.png"
+                  alt="PAMBA Platform"
+                  fill
+                  className="object-cover"
+                  priority
+                />
               </div>
             </div>
           </div>

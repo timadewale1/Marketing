@@ -22,6 +22,32 @@ type Campaign = {
   status?: string;
 };
 
+// All available task types (should match advertiser pricelist)
+const TASK_TYPES = [
+  "Video",
+  "Share my Product",
+  "other website tasks",
+  "Survey",
+  "App Download",
+  "Instagram Follow",
+  "Instagram Like",
+  "Instagram Share",
+  "Twitter Follow",
+  "Twitter Retweet",
+  "Facebook Like",
+  "Facebook Share",
+  "TikTok Follow",
+  "TikTok Like",
+  "TikTok Share",
+  "YouTube Subscribe",
+  "YouTube Like",
+  "YouTube Comment",
+  "WhatsApp Status",
+  "WhatsApp Group Join",
+  "Telegram Group Join",
+  "Facebook Group Join",
+];
+
 export default function AvailableCampaignsPage() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -62,8 +88,9 @@ export default function AvailableCampaignsPage() {
     return () => { unsub(); if (unsubParts) unsubParts() }
   }, [router]);
 
-  const categories = Array.from(new Set(campaigns.map((c) => c.category || "").filter(Boolean)));
-  const filteredCampaigns = campaigns.filter((c) => filterType === "All" || c.category === filterType);
+  const filteredCampaigns = campaigns
+    .filter((c) => filterType === "All" || c.category === filterType)
+    .filter((c) => !participatedIds.includes(c.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -79,11 +106,12 @@ export default function AvailableCampaignsPage() {
           <PageLoader />
         ) : (
           <div>
-            <div className="flex items-center justify-end mb-4">
-              <select className="border rounded px-2 py-1" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                <option value="All">All Types</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-stone-700 mb-2">Filter by Task Type</label>
+              <select className="w-full md:w-64 border border-stone-300 rounded-lg px-4 py-2 bg-white text-stone-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                <option value="All">All Task Types</option>
+                {TASK_TYPES.map((taskType) => (
+                  <option key={taskType} value={taskType}>{taskType}</option>
                 ))}
               </select>
             </div>
@@ -95,7 +123,6 @@ export default function AvailableCampaignsPage() {
                 </div>
               ) : (
                 filteredCampaigns.map((c) => {
-                  const already = participatedIds.includes(c.id)
                   // Calculate earner price as half of cost per lead (not total budget)
                   const earnerPrice = (c.category === "Video") ? 150 : Math.round((c.costPerLead || 0) / 2);
 
@@ -129,16 +156,11 @@ export default function AvailableCampaignsPage() {
                               router.push('/auth/sign-in')
                               return
                             }
-                            if (already) {
-                              toast("You've already participated in this task", { icon: 'ℹ️' })
-                              return
-                            }
                             router.push(`/earner/campaigns/${c.id}`)
                           }}
-                          className={`w-full ${already ? 'bg-stone-200 text-stone-500 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium'}`}
-                          disabled={already}
+                          className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium"
                         >
-                          {already ? 'Participated' : 'Participate'}
+                          Participate
                         </Button>
                       </div>
                     </Card>
