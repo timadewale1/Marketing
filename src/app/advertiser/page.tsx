@@ -17,6 +17,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
+import { PaymentSelector } from '@/components/payment-selector'
 import Image from "next/image"
 import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle, CheckCircle } from "lucide-react"
 import { calculateWalletBalances } from '@/lib/wallet'
@@ -56,6 +57,7 @@ export default function AdvertiserDashboard() {
   })
   const [filter, setFilter] = useState("Active")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
 
   useEffect(() => {
     let unsubCampaigns: (() => void) | null = null
@@ -270,7 +272,7 @@ export default function AdvertiserDashboard() {
   // If advertiser is not activated, show a quick action banner
   const ActivationBanner = () => {
     if (activated) return null
-    // If not onboarded, send them to onboarding. If onboarded but not activated, open Paystack inline to pay ₦2,000
+    // If not onboarded, send them to onboarding. If onboarded but not activated, open payment selector
     const handleActivation = async () => {
       const u = auth.currentUser
       if (!u || !u.email) {
@@ -282,93 +284,8 @@ export default function AdvertiserDashboard() {
         return
       }
 
-      if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
-        toast.error('Payment configuration error')
-        return
-      }
-
-      try {
-        if (!document.querySelector('script[src*="paystack.co"]')) {
-          const script = document.createElement('script')
-          script.src = 'https://js.paystack.co/v1/inline.js'
-          document.head.appendChild(script)
-          await new Promise((resolve, reject) => {
-            script.onload = resolve
-            script.onerror = () => reject(new Error('Failed to load Paystack'))
-          })
-        }
-
-        interface PaystackWindow extends Window {
-          PaystackPop: {
-            setup: (config: Record<string, unknown>) => {
-              openIframe: () => void
-            }
-          }
-        }
-        const PaystackPop = (window as unknown as PaystackWindow).PaystackPop
-        const onActivationCallback = function (resp: { reference: string }) {
-          console.debug('Activation callback invoked, resp:', resp)
-          if (!resp || !resp.reference) {
-            console.error('Activation callback missing reference', resp)
-            toast.error('Payment callback missing reference')
-            return
-          }
-          ;(async () => {
-            let res: Response | null = null
-            try {
-              res = await fetch('/api/advertiser/activate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference: resp.reference, userId: u.uid }),
-              })
-            } catch (networkErr) {
-              console.error('Activation network error', networkErr)
-              toast.error('Network request failed during activation')
-              return
-            }
-
-            let text = ''
-            try {
-              text = await res.text()
-            } catch (e) {
-              console.error('Failed reading activation response text', e)
-            }
-
-            let data: { success?: boolean; message?: string } = {}
-            try {
-              data = text ? JSON.parse(text) : {}
-            } catch (e) {
-              // not JSON
-            }
-
-            if (res.ok && data?.success) {
-              toast.success('Account activated successfully')
-              setActivated(true)
-              return
-            }
-
-            const message = data?.message || text || `Activation failed (status ${res.status})`
-            console.error('Activation verify error', { status: res.status, message, data, text })
-            toast.error(message)
-          })().catch((e) => console.error('Activation callback error', e))
-        }
-
-        console.debug('Paystack activation (advertiser page): onActivationCallback type', typeof onActivationCallback)
-        const handler = PaystackPop.setup({
-          key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-          email: u.email,
-          amount: 2000 * 100,
-          currency: 'NGN',
-          label: 'Advertiser Account Activation',
-          metadata: { userId: u.uid },
-          onClose: () => toast.error('Activation cancelled'),
-          callback: onActivationCallback
-        })
-        handler.openIframe()
-      } catch (err) {
-        console.error('Activation error', err)
-        toast.error('Activation failed')
-      }
+      // Open PaymentSelector to allow Paystack or Monnify
+      setShowActivationPaymentSelector(true)
     }
 
     return (
@@ -499,6 +416,36 @@ export default function AdvertiserDashboard() {
 
         {/* Activation banner (if needed) */}
         {ActivationBanner()}
+        {showActivationPaymentSelector && (
+          <PaymentSelector
+            open={showActivationPaymentSelector}
+            amount={2000}
+            email={auth.currentUser?.email || undefined}
+            fullName={auth.currentUser?.displayName || 'Advertiser'}
+            description="Advertiser Account Activation"
+            onClose={() => setShowActivationPaymentSelector(false)}
+            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+              setShowActivationPaymentSelector(false)
+              try {
+                const res = await fetch('/api/advertiser/activate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (res.ok && data?.success) {
+                  toast.success('Account activated successfully')
+                  setActivated(true)
+                } else {
+                  toast.error(data?.message || 'Activation failed')
+                }
+              } catch (err) {
+                console.error('Activation error', err)
+                toast.error('Activation request failed')
+              }
+            }}
+          />
+        )}
 
         {/* Tasks Section */}
         <div className="flex items-center justify-between mb-4">

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PaymentSelector } from '@/components/payment-selector'
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
@@ -68,6 +69,7 @@ export default function CampaignDetailPage() {
   const [socialHandle, setSocialHandle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
 
   // Helper function to validate data sync
   const validateDataSync = async (userId: string, campaignId: string) => {
@@ -178,75 +180,10 @@ export default function CampaignDetailPage() {
     return url;
   };
 
-  // Handle Paystack payment
+  // Open payment selector so both Paystack and Monnify are supported
   const handleActivation = async () => {
-    const user = auth.currentUser;
-    if (!user || !user.email) {
-      toast.error("You must be logged in to activate");
-      return;
-    }
-
-    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
-      toast.error("Payment configuration error");
-      return;
-    }
-
-    try {
-      interface PaystackPopInterface {
-        setup: (config: {
-          key: string;
-          email: string;
-          amount: number;
-          currency: string;
-          label: string;
-          onClose: () => void;
-          callback: (response: { reference: string }) => void;
-        }) => { openIframe: () => void };
-      }
-      const paystackLib = (window as unknown as { PaystackPop?: PaystackPopInterface }).PaystackPop;
-      if (!paystackLib || typeof paystackLib.setup !== "function") {
-        toast.error("Payment system not ready - try again shortly");
-        return;
-      }
-
-      const handler = paystackLib.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
-        email: user.email,
-        amount: 2000 * 100, // ₦2000 in kobo
-        currency: "NGN",
-        label: "Account Activation",
-        onClose: () => toast.error("Activation cancelled"),
-        callback: function (response: { reference: string }) {
-          console.debug('Campaign activation callback invoked, resp:', response)
-          if (!response || !response.reference) {
-            console.error('Activation callback missing reference', response)
-            toast.error('Payment callback missing reference')
-            return
-          }
-          ;(async () => {
-            const res = await fetch('/api/earner/activate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: response.reference, userId: user.uid }),
-            })
-
-            if (res.ok) {
-              toast.success('Account activated successfully!')
-              submitParticipation()
-            } else {
-              const data = await res.json().catch(() => ({}))
-              toast.error(data?.message || 'Activation verification failed')
-            }
-          })().catch((e) => console.error('Activation callback error', e))
-        }
-      });
-
-      handler.openIframe();
-    } catch (err) {
-      console.error("Payment error:", err);
-      toast.error("Activation payment failed");
-    }
-  };
+    setShowActivationPaymentSelector(true)
+  }
 
   const submitParticipation = async () => {
     const user = auth.currentUser;
@@ -883,6 +820,36 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
           </div>
         </Card>
       </div>
+        {showActivationPaymentSelector && (
+          <PaymentSelector
+            open={showActivationPaymentSelector}
+            amount={2000}
+            email={auth.currentUser?.email || undefined}
+            fullName={auth.currentUser?.displayName || 'Earner'}
+            description="Earner Account Activation"
+            onClose={() => setShowActivationPaymentSelector(false)}
+            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+              setShowActivationPaymentSelector(false)
+              try {
+                const res = await fetch('/api/earner/activate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+                })
+                if (res.ok) {
+                  toast.success('Account activated successfully!')
+                  await submitParticipation()
+                } else {
+                  const data = await res.json().catch(() => ({}))
+                  toast.error(data?.message || 'Activation verification failed')
+                }
+              } catch (err) {
+                console.error('Activation error', err)
+                toast.error('Activation failed')
+              }
+            }}
+          />
+        )}
     </div>
   );
 }

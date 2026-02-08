@@ -1,27 +1,72 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import monnify from '@/services/monnify'
+
+interface MonnifyTransaction {
+  responseBody?: {
+    amountPaid?: number
+    transactionAmount?: number
+    amount?: number
+    transactionAmountInKobo?: number
+    metaData?: { userId?: string }
+    customer?: { externalId?: string }
+  }
+  response?: {
+    amountPaid?: number
+    transactionAmount?: number
+    amount?: number
+    transactionAmountInKobo?: number
+    metaData?: { userId?: string }
+    customer?: { externalId?: string }
+  }
+  amountPaid?: number
+  transactionAmount?: number
+  amount?: number
+  transactionAmountInKobo?: number
+  metaData?: { userId?: string }
+  customer?: { externalId?: string }
+}
 
 export async function POST(req: Request) {
   try {
   const body = await req.json()
   const reference = body?.reference as string | undefined
+  const provider = (body?.provider as string | undefined) || 'paystack'
   let userId = body?.userId as string | undefined
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
 
-    if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
+    let paidAmount = 0
 
-    const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
-    })
-    const verifyData = await verifyRes.json()
-    if (!verifyData.status || verifyData.data.status !== 'success') {
-      return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 })
-    }
+    if (provider === 'monnify') {
+      try {
+        const result: MonnifyTransaction = await monnify.verifyTransaction(reference)
+        const resp = result?.responseBody || result?.response || result
+        const rawAmount = Number(resp?.amountPaid || resp?.transactionAmount || resp?.amount || resp?.transactionAmountInKobo || 0)
+        if (!rawAmount) {
+          console.error('Monnify verification returned no amount for', reference, resp)
+          return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
+        }
+        paidAmount = rawAmount > 100000 ? rawAmount / 100 : rawAmount
+        if (!userId) userId = resp?.metaData?.userId || resp?.customer?.externalId || userId
+      } catch (e) {
+        console.error('Monnify verify error', e)
+        return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
+      }
+    } else {
+      if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
 
-    const paidAmount = Number(verifyData.data.amount || 0) / 100
-    // if userId not supplied, try to read it from Paystack metadata
-    if (!userId) {
-      userId = verifyData.data?.metadata?.userId
+      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyData.status || verifyData.data.status !== 'success') {
+        return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 })
+      }
+
+      paidAmount = Number(verifyData.data.amount || 0) / 100
+      if (!userId) {
+        userId = verifyData.data?.metadata?.userId
+      }
     }
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     if (paidAmount < 2000) {

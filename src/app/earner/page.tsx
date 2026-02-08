@@ -19,6 +19,7 @@ import toast from 'react-hot-toast'
 import { Card, CardContent } from "@/components/ui/card"
 import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
+import { PaymentSelector } from '@/components/payment-selector'
 import {
   Wallet,
   TrendingUp,
@@ -69,6 +70,7 @@ export default function EarnerDashboard() {
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
@@ -198,92 +200,9 @@ export default function EarnerDashboard() {
     router.push("/auth/sign-in")
   }
 
-  // Inline activation using Paystack (opens modal)
+  // Use PaymentSelector so both Paystack and Monnify are supported for activation
   const handleActivation = async () => {
-    const user = auth.currentUser
-    if (!user || !user.email) {
-      toast.error('You must be logged in to activate')
-      return
-    }
-
-    if (!process.env.NEXT_PUBLIC_PAYSTACK_KEY) {
-      toast.error('Payment configuration error')
-      return
-    }
-
-    try {
-      // Load Paystack script if not already loaded
-      if (!document.querySelector('script[src*="paystack.co"]')) {
-        const script = document.createElement('script')
-        script.src = 'https://js.paystack.co/v1/inline.js'
-        document.head.appendChild(script)
-
-        await new Promise((resolve, reject) => {
-          script.onload = resolve
-          script.onerror = () => reject(new Error('Failed to load Paystack'))
-        })
-      }
-
-      interface PaystackConfig {
-        key: string;
-        email: string;
-        amount: number;
-        currency: string;
-        label?: string;
-        metadata: { [key: string]: string };
-        onClose: () => void;
-        callback: (response: { reference: string }) => void;
-      }
-
-      interface PaystackWindow extends Window {
-        PaystackPop: {
-          setup: (config: PaystackConfig) => { openIframe: () => void };
-        };
-      }
-
-      const PaystackPop = (window as unknown as PaystackWindow).PaystackPop;
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY!,
-        email: user.email,
-        amount: 2000 * 100, // ₦2000 in kobo
-        currency: 'NGN',
-        label: 'Account Activation',
-        metadata: { userId: user.uid },
-        onClose: () => toast.error('Activation cancelled'),
-        callback: function (resp: { reference: string }) {
-          console.debug('Earner activation callback invoked, resp:', resp)
-          if (!resp || !resp.reference) {
-            console.error('Activation callback missing reference', resp)
-            toast.error('Payment callback missing reference')
-            return
-          }
-          fetch('/api/earner/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: resp.reference, userId: user.uid }),
-          })
-          .then(res => {
-            if (res.ok) {
-              toast.success('Account activated successfully')
-              setActivated(true)
-              return
-            }
-            return res.json().then(data => {
-              throw new Error(data?.message || 'Activation verification failed')
-            })
-          })
-          .catch(err => {
-            console.error('Activation verify error', err)
-            toast.error(err.message || 'Activation verification failed')
-          })
-        }
-      })
-
-      handler.openIframe()
-    } catch (err) {
-      console.error('Activation error', err)
-      toast.error('Activation failed')
-    }
+    setShowActivationPaymentSelector(true)
   }
 
   return (
@@ -625,6 +544,38 @@ export default function EarnerDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+      {showActivationPaymentSelector && (
+        <PaymentSelector
+          open={showActivationPaymentSelector}
+          amount={2000}
+          email={auth.currentUser?.email || undefined}
+          fullName={auth.currentUser?.displayName || 'Earner'}
+          description="Earner Account Activation"
+          onClose={() => {
+            setShowActivationPaymentSelector(false)
+          }}
+          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+            setShowActivationPaymentSelector(false)
+            try {
+              const res = await fetch('/api/earner/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+              })
+              const data = await res.json()
+              if (res.ok && data.success) {
+                toast.success('Account activated successfully')
+                setActivated(true)
+              } else {
+                toast.error(data?.message || 'Activation failed')
+              }
+            } catch (err) {
+              console.error('Activation error', err)
+              toast.error('Activation request failed')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
