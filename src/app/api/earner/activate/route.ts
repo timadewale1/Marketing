@@ -85,6 +85,7 @@ export async function POST(req: Request) {
       activated: true,
       activatedAt: admin.firestore.FieldValue.serverTimestamp(),
       nextActivationDue: nextDue,
+      activationPaymentProvider: provider, // Track which provider was used for activation
     })
 
     // Finalize pending referrals for this user (transaction-safe per-referral)

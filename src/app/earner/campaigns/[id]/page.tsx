@@ -39,6 +39,7 @@ type Campaign = {
   videoUrl?: string;
   mediaUrl?: string; // Single media URL
   mediaUrls?: string[]; // Legacy: multiple media URLs
+  productImages?: string[]; // Product images for "Share my Product" category
   status?: string;
   dailyLimit?: number;
   locationRequirements?: string;
@@ -607,6 +608,36 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                             fill
                             className="object-cover"
                           />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product Images for "Share my Product" category */}
+                {(campaign.productImages?.length ?? 0) > 0 && (
+                  <div className="mt-6 p-4 bg-white/80 rounded-lg border border-amber-100">
+                    <h5 className="text-sm font-medium mb-4 text-stone-800">Product Images</h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {(campaign.productImages || []).map((imgUrl, idx) => (
+                        <div key={idx} className="space-y-2">
+                          <div className="aspect-square relative overflow-hidden rounded-lg border border-stone-200">
+                            <Image
+                              src={imgUrl}
+                              alt={`Product ${idx + 1}`}
+                              fill
+                              className="object-cover hover:scale-105 transition-transform"
+                            />
+                          </div>
+                          <a
+                            href={imgUrl}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-xs text-center text-amber-600 hover:text-amber-700 font-medium"
+                          >
+                            Download
+                          </a>
                         </div>
                       ))}
                     </div>

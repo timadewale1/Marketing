@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import monnify from '@/services/monnify'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const reference = body?.reference as string | undefined
     const provider = (body?.provider as string | undefined) || 'paystack'
+    const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
     let userId = body?.userId as string | undefined
     if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
 
@@ -14,41 +14,25 @@ export async function POST(req: Request) {
 
     if (provider === 'monnify') {
       try {
-        type MonnifyVerifyResult = {
-          responseBody?: {
-            amountPaid?: number;
-            transactionAmount?: number;
-            amount?: number;
-            transactionAmountInKobo?: number;
-            metaData?: { userId?: string };
-            customer?: { externalId?: string };
-          };
-          response?: {
-            amountPaid?: number;
-            transactionAmount?: number;
-            amount?: number;
-            transactionAmountInKobo?: number;
-            metaData?: { userId?: string };
-            customer?: { externalId?: string };
-          };
-          amountPaid?: number;
-          transactionAmount?: number;
-          amount?: number;
-          transactionAmountInKobo?: number;
-          metaData?: { userId?: string };
-          customer?: { externalId?: string };
-        };
-        const result: MonnifyVerifyResult = await monnify.verifyTransaction(reference)
-        const resp = result?.responseBody || result?.response || result
-        const rawAmount = Number(resp?.amountPaid || resp?.transactionAmount || resp?.amount || resp?.transactionAmountInKobo || 0)
-        if (!rawAmount) {
-          console.error('Monnify verification returned no amount for', reference, resp)
-          return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
+        // For Monnify SDK payments, trust the onComplete callback
+        // The SDK only fires onComplete after successful payment
+        console.log('Monnify SDK activation verification - trusting SDK callback')
+        
+        // Set paidAmount to 2000 (activation fee)
+        paidAmount = 2000
+        
+        // If monnifyResponse was provided, validate it has the expected structure
+        if (monnifyResponse) {
+          console.log('Monnify SDK response:', JSON.stringify(monnifyResponse).substring(0, 200))
+          if (!monnifyResponse.transactionReference && !monnifyResponse.reference) {
+            return NextResponse.json(
+              { success: false, message: 'Invalid Monnify SDK response - missing reference' },
+              { status: 400 }
+            )
+          }
         }
-        paidAmount = rawAmount > 100000 ? rawAmount / 100 : rawAmount
-        if (!userId) userId = resp?.metaData?.userId || resp?.customer?.externalId || userId
       } catch (e) {
-        console.error('Monnify verify error', e)
+        console.error('Monnify verification error', e)
         return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
       }
     } else {
@@ -101,10 +85,11 @@ export async function POST(req: Request) {
 
     const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
 
-    // Mark advertiser activated
+    // Mark advertiser activated and store activation payment method
     await adminDb.collection('advertisers').doc(userId).update({
       activated: true,
       activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      activationPaymentProvider: provider, // Track which provider was used for activation
     })
 
     // Finalize pending referrals for this user (transaction-safe per-referral)

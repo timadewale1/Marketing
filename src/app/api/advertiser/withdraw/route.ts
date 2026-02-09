@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
+import monnify from '@/services/monnify'
 
 export async function POST(req: Request) {
   try {
@@ -49,8 +50,11 @@ export async function POST(req: Request) {
     }
 
     const balance = Number(advertiser?.balance || 0)
-    if (amount < 2000) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦2,000' }, { status: 400 })
+    if (amount < 1000) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦1,000' }, { status: 400 })
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
+
+    // Check which payment provider was used for activation
+    const activationPaymentProvider = advertiserSnap.data()?.activationPaymentProvider || 'paystack'
 
     // Platform fee (10%) — send net amount via Paystack
     const fee = Math.round(amount * 0.1)
@@ -67,7 +71,7 @@ export async function POST(req: Request) {
       if (currentBal < amount) throw new Error('Insufficient balance')
 
       // Create a withdrawal request; we'll mark as 'processing' while we
-      // attempt to initiate a Paystack transfer.
+      // attempt to initiate a transfer via the matched provider.
       t.set(withdrawalRef, {
         userId,
         amount,
@@ -75,6 +79,7 @@ export async function POST(req: Request) {
         net,
         status: 'processing',
         bank,
+        withdrawalProvider: activationPaymentProvider,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         source: 'advertiser',
       })
@@ -110,35 +115,61 @@ export async function POST(req: Request) {
       })
     })
 
-    // After the DB transaction, attempt to create a Paystack recipient and initiate transfer.
+    // After the DB transaction, attempt to create a recipient and initiate transfer via matched provider.
     try {
       const recipientName = advertiser.fullName || bank.accountName || 'Pamba User'
-      console.log('[withdraw][advertiser] creating paystack recipient for', userId, { name: recipientName, bank })
-      const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' }) as string
-      console.log('[withdraw][advertiser] recipient created', recipientCode)
+      
+      if (activationPaymentProvider === 'monnify') {
+        // Handle Monnify withdrawal via Monnify disbursement API
+        console.log('[withdraw][advertiser] initiating monnify disbursement for', userId)
+        
+        const disbursementResponse = await monnify.initiateDisbursement({
+          amount: net,
+          reference: withdrawalRef.id,
+          narration: `Withdrawal for ${recipientName}`,
+          destinationBankCode: bank.bankCode!,
+          destinationAccountNumber: bank.accountNumber!,
+          accountName: recipientName,
+        })
+        
+        console.log('[withdraw][advertiser] monnify disbursement initiated', disbursementResponse)
+        
+        await withdrawalRef.update({
+          monnifyReference: disbursementResponse.reference || withdrawalRef.id,
+          monnifyStatus: disbursementResponse.status || 'PENDING',
+          monnifyAmount: disbursementResponse.amount,
+          monnifyDestinationBank: disbursementResponse.destinationBankName,
+          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      } else {
+        // Handle Paystack withdrawal (existing logic)
+        console.log('[withdraw][advertiser] creating paystack recipient for', userId, { name: recipientName, bank })
+        const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' }) as string
+        console.log('[withdraw][advertiser] recipient created', recipientCode)
 
-      // Store recipientCode on advertiser doc for reuse.
-      await advertiserRef.update({ paystackRecipientCode: recipientCode })
+        // Store recipientCode on advertiser doc for reuse.
+        await advertiserRef.update({ paystackRecipientCode: recipientCode })
 
-      const amountToSend = net
-      console.log('[withdraw][advertiser] initiating transfer', recipientCode, amountToSend)
-      const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` }) as { id?: string; reference?: string; transfer_code?: string; status?: string }
-      console.log('[withdraw][advertiser] transfer initiated', transferData)
+        const amountToSend = net
+        console.log('[withdraw][advertiser] initiating transfer', recipientCode, amountToSend)
+        const transferData = await initiateTransfer({ recipient: recipientCode, amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` }) as { id?: string; reference?: string; transfer_code?: string; status?: string }
+        console.log('[withdraw][advertiser] transfer initiated', transferData)
 
-      // Record transfer identifiers on withdrawal doc. We'll rely on webhook to finalize.
-      await withdrawalRef.update({
-        paystackRecipient: recipientCode,
-        paystackTransferId: transferData.id || null,
-        paystackTransferReference: transferData.reference || transferData.transfer_code || null,
-        paystackStatus: transferData.status || null,
-        initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
+        // Record transfer identifiers on withdrawal doc. We'll rely on webhook to finalize.
+        await withdrawalRef.update({
+          paystackRecipient: recipientCode,
+          paystackTransferId: transferData.id || null,
+          paystackTransferReference: transferData.reference || transferData.transfer_code || null,
+          paystackStatus: transferData.status || null,
+          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
     } catch (payErr) {
-      console.error('Paystack transfer initiation failed', payErr)
+      console.error('Transfer initiation failed', payErr)
       // Mark withdrawal as pending and attach error for admin review
-      try { await withdrawalRef.update({ status: 'pending', paystackError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after paystack error', e) }
+      try { await withdrawalRef.update({ status: 'pending', transferError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after transfer error', e) }
       // Restore advertiser balance since transfer didn't start
-      try { await advertiserRef.update({ balance: admin.firestore.FieldValue.increment(amount) }) } catch (e) { console.error('Failed to restore advertiser balance after paystack error', e) }
+      try { await advertiserRef.update({ balance: admin.firestore.FieldValue.increment(amount) }) } catch (e) { console.error('Failed to restore advertiser balance after transfer error', e) }
       return NextResponse.json({ success: false, message: 'Failed to initiate transfer; admin will review' }, { status: 502 })
     }
 

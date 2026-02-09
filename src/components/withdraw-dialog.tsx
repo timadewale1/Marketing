@@ -18,7 +18,7 @@ interface WithdrawDialogProps {
 export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails }: WithdrawDialogProps) {
   const [amount, setAmount] = useState<number | "">("");
   const [submitting, setSubmitting] = useState(false);
-  const minWithdraw = 2000;
+  const minWithdraw = 1000;
 
   const handleSubmit = async () => {
     if (!amount || Number(amount) < minWithdraw) {

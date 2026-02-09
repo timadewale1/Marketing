@@ -36,10 +36,9 @@ export default function HomePage() {
         </div> */}
         
         <div className="relative container mx-auto px-4 h-full flex items-center pt-8 sm:pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 w-full items-center">
             {/* Left side - Text content */}
             <div>
-              <h1 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+              <h1 className="text-3xl sm:text-3xl font-bold text-white mb-6">
                 <TypedText
                   strings={[
                     'Earn Money Through Social Impact',
@@ -89,7 +88,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
             </div>
 
             {/* Right side - Image */}
-            <div className="flex justify-center items-center">
+            {/* <div className="flex justify-center items-center">
               <div className="relative w-full max-w-sm h-96 rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300">
                 <Image
                   src="/image.png"
@@ -99,8 +98,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
                   priority
                 />
               </div>
-            </div>
-          </div>
+            </div> */}
         </div>
       </section>
 

@@ -1,6 +1,84 @@
 const BASE = process.env.MONNIFY_BASE_URL!
 const API_KEY = process.env.MONNIFY_API_KEY!
 const SECRET = process.env.MONNIFY_SECRET_KEY!
+const MONNIFY_WALLET_ACCOUNT = process.env.MONNIFY_WALLET_ACCOUNT_NUMBER!
+
+// Bank code mappings for Nigerian banks (Monnify format)
+const BANK_CODE_MAP: Record<string, string> = {
+  '007': 'Zenith Bank',
+  '009': 'FCMB',
+  '011': 'First Bank',
+  '012': 'UBA',
+  '014': 'GTBank',
+  '015': 'Eco Bank',
+  '019': 'Guaranty Trust Bank',
+  '020': 'Stanbic IBTC',
+  '021': 'Diamond Bank',
+  '022': 'Access Bank',
+  '023': 'Citibank',
+  '024': 'Fidelity Bank',
+  '025': 'Union Bank',
+  '026': 'Wema Bank',
+  '027': 'Sterling Bank',
+  '028': 'Skye Bank',
+  '030': 'IBTC',
+  '031': 'Polaris Bank',
+  '032': 'Providus Bank',
+  '033': 'Unity Bank',
+  '035': 'Wema Bank',
+  '036': 'Suntrust Bank',
+  '037': 'VFD',
+  '039': 'Titan Trust Bank',
+  '040': 'Apex Mortgage Bank',
+  '041': 'Abbey Mortgage Bank',
+  '042': 'Kaiyum Microfinance',
+  '050': 'Ecobank',
+  '051': 'Ecobank',
+  '052': 'Ecobank',
+  '053': 'Bank of Industry',
+  '054': 'Bank of Agriculture',
+  '055': 'Bank of The North',
+  '056': 'Guaranty Trust Bank',
+  '057': 'Zenith Bank',
+  '058': 'FCMB',
+  '059': 'Keystone Bank',
+  '060': 'Providus Bank',
+  '061': 'First City Monument Bank',
+  '062': 'Primenext',
+  '063': 'Stanbic IBTC',
+  '064': 'Stanbic IBTC',
+  '065': 'Union Bank',
+  '066': 'Union Bank',
+  '067': 'Access Bank',
+  '068': 'Access Bank',
+  '069': 'Access Bank',
+  '070': 'Fidelity Bank',
+  '071': 'Fidelity Bank',
+  '072': 'Fidelity Bank',
+  '073': 'GTCO',
+  '074': 'Polaris Bank',
+  '075': 'Zenith Bank',
+  '076': 'Zenith Bank',
+  '077': 'First Bank',
+  '078': 'First Bank',
+  '079': 'First Bank',
+  '080': 'First Bank',
+  '081': 'First Bank',
+  '082': 'First Bank',
+  '083': 'UBA',
+  '084': 'UBA',
+  '085': 'UBA',
+  '086': 'UBA',
+  '087': 'UBA',
+  '088': 'UBA',
+  '089': 'UBA',
+  '090': 'GTBank',
+  '091': 'GTBank',
+  '092': 'GTBank',
+  '093': 'GTBank',
+  '094': 'GTBank',
+  '095': 'GTBank',
+}
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
@@ -162,4 +240,74 @@ export async function refundTransaction({ transactionRef, amountKobo, reason }: 
   return json
 }
 
-export default { verifyTransaction, initiateTransaction, refundTransaction }
+export async function initiateDisbursement({
+  amount,
+  reference,
+  narration,
+  destinationBankCode,
+  destinationAccountNumber,
+  accountName,
+}: {
+  amount: number // In Naira
+  reference: string // Unique reference ID
+  narration: string // Description
+  destinationBankCode: string // 3-digit bank code
+  destinationAccountNumber: string
+  accountName?: string
+}) {
+  const token = await getAuthToken()
+
+  const body = {
+    amount,
+    reference,
+    narration,
+    destinationBankCode,
+    destinationAccountNumber,
+    currency: 'NGN',
+    sourceAccountNumber: MONNIFY_WALLET_ACCOUNT,
+  }
+
+  const res = await fetch(`${BASE}/api/v2/disbursements/single`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const json = await res.json()
+
+  console.log(`Monnify disbursement response: ${res.status}`, JSON.stringify(json).substring(0, 500))
+
+  if (!res.ok || !json.requestSuccessful) {
+    throw new Error(`Monnify disbursement failed: ${JSON.stringify(json)}`)
+  }
+
+  return json.responseBody
+}
+
+export async function checkDisbursementStatus(reference: string) {
+  const token = await getAuthToken()
+
+  const res = await fetch(`${BASE}/api/v2/disbursements/single/summary?reference=${encodeURIComponent(reference)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  })
+
+  const json = await res.json()
+
+  console.log(`Monnify disbursement status: ${res.status}`, JSON.stringify(json).substring(0, 500))
+
+  if (!res.ok) {
+    throw new Error(`Monnify status check failed: ${JSON.stringify(json)}`)
+  }
+
+  return json.responseBody || json
+}
+
+export default { verifyTransaction, initiateTransaction, refundTransaction, initiateDisbursement, checkDisbursementStatus }

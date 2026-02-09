@@ -17,7 +17,7 @@ export type PaymentSelectorProps = {
   phone?: string
   description?: string
   onClose: () => void
-  onPaymentSuccess: (reference: string, provider: 'paystack' | 'monnify') => Promise<void>
+  onPaymentSuccess: (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => Promise<void>
 }
 
 export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
@@ -149,7 +149,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
               const reference = typeof response === 'string'
                 ? response
                 : (response?.transactionReference as string) || (response?.reference as string) || 'unknown';
-              await onPaymentSuccess(reference, 'monnify')
+              await onPaymentSuccess(reference, 'monnify', response as Record<string, unknown>)
             } catch (err) {
               console.error('Payment processing error:', err)
               toast.error('Payment verification failed')
