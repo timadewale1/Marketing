@@ -94,17 +94,34 @@ export async function POST(req: Request) {
 
     // Finalize pending referrals for this user (transaction-safe per-referral)
     const refsSnap = await adminDb.collection('referrals').where('referredId', '==', userId).where('status', '==', 'pending').get()
+    
+    console.log('[advertiser][activate] found pending referrals:', refsSnap.size, 'for user', userId)
+    
     for (const rDoc of refsSnap.docs) {
       const r = rDoc.data()
       const bonus = Number(r.amount || 0)
       const referrerId = r.referrerId as string | undefined
+      
+      console.log('[advertiser][activate] processing referral:', {
+        referralId: rDoc.id,
+        referrerId,
+        bonus,
+        status: r.status,
+      })
+      
       try {
         const rRef = adminDb.collection('referrals').doc(rDoc.id)
         await adminDb.runTransaction(async (t) => {
           const snap = await t.get(rRef)
-          if (!snap.exists) return
+          if (!snap.exists) {
+            console.warn('[advertiser][activate] referral already deleted:', rDoc.id)
+            return
+          }
           const status = snap.data()?.status
-          if (status !== 'pending') return
+          if (status !== 'pending') {
+            console.warn('[advertiser][activate] referral already processed:', rDoc.id, 'status:', status)
+            return
+          }
           t.update(rRef, { status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp() })
           if (referrerId && bonus > 0) {
             const txRef = adminDb.collection('advertiserTransactions').doc()
@@ -118,10 +135,11 @@ export async function POST(req: Request) {
             })
             const referrerRef = adminDb.collection('advertisers').doc(referrerId)
             t.update(referrerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
+            console.log('[advertiser][activate] credited referrer bonus:', referrerId, 'amount:', bonus)
           }
         })
       } catch (e) {
-        console.error('Failed finalizing referral', rDoc.id, e)
+        console.error('[advertiser][activate] failed finalizing referral', rDoc.id, e)
       }
     }
 

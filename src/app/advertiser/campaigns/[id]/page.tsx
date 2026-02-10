@@ -141,10 +141,31 @@ export default function CampaignDetailsPage() {
   const handleDelete = async () => {
     if (!campaign) return
     try {
-      await deleteDoc(doc(db, "campaigns", campaign.id))
-      toast.success("Task deleted")
+      const user = getAuth().currentUser
+      if (!user) {
+        toast.error("Not authenticated")
+        return
+      }
+
+      const token = await user.getIdToken()
+      const response = await fetch(`/api/advertiser/tasks/${campaign.id}/delete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        toast.error(result.message || "Failed to delete task")
+        return
+      }
+
+      toast.success("Task deleted and budget refunded to your balance")
       router.push("/advertiser")
-    } catch {
+    } catch (error) {
+      console.error('Delete task error:', error)
       toast.error("Failed to delete task")
     }
   }

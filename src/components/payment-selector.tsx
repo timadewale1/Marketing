@@ -38,16 +38,23 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   if (!open) return null
 
   const handleProceed = () => {
-    if (selectedProvider === 'paystack') {
-      setPaystackOpen(true)
-    } else {
-      setMonnifyOpen(true)
-    }
+    // Close the selection dialog when opening payment modals
+    // This prevents the Dialog overlay from blocking the payment modals
+    onClose()
+    
+    // Small delay to ensure Dialog closes before payment modal opens
+    setTimeout(() => {
+      if (selectedProvider === 'paystack') {
+        setPaystackOpen(true)
+      } else {
+        setMonnifyOpen(true)
+      }
+    }, 50)
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open && !paystackOpen && !monnifyOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-sm bg-white rounded-lg shadow-lg p-6">
           <DialogHeader>
             <DialogTitle>Choose Payment Method</DialogTitle>
