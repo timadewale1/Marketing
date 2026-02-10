@@ -56,6 +56,8 @@ export default function WalletPage() {
   const [fundModalOpen, setFundModalOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [bankDetails, setBankDetails] = useState<{ accountNumber?: string; bankName?: string; accountName?: string } | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const withdrawalsPerPage = 5
   type ResumedCampaign = {
     id: string;
     status: string;
@@ -365,22 +367,66 @@ export default function WalletPage() {
                   {withdrawals.length === 0 ? (
                     <div className="text-center py-8 text-stone-600">No withdrawal requests yet.</div>
                   ) : (
-                    withdrawals.map((w) => (
-                      <Card key={w.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-stone-800">₦{Number(w.amount).toLocaleString()}</div>
-                            <div className="text-sm text-stone-600">{w.fullName || ''} • {w.bank?.bankName || ''}</div>
-                          </div>
-                          <div className="text-sm text-right">
-                            <div className={`inline-block px-2 py-1 rounded-full text-xs ${w.status === 'pending' ? 'bg-amber-100 text-amber-700' : w.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-700'}`}>
-                              {w.status}
+                    <>
+                      {withdrawals
+                        .slice((currentPage - 1) * withdrawalsPerPage, currentPage * withdrawalsPerPage)
+                        .map((w) => (
+                          <Card key={w.id} className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-stone-800">₦{Number(w.amount).toLocaleString()}</div>
+                                <div className="text-sm text-stone-600">{w.fullName || ''} • {w.bank?.bankName || ''}</div>
+                              </div>
+                              <div className="text-sm text-right">
+                                <div className={`inline-block px-2 py-1 rounded-full text-xs ${w.status === 'pending' ? 'bg-amber-100 text-amber-700' : w.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-700'}`}>
+                                  {w.status}
+                                </div>
+                                <div className="text-xs text-stone-500 mt-1">{w.createdAt ? new Date((w.createdAt as Timestamp).seconds * 1000).toLocaleString() : ''}</div>
+                              </div>
                             </div>
-                            <div className="text-xs text-stone-500 mt-1">{w.createdAt ? new Date((w.createdAt as Timestamp).seconds * 1000).toLocaleString() : ''}</div>
+                          </Card>
+                        ))}
+                      
+                      {/* Pagination */}
+                      {withdrawals.length > withdrawalsPerPage && (
+                        <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                          <div className="text-sm text-stone-600">
+                            Showing {(currentPage - 1) * withdrawalsPerPage + 1} to {Math.min(currentPage * withdrawalsPerPage, withdrawals.length)} of {withdrawals.length}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                              className="text-sm"
+                            >
+                              Previous
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: Math.ceil(withdrawals.length / withdrawalsPerPage) }, (_, i) => i + 1).map((page) => (
+                                <Button
+                                  key={page}
+                                  variant={currentPage === page ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => setCurrentPage(page)}
+                                  className="w-9 h-9 p-0"
+                                >
+                                  {page}
+                                </Button>
+                              ))}
+                            </div>
+                            <Button
+                              variant="outline"
+                              disabled={currentPage >= Math.ceil(withdrawals.length / withdrawalsPerPage)}
+                              onClick={() => setCurrentPage(prev => prev + 1)}
+                              className="text-sm"
+                            >
+                              Next
+                            </Button>
                           </div>
                         </div>
-                      </Card>
-                    ))
+                      )}
+                    </>
                   )}
                 </div>
               </div>

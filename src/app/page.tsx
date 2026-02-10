@@ -102,6 +102,42 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
         </div>
       </section>
 
+      {/* Safety Disclaimer */}
+      <section className="py-8 bg-stone-50 border-t border-b border-amber-200">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-lg p-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-red-700 mb-3">⚠️ Important Safety Notice</h3>
+                <ul className="space-y-2 text-stone-700 text-sm">
+                  <li className="flex gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <span><strong>Never</strong> send money to personal bank accounts or unknown individuals claiming to represent PAMBA</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <span>We will never request money for investment, registration, or promises of profit</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>All payments must be made <strong>only through our official website</strong> via <strong>Paystack</strong> or <strong>Monnify</strong></span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-amber-600 font-bold">→</span>
+                    <span>Report any suspicious messages to us immediately</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Bills & Utilities */}
       <section id="bills" className="py-12 bg-white">
         <div className="container mx-auto px-4">

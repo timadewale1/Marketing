@@ -132,13 +132,16 @@ export function SignUpForm() {
         })
 
         if (referralId) {
-          await setDoc(doc(db, "referrals", `${referralId}_${cred.user.uid}`), {
+          await setDoc(doc(db, "referrals", `${referralId}-${cred.user.uid}`), {
             referrerId: referralId,
             referredId: cred.user.uid,
+            userType: data.action,
             email: data.email,
             name: data.name,
             amount: 1000,
             status: "pending",
+            bonusPaid: false,
+            condition: "activation",
             createdAt: new Date(),
           })
         }

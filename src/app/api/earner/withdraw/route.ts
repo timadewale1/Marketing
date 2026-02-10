@@ -131,7 +131,11 @@ export async function POST(req: Request) {
         
         console.log('[withdraw][earner] monnify disbursement initiated', disbursementResponse)
         
+        // Map Monnify status to withdrawal status
+        const withdrawalStatus = disbursementResponse.status === 'SUCCESS' ? 'completed' : 'pending'
+        
         await withdrawalRef.update({
+          status: withdrawalStatus, // Update main status field so it reflects immediately
           monnifyReference: disbursementResponse.reference || withdrawalRef.id,
           monnifyStatus: disbursementResponse.status || 'PENDING',
           monnifyAmount: disbursementResponse.amount,

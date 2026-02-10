@@ -8,9 +8,12 @@ import { getAuth } from 'firebase-admin/auth'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before accessing
+    const { id: taskId } = await params
+
     const { admin: adminSdk } = await initFirebaseAdmin()
     if (!adminSdk) {
       return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
@@ -39,7 +42,6 @@ export async function POST(
       return NextResponse.json({ success: false, message: 'Admin access required' }, { status: 403 })
     }
 
-    const taskId = params.id
     const campaignRef = db.collection('campaigns').doc(taskId)
 
     // Use transaction to ensure atomicity
@@ -51,10 +53,10 @@ export async function POST(
       }
 
       const campaign = campaignSnap.data()
-      const advertiserId = campaign?.advertiserId as string | undefined
+      const advertiserId = campaign?.ownerId as string | undefined
 
       if (!advertiserId) {
-        throw new Error('Task has no advertiser ID')
+        throw new Error('Task has no owner ID')
       }
 
       const advertiserRef = db.collection('advertisers').doc(advertiserId)

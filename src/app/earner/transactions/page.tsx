@@ -36,6 +36,8 @@ export default function TransactionsPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const transactionsPerPage = 5;
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -140,7 +142,7 @@ export default function TransactionsPage() {
                 ₦{availableBalance.toLocaleString()}
               </p>
               <p className="text-sm text-stone-600 mt-1">
-                Minimum withdrawal: ₦2,000
+                Minimum withdrawal: ₦1,000
               </p>
             </div>
             <Button
@@ -164,37 +166,91 @@ export default function TransactionsPage() {
               <p className="text-stone-600">No transactions yet.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {history.map((tx) => (
-                <Card key={tx.id} className="p-4 hover:shadow-md transition duration-200">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-medium text-stone-800">
-                        {tx.type === 'withdrawal' ? 'Withdrawal' : tx.note || "Transaction"}
-                      </div>
-                      {tx.createdAt && (
-                        <div className="text-sm text-stone-500 mt-1">
-                          {new Date(tx.createdAt.seconds * 1000).toLocaleDateString()} at{" "}
-                          {new Date(tx.createdAt.seconds * 1000).toLocaleTimeString()}
+            <>
+              <div className="space-y-3">
+                {history
+                  .slice((currentPage - 1) * transactionsPerPage, currentPage * transactionsPerPage)
+                  .map((tx) => {
+                    let displayLabel = "Transaction"
+                    if (tx.type === 'withdrawal') {
+                      displayLabel = 'Withdrawal'
+                    } else if (tx.type === 'referral_bonus') {
+                      displayLabel = 'Referral Bonus'
+                    } else if (tx.note) {
+                      displayLabel = tx.note
+                    }
+                    return (
+                    <Card key={tx.id} className="p-4 hover:shadow-md transition duration-200">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-medium text-stone-800">
+                            {displayLabel}
+                          </div>
+                          {tx.createdAt && (
+                            <div className="text-sm text-stone-500 mt-1">
+                              {new Date(tx.createdAt.seconds * 1000).toLocaleDateString()} at{" "}
+                              {new Date(tx.createdAt.seconds * 1000).toLocaleTimeString()}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {tx.status === 'pending' && (
-                        <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
-                          Pending
-                        </span>
-                      )}
-                      <div className={`font-bold ${
-                        tx.amount < 0 ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        ₦{Math.abs(tx.amount).toLocaleString()}
+                        <div className="text-right">
+                          {tx.status === 'pending' && (
+                            <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
+                              Pending
+                            </span>
+                          )}
+                          <div className={`font-bold ${
+                            tx.amount < 0 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            ₦{Math.abs(tx.amount).toLocaleString()}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </Card>
+                    )
+                  })}
+              </div>
+
+              {/* Pagination */}
+              {history.length > transactionsPerPage && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <div className="text-sm text-stone-600">
+                    Showing {(currentPage - 1) * transactionsPerPage + 1} to {Math.min(currentPage * transactionsPerPage, history.length)} of {history.length}
                   </div>
-                </Card>
-              ))}
-            </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className="text-sm"
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.ceil(history.length / transactionsPerPage) }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-9 h-9 p-0"
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={currentPage >= Math.ceil(history.length / transactionsPerPage)}
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      className="text-sm"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
 

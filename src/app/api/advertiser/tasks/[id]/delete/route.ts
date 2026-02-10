@@ -8,9 +8,12 @@ import { getAuth } from 'firebase-admin/auth'
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params before accessing
+    const { id: taskId } = await params
+
     const { admin: adminSdk } = await initFirebaseAdmin()
     if (!adminSdk) {
       return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
@@ -32,7 +35,6 @@ export async function POST(
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
-    const taskId = params.id
     const db = adminSdk.firestore()
     const campaignRef = db.collection('campaigns').doc(taskId)
     const advertiserRef = db.collection('advertisers').doc(userId)
@@ -48,9 +50,19 @@ export async function POST(
 
       const campaign = campaignSnap.data()
       
+      // Log for debugging
+      console.log('[delete-task][advertiser] campaign data:', {
+        taskId,
+        campaign_ownerId: campaign?.ownerId,
+        campaign_advertiserId: campaign?.advertiserId,
+        userId,
+      })
+      
       // Verify ownership - only advertiser who created it can delete
-      if (campaign?.advertiserId !== userId) {
-        throw new Error('Unauthorized: not task owner')
+      // Campaigns use 'ownerId' field
+      const isOwner = campaign?.ownerId === userId || campaign?.advertiserId === userId
+      if (!isOwner) {
+        throw new Error(`Unauthorized: not task owner (campaign owner: ${campaign?.ownerId || campaign?.advertiserId}, your id: ${userId})`)
       }
 
       // Calculate unused budget (available budget + reserved budget that wasn't used)

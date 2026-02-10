@@ -169,12 +169,25 @@ export default function AdvertiserTransactionsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {history.map((tx) => (
+              {history.map((tx) => {
+                let displayLabel = "Transaction"
+                if (tx.type === 'campaign_payment') {
+                  displayLabel = 'Task Payment'
+                } else if (tx.type === 'deposit') {
+                  displayLabel = 'Deposit'
+                } else if (tx.type === 'withdrawal' || tx.type === 'withdrawal_request') {
+                  displayLabel = 'Withdrawal'
+                } else if (tx.type === 'referral_bonus') {
+                  displayLabel = 'Referral Bonus'
+                } else if (tx.note) {
+                  displayLabel = tx.note
+                }
+                return (
                 <Card key={tx.id} className="p-4 hover:shadow-md transition duration-200">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h4 className="font-medium text-stone-800">
-                        {tx.type === 'campaign_payment' ? 'Task Payment' : tx.type === 'deposit' ? 'Deposit' : tx.type === 'withdrawal' || tx.type === 'withdrawal_request' ? 'Withdrawal' : tx.note || "Transaction"}
+                        {displayLabel}
                       </h4>
                       {tx.createdAt && (
                         <div className="text-sm text-stone-500 mt-1">
@@ -202,7 +215,8 @@ export default function AdvertiserTransactionsPage() {
                     </div>
                   </div>
                 </Card>
-              ))}
+              )
+              })}
             </div>
           )}
           {/* Withdraw dialog should always be mounted so button opens it even with no history */}
