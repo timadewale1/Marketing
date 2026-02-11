@@ -31,7 +31,8 @@ export async function POST(req: Request) {
   try {
   const body = await req.json()
   const reference = body?.reference as string | undefined
-  const provider = (body?.provider as string | undefined) || 'paystack'
+  // Paystack disabled - defaulting to monnify only
+  const provider = (body?.provider as string | undefined) || 'monnify'
   let userId = body?.userId as string | undefined
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
 
@@ -52,7 +53,9 @@ export async function POST(req: Request) {
         console.error('Monnify verify error', e)
         return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
       }
-    } else {
+    } 
+    /* Paystack disabled - using Monnify only
+    else {
       if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
 
       const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
@@ -68,6 +71,7 @@ export async function POST(req: Request) {
         userId = verifyData.data?.metadata?.userId
       }
     }
+    */
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     if (paidAmount < 2000) {
       return NextResponse.json({ success: false, message: 'Insufficient payment amount' }, { status: 400 })

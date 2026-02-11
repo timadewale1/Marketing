@@ -50,7 +50,9 @@ if (provider === 'monnify') {
       { status: 500 }
     )
   }
-} else {
+} 
+/* Paystack disabled - using Monnify only
+else {
       // Default to Paystack
       if (!process.env.PAYSTACK_SECRET_KEY) {
         console.warn('PAYSTACK_SECRET_KEY not configured — skipping remote verification')
@@ -100,6 +102,7 @@ if (provider === 'monnify') {
         }
       }
     }
+*/
 
   // Handle campaign creation if this is a campaign payment
     if (campaignData) {

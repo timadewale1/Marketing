@@ -125,7 +125,7 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
                   </li>
                   <li className="flex gap-2">
                     <span className="text-green-600 font-bold">✓</span>
-                    <span>All payments must be made <strong>only through our official website</strong> via <strong>Paystack</strong> or <strong>Monnify</strong></span>
+                    <span>All payments must be made <strong>only through our official website</strong> via <strong>Monnify</strong></span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-amber-600 font-bold">→</span>

@@ -30,7 +30,9 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   onClose,
   onPaymentSuccess,
 }) => {
-  const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('paystack')
+  // Commented out Paystack - using Monnify only
+  // const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('paystack')
+  const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('monnify')
   const [paystackOpen, setPaystackOpen] = useState(false)
   const [monnifyOpen, setMonnifyOpen] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -68,32 +70,9 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
               {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
             </div>
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Select Provider</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedProvider('paystack')}
-                  className={`flex-1 py-3 px-4 rounded border-2 transition font-medium flex items-center gap-3 justify-center ${
-                    selectedProvider === 'paystack'
-                      ? 'border-amber-500 bg-amber-50 text-amber-900'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                  }`}
-                >
-                  <Image src="/paystack-logo.jpg" alt="Paystack" width={100} height={100} />
-                  {/* <span className="hidden sm:inline">Paystack</span> */}
-                </button>
-                <button
-                  onClick={() => setSelectedProvider('monnify')}
-                  className={`flex-1 py-3 px-4 rounded border-2 transition font-medium flex items-center gap-3 justify-center ${
-                    selectedProvider === 'monnify'
-                      ? 'border-blue-500 bg-blue-50 text-blue-900'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                  }`}
-                >
-                  <Image src="/monnify-logo.png" alt="Monnify" width={100} height={100} />
-                  {/* <span className="hidden sm:inline">Monnify</span> */}
-                </button>
-              </div>
+            {/* Paystack option disabled - using Monnify only */}
+            <div className="p-4 bg-blue-50 rounded border border-blue-200 text-center">
+              <p className="text-sm font-medium text-blue-900">💳 Payment via Monnify</p>
             </div>
 
             <div className="flex gap-2 pt-4">
@@ -117,7 +96,8 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
         </DialogContent>
       </Dialog>
 
-      {paystackOpen && (
+      {/* Paystack disabled - using Monnify only */}
+      {/* {paystackOpen && (
         <PaystackModal
           amount={amount}
           email={email || auth.currentUser?.email || "no-reply@example.com"}
@@ -139,7 +119,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
             setIsVerifying(false)
           }}
         />
-      )}
+      )} */}
 
       {monnifyOpen && (
         <MonnifyModal

@@ -23,6 +23,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { PageLoader } from "@/components/ui/loader";
+import { NIGERIAN_BANKS } from "@/lib/banks";
 
 interface Bank {
   bankName: string;
@@ -54,19 +55,12 @@ export default function AdvertiserBankPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const res = await fetch("https://api.paystack.co/bank?country=nigeria");
-        const data = await res.json();
-        if (data.status && data.data) {
-          setBanks(data.data.map((b: PaystackBank) => ({ name: b.name, code: b.code })));
-        }
-      } catch (err) {
-        console.error("Failed to fetch banks:", err);
-        toast.error("Could not load banks list");
-      }
-    };
-    fetchBanks();
+    try {
+      setBanks(NIGERIAN_BANKS);
+    } catch (err) {
+      console.error("Failed to load banks:", err);
+      toast.error("Could not load banks list");
+    }
   }, []);
 
   useEffect(() => {

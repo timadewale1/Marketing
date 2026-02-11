@@ -23,6 +23,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { PageLoader } from "@/components/ui/loader";
+import { NIGERIAN_BANKS } from "@/lib/banks";
 
 interface Bank {
   bankName: string;
@@ -53,25 +54,14 @@ export default function BankPage() {
   const [accountName, setAccountName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch banks from Paystack on mount (server doesn't expose secret here - we use public endpoint)
+  // Fetch Nigerian banks on mount
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        // Use Paystack public banks endpoint (no secret required for listing banks)
-        const res = await fetch("https://api.paystack.co/bank?country=nigeria");
-        const data = await res.json();
-        if (data.status && data.data) {
-          setBanks(data.data.map((b: PaystackBank) => ({
-            name: b.name,
-            code: b.code,
-          })));
-        }
-      } catch (err) {
-        console.error("Failed to fetch banks:", err);
-        toast.error("Could not load banks list");
-      }
-    };
-    fetchBanks();
+    try {
+      setBanks(NIGERIAN_BANKS);
+    } catch (err) {
+      console.error("Failed to load banks:", err);
+      toast.error("Could not load banks list");
+    }
   }, []);
 
   // Get current bank details

@@ -51,7 +51,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: "What are the payment methods?",
-    answer: "We currently accept payments through Paystack for advertisers funding tasks. For earners, withdrawals are processed to verified Nigerian bank accounts."
+    answer: "We accept payments through Monnify for all transactions. Withdrawals are processed to verified Nigerian bank accounts."
   },
   {
     question: "How long does task approval take?",

@@ -181,7 +181,7 @@ export default function CampaignDetailPage() {
     return url;
   };
 
-  // Open payment selector so both Paystack and Monnify are supported
+  // Open payment selector with Monnify only (Paystack disabled)
   const handleActivation = async () => {
     setShowActivationPaymentSelector(true)
   }
@@ -196,7 +196,7 @@ export default function CampaignDetailPage() {
     if (!earnerDoc.exists()) return toast.error("Earner profile not found");
     const earnerData = earnerDoc.data() as EarnerData;
     if (!earnerData?.activated) {
-      handleActivation(); // Open Paystack modal for activation
+      handleActivation(); // Open Monnify modal for activation (Paystack disabled)
       return;
     }
 

@@ -200,7 +200,7 @@ export default function EarnerDashboard() {
     router.push("/auth/sign-in")
   }
 
-  // Use PaymentSelector so both Paystack and Monnify are supported for activation
+  // Use PaymentSelector with Monnify only (Paystack disabled)
   const handleActivation = async () => {
     setShowActivationPaymentSelector(true)
   }

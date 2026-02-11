@@ -42,6 +42,26 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
+const NIGERIAN_BANKS = [
+  { code: "011", name: "First Bank of Nigeria" },
+  { code: "033", name: "United Bank for Africa" },
+  { code: "044", name: "Access Bank" },
+  { code: "050", name: "Zenith Bank" },
+  { code: "070", name: "Guaranty Trust Bank" },
+  { code: "075", name: "Polaris Bank" },
+  { code: "076", name: "Equatorial Trust Bank" },
+  { code: "082", name: "Keystone Bank" },
+  { code: "089", name: "Wema Bank" },
+  { code: "090", name: "Ecobank" },
+  { code: "101", name: "Providus Bank" },
+  { code: "103", name: "Fidelity Bank" },
+  { code: "106", name: "Sterling Bank" },
+  { code: "108", name: "Tangerine Bank" },
+  { code: "110", name: "Stanbic IBTC" },
+  { code: "400", name: "Fido" },
+  { code: "500", name: "FinTech" },
+]
+
 export default function EarnerOnboarding() {
   const [loading, setLoading] = useState(false)
   const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
@@ -65,23 +85,14 @@ export default function EarnerOnboarding() {
   const accountNumber = watch("accountNumber")
   const bankCode = watch("bankCode")
 
-  // ✅ Fetch Nigerian banks from Paystack
+  // ✅ Fetch Nigerian banks
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const res = await fetch("https://api.paystack.co/bank?country=nigeria", {
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_PAYSTACK_KEY}`,
-          },
-        })
-        const data = await res.json()
-        if (data.status) setBanks(data.data)
-      } catch (err) {
-        console.error("Failed to fetch banks", err)
-      }
+    try {
+      setBanks(NIGERIAN_BANKS);
+    } catch (err) {
+      console.error("Failed to load banks", err);
     }
-    fetchBanks()
-  }, [])
+  }, []);
 
   // ✅ Verify bank account whenever inputs change
   useEffect(() => {

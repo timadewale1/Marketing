@@ -42,43 +42,11 @@ export default function PwaInstaller() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // If Paystack redirected back to our site with a reference, attempt to verify
+    // Paystack disabled - using Monnify only
     async function handlePaystackReturn() {
       try {
-        const params = new URLSearchParams(window.location.search)
-        const reference = params.get('reference') || params.get('trxref')
-        if (!reference) return
-
-        const pendingRaw = localStorage.getItem('pamba_pending_payment')
-        if (!pendingRaw) return
-        const pending = JSON.parse(pendingRaw)
-
-        // enrich with userId if available
-        const userId = auth.currentUser?.uid || pending.userId
-        const body = { reference, ...pending, userId }
-        console.log('Detected Paystack redirect, verifying payment', body)
-
-        const res = await fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        const data = await res.json().catch(() => ({}))
-        console.log('verify-payment (redirect) response', res.status, data)
-        if (res.ok) {
-          toast.success('Payment verified')
-          localStorage.removeItem('pamba_pending_payment')
-        } else {
-          toast.error(data?.message || 'Payment verification failed')
-        }
-
-        // remove query params so user doesn't re-trigger on refresh
-        try {
-          const url = new URL(window.location.href)
-          url.search = ''
-          window.history.replaceState({}, document.title, url.toString())
-        } catch (e) {
-          /* ignore */
-        }
+        // Paystack redirect handling disabled - using Monnify only
+        console.log('Paystack redirect handling disabled - using Monnify only')
       } catch (err) {
         console.error('Error handling paystack return', err)
       }
