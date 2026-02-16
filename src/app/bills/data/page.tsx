@@ -13,16 +13,30 @@ import { ArrowLeft, Loader2, Smartphone } from 'lucide-react'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { USUF_NETWORKS, type UsufNetwork, getPlansGrouped, type UsufPlanWithSelling } from '@/services/usufPlans'
+import { buyUsufData } from '@/services/usuf'
 
 type DataPlan = { code: string; name: string; amount: number }
 
+type Provider = 'vtpass' | 'usuf'
+
 export default function DataPage() {
+  const [provider, setProvider] = useState<Provider>('vtpass')
   const [amount, setAmount] = useState('')
   const [service, setService] = useState('')
   const [services, setServices] = useState<Array<{ id: string; name: string }>>([])
   const [plan, setPlan] = useState('')
   const [plans, setPlans] = useState<DataPlan[]>([])
   const [phone, setPhone] = useState('')
+  
+  // Usuf states
+  const [selectedNetwork, setSelectedNetwork] = useState<UsufNetwork | null>(null)
+  const [usufGrouped, setUsufGrouped] = useState<{
+    networkId: UsufNetwork
+    networkName: string
+    groups: Array<{ planType: string; plans: UsufPlanWithSelling[] }>
+  } | null>(null)
+  const [selectedUsufPlan, setSelectedUsufPlan] = useState<UsufPlanWithSelling | null>(null)
   
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -64,7 +78,74 @@ export default function DataPage() {
     return () => { authUnsub(); if (unsubBalance) try { unsubBalance() } catch {} }
   }, [])
 
-  const displayPrice = () => Number(amount || 0)
+  const displayPrice = () => {
+    if (provider === 'usuf' && selectedUsufPlan) {
+      return selectedUsufPlan.sellAmount
+    }
+    return Number(amount || 0)
+  }
+
+  const handleUsufNetworkChange = (network: UsufNetwork) => {
+    setSelectedNetwork(network)
+    const grouped = getPlansGrouped(network)
+    setUsufGrouped(grouped)
+    setSelectedUsufPlan(null)
+    setAmount('')
+  }
+
+  const handleUsufPlanSelect = (plan: UsufPlanWithSelling) => {
+    setSelectedUsufPlan(plan)
+    setAmount(String(plan.sellAmount))
+  }
+
+  const handleUsufPurchase = async (paymentProvider?: 'usuf_wallet' | 'monnify') => {
+    if (!selectedUsufPlan) return toast.error('Please select a plan')
+    if (!phone) return toast.error('Please enter a phone number')
+    if (!auth.currentUser) return toast.error('Please sign in to make a purchase')
+
+    const isWallet = paymentProvider === 'usuf_wallet'
+    if (isWallet) setProcessingWallet(true)
+    else setProcessing(true)
+
+    try {
+      const response = await buyUsufData(
+        phone,
+        selectedUsufPlan.network,
+        selectedUsufPlan.id,
+        true, // ported number
+      )
+
+      console.log('Usuf purchase response:', response)
+
+      if (!response.status) {
+        const errorMsg = response.message || 'Purchase failed'
+        console.error('Usuf API error details:', response.apiResponse)
+        return toast.error(errorMsg)
+      }
+
+      const transactionData = {
+        provider: 'usuf',
+        amount: selectedUsufPlan.sellAmount,
+        network: selectedUsufPlan.networkName,
+        planId: selectedUsufPlan.id,
+        planSize: selectedUsufPlan.size,
+        phone,
+        timestamp: new Date().toISOString(),
+        transactionId: response.data?.reference || undefined,
+        response_description: response.message || response.apiResponse?.api_response || response.apiResponse?.api_response_message || undefined,
+      }
+
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Purchase successful')
+      window.location.href = '/bills/confirmation'
+    } catch (e) {
+      console.error('Usuf purchase exception:', e)
+      toast.error('Error processing purchase')
+    } finally {
+      if (isWallet) setProcessingWallet(false)
+      else setProcessing(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -196,6 +277,30 @@ export default function DataPage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          {/* Provider Tabs */}
+          <div className="flex gap-2 mb-6 border-b border-stone-200">
+            <button
+              onClick={() => setProvider('vtpass')}
+              className={`px-4 py-3 font-semibold transition-colours border-b-2 ${
+                provider === 'vtpass'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              Data Plans
+            </button>
+            <button
+              onClick={() => setProvider('usuf')}
+              className={`px-4 py-3 font-semibold transition-colours border-b-2 ${
+                provider === 'usuf'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              Other Data Plans
+            </button>
+          </div>
+
           <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <CardContent className="p-6 sm:p-8 space-y-6">
               {/* Phone Input */}
@@ -212,31 +317,106 @@ export default function DataPage() {
                 </div>
               </div>
 
-              {/* Data Plans Selector */}
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
-                </div>
-              ) : (
-                <div>
+              {/* VTpass Plans */}
+              {provider === 'vtpass' && (
+                <>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-semibold text-stone-900 mb-3">Select Network</label>
+                      <select
+                        value={service}
+                        onChange={(e) => setService(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-stone-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        {services.length ? services.map(s => <option key={s.id} value={s.id}>{s.name}</option>) : <option value="">Select network</option>}
+                      </select>
+                      <label className="block text-sm font-semibold text-stone-900 mb-3">Select Data Plan</label>
+                      <DataPlanSelector
+                        plans={plans}
+                        selectedCode={plan}
+                        onSelect={(code, amt) => {
+                          setPlan(code)
+                          setAmount(String(amt))
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Usuf Plans */}
+              {provider === 'usuf' && (
+                <>
+                  {/* Network Selection Dropdown */}
+                  <div>
                     <label className="block text-sm font-semibold text-stone-900 mb-3">Select Network</label>
                     <select
-                      value={service}
-                      onChange={(e) => setService(e.target.value)}
+                      value={selectedNetwork || ''}
+                      onChange={(e) => handleUsufNetworkChange(Number(e.target.value) as UsufNetwork)}
                       className="w-full px-4 py-2.5 border border-stone-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     >
-                      {services.length ? services.map(s => <option key={s.id} value={s.id}>{s.name}</option>) : <option value="">Select network</option>}
+                      <option value="">Select network</option>
+                      {Object.entries(USUF_NETWORKS).map(([netId, netName]) => (
+                        <option key={netId} value={netId}>
+                          {netName}
+                        </option>
+                      ))}
                     </select>
-                    <label className="block text-sm font-semibold text-stone-900 mb-3">Select Data Plan</label>
-                  <DataPlanSelector
-                    plans={plans}
-                    selectedCode={plan}
-                    onSelect={(code, amt) => {
-                      setPlan(code)
-                      setAmount(String(amt))
-                    }}
-                  />
-                </div>
+                  </div>
+
+                  {/* Category Tabs */}
+                  {usufGrouped && usufGrouped.groups.length > 0 && (
+                    <>
+                      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 border-b border-stone-200">
+                        {usufGrouped.groups.map((group) => (
+                          <button
+                            key={group.planType}
+                            onClick={() => setPlan(`_category_${group.planType}`)}
+                            className={`px-4 py-2 font-semibold text-sm whitespace-nowrap transition-all border-b-2 ${
+                              plan === `_category_${group.planType}`
+                                ? 'border-amber-500 text-amber-600'
+                                : 'border-transparent text-stone-500 hover:text-stone-700'
+                            }`}
+                          >
+                            {group.planType}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Category Plans List */}
+                      {usufGrouped.groups
+                        .filter((g) => plan === `_category_${g.planType}`)
+                        .map((group) => (
+                          <div key={group.planType}>
+                            <label className="block text-sm font-semibold text-stone-900 mb-3">Select Plan</label>
+                            <div className="space-y-2">
+                              {group.plans.map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => handleUsufPlanSelect(p)}
+                                  className={`w-full p-3 rounded-lg border-2 transition-all text-left flex items-center justify-between ${
+                                    selectedUsufPlan?.id === p.id
+                                      ? 'border-amber-500 bg-amber-50'
+                                      : 'border-stone-200 bg-white hover:border-amber-300'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-semibold text-stone-900">{p.size}</div>
+                                    <div className="text-xs text-stone-600">{p.validity}</div>
+                                  </div>
+                                  <div className="text-sm font-bold text-amber-600">₦{p.sellAmount.toLocaleString()}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                    </>
+                  )}
+                </>
               )}
 
               {/* Price Summary */}
@@ -254,16 +434,18 @@ export default function DataPage() {
               {/* Action Button */}
               <>
                 <div className="space-y-2">
-                  {isLoggedIn ? (
+                  {provider === 'vtpass' ? (
                     <>
-                      <Button onClick={handleWalletPurchase} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance)} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
-                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
-                    </>
-                  )}
+                      {isLoggedIn ? (
+                        <>
+                          <Button onClick={handleWalletPurchase} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance)} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Card</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                        </>
+                      )}
                       <PaymentSelector
                         open={showPaymentSelector}
                         amount={displayPrice()}
@@ -272,14 +454,27 @@ export default function DataPage() {
                         onClose={() => setShowPaymentSelector(false)}
                         onPaymentSuccess={onPaymentSuccess}
                       />
+                    </>
+                  ) : (
+                    <>
+                      {isLoggedIn ? (
+                        <>
+                          <Button onClick={() => handleUsufPurchase('usuf_wallet')} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance) || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
+                          <Button onClick={() => handleUsufPurchase('monnify')} disabled={processing || processingWallet || !selectedUsufPlan} variant="outline" className="w-full">Pay with Card</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button onClick={() => handleUsufPurchase()} disabled={processing || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               </>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/command"
 import toast from "react-hot-toast"
 import { useRouter } from "next/navigation"
+import { NIGERIAN_BANKS } from "@/lib/banks"
 
 // ✅ Validation schema
 const formSchema = z.object({
@@ -68,22 +69,13 @@ export default function AdvertiserOnboarding() {
     resolver: zodResolver(formSchema),
   })
 
-  // Fetch Nigerian banks list for advertiser bank selection
-  type PaystackBank = { name: string; code: string }
+  // ✅ Fetch Nigerian banks list
   useEffect(() => {
-    const fetchBanks = async () => {
-      try {
-        const res = await fetch("https://api.paystack.co/bank?country=nigeria")
-        const data = await res.json()
-        if (data.status && data.data) {
-          const dataBanks = data.data as PaystackBank[]
-          setBanks(dataBanks.map((b) => ({ name: b.name, code: b.code })))
-        }
-      } catch (err) {
-        console.error("Failed to fetch banks", err)
-      }
+    try {
+      setBanks(NIGERIAN_BANKS);
+    } catch (err) {
+      console.error("Failed to load banks", err);
     }
-    fetchBanks()
   }, [])
 
   // verify bank account whenever inputs change
