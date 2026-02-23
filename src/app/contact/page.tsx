@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Mail, MapPin, Phone } from 'lucide-react'
+import { Mail, MapPin, Phone, MessageCircle, Youtube } from 'lucide-react'
 import toast from "react-hot-toast"
 
 export default function ContactPage() {
@@ -140,6 +140,26 @@ export default function ContactPage() {
                   </p>
                 </div>
               </div>
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100">
+              <a href="https://wa.me/message/LVWEYWZSTQBQI1" className="flex items-start space-x-4 hover:text-amber-600 transition-colors">
+                <MessageCircle className="text-amber-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium text-stone-800">WhatsApp</h3>
+                  <p className="text-stone-600">Chat with us on WhatsApp</p>
+                </div>
+              </a>
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100">
+              <a href="https://www.youtube.com/@pambaadvertisementcompany" className="flex items-start space-x-4 hover:text-amber-600 transition-colors">
+                <Youtube className="text-amber-600 mt-1 flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium text-stone-800">YouTube</h3>
+                  <p className="text-stone-600">Subscribe to our channel</p>
+                </div>
+              </a>
             </Card>
           </div>
         </div>

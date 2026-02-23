@@ -64,7 +64,7 @@ export default function TransactionsPage() {
     const q = query(
       collection(db, "earnerTransactions"),
       where("userId", "==", u.uid),
-      where("status", "in", ["completed", null]) // null for backward compatibility
+      where("status", "in", ["completed", "pending", null]) // null for backward compatibility
     );
     const unsubTx = onSnapshot(q, (snap) => {
       const txs = snap.docs.map((d) => {
@@ -80,8 +80,8 @@ export default function TransactionsPage() {
       });
       setHistory(txs);
       
-      // Calculate available balance from completed transactions
-      const balance = txs.reduce((sum, tx) => sum + tx.amount, 0);
+      // Calculate available balance from completed transactions only
+      const balance = txs.reduce((sum, tx) => sum + (tx.status === 'completed' ? tx.amount : 0), 0);
       setAvailableBalance(balance);
       setLoading(false);
     });

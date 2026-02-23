@@ -20,6 +20,7 @@ export async function buyUsufData(
   network: UsufNetwork,
   planId: number,
   portedNumber: boolean = true,
+  options?: { idToken?: string; sellAmount?: number }
 ): Promise<UsufBuyDataResponse> {
   try {
     const payload = {
@@ -27,13 +28,20 @@ export async function buyUsufData(
       mobile_number: mobileNumber,
       plan: planId,
       Ported_number: portedNumber,
+      ...(options?.idToken && { payFromWallet: true, sellAmount: options.sellAmount }),
     };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (options?.idToken) {
+      headers['Authorization'] = `Bearer ${options.idToken}`;
+    }
 
     const response = await fetch('/api/usuf/buy-data', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 

@@ -89,14 +89,14 @@ if (hasPubsubSchedule) {
 }
 exports.processDueActivations = processDueActivations;
 
-// Scheduled function to auto-verify submissions older than 5 minutes
+// Scheduled function to auto-verify submissions older than 24 hours
 if (hasPubsubSchedule) {
 	(exports as any).autoVerifySubmissions = (functions as any).scheduler
-		.onSchedule('every 2 minutes', async () => {
+		.onSchedule('every 24 hours', async () => {
 		const db = admin.firestore();
 		const now = Date.now();
-		const fiveMinutes = 1000 * 60 * 5;
-		const cutoff = admin.firestore.Timestamp.fromMillis(now - fiveMinutes);
+		const twentyFourHours = 1000 * 60 * 60 * 24;
+		const cutoff = admin.firestore.Timestamp.fromMillis(now - twentyFourHours);
 
 		const q = db.collection('earnerSubmissions')
 			.where('status', '==', 'Pending')
@@ -186,7 +186,7 @@ if (hasPubsubSchedule) {
 							type: 'credit',
 							amount: earnerAmount,
 							status: 'completed',
-							note: `Auto-verified campaign submission ${sDoc.id}`,
+							note: `Campaign submission verified ${sDoc.id}`,
 							createdAt: nowTimestamp,
 						});
 						t.update(db.collection('earners').doc(submission.userId), {
@@ -207,7 +207,7 @@ if (hasPubsubSchedule) {
 							type: 'debit',
 							amount: fullAmount,
 							status: 'completed',
-							note: `Auto-payment for lead in ${submission.campaignTitle || ''}`,
+							note: `Lead payment for ${submission.campaignTitle || ''}`,
 							createdAt: nowTimestamp,
 						});
 						t.update(db.collection('advertisers').doc(advertiserId), {

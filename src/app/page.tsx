@@ -396,6 +396,8 @@ Earnings are credited instantly to your wallet and can be withdrawn directly to 
                 <li><a href="https://www.facebook.com/share/17sDa24NET/" className="hover:text-amber-500">Facebook</a></li>
                 <li><a href="https://www.instagram.com/pambaadverts?" className="hover:text-amber-500">Instagram</a></li>
                 <li><a href="https://www.tiktok.com/@pambaadverts?" className="hover:text-amber-500">TikTok</a></li>
+                <li><a href="https://wa.me/message/LVWEYWZSTQBQI1" className="hover:text-amber-500">WhatsApp</a></li>
+                <li><a href="https://www.youtube.com/@pambaadvertisementcompany" className="hover:text-amber-500">YouTube</a></li>
                 {/* <li><a href="#" className="hover:text-amber-500">LinkedIn</a></li> */}
               </ul>
             </div>

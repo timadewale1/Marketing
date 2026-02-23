@@ -21,7 +21,7 @@ type DataPlan = { code: string; name: string; amount: number }
 type Provider = 'vtpass' | 'usuf'
 
 export default function DataPage() {
-  const [provider, setProvider] = useState<Provider>('vtpass')
+  const [provider, setProvider] = useState<Provider>('usuf')
   const [amount, setAmount] = useState('')
   const [service, setService] = useState('')
   const [services, setServices] = useState<Array<{ id: string; name: string }>>([])
@@ -108,11 +108,14 @@ export default function DataPage() {
     else setProcessing(true)
 
     try {
+      const idToken = isWallet ? await auth.currentUser.getIdToken() : undefined
+
       const response = await buyUsufData(
         phone,
         selectedUsufPlan.network,
         selectedUsufPlan.id,
         true, // ported number
+        isWallet ? { idToken, sellAmount: selectedUsufPlan.sellAmount } : undefined
       )
 
       console.log('Usuf purchase response:', response)
@@ -277,7 +280,8 @@ export default function DataPage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          {/* Provider Tabs */}
+          {/* Provider Tabs - Hidden for now */}
+          {false && (
           <div className="flex gap-2 mb-6 border-b border-stone-200">
             <button
               onClick={() => setProvider('vtpass')}
@@ -300,6 +304,7 @@ export default function DataPage() {
               Other Data Plans
             </button>
           </div>
+          )}
 
           <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <CardContent className="p-6 sm:p-8 space-y-6">
@@ -317,8 +322,8 @@ export default function DataPage() {
                 </div>
               </div>
 
-              {/* VTpass Plans */}
-              {provider === 'vtpass' && (
+              {/* VTpass Plans - Hidden for now */}
+              {false && provider === 'vtpass' && (
                 <>
                   {loading ? (
                     <div className="flex items-center justify-center py-8">
@@ -406,7 +411,7 @@ export default function DataPage() {
                                 >
                                   <div>
                                     <div className="font-semibold text-stone-900">{p.size}</div>
-                                    <div className="text-xs text-stone-600">{p.validity}</div>
+                                    {group.planType === 'CORPORATE GIFTING' && <div className="text-xs text-stone-600">{p.validity}</div>}
                                   </div>
                                   <div className="text-sm font-bold text-amber-600">₦{p.sellAmount.toLocaleString()}</div>
                                 </button>

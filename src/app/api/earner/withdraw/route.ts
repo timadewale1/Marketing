@@ -164,10 +164,15 @@ export async function POST(req: Request) {
       }
     } catch (payErr) {
       console.error('Transfer initiation failed', payErr)
-      try { await withdrawalRef.update({ status: 'pending', transferError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after transfer error', e) }
+      try { await withdrawalRef.update({ status: 'failed', transferError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after transfer error', e) }
+      // Also mark the transaction record as failed
+      try { 
+        const txCollection = 'earnerTransactions'
+        await db.collection(txCollection).doc(txRef.id).update({ status: 'failed', error: (payErr as Error).message || String(payErr), updatedAt: new Date().toISOString() }) 
+      } catch (e) { console.error('Failed to update transaction doc after transfer error', e) }
       // restore balance since transfer didn't start
       try { await earnerRef.update({ balance: admin.firestore.FieldValue.increment(amount) }) } catch (e) { console.error('Failed to restore earner balance after transfer error', e) }
-      return NextResponse.json({ success: false, message: 'Failed to initiate transfer; admin will review' }, { status: 502 })
+      return NextResponse.json({ success: false, message: 'Withdrawal failed please wait for some minutes and try again' }, { status: 502 })
     }
 
     return NextResponse.json({ success: true, message: 'Withdrawal initiated — transfer in progress' })

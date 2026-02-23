@@ -29,7 +29,7 @@ export default function BillsIndex() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {categories.map((c, idx) => {
+          {categories.filter(c => c.id === 'data').map((c, idx) => {
             const Icon = c.icon
             return (
               <motion.div
