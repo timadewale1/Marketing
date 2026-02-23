@@ -7,9 +7,8 @@ import crypto from 'crypto'
  * Receives disbursement status updates from Monnify
  * 
  * Webhook events:
- * - SUCCESSFUL: Disbursement completed successfully
- * - PENDING: Disbursement is being processed
- * - FAILED: Disbursement failed
+ * - SUCCESSFUL_DISBURSEMENT: Disbursement completed successfully
+ * - FAILED_DISBURSEMENT: Disbursement failed
  */
 
 // Verify webhook signature from Monnify
@@ -50,11 +49,12 @@ export async function POST(req: NextRequest) {
 
     const { eventType, eventData } = payload
 
-    // Handle disbursement events
-    if (eventType === 'DISBURSEMENT') {
+    // Handle disbursement events (both successful and failed)
+    if (eventType === 'SUCCESSFUL_DISBURSEMENT' || eventType === 'FAILED_DISBURSEMENT') {
       const { reference, status, amount, transactionReference } = eventData
 
       console.log('[webhook][monnify][disbursement] processing disbursement', {
+        eventType,
         reference,
         status,
         amount,
@@ -67,13 +67,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
       }
       const db = adminSdk.firestore()
-      const withdrawalsRef = db.collectionGroup('withdrawals')
-      const snapshot = await withdrawalsRef.where('monnifyReference', '==', reference).get()
+      
+      // Search both earner and advertiser withdrawals
+      const earnerSnapshot = await db.collection('earnerWithdrawals').where('monnifyReference', '==', reference).get()
+      const advertiserSnapshot = await db.collection('advertiserWithdrawals').where('monnifyReference', '==', reference).get()
+      const allDocs = [...earnerSnapshot.docs, ...advertiserSnapshot.docs]
 
-      if (snapshot.empty) {
+      if (allDocs.length === 0) {
         console.warn(`[webhook][monnify][disbursement] withdrawal not found for reference ${reference}`)
         return NextResponse.json({ success: true, message: 'Event received but withdrawal not found' })
       }
+
+      let userType: 'earner' | 'advertiser' | null = null
+      if (earnerSnapshot.docs.length > 0) userType = 'earner'
+      else if (advertiserSnapshot.docs.length > 0) userType = 'advertiser'
 
       // Update withdrawal record with status
       const updates: Record<string, unknown> = {
@@ -82,12 +89,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Map Monnify status to our internal status
-      if (status === 'SUCCESSFUL' || status === 'SUCCESS') {
+      if (status === 'SUCCESS') {
         updates.status = 'completed'
       } else if (status === 'FAILED') {
         updates.status = 'failed'
-      } else if (status === 'PENDING') {
-        updates.status = 'pending'
       }
 
       // Store additional data if provided
@@ -96,53 +101,24 @@ export async function POST(req: NextRequest) {
       }
 
       // Update all matching withdrawals
-      for (const doc of snapshot.docs) {
+      for (const doc of allDocs) {
+        const withdrawal = doc.data()
         await doc.ref.update(updates)
         console.log(`[webhook][monnify][disbursement] updated withdrawal ${doc.id}`, updates)
 
-        // If disbursement failed, we might want to restore balance
-        if (status === 'FAILED') {
-          const withdrawal = doc.data()
-          if (withdrawal.userId && withdrawal.amount) {
-            const userRef = db.collection('users').doc(withdrawal.userId)
-            const userDoc = await userRef.get()
-
-            if (userDoc.exists && (userDoc.data()?.role === 'advertiser' || userDoc.data()?.role === 'earner')) {
-              // Restore balance
-              const balanceField = userDoc.data()?.role === 'advertiser' ? 'balance' : 'balance'
-              await userRef.update({
-                [balanceField]: adminSdk.firestore.FieldValue.increment(withdrawal.amount),
-              })
-              console.log(`[webhook][monnify][disbursement] restored balance for user ${withdrawal.userId}`)
-
-              // Store failure notification
-              await db.collection('notifications').add({
-                userId: withdrawal.userId,
-                type: 'withdrawal_failed',
-                title: 'Withdrawal Failed',
-                message: `Your ₦${withdrawal.amount.toLocaleString()} withdrawal failed. Amount has been refunded to your wallet.`,
-                reference: reference,
-                createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
-                read: false,
-              })
-            }
-          }
+        // If disbursement failed, restore balance
+        if (status === 'FAILED' && withdrawal.userId && withdrawal.amount) {
+          const userCollection = userType === 'earner' ? 'earners' : 'advertisers'
+          const userRef = db.collection(userCollection).doc(withdrawal.userId)
+          await userRef.update({
+            balance: adminSdk.firestore.FieldValue.increment(withdrawal.amount),
+          })
+          console.log(`[webhook][monnify][disbursement] restored ₦${withdrawal.amount} balance for ${userType} ${withdrawal.userId}`)
         }
 
-        // If successful, create success notification
-        if (status === 'SUCCESSFUL' || status === 'SUCCESS') {
-          const withdrawal = doc.data()
-          if (withdrawal.userId) {
-            await db.collection('notifications').add({
-              userId: withdrawal.userId,
-              type: 'withdrawal_successful',
-              title: 'Withdrawal Successful',
-              message: `Your ₦${withdrawal.amount.toLocaleString()} withdrawal was successful!`,
-              reference: reference,
-              createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
-              read: false,
-            })
-          }
+        // Log success notification
+        if (status === 'SUCCESS' && withdrawal.userId) {
+          console.log(`[webhook][monnify][disbursement] disbursement successful for user ${withdrawal.userId}, amount: ₦${withdrawal.amount}`)
         }
       }
     }
