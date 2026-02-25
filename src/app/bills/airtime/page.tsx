@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { PaymentSelector } from '@/components/payment-selector'
-import { postBuyService } from '@/lib/postBuyService'
+import { buyUsufAirtime } from '@/services/usufAirtime'
 import Link from 'next/link'
-// bypass Paystack: call VTpass directly
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,13 +11,18 @@ import { ArrowLeft, Smartphone, Zap } from 'lucide-react'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { USUF_NETWORKS } from '@/services/usufAirtime'
+
+const NETWORKS = [
+  { id: 1 as const, name: 'MTN' },
+  { id: 2 as const, name: 'GLO' },
+  { id: 3 as const, name: '9MOBILE' },
+  { id: 4 as const, name: 'AIRTEL' },
+  { id: 5 as const, name: 'SMILE' },
+]
 
 export default function AirtimePage() {
-  type Service = { serviceID?: string; code?: string; id?: string; name?: string; title?: string }
-  const [networks, setNetworks] = useState<Array<{ id: string; name: string }>>([
-    { id: 'mtn', name: 'MTN' }, { id: 'glo', name: 'Glo' }, { id: 'airtel', name: 'Airtel' }, { id: '9mobile', name: '9mobile' }
-  ])
-  const [network, setNetwork] = useState('mtn')
+  const [network, setNetwork] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [phone, setPhone] = useState('')
   const [amount, setAmount] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -91,19 +95,17 @@ export default function AirtimePage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const payload = { serviceID: network, amount: String(amount), phone, payFromWallet: true }
-      const res = await postBuyService(payload, { idToken })
-      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
-      const j = res.body
-      const transactionData: { serviceID: string; amount: number; response_description: string; transactionId?: string } = {
-        serviceID: network,
+      const res = await buyUsufAirtime(network, Number(amount), phone, true, { idToken })
+      if (!res.status) return toast.error(res.message)
+      
+      const transactionData = {
+        serviceID: USUF_NETWORKS[network],
         amount: Number(amount),
-        response_description: (j.result?.response_description as string) || 'SUCCESS',
+        response_description: res.message,
+        transactionId: res.transactionId,
       }
-      const txid = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
-      if (txid) transactionData.transactionId = txid
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Transaction successful')
+      toast.success('Airtime purchased successfully')
       window.location.href = '/bills/confirmation'
     } catch (e) {
       console.error(e)
@@ -113,33 +115,25 @@ export default function AirtimePage() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const payload = {
-        serviceID: network,
-        amount: String(amount),
-        phone,
-        paystackReference: reference,
-        provider,
-      }
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
-      const res = await postBuyService(payload, { idToken })
-      const j = res.body
-      if (!res.ok) {
-        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+      const res = await buyUsufAirtime(network, Number(amount), phone, true)
+      if (!res.status) {
+        toast.error(res.message)
         return
       }
-      const transactionData: { serviceID: string; amount: number; response_description: string; transactionId?: string } = {
-        serviceID: network,
+      
+      const transactionData = {
+        serviceID: USUF_NETWORKS[network],
         amount: Number(amount),
-        response_description: (j.result?.response_description as string) || 'SUCCESS',
+        response_description: res.message,
+        transactionId: res.transactionId,
       }
-      const txid = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
-      if (txid) transactionData.transactionId = txid
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Transaction successful')
+      toast.success('Airtime purchased successfully')
       window.location.href = '/bills/confirmation'
     } catch (e) {
       console.error(e)
@@ -148,27 +142,6 @@ export default function AirtimePage() {
       setProcessing(false)
     }
   }
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = await fetch('/api/bills/services?identifier=airtime')
-        const j = await res.json()
-        if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
-          const mapped = (j.result as Service[]).map(s => ({ id: s.serviceID || s.code || s.id || 'unknown', name: s.name || s.title || 'Unknown' }))
-          setNetworks(mapped)
-          if (j.result[0]) {
-            const v = (j.result[0] as Service).serviceID || (j.result[0] as Service).code || (j.result[0] as Service).id
-            if (v) setNetwork(v)
-          }
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    })()
-    return () => { mounted = false }
-  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100">
@@ -194,8 +167,8 @@ export default function AirtimePage() {
               {/* Network Selection */}
               <div>
                 <label className="block text-sm font-semibold text-stone-900 mb-3">Select Network</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {networks.map(n => (
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {NETWORKS.map(n => (
                     <button
                       key={n.id}
                       onClick={() => setNetwork(n.id)}
@@ -289,7 +262,7 @@ export default function AirtimePage() {
                 open={showPaymentSelector}
                 amount={Number(amount) || 0}
                 email={auth.currentUser?.email || ''}
-                description={`${network} - ₦${displayPrice().toLocaleString()}`}
+                description={`${USUF_NETWORKS[network]} - ₦${displayPrice().toLocaleString()}`}
                 onClose={() => setShowPaymentSelector(false)}
                 onPaymentSuccess={onPaymentSuccess}
               />

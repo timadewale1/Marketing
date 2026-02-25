@@ -2,10 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { PaymentSelector } from '@/components/payment-selector'
-import { postBuyService } from '@/lib/postBuyService'
+import { buyUsufCable, getCablePlansByProvider, validateCableSmartCard, USUF_CABLES, type UsufCableId, type UsufCablePlanId } from '@/services/usufCable'
 import Link from 'next/link'
-// bypass Paystack: call VTpass directly
-import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -14,16 +12,19 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { Card, CardContent } from '@/components/ui/card'
 
+/* VTPASS IMPORTS - COMMENTED OUT FOR FUTURE RE-INTEGRATION */
+// import { postBuyService } from '@/lib/postBuyService'
+// import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+
 export default function TVPage() {
-  const [provider, setProvider] = useState('gotv')
+  const [cable, setCable] = useState<UsufCableId>(1)
+  const [plan, setPlan] = useState<UsufCablePlanId>(2)
   const [smartcard, setSmartcard] = useState('')
   const [amount, setAmount] = useState('')
-  const [providers, setProviders] = useState<Array<{ id: string; name: string }>>([])
-  const [bouquets, setBouquets] = useState<Array<{ code: string; name: string; amount: number }>>([])
+  const [availablePlans, setAvailablePlans] = useState<Array<{ id: UsufCablePlanId; cableName: string; planName: string; amount: number }>>([])
   
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
-  const [phone, setPhone] = useState('')
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -31,10 +32,6 @@ export default function TVPage() {
   const [showPaymentSelector, setShowPaymentSelector] = useState(false)
 
   const displayPrice = () => Number(amount || 0)
-
-  const handlePurchase = async () => {
-    setShowPaymentSelector(true)
-  }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
@@ -60,164 +57,245 @@ export default function TVPage() {
           return
         }
         setWalletBalance(null)
-      } catch (e) { console.warn('wallet balance fetch error', e) }
+      } catch (e) {
+        console.warn('wallet balance fetch error', e)
+      }
     }
+
     const authUnsub = onAuthStateChanged(auth, (u) => {
-      if (!u) { setWalletBalance(null); return }
+      if (!u) {
+        setWalletBalance(null)
+        return
+      }
       setup(u.uid)
     })
-    return () => { authUnsub(); if (unsubBalance) try { unsubBalance() } catch {} }
+
+    return () => {
+      authUnsub()
+      if (unsubBalance) try { unsubBalance() } catch {}
+    }
   }, [])
+
+  useEffect(() => {
+    // Update available plans when cable changes
+    const plans = getCablePlansByProvider(cable)
+    setAvailablePlans(plans)
+    // Set first available plan
+    if (plans.length > 0) {
+      setPlan(plans[0].id as UsufCablePlanId)
+      setAmount(String(plans[0].amount))
+    }
+  }, [cable])
+
+  const handlePurchase = async () => {
+    if (!smartcard) {
+      toast.error('Please enter smart card number')
+      return
+    }
+    if (!plan || !amount) {
+      toast.error('Please select a plan')
+      return
+    }
+    setShowPaymentSelector(true)
+  }
 
   const handleWalletPurchase = async () => {
     if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
-    if (!smartcard) return toast.error('Enter smartcard number')
-    if (!amount) return toast.error('Choose a bouquet or amount')
+    if (!smartcard) return toast.error('Please enter smart card number')
+    if (!plan) return toast.error('Please select a plan')
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard }
-      const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
-      if (matched) {
-        payload.variation_code = matched.code
-        payload.amount = String(matched.amount)
-      } else {
-        payload.amount = String(amount)
-      }
-      let phoneToUse = phone || ''
-      if (!phoneToUse && verifyResult) {
-        try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
-      }
-      if (!phoneToUse) return toast.error('Enter a phone number for this purchase')
-      const phoneRegex = /^(?:\+234|0)\d{10}$/
-      if (!phoneRegex.test(phoneToUse)) return toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
-      payload.phone = phoneToUse
-      const res = await postBuyService(payload, { idToken })
-      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
-      const j = res.body
-      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      const res = await buyUsufCable(cable, plan, smartcard, { idToken })
+      if (!res.status) return toast.error(res.message)
+      
+      const selectedPlan = availablePlans.find(p => p.id === plan)
       const transactionData = {
-        serviceID: provider,
+        serviceID: 'cable',
         amount: Number(amount),
-        response_description: j.result?.response_description || 'SUCCESS',
-        transactionId: transactionId,
+        response_description: res.message,
+        transactionId: res.transactionId,
+        planName: selectedPlan?.planName || 'Cable Subscription',
       }
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Subscription successful')
+      toast.success('Cable subscription successful')
       window.location.href = '/bills/confirmation'
-    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
+    } catch (e) {
+      console.error(e)
+      toast.error('Purchase failed')
+    } finally {
+      setProcessingWallet(false)
+    }
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const onPaymentSuccess = async (_reference: string, _provider: 'paystack' | 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard, paystackReference: reference, provider }
-      const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
-      if (matched) {
-        payload.variation_code = matched.code
-        payload.amount = String(matched.amount)
-      } else {
-        payload.amount = String(amount)
-      }
-      let phoneToUse = phone || ''
-      if (!phoneToUse && verifyResult) {
-        try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
-      }
-      if (!phoneToUse) {
-        toast.error('Enter a phone number for this purchase')
-        setProcessing(false)
+      const res = await buyUsufCable(cable, plan, smartcard)
+      if (!res.status) {
+        toast.error(res.message)
         return
       }
-      const phoneRegex = /^(?:\+234|0)\d{10}$/
-      if (!phoneRegex.test(phoneToUse)) {
-        toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
-        setProcessing(false)
-        return
-      }
-      payload.phone = phoneToUse
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
-      const res = await postBuyService(payload, { idToken })
-      const j = res.body
-      if (!res.ok) {
-        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
-        return
-      }
-      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+      
+      const selectedPlan = availablePlans.find(p => p.id === plan)
       const transactionData = {
-        serviceID: provider,
+        serviceID: 'cable',
         amount: Number(amount),
-        response_description: j.result?.response_description || 'SUCCESS',
-        transactionId: transactionId,
+        response_description: res.message,
+        transactionId: res.transactionId,
+        planName: selectedPlan?.planName || 'Cable Subscription',
       }
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Subscription successful')
+      toast.success('Cable subscription successful')
       window.location.href = '/bills/confirmation'
-    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessing(false) }
+    } catch (e) {
+      console.error(e)
+      toast.error('Purchase failed')
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const handleVerify = async () => {
-    if (!smartcard) return toast.error('Enter smartcard number')
+    if (!smartcard) {
+      toast.error('Please enter smart card number')
+      return
+    }
     setVerifying(true)
     try {
-      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
-      const j = await res.json()
-      if (!res.ok || !j?.ok) {
-        const msg = j?.message || 'Verification failed'
-        toast.error(String(msg))
-        setVerifying(false)
+      const result = await validateCableSmartCard(cable, smartcard)
+      setVerifyResult(result.data || null)
+      
+      if (!result.status) {
+        toast.error(result.message || 'Smart card validation failed')
         return
       }
-      const resObj = j.result?.content || j.result || j
-      setVerifyResult(resObj)
-      try {
-        const p = extractPhoneFromVerifyResult(resObj)
-        if (p) setPhone(p)
-      } catch {}
-      toast.success('Verified')
+      
+      toast.success('Smart card verified successfully')
     } catch (err) {
       console.error('verify error', err)
       toast.error('Verification error')
+    } finally {
+      setVerifying(false)
     }
-    setVerifying(false)
   }
 
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = await fetch('/api/bills/services?identifier=tv-subscription')
-        const j = await res.json()
-        if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
-          const mapped = (j.result as Array<Record<string, unknown>>).map(s => ({ id: String(s['serviceID'] || s['code'] || s['id'] || ''), name: String(s['name'] || s['title'] || '') }))
-          setProviders(mapped)
-          if (mapped[0] && mapped[0].id) setProvider(mapped[0].id)
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    })()
-    return () => { mounted = false }
-  }, [])
+  /* VTPASS OLD FUNCTIONS - COMMENTED OUT FOR FUTURE RE-INTEGRATION */
+  // const handleWalletPurchase = async () => {
+  //   if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
+  //   if (!smartcard) return toast.error('Enter smartcard number')
+  //   if (!amount) return toast.error('Choose a bouquet or amount')
+  //   setProcessingWallet(true)
+  //   try {
+  //     const idToken = await auth.currentUser.getIdToken()
+  //     const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard }
+  //     const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
+  //     if (matched) {
+  //       payload.variation_code = matched.code
+  //       payload.amount = String(matched.amount)
+  //     } else {
+  //       payload.amount = String(amount)
+  //     }
+  //     let phoneToUse = phone || ''
+  //     if (!phoneToUse && verifyResult) {
+  //       try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
+  //     }
+  //     if (!phoneToUse) return toast.error('Enter a phone number for this purchase')
+  //     const phoneRegex = /^(?:\+234|0)\d{10}$/
+  //     if (!phoneRegex.test(phoneToUse)) return toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
+  //     payload.phone = phoneToUse
+  //     const res = await postBuyService(payload, { idToken })
+  //     if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
+  //     const j = res.body
+  //     const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+  //     const transactionData = {
+  //       serviceID: provider,
+  //       amount: Number(amount),
+  //       response_description: j.result?.response_description || 'SUCCESS',
+  //       transactionId: transactionId,
+  //     }
+  //     sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+  //     toast.success('Subscription successful')
+  //     window.location.href = '/bills/confirmation'
+  //   } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
+  // }
 
-  useEffect(() => {
-    let mounted = true
-    if (!provider) return
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/bills/variations?serviceID=${encodeURIComponent(provider)}`)
-        const j = await res.json()
-        if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
-          const mapped = (j.result as Array<Record<string, unknown>>).map(v => ({ code: String(v['variation_code'] || v['code'] || ''), name: String(v['name'] || ''), amount: Number(v['variation_amount'] || v['amount'] || 0) }))
-          setBouquets(mapped)
-          if (mapped[0]) { setAmount(String(mapped[0].amount)) }
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    })()
-    return () => { mounted = false }
-  }, [provider])
+  // const onPaymentSuccess_VTPass = async (reference: string, provider: 'paystack' | 'monnify') => {
+  //   setShowPaymentSelector(false)
+  //   setProcessing(true)
+  //   try {
+  //     const payload: Record<string, unknown> = { serviceID: provider, billersCode: smartcard, paystackReference: reference, provider }
+  //     const matched = bouquets.find(b => b.code === amount || String(b.amount) === amount)
+  //     if (matched) {
+  //       payload.variation_code = matched.code
+  //       payload.amount = String(matched.amount)
+  //     } else {
+  //       payload.amount = String(amount)
+  //     }
+  //     let phoneToUse = phone || ''
+  //     if (!phoneToUse && verifyResult) {
+  //       try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
+  //     }
+  //     if (!phoneToUse) {
+  //       toast.error('Enter a phone number for this purchase')
+  //       setProcessing(false)
+  //       return
+  //     }
+  //     const phoneRegex = /^(?:\+234|0)\d{10}$/
+  //     if (!phoneRegex.test(phoneToUse)) {
+  //       toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
+  //       setProcessing(false)
+  //       return
+  //     }
+  //     payload.phone = phoneToUse
+  //     const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+  //     const res = await postBuyService(payload, { idToken })
+  //     const j = res.body
+  //     if (!res.ok) {
+  //       toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
+  //       return
+  //     }
+  //     const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
+  //     const transactionData = {
+  //       serviceID: provider,
+  //       amount: Number(amount),
+  //       response_description: j.result?.response_description || 'SUCCESS',
+  //       transactionId: transactionId,
+  //     }
+  //     sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+  //     toast.success('Subscription successful')
+  //     window.location.href = '/bills/confirmation'
+  //   } catch (e) { console.error(e); toast.error('Error') } finally { setProcessing(false) }
+  // }
+
+  // const handleVerify_VTPass = async () => {
+  //   if (!smartcard) return toast.error('Enter smartcard number')
+  //   setVerifying(true)
+  //   try {
+  //     const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billersCode: smartcard, serviceID: provider }) })
+  //     const j = await res.json()
+  //     if (!res.ok || !j?.ok) {
+  //       const msg = j?.message || 'Verification failed'
+  //       toast.error(String(msg))
+  //       setVerifying(false)
+  //       return
+  //     }
+  //     const resObj = j.result?.content || j.result || j
+  //     setVerifyResult(resObj)
+  //     try {
+  //       const p = extractPhoneFromVerifyResult(resObj)
+  //       if (p) setPhone(p)
+  //     } catch {}
+  //     toast.success('Verified')
+  //   } catch (err) {
+  //     console.error('verify error', err)
+  //     toast.error('Verification error')
+  //   }
+  //   setVerifying(false)
+  // }
+  /* END VTPASS COMMENTED CODE */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100">
@@ -240,29 +318,23 @@ export default function TVPage() {
         <div className="max-w-2xl mx-auto">
           <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <CardContent className="p-6 sm:p-8 space-y-6">
-              {/* Provider Selection */}
+              {/* Cable Provider Selection */}
               <div>
                 <label className="block text-sm font-semibold text-stone-900 mb-3">Select TV Provider</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {providers.length ? providers.map(p => (
+                  {USUF_CABLES.map(c => (
                     <button
-                      key={p.id}
-                      onClick={() => setProvider(p.id)}
+                      key={c.id}
+                      onClick={() => setCable(c.id)}
                       className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                        provider === p.id
+                        cable === c.id
                           ? 'border-amber-500 bg-amber-50 text-amber-700'
                           : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
                       }`}
                     >
-                      {p.name}
+                      {c.name}
                     </button>
-                  )) : (
-                    <>
-                      <button onClick={() => setProvider('gotv')} className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${provider === 'gotv' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-stone-200 bg-white text-stone-900'}`}>GOtv</button>
-                      <button onClick={() => setProvider('dstv')} className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${provider === 'dstv' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-stone-200 bg-white text-stone-900'}`}>DStv</button>
-                      <button onClick={() => setProvider('startimes')} className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${provider === 'startimes' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-stone-200 bg-white text-stone-900'}`}>Startimes</button>
-                    </>
-                  )}
+                  ))}
                 </div>
               </div>
 
@@ -291,50 +363,61 @@ export default function TVPage() {
 
               {/* Verification Result */}
               {verifyResult && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                <div className={`rounded-lg p-4 space-y-3 border ${
+                  verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-green-50 border-green-200'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <p className="text-sm font-semibold text-green-900">Account Verified</p>
+                    <CheckCircle2 className={`w-5 h-5 ${
+                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'text-red-600'
+                        : 'text-green-600'
+                    }`} />
+                    <p className={`text-sm font-semibold ${
+                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'text-red-900'
+                        : 'text-green-900'
+                    }`}>
+                      {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'Invalid Smart Card'
+                        : 'Smart Card Verified'}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    {formatVerifyResult(filterVerifyResultByService(verifyResult, ['Customer_Name', 'Status', 'Due_Date', 'Customer_Number'])).map((item) => (
-                      <div key={item.label} className="flex justify-between text-sm">
-                        <span className="text-green-800">{item.label}:</span>
-                        <span className="text-green-900 font-medium">{item.value || 'N/A'}</span>
-                      </div>
-                    ))}
-                    {/* Allow entering or overriding phone for services that don't return one or return invalid phone */}
-                    <div className="mt-2">
-                      <label className="block text-sm font-semibold text-green-800 mb-2">Phone</label>
-                      <input
-                        placeholder="08061234567 or +2348061234567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full pl-3 pr-3 py-2.5 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                      />
-                    </div>
+                  <div className={`space-y-2 text-sm ${
+                    verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                      ? 'text-red-800'
+                      : 'text-green-800'
+                  }`}>
+                    {verifyResult?.name ? <div className="flex justify-between"><span>Name/Status:</span><span className="font-medium">{String(verifyResult.name)}</span></div> : null}
+                    {verifyResult?.address ? <div className="flex justify-between"><span>Address:</span><span className="font-medium">{String(verifyResult.address)}</span></div> : null}
+                    {verifyResult?.customer_name ? <div className="flex justify-between"><span>Customer:</span><span className="font-medium">{String(verifyResult.customer_name)}</span></div> : null}
+                    {verifyResult?.phone ? <div className="flex justify-between"><span>Phone:</span><span className="font-medium">{String(verifyResult.phone)}</span></div> : null}
                   </div>
                 </div>
               )}
 
-              {/* Bouquets/Amount Selection */}
-                  {verifyResult && bouquets.length > 0 && (
+              {/* Plans Selection */}
+              {verifyResult && (verifyResult?.invalid !== true && verifyResult?.invalid !== 'true') && (
                 <div>
-                  <label className="block text-sm font-semibold text-stone-900 mb-3">Select Bouquet</label>
+                  <label className="block text-sm font-semibold text-stone-900 mb-3">Select Plan</label>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {bouquets.map(b => (
+                    {availablePlans.map(p => (
                       <button
-                        key={b.code}
-                        onClick={() => setAmount(String(b.amount))}
+                        key={p.id}
+                        onClick={() => {
+                          setPlan(p.id)
+                          setAmount(String(p.amount))
+                        }}
                         className={`w-full p-3 border-2 rounded-lg text-left transition-all ${
-                          String(amount) === String(b.amount)
+                          plan === p.id
                             ? 'border-amber-500 bg-amber-50'
                             : 'border-stone-200 bg-white hover:border-amber-300'
                         }`}
                       >
                         <div className="flex justify-between items-center">
-                          <p className="font-medium text-stone-900">{b.name}</p>
-                          <p className="font-semibold text-amber-600">₦{b.amount.toLocaleString()}</p>
+                          <p className="font-medium text-stone-900">{p.planName}</p>
+                          <p className="font-semibold text-amber-600">₦{p.amount.toLocaleString()}</p>
                         </div>
                       </button>
                     ))}
@@ -343,7 +426,7 @@ export default function TVPage() {
               )}
 
               {/* Price Summary */}
-              {amount && verifyResult && (
+              {amount && verifyResult && (verifyResult?.invalid !== true && verifyResult?.invalid !== 'true') && (
                 <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-4 rounded-lg border border-amber-200">
                   <div className="space-y-2">
                     <div className="border-t border-amber-200 pt-2 flex justify-between">
@@ -360,25 +443,25 @@ export default function TVPage() {
                 </div>
               )}
 
-              {/* Action Button */}
-              {verifyResult && amount && (
+              {/* Action Buttons */}
+              {verifyResult && amount && plan && (
                 <>
                   <div className="space-y-2">
                     {isLoggedIn ? (
                       <>
                         <Button onClick={handleWalletPurchase} disabled={processing || processingWallet} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : 'Pay from wallet'}</Button>
-                        <Button onClick={async () => await handlePurchase()} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
+                        <Button onClick={handlePurchase} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Card/Transfer</Button>
                       </>
                     ) : (
                       <>
-                        <Button onClick={async () => await handlePurchase()} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                        <Button onClick={handlePurchase} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                       </>
                     )}
                     <PaymentSelector
                       open={showPaymentSelector}
                       amount={displayPrice()}
                       email={auth.currentUser?.email || ''}
-                      description={`${provider} - ₦${displayPrice().toLocaleString()}`}
+                      description={`TV Subscription - ₦${displayPrice().toLocaleString()}`}
                       onClose={() => setShowPaymentSelector(false)}
                       onPaymentSuccess={onPaymentSuccess}
                     />
@@ -389,8 +472,7 @@ export default function TVPage() {
           </Card>
         </div>
       </div>
-
-      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }
+

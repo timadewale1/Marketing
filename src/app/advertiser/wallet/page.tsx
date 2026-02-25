@@ -437,6 +437,7 @@ export default function WalletPage() {
         </div>
 
         <FundWalletModal
+          onlyMonnify
           open={fundModalOpen}
           email={userEmail || undefined}
           onClose={() => setFundModalOpen(false)}

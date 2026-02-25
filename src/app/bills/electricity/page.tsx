@@ -2,10 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { PaymentSelector } from '@/components/payment-selector'
-import { postBuyService } from '@/lib/postBuyService'
+import { buyUsufElectricity, validateElectricityMeter, USUF_DISCOS, type MeterType } from '@/services/usufElectricity'
 import Link from 'next/link'
-// bypass Paystack: call VTpass directly
-import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
 import { Hash, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -14,124 +12,26 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { Card, CardContent } from '@/components/ui/card'
 
+/* VTPASS IMPORTS - COMMENTED OUT FOR FUTURE RE-INTEGRATION */
+// import { postBuyService } from '@/lib/postBuyService'
+// import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+
 export default function ElectricityPage() {
   const [meter, setMeter] = useState('')
-  const [disco, setDisco] = useState('ikeja-electric')
-  const [meterType, setMeterType] = useState('prepaid' as 'prepaid'|'postpaid')
+  const [disco, setDisco] = useState(1 as 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 | 13)
+  const [meterType, setMeterType] = useState<MeterType>(1)
   const [amount, setAmount] = useState('')
-  const [discos, setDiscos] = useState<Array<{ id: string; name: string }>>([])
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
-  const [phone, setPhone] = useState('')
   const [showPaymentSelector, setShowPaymentSelector] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
     return () => unsub()
-  }, [])
-
-  const displayPrice = () => Number(amount || 0)
-
-  const handlePurchase = async () => {
-    setShowPaymentSelector(true)
-  }
-
-  const handleWalletPurchase = async () => {
-    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
-    const phoneToUse = phone || ''
-    if (!phoneToUse) return toast.error('Enter a phone number for this purchase')
-    const phoneRegex = /^(?:\+234|0)\d{10}$/
-    if (!phoneRegex.test(phoneToUse)) return toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
-    if (!amount) return toast.error('Please enter amount')
-    setProcessingWallet(true)
-    try {
-      const idToken = await auth.currentUser.getIdToken()
-      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, payFromWallet: true }
-      const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
-      payload.variation_code = variationCode
-      payload.phone = phoneToUse
-      const res = await postBuyService(payload, { idToken })
-      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
-      const j = res.body
-      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId
-      const transactionData = {
-        serviceID: disco,
-        amount: Number(amount),
-        purchased_code: j.result?.purchased_code || j.result?.content?.transactions?.unique_element,
-        response_description: j.result?.response_description || 'SUCCESS',
-        transactionId: transactionId,
-      }
-      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Electricity paid')
-      window.location.href = '/bills/confirmation'
-    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessingWallet(false) }
-  }
-
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
-    setShowPaymentSelector(false)
-    setProcessing(true)
-    try {
-      const payload: Record<string, unknown> = { request_id: `aljd-${Date.now()}`, serviceID: disco, amount: String(amount), billersCode: meter, paystackReference: reference, provider }
-      const variationCode = meterType === 'postpaid' ? 'postpaid' : 'prepaid'
-      payload.variation_code = variationCode
-      // Ensure phone is provided (try to derive from verify result if possible)
-      let phoneToUse = phone || ''
-      if (!phoneToUse && verifyResult) {
-        try { const p = extractPhoneFromVerifyResult(verifyResult); if (p) phoneToUse = p } catch {}
-      }
-      if (!phoneToUse) {
-        toast.error('Enter a phone number for this purchase')
-        setProcessing(false)
-        return
-      }
-      const phoneRegex = /^(?:\+234|0)\d{10}$/
-      if (!phoneRegex.test(phoneToUse)) {
-        toast.error('Enter a valid phone number (0XXXXXXXXXX or +234XXXXXXXXXX)')
-        setProcessing(false)
-        return
-      }
-      payload.phone = phoneToUse
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
-      const res = await postBuyService(payload, { idToken })
-      const j = res.body
-      if (!res.ok) {
-        toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
-        return
-      }
-      const transactionId = j.result?.content?.transactions?.transactionId || j.result?.transactionId || j.result?.content?.transactionId || j.result?.content?.transactions?.unique_element
-      const transactionData = {
-        serviceID: disco,
-        amount: Number(amount),
-        purchased_code: j.result?.purchased_code || j.result?.content?.transactions?.unique_element,
-        response_description: j.result?.response_description || 'SUCCESS',
-        transactionId: transactionId,
-      }
-      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Electricity paid')
-      window.location.href = '/bills/confirmation'
-    } catch (e) { console.error(e); toast.error('Error') } finally { setProcessing(false) }
-  }
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = await fetch('/api/bills/services?identifier=electricity-bill')
-        const j = await res.json()
-        if (res.ok && j?.ok && Array.isArray(j.result) && mounted) {
-          const mapped = (j.result as Array<Record<string, unknown>>).map(s => ({ id: String(s['serviceID'] || s['code'] || s['id'] || ''), name: String(s['name'] || s['title'] || '') }))
-          setDiscos(mapped)
-          if (mapped[0] && mapped[0].id) setDisco(mapped[0].id)
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    })()
-    return () => { mounted = false }
   }, [])
 
   useEffect(() => {
@@ -153,41 +53,116 @@ export default function ElectricityPage() {
           return
         }
         setWalletBalance(null)
-      } catch (e) { console.warn('wallet balance fetch error', e) }
+      } catch (e) {
+        console.warn('wallet balance fetch error', e)
+      }
     }
-    const authUnsub = onAuthStateChanged(auth, (u) => {
-      if (!u) { setWalletBalance(null); return }
-      setup(u.uid)
-    })
-    return () => { authUnsub(); if (unsubBalance) try { unsubBalance() } catch {} }
-  }, [])
 
-  const handleVerify = async () => {
-    setVerifying(true)
-    try {
-      const payload: Record<string, unknown> = { billersCode: meter, serviceID: disco }
-      if (meterType === 'postpaid') payload.type = 'postpaid'
-      const res = await fetch('/api/bills/merchant-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      const j = await res.json()
-      if (!res.ok || !j?.ok) {
-        const msg = j?.message || 'Verification failed'
-        toast.error(String(msg))
-        setVerifying(false)
+    const authUnsub = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        setWalletBalance(null)
         return
       }
-      // prefer the VTpass `content` object when present
-      const resObj = j.result?.content || j.result || j
-      setVerifyResult(resObj)
-      try {
-        const p = extractPhoneFromVerifyResult(resObj)
-        if (p) setPhone(p)
-      } catch {}
-      toast.success('Verified')
+      setup(u.uid)
+    })
+
+    return () => {
+      authUnsub()
+      if (unsubBalance) try { unsubBalance() } catch {}
+    }
+  }, [])
+
+  const displayPrice = () => Number(amount || 0)
+
+  const handlePurchase = async () => {
+    if (!meter) {
+      toast.error('Please enter meter number')
+      return
+    }
+    if (!amount || Number(amount) <= 0) {
+      toast.error('Please enter amount')
+      return
+    }
+    setShowPaymentSelector(true)
+  }
+
+  const handleWalletPurchase = async () => {
+    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
+    if (!meter) return toast.error('Please enter meter number')
+    if (!amount || Number(amount) <= 0) return toast.error('Please enter amount')
+    setProcessingWallet(true)
+    try {
+      const idToken = await auth.currentUser.getIdToken()
+      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken })
+      if (!res.status) return toast.error(res.message)
+      
+      const transactionData = {
+        serviceID: 'electricity',
+        amount: Number(amount),
+        response_description: res.message,
+        transactionId: res.transactionId,
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Electricity payment successful')
+      window.location.href = '/bills/confirmation'
+    } catch (e) {
+      console.error(e)
+      toast.error('Purchase failed')
+    } finally {
+      setProcessingWallet(false)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+    setShowPaymentSelector(false)
+    setProcessing(true)
+    try {
+      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType)
+      if (!res.status) {
+        toast.error(res.message)
+        return
+      }
+      
+      const transactionData = {
+        serviceID: 'electricity',
+        amount: Number(amount),
+        response_description: res.message,
+        transactionId: res.transactionId,
+      }
+      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+      toast.success('Electricity payment successful')
+      window.location.href = '/bills/confirmation'
+    } catch (e) {
+      console.error(e)
+      toast.error('Purchase failed')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!meter) {
+      toast.error('Please enter meter number')
+      return
+    }
+    setVerifying(true)
+    try {
+      const result = await validateElectricityMeter(disco, meter, meterType)
+      setVerifyResult(result.data || null)
+      
+      if (!result.status) {
+        toast.error(result.message || 'Meter validation failed')
+        return
+      }
+      
+      toast.success('Meter verified successfully')
     } catch (err) {
       console.error('verify error', err)
       toast.error('Verification error')
+    } finally {
+      setVerifying(false)
     }
-    setVerifying(false)
   }
 
   return (
@@ -211,27 +186,47 @@ export default function ElectricityPage() {
         <div className="max-w-2xl mx-auto">
           <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <CardContent className="p-6 sm:p-8 space-y-6">
+              {/* Meter Type Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-stone-900 mb-3">Meter Type</label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setMeterType(1)}
+                    className={`flex-1 py-2 px-3 rounded border-2 transition-all font-medium ${
+                      meterType === 1
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
+                    }`}
+                  >
+                    Prepaid
+                  </button>
+                  <button
+                    onClick={() => setMeterType(2)}
+                    className={`flex-1 py-2 px-3 rounded border-2 transition-all font-medium ${
+                      meterType === 2
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
+                    }`}
+                  >
+                    Postpaid
+                  </button>
+                </div>
+              </div>
+
               {/* Disco Selection */}
               <div>
                 <label className="block text-sm font-semibold text-stone-900 mb-2">Select Distribution Company</label>
-                <div className="flex gap-2">
-                  <select value={meterType} onChange={(e) => setMeterType(e.target.value as 'prepaid'|'postpaid') } className="w-1/2 px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent">
-                    <option value="prepaid">Prepaid</option>
-                    <option value="postpaid">Postpaid</option>
-                  </select>
-                  <select
-                    value={disco}
-                    onChange={(e) => setDisco(e.target.value)}
-                    className="w-1/2 px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  >
-                  {discos.length ? discos.map(d => <option key={d.id} value={d.id}>{d.name}</option>) : (
-                    <>
-                      <option value="ikeja-electric">Ikeja Electric</option>
-                      <option value="eko-electric">Eko Electric</option>
-                    </>
-                  )}
+                <select
+                  value={disco}
+                  onChange={(e) => setDisco(Number(e.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 | 13)}
+                  className="w-full px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                >
+                  {USUF_DISCOS.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
                 </select>
-              </div>
               </div>
 
               {/* Meter Number Input */}
@@ -259,35 +254,42 @@ export default function ElectricityPage() {
 
               {/* Verification Result */}
               {verifyResult && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                <div className={`rounded-lg p-4 space-y-3 border ${
+                  verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-green-50 border-green-200'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <p className="text-sm font-semibold text-green-900">Account Verified</p>
+                    <CheckCircle2 className={`w-5 h-5 ${
+                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'text-red-600'
+                        : 'text-green-600'
+                    }`} />
+                    <p className={`text-sm font-semibold ${
+                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'text-red-900'
+                        : 'text-green-900'
+                    }`}>
+                      {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        ? 'Invalid Meter'
+                        : 'Meter Verified'}
+                    </p>
                   </div>
-                      <div className="space-y-2">
-                        {formatVerifyResult(filterVerifyResultByService(verifyResult, ['Customer_Name', 'Address', 'Meter_Number', 'Minimum_Amount', 'Min_Purchase_Amount'])).map((item) => (
-                          <div key={item.label} className="flex justify-between text-sm">
-                            <span className="text-green-800">{item.label}:</span>
-                            <span className="text-green-900 font-medium">{item.value || 'N/A'}</span>
-                          </div>
-                        ))}
-
-                        {/* Allow entering or overriding phone for services that don't return one */}
-                        <div className="mt-2">
-                          <label className="block text-sm font-semibold text-green-800 mb-2">Phone: Please enter your phone number below</label>
-                          <input
-                            placeholder="08061234567 or +2348061234567"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className="w-full pl-3 pr-3 py-2.5 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
+                  <div className={`space-y-2 text-sm ${
+                    verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                      ? 'text-red-800'
+                      : 'text-green-800'
+                  }`}>
+                    {verifyResult?.name ? <div className="flex justify-between"><span>Name/Status:</span><span className="font-medium">{String(verifyResult.name)}</span></div> : null}
+                    {verifyResult?.address ? <div className="flex justify-between"><span>Address:</span><span className="font-medium">{String(verifyResult.address)}</span></div> : null}
+                    {verifyResult?.customer_name ? <div className="flex justify-between"><span>Customer:</span><span className="font-medium">{String(verifyResult.customer_name)}</span></div> : null}
+                    {verifyResult?.customer_phone ? <div className="flex justify-between"><span>Phone:</span><span className="font-medium">{String(verifyResult.customer_phone)}</span></div> : null}
+                  </div>
                 </div>
               )}
 
               {/* Amount Input */}
-              {verifyResult && (
+              {verifyResult && (verifyResult?.invalid !== true && verifyResult?.invalid !== 'true') && (
                 <>
                   <div>
                     <label className="block text-sm font-semibold text-stone-900 mb-2">Amount (₦)</label>
@@ -321,37 +323,52 @@ export default function ElectricityPage() {
                     </div>
                   )}
 
-                  {/* Action Button */}
-                  <>
-                    <div className="space-y-2">
-                      {isLoggedIn ? (
-                        <>
-                          <Button onClick={handleWalletPurchase} disabled={processing || processingWallet} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : 'Pay from wallet'}</Button>
-                          <Button onClick={async () => { if (!amount) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Paystack</Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button onClick={async () => { if (!amount) { toast.error('Please enter amount'); return } await handlePurchase() }} disabled={processing} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
-                        </>
-                      )}
-                      <PaymentSelector
-                        open={showPaymentSelector}
-                        amount={displayPrice()}
-                        email={auth.currentUser?.email || ''}
-                        description="Bill Payment"
-                        onClose={() => setShowPaymentSelector(false)}
-                        onPaymentSuccess={onPaymentSuccess}
-                      />
-                    </div>
-                  </>
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    {isLoggedIn ? (
+                      <>
+                        <Button
+                          onClick={handleWalletPurchase}
+                          disabled={processingWallet || (walletBalance !== null && Number(amount) > walletBalance)}
+                          className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
+                        >
+                          {processingWallet ? 'Processing...' : (walletBalance !== null && Number(amount) > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}
+                        </Button>
+                        <Button
+                          onClick={handlePurchase}
+                          disabled={processing || processingWallet}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Pay with Card
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        onClick={handlePurchase}
+                        disabled={processing}
+                        className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
+                      >
+                        {processing ? 'Processing...' : 'Proceed to Payment'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Payment Selector Modal */}
+                  <PaymentSelector
+                    open={showPaymentSelector}
+                    amount={displayPrice()}
+                    email={auth.currentUser?.email || ''}
+                    description={`Electricity Bill - ${displayPrice().toLocaleString()}`}
+                    onClose={() => setShowPaymentSelector(false)}
+                    onPaymentSuccess={onPaymentSuccess}
+                  />
                 </>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Paystack removed: payments go through server handler at /api/bills/buy-service */}
     </div>
   )
 }

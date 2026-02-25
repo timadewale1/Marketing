@@ -14,11 +14,12 @@ export type FundWalletModalProps = {
   email?: string
   onClose: () => void
   onSuccess?: () => void
+  onlyMonnify?: boolean
 }
 
-export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, onClose, onSuccess }) => {
+export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, onClose, onSuccess, onlyMonnify }) => {
   const [amount, setAmount] = useState<number>(0)
-  const [provider, setProvider] = useState<'paystack' | 'monnify'>('paystack')
+  const [provider, setProvider] = useState<'paystack' | 'monnify'>(onlyMonnify ? 'monnify' : 'paystack')
   const [paystackOpen, setPaystackOpen] = useState(false)
   const [monnifyOpen, setMonnifyOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -82,28 +83,30 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
             <label className="block text-sm font-medium text-primary-700 mb-2">
               Payment Provider
             </label>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setProvider('paystack')}
-                className={`flex-1 py-2 px-3 rounded border-2 transition ${
-                  provider === 'paystack'
-                    ? 'border-amber-500 bg-amber-50 font-medium'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Image src="/paystack-logo.jpg" alt="Paystack" width={100} height={100} />
-              </button>
-              <button
-                onClick={() => setProvider('monnify')}
-                className={`flex-1 py-2 px-3 rounded border-2 transition ${
-                  provider === 'monnify'
-                    ? 'border-blue-500 bg-blue-50 font-medium'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Image src="/monnify-logo.png" alt="Monnify" width={100} height={100} />
-              </button>
-            </div>
+              <div className="flex gap-3">
+                {!onlyMonnify && (
+                  <button
+                    onClick={() => setProvider('paystack')}
+                    className={`flex-1 py-2 px-3 rounded border-2 transition ${
+                      provider === 'paystack'
+                        ? 'border-amber-500 bg-amber-50 font-medium'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Image src="/paystack-logo.jpg" alt="Paystack" width={100} height={100} />
+                  </button>
+                )}
+                <button
+                  onClick={() => setProvider('monnify')}
+                  className={`flex-1 py-2 px-3 rounded border-2 transition ${
+                    provider === 'monnify'
+                      ? 'border-blue-500 bg-blue-50 font-medium'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Image src="/monnify-logo.png" alt="Monnify" width={100} height={100} />
+                </button>
+              </div>
           </div>
 
           <div className="pt-4">
