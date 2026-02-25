@@ -187,6 +187,39 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       }
     }
 
+    // Compensation: if user elected to pay from wallet but for some reason the
+    // initial transaction wasn't created/debited, create a completed transaction
+    // now and decrement the user's balance to keep records consistent.
+    if (payFromWallet && amountN > 0 && db && adminAuth && verifiedUid && userType) {
+      try {
+        if (!txDocRef) {
+          const txCollection = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions';
+          const userRef = userType === 'advertiser' ? db.collection('advertisers').doc(verifiedUid) : db.collection('earners').doc(verifiedUid);
+          const newTxRef = db.collection(txCollection).doc();
+          await db.runTransaction(async (t: admin.firestore.Transaction) => {
+            const uSnap = await t.get(userRef);
+            const bal = Number(uSnap.data()?.balance || 0);
+            if (bal < amountN) throw new Error('Insufficient balance for post-debit');
+            t.update(userRef, { balance: admin.firestore.FieldValue.increment(-amountN) });
+            t.set(newTxRef, {
+              userId: verifiedUid,
+              type: 'usuf_electricity',
+              amount: -amountN,
+              status: 'completed',
+              disco: disco_name,
+              meter: meter_number || null,
+              meterType: MeterType,
+              response: returnData,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: new Date().toISOString(),
+            });
+          });
+        }
+      } catch (e) {
+        console.error('Post-success wallet debit failed for electricity purchase', e);
+      }
+    }
+
     return NextResponse.json({
       status: true,
       message,

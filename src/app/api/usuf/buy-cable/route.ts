@@ -186,6 +186,38 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
       }
     }
 
+    // Compensation: if wallet payment was intended but initial txn wasn't created,
+    // create a completed transaction and decrement wallet now.
+    if (payFromWallet && amountN > 0 && db && adminAuth && verifiedUid && userType) {
+      try {
+        if (!txDocRef) {
+          const txCollection = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions';
+          const userRef = userType === 'advertiser' ? db.collection('advertisers').doc(verifiedUid) : db.collection('earners').doc(verifiedUid);
+          const newTxRef = db.collection(txCollection).doc();
+          await db.runTransaction(async (t: admin.firestore.Transaction) => {
+            const uSnap = await t.get(userRef);
+            const bal = Number(uSnap.data()?.balance || 0);
+            if (bal < amountN) throw new Error('Insufficient balance for post-debit');
+            t.update(userRef, { balance: admin.firestore.FieldValue.increment(-amountN) });
+            t.set(newTxRef, {
+              userId: verifiedUid,
+              type: 'usuf_cable',
+              amount: -amountN,
+              status: 'completed',
+              cablename,
+              cableplan,
+              smartCard: smart_card_number || null,
+              response: returnData,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: new Date().toISOString(),
+            });
+          });
+        }
+      } catch (e) {
+        console.error('Post-success wallet debit failed for cable purchase', e);
+      }
+    }
+
     return NextResponse.json({
       status: true,
       message,

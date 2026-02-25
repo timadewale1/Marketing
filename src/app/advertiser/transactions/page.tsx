@@ -86,20 +86,19 @@ export default function AdvertiserTransactionsPage() {
       });
       const sorted = txs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setHistory(sorted);
-      // keep local balance in case needed (not used for withdrawable amount)
-      const bal = sorted.reduce((s, t) => s + (t.amount || 0), 0)
-      setBalance(bal)
       setLoading(false);
     });
 
-    // fetch advertiser profile for withdrawable balance and bank details
+    // fetch advertiser profile for balance and bank details
     ;(async () => {
       try {
         const advRef = doc(db, 'advertisers', u.uid)
         const advSnap = await getDoc(advRef)
         if (advSnap.exists()) {
           const data = advSnap.data() || {}
-          setWithdrawableBalance(Number(data.balance || 0))
+          const actualBalance = Number(data.balance || 0)
+          setBalance(actualBalance)
+          setWithdrawableBalance(actualBalance)
           setBankDetails(data.bank || null)
         }
       } catch (e) {
@@ -179,6 +178,12 @@ export default function AdvertiserTransactionsPage() {
                   displayLabel = 'Withdrawal'
                 } else if (tx.type === 'referral_bonus') {
                   displayLabel = 'Referral Bonus'
+                } else if (tx.type === 'usuf_airtime') {
+                  displayLabel = 'Airtime Purchase'
+                } else if (tx.type === 'usuf_electricity') {
+                  displayLabel = 'Electricity Bill'
+                } else if (tx.type === 'usuf_cable') {
+                  displayLabel = 'Cable Subscription'
                 } else if (tx.note) {
                   displayLabel = tx.note
                 }

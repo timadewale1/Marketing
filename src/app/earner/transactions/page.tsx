@@ -176,6 +176,12 @@ export default function TransactionsPage() {
                       displayLabel = 'Withdrawal'
                     } else if (tx.type === 'referral_bonus') {
                       displayLabel = 'Referral Bonus'
+                    } else if (tx.type === 'usuf_airtime') {
+                      displayLabel = 'Airtime Purchase'
+                    } else if (tx.type === 'usuf_electricity') {
+                      displayLabel = 'Electricity Bill'
+                    } else if (tx.type === 'usuf_cable') {
+                      displayLabel = 'Cable Subscription'
                     } else if (tx.note) {
                       displayLabel = tx.note
                     }
