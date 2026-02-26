@@ -93,7 +93,7 @@ export default function ElectricityPage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken })
+      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken, sellAmount: Number(amount) })
       if (!res.status) return toast.error(res.message)
       
       const transactionData = {

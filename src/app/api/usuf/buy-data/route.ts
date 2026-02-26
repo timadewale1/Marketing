@@ -33,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
     }
 
     const body = await request.json();
-    const { network, mobile_number, plan, Ported_number, payFromWallet, sellAmount } = body;
+    const { network, mobile_number, plan, Ported_number, payFromWallet, sellAmount, amount } = body;
 
     // Validate required fields
     if (!network || !mobile_number || !plan) {
@@ -52,7 +52,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
     let adminAuth: admin.auth.Auth | null = null;
-    const amountN = Number(sellAmount || 0);
+    // wallet deduction should use actual amount when sellAmount omitted
+    const amountN = Number(sellAmount || amount || 0);
 
     if (payFromWallet && amountN > 0) {
       const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');

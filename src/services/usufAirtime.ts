@@ -23,15 +23,19 @@ export async function buyUsufAirtime(
   amount: number,
   phone: string,
   portedNumber: boolean = true,
-  options?: { idToken?: string }
+  options?: { idToken?: string; sellAmount?: number }
 ): Promise<UsufAirtimeResponse> {
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       network,
       amount,
       mobile_number: phone,
       Ported_number: portedNumber,
       airtime_type: "VTU",
+    }
+    if (options?.idToken) {
+      payload.payFromWallet = true;
+      payload.sellAmount = options.sellAmount;
     }
 
     const headers: Record<string, string> = {

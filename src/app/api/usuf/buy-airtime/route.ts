@@ -44,7 +44,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
     let adminAuth: admin.auth.Auth | null = null;
-    const amountN = Number(sellAmount || 0);
+    // use actual paid amount when sellAmount isn't provided by client
+    const amountN = Number(sellAmount || amount || 0);
 
     if (payFromWallet && amountN > 0) {
       const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');

@@ -106,7 +106,7 @@ export default function TVPage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufCable(cable, plan, smartcard, { idToken })
+      const res = await buyUsufCable(cable, plan, smartcard, { idToken, sellAmount: Number(amount) })
       if (!res.status) return toast.error(res.message)
       
       const selectedPlan = availablePlans.find(p => p.id === plan)

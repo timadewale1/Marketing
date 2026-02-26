@@ -37,14 +37,18 @@ export async function buyUsufElectricity(
   amount: number,
   meterNumber: string,
   meterType: MeterType,
-  options?: { idToken?: string }
+  options?: { idToken?: string; sellAmount?: number }
 ): Promise<UsufElectricityResponse> {
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       disco_name: disco,
       amount,
       meter_number: meterNumber,
       MeterType: meterType,
+    }
+    if (options?.idToken) {
+      payload.payFromWallet = true;
+      payload.sellAmount = options.sellAmount;
     }
 
     const headers: Record<string, string> = {

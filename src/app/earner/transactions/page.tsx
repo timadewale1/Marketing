@@ -60,11 +60,11 @@ export default function TransactionsPage() {
       }
     });
 
-    // Get transaction history
+    // Get transaction history - exclude failed transactions
     const q = query(
       collection(db, "earnerTransactions"),
       where("userId", "==", u.uid),
-      where("status", "in", ["completed", "pending", null]) // null for backward compatibility
+      where("status", "!=", "failed")
     );
     const unsubTx = onSnapshot(q, (snap) => {
       const txs = snap.docs.map((d) => {
@@ -77,7 +77,7 @@ export default function TransactionsPage() {
           status: data.status,
           createdAt: data.createdAt
         } as Transaction;
-      });
+      }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setHistory(txs);
       
       // Calculate available balance from completed transactions only
@@ -182,9 +182,12 @@ export default function TransactionsPage() {
                       displayLabel = 'Electricity Bill'
                     } else if (tx.type === 'usuf_cable') {
                       displayLabel = 'Cable Subscription'
+                    } else if (tx.type === 'usuf_purchase') {
+                      displayLabel = 'Data Purchase'
                     } else if (tx.note) {
                       displayLabel = tx.note
                     }
+                    const sign = tx.amount < 0 ? '-' : '+'
                     return (
                     <Card key={tx.id} className="p-4 hover:shadow-md transition duration-200">
                       <div className="flex items-start justify-between gap-4">
@@ -208,7 +211,7 @@ export default function TransactionsPage() {
                           <div className={`font-bold ${
                             tx.amount < 0 ? 'text-red-600' : 'text-green-600'
                           }`}>
-                            ₦{Math.abs(tx.amount).toLocaleString()}
+                            {sign}₦{Math.abs(tx.amount).toLocaleString()}
                           </div>
                         </div>
                       </div>

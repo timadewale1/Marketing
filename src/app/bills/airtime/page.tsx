@@ -95,7 +95,7 @@ export default function AirtimePage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufAirtime(network, Number(amount), phone, true, { idToken })
+      const res = await buyUsufAirtime(network, Number(amount), phone, true, { idToken, sellAmount: Number(amount) })
       if (!res.status) return toast.error(res.message)
       
       const transactionData = {

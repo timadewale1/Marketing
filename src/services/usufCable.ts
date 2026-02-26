@@ -74,13 +74,17 @@ export async function buyUsufCable(
   cableName: UsufCableId,
   cablePlan: UsufCablePlanId,
   smartCardNumber: string,
-  options?: { idToken?: string }
+  options?: { idToken?: string; sellAmount?: number }
 ): Promise<UsufCableResponse> {
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       cablename: cableName,
       cableplan: cablePlan,
       smart_card_number: smartCardNumber,
+    }
+    if (options?.idToken) {
+      payload.payFromWallet = true;
+      payload.sellAmount = options.sellAmount;
     }
 
     const headers: Record<string, string> = {
