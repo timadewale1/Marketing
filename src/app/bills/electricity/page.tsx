@@ -21,7 +21,7 @@ export default function ElectricityPage() {
   const [disco, setDisco] = useState(1 as 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 | 13)
   const [meterType, setMeterType] = useState<MeterType>(1)
   const [amount, setAmount] = useState('')
-  const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifyResult, setVerifyResult] = useState<{ name?: string; address?: string; invalid?: boolean | string } | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [showPaymentSelector, setShowPaymentSelector] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -280,10 +280,18 @@ export default function ElectricityPage() {
                       ? 'text-red-800'
                       : 'text-green-800'
                   }`}>
-                    {verifyResult?.name ? <div className="flex justify-between"><span>Name/Status:</span><span className="font-medium">{String(verifyResult.name)}</span></div> : null}
-                    {verifyResult?.address ? <div className="flex justify-between"><span>Address:</span><span className="font-medium">{String(verifyResult.address)}</span></div> : null}
-                    {verifyResult?.customer_name ? <div className="flex justify-between"><span>Customer:</span><span className="font-medium">{String(verifyResult.customer_name)}</span></div> : null}
-                    {verifyResult?.customer_phone ? <div className="flex justify-between"><span>Phone:</span><span className="font-medium">{String(verifyResult.customer_phone)}</span></div> : null}
+                    {verifyResult?.name && (
+                      <div className="flex justify-between items-start">
+                        <span>Name:</span>
+                        <span className="font-medium text-right ml-4">{verifyResult.name}</span>
+                      </div>
+                    )}
+                    {verifyResult?.address && (
+                      <div className="flex justify-between items-start">
+                        <span>Address:</span>
+                        <span className="font-medium text-right ml-4">{verifyResult.address}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -303,6 +311,7 @@ export default function ElectricityPage() {
                         className="w-full pl-10 pr-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                       />
                     </div>
+                    <p className="text-xs text-stone-600 mt-2">Minimum purchase: ₦1,000</p>
                   </div>
 
                   {/* Price Summary */}

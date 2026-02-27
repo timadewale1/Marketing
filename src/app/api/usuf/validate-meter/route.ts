@@ -31,7 +31,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<Validation
       );
     }
 
-    const queryString = `meternumber=${encodeURIComponent(meterNumber)}&disconame=${discoName}&mtype=${encodeURIComponent(meterType)}`;
+    const queryString =
+  `meternumber=${encodeURIComponent(meterNumber)}` +
+  `&disconame=${encodeURIComponent(discoName)}` +
+  `&mtype=${encodeURIComponent(meterType)}`;
     const url = `${USUF_API_URL}?${queryString}`;
 
     console.log('🔍 Meter Validation Request:', {

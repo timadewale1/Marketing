@@ -30,7 +30,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<Validation
       );
     }
 
-    const queryString = `smart_card_number=${encodeURIComponent(smartCardNumber)}&cablename=${cableName}`;
+    const queryString =
+  `smart_card_number=${encodeURIComponent(smartCardNumber)}` +
+  `&cablename=${encodeURIComponent(cableName)}`;
     const url = `${USUF_API_URL}?${queryString}`;
 
     console.log('🔍 Cable Validation Request:', {

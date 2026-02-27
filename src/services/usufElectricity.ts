@@ -15,14 +15,18 @@ export const USUF_DISCOS = [
   { id: 13, name: "Aba Electric" },
 ] as const
 
+export type UsufDiscoId = typeof USUF_DISCOS[number]["id"]
+
 export function getDiscoNameById(discoId: UsufDiscoId): string {
-  const disco = USUF_DISCOS.find(d => d.id === discoId)
+  const disco = USUF_DISCOS.find((d) => d.id === discoId)
   return disco?.name || String(discoId)
 }
 
-export type UsufDiscoId = typeof USUF_DISCOS[number]["id"]
-
 export type MeterType = 1 | 2 // 1 = PREPAID, 2 = POSTPAID
+
+export function meterTypeToUsuf(meterType: MeterType): "PREPAID" | "POSTPAID" {
+  return meterType === 1 ? "PREPAID" : "POSTPAID"
+}
 
 export interface UsufElectricityResponse {
   status: boolean
@@ -41,26 +45,27 @@ export async function buyUsufElectricity(
 ): Promise<UsufElectricityResponse> {
   try {
     const payload: Record<string, unknown> = {
-      disco_name: disco,
+      disco_name: disco, // keep as ID for purchase (your purchase endpoint expects ID)
       amount,
       meter_number: meterNumber,
-      MeterType: meterType,
+      MeterType: meterType, // keep as 1/2 for purchase (vendor purchase endpoint may use this)
     }
+
     if (options?.idToken) {
-      payload.payFromWallet = true;
-      payload.sellAmount = options.sellAmount;
+      payload.payFromWallet = true
+      payload.sellAmount = options.sellAmount
     }
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     }
 
     if (options?.idToken) {
-      headers['Authorization'] = `Bearer ${options.idToken}`
+      headers["Authorization"] = `Bearer ${options.idToken}`
     }
 
-    const response = await fetch('/api/usuf/buy-electricity', {
-      method: 'POST',
+    const response = await fetch("/api/usuf/buy-electricity", {
+      method: "POST",
       headers,
       body: JSON.stringify(payload),
     })
@@ -70,23 +75,23 @@ export async function buyUsufElectricity(
     if (!response.ok) {
       return {
         status: false,
-        message: data?.message || 'Failed to purchase electricity',
+        message: data?.message || "Failed to purchase electricity",
         apiResponse: data,
       }
     }
 
     return {
       status: data.status || false,
-      message: data.message || 'Electricity payment successful',
+      message: data.message || "Electricity payment successful",
       reference: data.reference || data.data?.reference,
       transactionId: data.transactionId || data.data?.transactionId,
       apiResponse: data,
     }
   } catch (error) {
-    console.error('Usuf electricity purchase error:', error)
+    console.error("Usuf electricity purchase error:", error)
     return {
       status: false,
-      message: error instanceof Error ? error.message : 'Network error',
+      message: error instanceof Error ? error.message : "Network error",
     }
   }
 }
@@ -97,26 +102,32 @@ export async function validateElectricityMeter(
   meterType: MeterType
 ): Promise<{ status: boolean; message: string; data?: Record<string, unknown> }> {
   try {
-    const response = await fetch(
-      `/api/usuf/validate-meter?meternumber=${encodeURIComponent(meterNumber)}&disconame=${disco}&mtype=${meterType}`,
-      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
-    )
+    // ✅ USUF validator expects disco NAME + PREPAID/POSTPAID
+    const discoName = getDiscoNameById(disco)
+    const mtype = meterTypeToUsuf(meterType)
+
+    const qs =
+      `meternumber=${encodeURIComponent(meterNumber)}` +
+      `&disconame=${encodeURIComponent(discoName)}` +
+      `&mtype=${encodeURIComponent(mtype)}`
+
+    const response = await fetch(`/api/usuf/validate-meter?${qs}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    })
 
     const data = await response.json()
 
-    const status = response.ok && data.status !== false
-    const message = data?.message || (status ? 'Meter validated successfully' : 'Meter validation failed')
+    const status = response.ok && data?.status !== false
+    const message =
+      data?.message || (status ? "Meter validated successfully" : "Meter validation failed")
 
-    return {
-      status,
-      message,
-      data,
-    }
+    return { status, message, data }
   } catch (error) {
-    console.error('Meter validation error:', error)
+    console.error("Meter validation error:", error)
     return {
       status: false,
-      message: error instanceof Error ? error.message : 'Network error',
+      message: error instanceof Error ? error.message : "Network error",
     }
   }
 }

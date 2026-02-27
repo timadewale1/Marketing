@@ -133,25 +133,27 @@ export async function validateCableSmartCard(
 ): Promise<{ status: boolean; message: string; data?: Record<string, unknown> }> {
   try {
     const response = await fetch(
-      `/api/usuf/validate-cable?smart_card_number=${encodeURIComponent(smartCardNumber)}&cablename=${cableName}`,
-      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      `/api/usuf/validate-cable?smart_card_number=${encodeURIComponent(
+        smartCardNumber
+      )}&cablename=${encodeURIComponent(String(cableName))}`,
+      { method: "GET", headers: { "Content-Type": "application/json" } }
     )
 
-    const data = await response.json()
+    const raw = await response.json()
 
-    const status = response.ok && data.status !== false
-    const message = data?.message || (status ? 'Smart card validated successfully' : 'Smart card validation failed')
+    // ✅ normalize so UI always gets the vendor payload
+    const payload = (raw?.data ?? raw) as Record<string, unknown>
 
-    return {
-      status,
-      message,
-      data,
-    }
+    const status = response.ok && raw?.status !== false
+    const message =
+      raw?.message || (status ? "Smart card validated successfully" : "Smart card validation failed")
+
+    return { status, message, data: payload }
   } catch (error) {
-    console.error('Cable validation error:', error)
+    console.error("Cable validation error:", error)
     return {
       status: false,
-      message: error instanceof Error ? error.message : 'Network error',
+      message: error instanceof Error ? error.message : "Network error",
     }
   }
 }
