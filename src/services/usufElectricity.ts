@@ -44,11 +44,12 @@ export async function buyUsufElectricity(
   options?: { idToken?: string; sellAmount?: number }
 ): Promise<UsufElectricityResponse> {
   try {
-    const payload: Record<string, unknown> = {
+    // send numeric MeterType id as integer
+  const payload: Record<string, unknown> = {
       disco_name: disco, // keep as ID for purchase (your purchase endpoint expects ID)
       amount,
       meter_number: meterNumber,
-      MeterType: meterType, // keep as 1/2 for purchase (vendor purchase endpoint may use this)
+      MeterType: meterType,
     }
 
     if (options?.idToken) {

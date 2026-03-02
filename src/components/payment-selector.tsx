@@ -40,11 +40,10 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   if (!open) return null
 
   const handleProceed = () => {
-    // Close the selection dialog when opening payment modals
-    // This prevents the Dialog overlay from blocking the payment modals
-    onClose()
-    
-    // Small delay to ensure Dialog closes before payment modal opens
+    // Open the payment modal from within this component.
+    // Do NOT call parent onClose() here — keeping this component mounted
+    // ensures the provider modal can be opened reliably. The Dialog's
+    // `open` prop already hides the selector when a provider modal opens.
     setTimeout(() => {
       if (selectedProvider === 'paystack') {
         setPaystackOpen(true)

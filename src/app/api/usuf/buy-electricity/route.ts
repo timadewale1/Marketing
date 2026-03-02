@@ -22,14 +22,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     }
 
     const body = await request.json();
-    const { disco_name, amount, meter_number, MeterType, payFromWallet, sellAmount } = body;
+    const { disco_name, amount, meter_number: rawMeter, MeterType, payFromWallet, sellAmount } = body;
+    let meter_number = rawMeter;
 
-    if (!disco_name || !amount || !meter_number || MeterType === undefined) {
+    // stricter check: allow zero amounts if vendor permits, only undefined causes failure
+    if (disco_name === undefined || amount === undefined || !meter_number || MeterType === undefined) {
       return NextResponse.json(
         { status: false, message: 'Missing required fields' },
         { status: 400 }
       );
     }
+
+    // normalize types to numbers / trimmed strings before sending downstream
+    const discoN = Number(disco_name);
+    const amountVendor = Number(amount);
+    const meterTypeN = Number(MeterType);
+    meter_number = String(meter_number).trim();
 
     let verifiedUid: string | null = null;
     let userType: 'advertiser' | 'earner' | null = null;
@@ -107,11 +115,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     }
 
     const payload = {
-      disco_name,
-      amount,
+      disco_name: discoN,
+      amount: amountVendor,
       meter_number,
-      MeterType,
+      MeterType: meterTypeN,
     };
+    console.log("Electricity payload types:", {
+      disco_name: [payload.disco_name, typeof payload.disco_name],
+      amount: [payload.amount, typeof payload.amount],
+      MeterType: [payload.MeterType, typeof payload.MeterType],
+    });
 
     // Create abort controller with 30 second timeout
     const abortController = new AbortController();
