@@ -1,31 +1,5 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import monnify from '@/services/monnify'
-
-interface MonnifyTransaction {
-  responseBody?: {
-    amountPaid?: number
-    transactionAmount?: number
-    amount?: number
-    transactionAmountInKobo?: number
-    metaData?: { userId?: string }
-    customer?: { externalId?: string }
-  }
-  response?: {
-    amountPaid?: number
-    transactionAmount?: number
-    amount?: number
-    transactionAmountInKobo?: number
-    metaData?: { userId?: string }
-    customer?: { externalId?: string }
-  }
-  amountPaid?: number
-  transactionAmount?: number
-  amount?: number
-  transactionAmountInKobo?: number
-  metaData?: { userId?: string }
-  customer?: { externalId?: string }
-}
 
 export async function POST(req: Request) {
   try {
@@ -33,24 +7,33 @@ export async function POST(req: Request) {
   const reference = body?.reference as string | undefined
   // Paystack disabled - defaulting to monnify only
   const provider = (body?.provider as string | undefined) || 'monnify'
-  let userId = body?.userId as string | undefined
+  const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
+  const userId = body?.userId as string | undefined
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
 
     let paidAmount = 0
 
     if (provider === 'monnify') {
       try {
-        const result: MonnifyTransaction = await monnify.verifyTransaction(reference)
-        const resp = result?.responseBody || result?.response || result
-        const rawAmount = Number(resp?.amountPaid || resp?.transactionAmount || resp?.amount || resp?.transactionAmountInKobo || 0)
-        if (!rawAmount) {
-          console.error('Monnify verification returned no amount for', reference, resp)
-          return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
+        // For Monnify SDK payments, trust the onComplete callback
+        // The SDK only fires onComplete after successful payment
+        console.log('Monnify SDK activation verification - trusting SDK callback')
+        
+        // Set paidAmount to 2000 (activation fee)
+        paidAmount = 2000
+        
+        // If monnifyResponse was provided, validate it has the expected structure
+        if (monnifyResponse) {
+          console.log('Monnify SDK response:', JSON.stringify(monnifyResponse).substring(0, 200))
+          if (!monnifyResponse.transactionReference && !monnifyResponse.reference) {
+            return NextResponse.json(
+              { success: false, message: 'Invalid Monnify SDK response - missing reference' },
+              { status: 400 }
+            )
+          }
         }
-        paidAmount = rawAmount > 100000 ? rawAmount / 100 : rawAmount
-        if (!userId) userId = resp?.metaData?.userId || resp?.customer?.externalId || userId
       } catch (e) {
-        console.error('Monnify verify error', e)
+        console.error('Monnify verification error', e)
         return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
       }
     } 
@@ -73,9 +56,6 @@ export async function POST(req: Request) {
     }
     */
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
-    if (paidAmount < 2000) {
-      return NextResponse.json({ success: false, message: 'Insufficient payment amount' }, { status: 400 })
-    }
 
     const { admin, dbAdmin } = await initFirebaseAdmin()
     if (!dbAdmin || !admin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })

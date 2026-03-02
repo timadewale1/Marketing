@@ -123,7 +123,7 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-medium text-stone-800">Office</h3>
                   <p className="text-stone-600">
-                    Abuja, Nigeria
+                    Lagos, Nigeria
                   </p>
                 </div>
               </div>
@@ -134,7 +134,7 @@ export default function ContactPage() {
                 <Phone className="text-amber-600 mt-1" />
                 <div>
                   <h3 className="font-medium text-stone-800">Phone</h3>
-                  <p className="text-stone-600">+234 8146532678</p>
+                  <p className="text-stone-600">+234 8120948834</p>
                   <p className="text-xs text-stone-500 mt-1">
                     Mon-Fri 9am-5pm WAT
                   </p>
@@ -147,7 +147,7 @@ export default function ContactPage() {
                 <MessageCircle className="text-amber-600 mt-1 flex-shrink-0" />
                 <div>
                   <h3 className="font-medium text-stone-800">WhatsApp</h3>
-                  <p className="text-stone-600">Chat with us on WhatsApp</p>
+                  <p className="text-stone-600">click here to be taken to whatsapp</p>
                 </div>
               </a>
             </Card>

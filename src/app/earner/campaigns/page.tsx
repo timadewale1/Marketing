@@ -118,8 +118,39 @@ export default function AvailableCampaignsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCampaigns.length === 0 ? (
-                <div className="col-span-full text-center py-8">
-                  <p className="text-stone-600">No active tasks right now.</p>
+                <div className="col-span-full">
+                  <div className="flex flex-col items-center justify-center py-20 px-6">
+                    {/* Animated illustration container */}
+                    <div className="mb-8 relative">
+                      {/* Outer animated ring */}
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-300 to-orange-300 opacity-20 animate-spin"></div>
+                      
+                      {/* Main icon container */}
+                      <div className="relative w-32 h-32 flex items-center justify-center">
+                        <div className="text-6xl animate-bounce">
+                          📭
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Text content */}
+                    <h2 className="text-3xl font-bold text-stone-800 mb-3 text-center">
+                      No Available Tasks
+                    </h2>
+                    <p className="text-lg text-stone-600 text-center max-w-md mb-2">
+                      at the moment
+                    </p>
+                    <p className="text-base text-stone-500 text-center max-w-md">
+                      Check back later for more exciting tasks to earn rewards! 🎯
+                    </p>
+
+                    {/* Animated dots indicator */}
+                    <div className="mt-8 flex gap-2 justify-center">
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0s' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 filteredCampaigns.map((c) => {
