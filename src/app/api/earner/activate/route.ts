@@ -105,9 +105,11 @@ export async function POST(req: Request) {
           // read referrer documents first (required before writes)
           let earnerSnap = null
           let advSnap = null
-          const earnerRef = referrerId ? adminDb.collection('earners').doc(referrerId) : null
-          const advRef = referrerId ? adminDb.collection('advertisers').doc(referrerId) : null
+          let earnerRef: import('firebase-admin').firestore.DocumentReference | null = null
+          let advRef: import('firebase-admin').firestore.DocumentReference | null = null
           if (referrerId) {
+            earnerRef = adminDb.collection('earners').doc(referrerId)
+            advRef = adminDb.collection('advertisers').doc(referrerId)
             earnerSnap = await t.get(earnerRef)
             advSnap = await t.get(advRef)
           }
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
           // mark referral completed and paid
           t.update(rRef, { status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp(), bonusPaid: true })
           if (referrerId && bonus > 0) {
-            if (earnerSnap && earnerSnap.exists) {
+            if (earnerSnap && earnerSnap.exists && earnerRef) {
               const txRef = adminDb.collection('earnerTransactions').doc()
               t.set(txRef, {
                 userId: referrerId,
@@ -127,7 +129,7 @@ export async function POST(req: Request) {
               })
               t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
               console.log('[earner][activate] credited earner referrer bonus:', referrerId, 'amount:', bonus)
-            } else if (advSnap && advSnap.exists) {
+            } else if (advSnap && advSnap.exists && advRef) {
               const txRef = adminDb.collection('advertiserTransactions').doc()
               t.set(txRef, {
                 userId: referrerId,
