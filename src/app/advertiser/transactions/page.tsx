@@ -114,7 +114,11 @@ export default function AdvertiserTransactionsPage() {
     const qW = query(collection(db, 'advertiserWithdrawals'), where('userId','==', u.uid));
     const unsubW = onSnapshot(qW, (snap) => {
       const map: Record<string,string> = {};
-      snap.docs.forEach((d) => { map[d.id] = d.data().status; });
+      snap.docs.forEach((d) => {
+        let s = d.data().status;
+        if (s === 'sent') s = 'completed';
+        map[d.id] = s;
+      });
       setWithdrawalStatusMap(map);
     });
 
@@ -228,16 +232,31 @@ export default function AdvertiserTransactionsPage() {
                     <div className="text-right">
                       {(() => {
                         const isW = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
-                        let statusToCheck = tx.status;
+                        // broaden to arbitrary string so we can compare custom statuses
+                        let statusToCheck: string | undefined = tx.status as string | undefined;
                         if (isW && tx.withdrawalId) {
-                          statusToCheck = (withdrawalStatusMap[tx.withdrawalId] as 'pending' | 'completed' | 'cancelled' | undefined) || statusToCheck;
+                          statusToCheck = (withdrawalStatusMap[tx.withdrawalId] as string | undefined) || statusToCheck;
                         }
-                        return statusToCheck === 'pending';
-                      })() && (
-                        <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
-                          Pending
-                        </span>
-                      )}
+
+                        const isPending = statusToCheck === 'pending' || statusToCheck === 'processing';
+                        const isCompleted = statusToCheck === 'completed' || statusToCheck === 'sent';
+
+                        if (isPending) {
+                          return (
+                            <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
+                              Pending
+                            </span>
+                          );
+                        }
+                        if (isCompleted) {
+                          return (
+                            <span className="inline-block px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full mb-1">
+                              Completed
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className={`font-bold ${
                         tx.amount < 0 ? 'text-red-600' : 'text-green-600'
                       }`}>

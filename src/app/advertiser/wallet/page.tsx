@@ -378,9 +378,21 @@ export default function WalletPage() {
                                 <div className="text-sm text-stone-600">{w.fullName || ''} • {w.bank?.bankName || ''}</div>
                               </div>
                               <div className="text-sm text-right">
-                                <div className={`inline-block px-2 py-1 rounded-full text-xs ${w.status === 'pending' ? 'bg-amber-100 text-amber-700' : w.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-700'}`}>
-                                  {w.status}
+                                {(() => {
+                              // treat legacy "sent" as completed for display purposes
+                              const status = w.status === 'sent' ? 'completed' : w.status;
+                              const colorClass =
+                                status === 'pending'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : status === 'completed'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-stone-100 text-stone-700';
+                              return (
+                                <div className={`inline-block px-2 py-1 rounded-full text-xs ${colorClass}`}>
+                                  {status}
                                 </div>
+                              );
+                            })()}
                                 <div className="text-xs text-stone-500 mt-1">{w.createdAt ? new Date((w.createdAt as Timestamp).seconds * 1000).toLocaleString() : ''}</div>
                               </div>
                             </div>

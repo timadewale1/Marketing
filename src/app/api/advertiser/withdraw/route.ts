@@ -145,6 +145,18 @@ export async function POST(req: Request) {
           monnifyDestinationBank: disbursementResponse.destinationBankName,
           initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
         })
+
+        if (withdrawalStatus === 'completed') {
+          try {
+            await db.collection('advertiserTransactions').doc(txRef.id).update({
+              status: 'completed',
+              note: 'Withdrawal processed via Monnify',
+              completedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          } catch (e) {
+            console.warn('[withdraw][advertiser] failed to update tx after monnify success', e);
+          }
+        }
       } else {
         // Handle Paystack withdrawal (existing logic)
         console.log('[withdraw][advertiser] creating paystack recipient for', userId, { name: recipientName, bank })

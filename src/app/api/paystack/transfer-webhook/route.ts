@@ -44,7 +44,12 @@ export async function POST(req: Request) {
         const wd = d.data()
         const updates: WithdrawalUpdate = { paystackStatus: status, updatedAt: admin.firestore.FieldValue.serverTimestamp() }
         if (event === 'transfer.success' || status === 'success') {
-          updates.status = 'sent'
+          // mark the withdrawal as completed rather than using a separate "sent"
+          // state. the previous "sent" label was causing inconsistencies on the
+          // transactions page (it was ignored by the UI) and forced extra logic
+          // there. consolidating to a single completed state keeps things
+          // simpler and matches what users expect to see in the wallet view.
+          updates.status = 'completed'
           updates.sentAt = admin.firestore.FieldValue.serverTimestamp()
         } else if (event === 'transfer.failed' || status === 'failed') {
           updates.status = 'failed'
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
         try {
           await d.ref.update(Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)))
 
-          if (updates.status === 'sent') {
+          if (updates.status === 'completed') {
             // finalize transactions: find pending withdrawal_request txs and mark completed
             const txCollection = col === 'advertiserWithdrawals' ? 'advertiserTransactions' : 'earnerTransactions'
             const userCollection = col === 'advertiserWithdrawals' ? 'advertisers' : 'earners'

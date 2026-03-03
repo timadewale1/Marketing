@@ -83,18 +83,6 @@ export default function TransactionsPage() {
         } as Transaction & { withdrawalId?: string };
       }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setHistory(txs as Transaction[]);
-      
-      // Calculate available balance from completed transactions only
-      const balance = txs.reduce((sum, tx) => {
-        const isWithdrawal = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
-        let statusToCheck = tx.status;
-        if (isWithdrawal && tx.withdrawalId) {
-          statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as 'pending' | 'completed' | 'cancelled' | undefined;
-        }
-        const isCompleted = statusToCheck === 'completed' || (statusToCheck === 'pending' && !isWithdrawal);
-        return sum + (isCompleted ? tx.amount : 0);
-      }, 0);
-      setAvailableBalance(balance);
       setLoading(false);
     });
 
@@ -103,7 +91,10 @@ export default function TransactionsPage() {
     const unsubW = onSnapshot(qW, (snap) => {
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => {
-        map[d.id] = d.data().status;
+        let s = d.data().status;
+        // older webhooks used "sent"; treat it as completed in the UI logic
+        if (s === 'sent') s = 'completed';
+        map[d.id] = s;
       });
       setWithdrawalStatusMap(map);
     });
@@ -114,6 +105,25 @@ export default function TransactionsPage() {
       unsubW();
     };
   }, [router]);
+
+  // whenever either the history list or the withdrawal status map changes we need
+  // to recompute the available balance; previously this was only done when the
+  // transaction snapshot fired which meant completed withdrawals didn’t cause
+  // the UI to update until the next transaction change.
+  useEffect(() => {
+    const balance = history.reduce((sum, tx) => {
+      const isWithdrawal = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
+      let statusToCheck: string | undefined = tx.status as string | undefined;
+      if (isWithdrawal && tx.withdrawalId) {
+        statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as string | undefined;
+      }
+      const isCompleted =
+        statusToCheck === 'completed' ||
+        (statusToCheck === 'pending' && !isWithdrawal);
+      return sum + (isCompleted ? tx.amount : 0);
+    }, 0);
+    setAvailableBalance(balance);
+  }, [history, withdrawalStatusMap]);
 
   const requestWithdraw = async (amount: number): Promise<void> => {
     const u = auth.currentUser;
@@ -228,16 +238,29 @@ export default function TransactionsPage() {
                         <div className="text-right">
                           {(() => {
                             const isW = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
-                            let statusToCheck = tx.status;
+                            let statusToCheck: string | undefined = tx.status as string | undefined;
                             if (isW && tx.withdrawalId) {
-                              statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as 'pending' | 'completed' | 'cancelled' | undefined;
+                              statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as string | undefined;
                             }
-                            return statusToCheck === 'pending';
-                          })() && (
-                            <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
-                              Pending
-                            </span>
-                          )}
+                            const isPending = statusToCheck === 'pending' || statusToCheck === 'processing';
+                            const isCompleted = statusToCheck === 'completed';
+
+                            if (isPending) {
+                              return (
+                                <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
+                                  Pending
+                                </span>
+                              );
+                            }
+                            if (isCompleted) {
+                              return (
+                                <span className="inline-block px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full mb-1">
+                                  Completed
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                           <div className={`font-bold ${
                             tx.amount < 0 ? 'text-red-600' : 'text-green-600'
                           }`}>

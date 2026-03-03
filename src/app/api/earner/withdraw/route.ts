@@ -142,6 +142,20 @@ export async function POST(req: Request) {
           monnifyDestinationBank: disbursementResponse.destinationBankName,
           initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
         })
+
+        // when monnify reports a success we also update the transaction record so
+        // the UI doesn't continue showing the original request as pending
+        if (withdrawalStatus === 'completed') {
+          try {
+            await db.collection('earnerTransactions').doc(txRef.id).update({
+              status: 'completed',
+              note: 'Withdrawal processed via Monnify',
+              completedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+          } catch (e) {
+            console.warn('[withdraw][earner] failed to update tx after monnify success', e);
+          }
+        }
       } else {
         // Handle Paystack withdrawal (existing logic)
         console.log('[withdraw][earner] creating paystack recipient for', userId, { name: recipientName, bank })
