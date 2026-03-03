@@ -37,10 +37,10 @@ export default function AdvertiserReferralsPage() {
     }
 
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://pambaadverts.com'
+      const origin = typeof window !== 'undefined' ? window.location.origin : ' https://pambaadverts.com'
       setInviteLink(`${origin}/auth/sign-up?ref=${u.uid}&type=advertiser`)
     } catch {
-      setInviteLink(`https://pambaadverts.com/auth/sign-up?ref=${u.uid}&type=advertiser`)
+      setInviteLink(` https://pambaadverts.com/auth/sign-up?ref=${u.uid}&type=advertiser`)
     }
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
     const unsub = onSnapshot(q, (snap) => {

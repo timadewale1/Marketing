@@ -31,31 +31,49 @@ export default function BillsIndex() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {categories.map((c, idx) => {
             const Icon = c.icon
+            const enabled = c.id === 'airtime' || c.id === 'data';
             return (
               <motion.div
                 key={c.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: enabled ? 1.05 : 1 }}
+                whileTap={{ scale: enabled ? 0.95 : 1 }}
               >
-                <Link href={`/bills/${c.id}`}>
-                  <Card className="h-full border border-stone-200 shadow-md hover:shadow-lg transition-all cursor-pointer bg-white rounded-xl overflow-hidden">
+                {enabled ? (
+                  <Link href={`/bills/${c.id}`}> 
+                    <Card className="h-full border border-stone-200 shadow-md hover:shadow-lg transition-all cursor-pointer bg-white rounded-xl overflow-hidden">
+                      <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+                        <div className={`w-16 h-16 rounded-full ${c.color} flex items-center justify-center`}>
+                          <Icon className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-stone-900">{c.name}</h3>
+                          <p className="text-xs text-stone-500 mt-1">Fast & Secure</p>
+                        </div>
+                        <Button className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg">
+                          Pay {c.name}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ) : (
+                  <Card className="h-full border border-stone-200 shadow-md bg-white/50 rounded-xl overflow-hidden opacity-70">
                     <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
                       <div className={`w-16 h-16 rounded-full ${c.color} flex items-center justify-center`}>
                         <Icon className="w-8 h-8" />
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-stone-900">{c.name}</h3>
-                        <p className="text-xs text-stone-500 mt-1">Fast & Secure</p>
+                        <p className="text-xs text-stone-500 mt-1">Coming Soon</p>
                       </div>
-                      <Button className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg">
-                        Pay {c.name}
+                      <Button disabled className="w-full bg-stone-300 text-stone-600 font-semibold rounded-lg cursor-not-allowed">
+                        --
                       </Button>
                     </CardContent>
                   </Card>
-                </Link>
+                )}
               </motion.div>
             )
           })}

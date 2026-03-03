@@ -66,7 +66,7 @@ export default function EarnerDashboard() {
 
   const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
-  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, pendingBonuses: 0 })
+  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, completedReferrals: 0, pendingBonuses: 0, totalReferralEarnings: 0 })
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -166,12 +166,19 @@ export default function EarnerDashboard() {
         query(collection(db, "referrals"), where("referrerId", "==", u.uid)),
         (snap) => {
           const totalReferrals = snap.size
+          let completedReferrals = 0
           let pendingBonuses = 0
+          let earnings = 0
           snap.docs.forEach((d) => {
-            const r = d.data()
+            type ReferralRecord = { status?: string; bonusAmount?: number; bonusPaid?: boolean }
+            const r = d.data() as ReferralRecord
+            if (r.status === 'completed') {
+              completedReferrals += 1
+              earnings += Number(r.bonusAmount || 0)
+            }
             if (!r.bonusPaid) pendingBonuses += r.bonusAmount || 0
           })
-          setReferralStats({ totalReferrals, pendingBonuses })
+          setReferralStats({ totalReferrals, completedReferrals, pendingBonuses, totalReferralEarnings: earnings })
         }
       )
 
@@ -334,7 +341,13 @@ export default function EarnerDashboard() {
                     <div>
                       <h3 className="text-sm text-stone-600 font-medium">Referrals</h3>
                       <p className="text-2xl font-bold text-stone-900">
-                        {referralStats.totalReferrals}
+                        {referralStats.completedReferrals} / {referralStats.totalReferrals}
+                      </p>
+                      <p className="text-xs text-stone-600 mt-1">
+                        Completed referrals / total
+                      </p>
+                      <p className="text-xs text-stone-600 mt-1">
+                        Earnings: ₦{referralStats.totalReferralEarnings.toLocaleString()}
                       </p>
                       <p className="text-xs text-stone-600 mt-1">
                         Pending bonuses: ₦{referralStats.pendingBonuses}

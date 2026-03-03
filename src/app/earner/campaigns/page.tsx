@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import Image from "next/image"
 import toast from "react-hot-toast";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
+import { PaymentSelector } from '@/components/payment-selector';
 
 type Campaign = {
   id: string;
@@ -52,10 +53,26 @@ export default function AvailableCampaignsPage() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activated, setActivated] = useState<boolean | null>(null);
+  const [activatingLoading, setActivatingLoading] = useState(true);
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
 
   const [participatedIds, setParticipatedIds] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("All");
   useEffect(() => {
+    const u = auth.currentUser
+    let unsubProfile: (() => void) | null = null
+    if (u) {
+      const earnerDoc = doc(db, "earners", u.uid)
+      unsubProfile = onSnapshot(earnerDoc, (d) => {
+            setActivated(!!d.data()?.activated)
+        setActivatingLoading(false)
+      })
+    } else {
+      setActivated(false)
+      setActivatingLoading(false)
+    }
+
     const q = query(collection(db, "campaigns"), where("status", "==", "Active"));
     const unsub = onSnapshot(q, (snap) => {
       setCampaigns(
@@ -76,16 +93,20 @@ export default function AvailableCampaignsPage() {
       setLoading(false);
     });
     // load user's participated campaign ids if logged in
-    const u = auth.currentUser
     let unsubParts: (() => void) | null = null
-    if (u) {
-      const qParts = query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid))
+    const user = auth.currentUser
+    if (user) {
+      const qParts = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid))
       type Sub = { campaignId?: string }
       unsubParts = onSnapshot(qParts, (s) => {
         setParticipatedIds(s.docs.map(d => (d.data() as Sub).campaignId).filter(Boolean) as string[])
       })
     }
-    return () => { unsub(); if (unsubParts) unsubParts() }
+    return () => {
+      unsub();
+      if (unsubParts) unsubParts();
+      if (unsubProfile) unsubProfile();
+    }
   }, [router]);
 
   const filteredCampaigns = campaigns
@@ -102,8 +123,25 @@ export default function AvailableCampaignsPage() {
           <h1 className="text-2xl font-semibold text-stone-800">Available Tasks</h1>
         </div>
 
-        {loading ? (
+        {activatingLoading || loading ? (
           <PageLoader />
+        ) : activated === false ? (
+          <div className="col-span-full text-center py-20 px-6">
+            <div className="mb-8 relative">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-300 to-pink-300 opacity-20 animate-spin"></div>
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <div className="text-6xl animate-pulse">🔒</div>
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-stone-800 mb-3">Account Not Activated</h2>
+            <p className="text-lg text-stone-600 text-center max-w-md mb-2">Please activate your account to see available tasks.</p>
+            <p className="text-base text-stone-500 text-center max-w-md">
+              Once you complete activation, refresh this page and tasks will appear.
+            </p>
+            <Button size="sm" className="mt-4 bg-amber-500 text-stone-900" onClick={() => setShowActivationPaymentSelector(true)}>
+              Activate Account (₦2,000)
+            </Button>
+          </div>
         ) : (
           <div>
             <div className="mb-6">
@@ -201,6 +239,38 @@ export default function AvailableCampaignsPage() {
             </div>
           </div>
         )}
+      {showActivationPaymentSelector && (
+        <PaymentSelector
+          open={showActivationPaymentSelector}
+          amount={2000}
+          email={auth.currentUser?.email || undefined}
+          fullName={auth.currentUser?.displayName || 'Earner'}
+          description="Earner Account Activation"
+          onClose={() => {
+            setShowActivationPaymentSelector(false)
+          }}
+          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+            setShowActivationPaymentSelector(false)
+            try {
+              const res = await fetch('/api/earner/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+              })
+              const data = await res.json()
+              if (res.ok && data.success) {
+                toast.success('Account activated successfully')
+                setActivated(true)
+              } else {
+                toast.error(data?.message || 'Activation failed')
+              }
+            } catch (err) {
+              console.error('Activation error', err)
+              toast.error('Activation request failed')
+            }
+          }}
+        />
+      )}
       </div>
     </div>
   );
