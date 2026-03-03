@@ -188,16 +188,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const returnData = data?.data ?? data;
     const message = data?.message || data?.api_response || data?.apiResponse || (returnData && (returnData.api_response || returnData.api_response_message)) || 'Electricity payment successful';
 
-    if (payFromWallet && amountN > 0 && txDocRef && db && adminAuth) {
+    const completeWithRetry = async (ref: import('firebase-admin').firestore.DocumentReference, data: Record<string, unknown>) => {
       try {
-        await txDocRef!.update({ 
-          status: 'completed', 
-          response: returnData, 
-          updatedAt: new Date().toISOString() 
-        });
-      } catch (e) {
-        console.warn('Failed to update transaction after successful Usuf electricity purchase', e);
+        await ref.update(data);
+      } catch (err) {
+        console.warn('Failed to update transaction, retrying in 5s', err);
+        setTimeout(() => {
+          ref.update(data).catch((e) => console.error('Retry failed:', e));
+        }, 5000);
       }
+    };
+
+    if (payFromWallet && amountN > 0 && txDocRef && db && adminAuth) {
+      await completeWithRetry(txDocRef!, { 
+        status: 'completed', 
+        response: returnData, 
+        updatedAt: new Date().toISOString() 
+      });
     }
 
     // Compensation: if user elected to pay from wallet but for some reason the

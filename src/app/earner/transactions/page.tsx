@@ -17,6 +17,7 @@ interface Transaction {
   note?: string;
   amount: number;
   status?: 'pending' | 'completed' | 'cancelled';
+  withdrawalId?: string; // link to withdrawal record when applicable
   createdAt?: {
     seconds: number;
     nanoseconds: number;
@@ -32,6 +33,7 @@ interface BankDetails {
 export default function TransactionsPage() {
   const router = useRouter();
   const [history, setHistory] = useState<Transaction[]>([]);
+  const [withdrawalStatusMap, setWithdrawalStatusMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
@@ -39,6 +41,7 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 5;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const u = auth.currentUser;
     if (!u) {
@@ -75,20 +78,40 @@ export default function TransactionsPage() {
           note: data.note,
           amount: data.amount,
           status: data.status,
+          withdrawalId: data.withdrawalId,
           createdAt: data.createdAt
-        } as Transaction;
+        } as Transaction & { withdrawalId?: string };
       }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setHistory(txs);
+      setHistory(txs as Transaction[]);
       
       // Calculate available balance from completed transactions only
-      const balance = txs.reduce((sum, tx) => sum + (tx.status === 'completed' ? tx.amount : 0), 0);
+      const balance = txs.reduce((sum, tx) => {
+        const isWithdrawal = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
+        let statusToCheck = tx.status;
+        if (isWithdrawal && tx.withdrawalId) {
+          statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as 'pending' | 'completed' | 'cancelled' | undefined;
+        }
+        const isCompleted = statusToCheck === 'completed' || (statusToCheck === 'pending' && !isWithdrawal);
+        return sum + (isCompleted ? tx.amount : 0);
+      }, 0);
       setAvailableBalance(balance);
       setLoading(false);
+    });
+
+    // also subscribe to withdrawals to keep statuses updated
+    const qW = query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid));
+    const unsubW = onSnapshot(qW, (snap) => {
+      const map: Record<string, string> = {};
+      snap.docs.forEach((d) => {
+        map[d.id] = d.data().status;
+      });
+      setWithdrawalStatusMap(map);
     });
 
     return () => {
       unsubUser();
       unsubTx();
+      unsubW();
     };
   }, [router]);
 
@@ -203,7 +226,14 @@ export default function TransactionsPage() {
                           )}
                         </div>
                         <div className="text-right">
-                          {tx.status === 'pending' && (
+                          {(() => {
+                            const isW = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
+                            let statusToCheck = tx.status;
+                            if (isW && tx.withdrawalId) {
+                              statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as 'pending' | 'completed' | 'cancelled' | undefined;
+                            }
+                            return statusToCheck === 'pending';
+                          })() && (
                             <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
                               Pending
                             </span>

@@ -182,16 +182,24 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
     const message = data?.message || data?.api_response || data?.apiResponse || (returnData && (returnData.api_response || returnData.api_response_message)) || 'Data purchase successful';
 
     // If wallet was used, update transaction to completed
-    if (payFromWallet && amountN > 0 && txDocRef && db && adminAuth) {
+    // helper to update a transaction with retry if the first attempt fails
+    const completeWithRetry = async (ref: import('firebase-admin').firestore.DocumentReference, data: Record<string, unknown>) => {
       try {
-        await txDocRef!.update({ 
-          status: 'completed', 
-          response: returnData, 
-          updatedAt: new Date().toISOString() 
-        });
-      } catch (e) {
-        console.warn('Failed to update transaction after successful Usuf purchase', e);
+        await ref.update(data);
+      } catch (err) {
+        console.warn('Failed to update transaction, retrying in 5s', err);
+        setTimeout(() => {
+          ref.update(data).catch((e) => console.error('Retry failed:', e));
+        }, 5000);
       }
+    };
+
+    if (payFromWallet && amountN > 0 && txDocRef && db && adminAuth) {
+      await completeWithRetry(txDocRef!, { 
+        status: 'completed', 
+        response: returnData, 
+        updatedAt: new Date().toISOString() 
+      });
     }
 
     // Compensation: ensure wallet deducted and transaction created if missing

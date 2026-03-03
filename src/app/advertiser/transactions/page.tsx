@@ -18,6 +18,7 @@ interface Transaction {
   amount: number;
   campaignId?: string;
   campaignTitle?: string;
+  withdrawalId?: string;
   status?: 'pending' | 'completed' | 'cancelled';
   createdAt?: {
     seconds: number;
@@ -28,6 +29,7 @@ interface Transaction {
 export default function AdvertiserTransactionsPage() {
   const router = useRouter();
   const [history, setHistory] = useState<Transaction[]>([]);
+  const [withdrawalStatusMap, setWithdrawalStatusMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
   const [withdrawableBalance, setWithdrawableBalance] = useState<number>(0);
@@ -86,6 +88,7 @@ export default function AdvertiserTransactionsPage() {
           createdAt: data.createdAt
         } as Transaction;
       }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      // adjust available/withdrawable balance calculation later if needed?
       setHistory(txs);
       setLoading(false);
     });
@@ -107,8 +110,17 @@ export default function AdvertiserTransactionsPage() {
       }
     })()
 
+    // subscribe to withdrawals statuses
+    const qW = query(collection(db, 'advertiserWithdrawals'), where('userId','==', u.uid));
+    const unsubW = onSnapshot(qW, (snap) => {
+      const map: Record<string,string> = {};
+      snap.docs.forEach((d) => { map[d.id] = d.data().status; });
+      setWithdrawalStatusMap(map);
+    });
+
     return () => {
       unsubTx();
+      unsubW();
     };
   }, [router]);
 
@@ -214,7 +226,14 @@ export default function AdvertiserTransactionsPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      {tx.status === 'pending' && (
+                      {(() => {
+                        const isW = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
+                        let statusToCheck = tx.status;
+                        if (isW && tx.withdrawalId) {
+                          statusToCheck = (withdrawalStatusMap[tx.withdrawalId] as 'pending' | 'completed' | 'cancelled' | undefined) || statusToCheck;
+                        }
+                        return statusToCheck === 'pending';
+                      })() && (
                         <span className="inline-block px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full mb-1">
                           Pending
                         </span>
