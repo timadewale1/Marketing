@@ -114,18 +114,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       }
     }
 
-   const payload = {
-  disco_name: discoN,
-  amount: amountVendor,
+   const formBody = new URLSearchParams({
+  disco_name: String(discoN),
+  amount: String(amountVendor),
   meter_number,
-MeterType: String(meterTypeN),
-   };
+  MeterType: String(meterTypeN),
+});
     
-    console.log("Electricity payload types:", {
-      disco_name: [payload.disco_name, typeof payload.disco_name],
-      amount: [payload.amount, typeof payload.amount],
-      MeterType: [payload.MeterType, typeof payload.MeterType],
-    });
+    // console.log("Electricity payload types:", {
+    //   disco_name: [payload.disco_name, typeof payload.disco_name],
+    //   amount: [payload.amount, typeof payload.amount],
+    //   MeterType: [payload.MeterType, typeof payload.MeterType],
+    // });
 
     // Create abort controller with 30 second timeout
     const abortController = new AbortController();
@@ -133,15 +133,15 @@ MeterType: String(meterTypeN),
 
     let response;
     try {
-      response = await fetch(USUF_API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: abortController.signal,
-      });
+     response = await fetch(USUF_API_URL, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${authToken}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: formBody.toString(),
+  signal: abortController.signal,
+});
     } finally {
       clearTimeout(timeoutId);
     }
