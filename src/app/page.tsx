@@ -9,6 +9,7 @@ import {
   Zap, Shield, Play, Menu, X
 } from "lucide-react";
 import BillsCard from "@/components/bills/BillsCard";
+import WhatsAppChatButton from "@/components/WhatsAppChatButton";
 
 // ─── Social Media SVG Icons ───────────────────────────────────────────────────
 const FacebookIcon = () => (
@@ -993,6 +994,7 @@ export default function PAMBALanding() {
           </div>
         </div>
       </footer>
+      <WhatsAppChatButton />
     </>
   );
 }
