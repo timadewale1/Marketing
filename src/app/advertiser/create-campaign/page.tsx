@@ -50,8 +50,8 @@ const STEPS = ["Details", "Upload Task Link", "Budget", "Review & Pay"] as const
 
 // Different CPL values per category
 const CPL_MAP: Record<CampaignType, number> = {
-  // Advertiser price (NGN). Earner usually gets half, except Video which pays a fixed 150 to earner.
-   Video: 100,
+  // Advertiser price (NGN). Earner gets half of this amount.
+  Video: 100,
     "Share my Product": 150,
     "other website tasks": 100,
     Survey: 100,

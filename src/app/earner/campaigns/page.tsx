@@ -192,8 +192,8 @@ export default function AvailableCampaignsPage() {
                 </div>
               ) : (
                 filteredCampaigns.map((c) => {
-                  // Calculate earner price as half of cost per lead (not total budget)
-                  const earnerPrice = (c.category === "Video") ? 150 : Math.round((c.costPerLead || 0) / 2);
+                  // Calculate earner price as half of cost per lead
+                  const earnerPrice = Math.round((c.costPerLead || 0) / 2);
 
                   return (
                     <Card key={c.id} className="overflow-hidden bg-white/80 backdrop-blur hover:shadow-xl transition duration-300">

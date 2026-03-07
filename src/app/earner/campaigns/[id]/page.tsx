@@ -334,7 +334,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
           proofUrl: proofUrl || null,
           status: "Pending",
           createdAt: serverTimestamp(),
-          earnerPrice: (campaign.category === "Video") ? 150 : Math.round((campaign.costPerLead || 0) / 2),
+          earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
           // reservedAmount will be set within a transaction to reserve campaign funds
           reservedAmount: 0,
           reviewedAt: null,
@@ -425,7 +425,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
     </div>
   );
 
-  const earnerPrice = campaign.category === "Video" ? 150 : Math.round((campaign.costPerLead || 0) / 2);
+  const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">

@@ -35,7 +35,7 @@ export default function PriceListPage() {
   const campaignTypes = Object.keys(CPL_MAP).map((k) => ({
     category: k,
     advertiserPrice: CPL_MAP[k],
-    earnerPrice: (k === 'Video') ? 50 : Math.round(CPL_MAP[k] / 2),
+    earnerPrice: Math.round(CPL_MAP[k] / 2),
   }));
 
   const router = useRouter();
