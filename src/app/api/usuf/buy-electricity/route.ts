@@ -118,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
   disco_name: discoN,
   amount: amountVendor,
   meter_number,
-  MeterType: parseInt(String(MeterType), 10),
+  MeterType: meterTypeN === 1 ? "PREPAID" : "POSTPAID",
 };
     console.log("Electricity payload types:", {
       disco_name: [payload.disco_name, typeof payload.disco_name],
