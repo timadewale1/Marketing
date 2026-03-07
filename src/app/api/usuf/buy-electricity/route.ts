@@ -149,11 +149,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const data = await response.json();
 
     console.log('Usuf Electricity API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      data,
-      payload,
-    });
+  status: response.status,
+  statusText: response.statusText,
+  data,
+  formBody: formBody.toString(),
+});
 
     const vendorSuccess = Boolean(response.ok) || String(data?.Status || data?.status || '').toLowerCase() === 'successful' || String(data?.status || '').toLowerCase() === 'success';
 
