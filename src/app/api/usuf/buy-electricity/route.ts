@@ -114,12 +114,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       }
     }
 
-    const payload = {
-      disco_name: discoN,
-      amount: amountVendor,
-      meter_number,
-      MeterType: meterTypeN,
-    };
+   const payload = {
+  disco_name: discoN,
+  amount: amountVendor,
+  meter_number,
+  MeterType: parseInt(String(MeterType), 10),
+};
     console.log("Electricity payload types:", {
       disco_name: [payload.disco_name, typeof payload.disco_name],
       amount: [payload.amount, typeof payload.amount],
