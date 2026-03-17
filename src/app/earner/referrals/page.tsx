@@ -84,7 +84,7 @@ export default function ReferralsPage() {
                 <h3 className="font-medium text-stone-800">Earn by referring others:</h3>
                 <div className="flex items-center gap-2">
                   <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
-                    ₦1,000 per activated earner
+                    ₦500 per activated earner
                   </div>
                   <div className="text-xs text-stone-500">
                     Paid when referred earner pays ₦2,000 activation fee
@@ -92,7 +92,7 @@ export default function ReferralsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                    ₦1,000 per activated advertiser
+                    ₦500 per activated advertiser
                   </div>
                   <div className="text-xs text-stone-500">
                     Paid when the referred advertiser activates their account
@@ -172,7 +172,7 @@ export default function ReferralsPage() {
                         {r.status === 'completed' ? 'Completed' : 'Pending'}
                       </div>
                       <div className="font-bold text-amber-600">
-                        ₦{(r.amount || 1000).toLocaleString()}
+                        ₦{(r.amount || 500).toLocaleString()}
                       </div>
                     </div>
                   </div>

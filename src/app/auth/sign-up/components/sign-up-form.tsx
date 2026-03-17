@@ -138,7 +138,7 @@ export function SignUpForm() {
             userType: data.action,
             email: data.email,
             name: data.name,
-            amount: 1000,
+            amount: 500,
             status: "pending",
             bonusPaid: false,
             condition: "activation",

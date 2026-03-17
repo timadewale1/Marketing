@@ -41,17 +41,17 @@ export async function POST(req: Request) {
       }
 
       if (userType === 'earner') {
-        // Earner referral (₦1000 after activation)
+        // Earner referral (₦500 after activation)
         transaction.set(referralRef, {
           ...referralDoc,
-          amount: 1000,
+          amount: 500,
           condition: 'activation'
         })
       } else if (userType === 'advertiser') {
-        // Advertiser referral (₦1,000 after advertiser activation)
+        // Advertiser referral (₦500 after advertiser activation)
         transaction.set(referralRef, {
           ...referralDoc,
-          amount: 1000,
+          amount: 500,
           condition: 'activation'
         })
       } else {
@@ -123,7 +123,7 @@ export async function PUT(req: Request) {
       if (txSnap.exists) throw new Error('Transaction already processed')
 
       // Process payment based on referral type/action
-      const amount = referral.amount || 1000
+      const amount = referral.amount || 500
       if (!(amount > 0)) throw new Error('Invalid referral amount')
 
       // Credit the referrer (earner or advertiser)
