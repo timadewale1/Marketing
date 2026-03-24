@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 
 export async function POST(req: Request) {
   try {
@@ -41,6 +42,8 @@ export async function POST(req: Request) {
     const advertiserSnap = await advertiserRef.get()
     if (!advertiserSnap.exists) return NextResponse.json({ success: false, message: 'Advertiser not found' }, { status: 404 })
 
+    let createdCampaignId = ''
+
     // Run transaction: create campaign, deduct balance, record transaction
     await db.runTransaction(async (t) => {
       const advSnap = await t.get(advertiserRef)
@@ -49,6 +52,7 @@ export async function POST(req: Request) {
 
       // Prepare campaign doc ref
       const campaignRef = db.collection('campaigns').doc()
+      createdCampaignId = campaignRef.id
 
       // Preserve original budget as the advertiser-entered total so advertiser views
       // always show the original task amount (originalBudget). Also initialize reservedBudget.
@@ -93,6 +97,15 @@ export async function POST(req: Request) {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     })
+
+    if (createdCampaignId) {
+      sendNewTaskNotificationToEarners({
+        campaignId: createdCampaignId,
+        campaignTitle: String(campaignData.title || 'Untitled'),
+      }).catch((mailerErr) => {
+        console.error('New task notification failed:', mailerErr)
+      })
+    }
 
     return NextResponse.json({ success: true, message: 'Campaign created using wallet funds' })
   } catch (err) {
