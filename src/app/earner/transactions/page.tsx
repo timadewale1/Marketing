@@ -138,10 +138,14 @@ export default function TransactionsPage() {
 
     try {
       // Call server API to process withdrawal immediately via Paystack
+      const idToken = await u.getIdToken()
       const res = await fetch('/api/earner/withdraw', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, userId: u.uid }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ amount }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
