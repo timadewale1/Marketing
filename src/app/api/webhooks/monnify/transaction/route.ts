@@ -86,67 +86,82 @@ export async function POST(req: NextRequest) {
             amount,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
           })
-          // Check if this is an activation payment (reference might be userId or contain activation info)
-          const activationSnap = await dbAdmin.collection('advertisers')
-            .where('activationReference', '==', reference)
+          // Check if this is a wallet funding transaction (advertiser first, then earner)
+          const walletTxSnap = await dbAdmin.collection('advertiserTransactions')
+            .where('reference', '==', reference)
+            .where('type', '==', 'wallet_funding')
+            .where('status', '==', 'pending')
             .limit(1)
             .get()
 
-          if (!activationSnap.empty) {
-            // Process activation
-            const advertiserDoc = activationSnap.docs[0]
-            console.log('[webhook][monnify][transaction] processing activation for', advertiserDoc.id)
+          if (!walletTxSnap.empty) {
+            const txDoc = walletTxSnap.docs[0]
+            const txData = txDoc.data()
+
+            console.log('[webhook][monnify][transaction] processing wallet funding for', txData.userId)
 
             try {
-              await processActivationWithRetry(advertiserDoc.id, reference, 'monnify')
-              console.log('[webhook][monnify][transaction] activation processed successfully')
-            } catch (activationError) {
-              console.error('[webhook][monnify][transaction] activation failed:', activationError)
+              await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'advertiser')
+              console.log('[webhook][monnify][transaction] wallet funding processed successfully')
+            } catch (fundingError) {
+              console.error('[webhook][monnify][transaction] wallet funding failed:', fundingError)
             }
           } else {
-            // Check if this is a wallet funding transaction
-            const walletTxSnap = await dbAdmin.collection('advertiserTransactions')
+            const earnerTxSnap = await dbAdmin.collection('earnerTransactions')
               .where('reference', '==', reference)
               .where('type', '==', 'wallet_funding')
               .where('status', '==', 'pending')
               .limit(1)
               .get()
 
-            if (!walletTxSnap.empty) {
-              const txDoc = walletTxSnap.docs[0]
+            if (!earnerTxSnap.empty) {
+              const txDoc = earnerTxSnap.docs[0]
               const txData = txDoc.data()
 
-              console.log('[webhook][monnify][transaction] processing wallet funding for', txData.userId)
+              console.log('[webhook][monnify][transaction] processing earner wallet funding for', txData.userId)
 
               try {
-                await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'advertiser')
-                console.log('[webhook][monnify][transaction] wallet funding processed successfully')
+                await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'earner')
+                console.log('[webhook][monnify][transaction] earner wallet funding processed successfully')
               } catch (fundingError) {
-                console.error('[webhook][monnify][transaction] wallet funding failed:', fundingError)
+                console.error('[webhook][monnify][transaction] earner wallet funding failed:', fundingError)
               }
             } else {
-              // Check earner transactions too
-              const earnerTxSnap = await dbAdmin.collection('earnerTransactions')
-                .where('reference', '==', reference)
-                .where('type', '==', 'wallet_funding')
-                .where('status', '==', 'pending')
+              // Check if this is an activation payment (advertiser first, then earner)
+              const activationAdvertiserSnap = await dbAdmin.collection('advertisers')
+                .where('activationReference', '==', reference)
                 .limit(1)
                 .get()
 
-              if (!earnerTxSnap.empty) {
-                const txDoc = earnerTxSnap.docs[0]
-                const txData = txDoc.data()
-
-                console.log('[webhook][monnify][transaction] processing earner wallet funding for', txData.userId)
+              if (!activationAdvertiserSnap.empty) {
+                const advertiserDoc = activationAdvertiserSnap.docs[0]
+                console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                  await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'earner')
-                  console.log('[webhook][monnify][transaction] earner wallet funding processed successfully')
-                } catch (fundingError) {
-                  console.error('[webhook][monnify][transaction] earner wallet funding failed:', fundingError)
+                  await processActivationWithRetry(advertiserDoc.id, reference, 'monnify')
+                  console.log('[webhook][monnify][transaction] activation processed successfully')
+                } catch (activationError) {
+                  console.error('[webhook][monnify][transaction] activation failed:', activationError)
                 }
               } else {
-                console.log('[webhook][monnify][transaction] no matching transaction found for reference:', reference)
+                const activationEarnerSnap = await dbAdmin.collection('earners')
+                  .where('activationReference', '==', reference)
+                  .limit(1)
+                  .get()
+
+                if (!activationEarnerSnap.empty) {
+                  const earnerDoc = activationEarnerSnap.docs[0]
+                  console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
+
+                  try {
+                    await processActivationWithRetry(earnerDoc.id, reference, 'monnify')
+                    console.log('[webhook][monnify][transaction] activation processed successfully')
+                  } catch (activationError) {
+                    console.error('[webhook][monnify][transaction] activation failed:', activationError)
+                  }
+                } else {
+                  console.log('[webhook][monnify][transaction] no matching transaction found for reference:', reference)
+                }
               }
             }
           }

@@ -45,12 +45,12 @@ export async function processActivationWithRetry(userId: string, reference: stri
       
       await adminDb.collection(userType).doc(userId).update(updateData)
 
-      // Create activation fee transaction record
+      // Create activation fee transaction record (platform revenue; not credited to user)
       const collectionName = userType === 'earners' ? 'earnerTransactions' : 'advertiserTransactions'
       await adminDb.collection(collectionName).doc().set({
         userId,
         type: 'activation_fee',
-        amount: 2000,
+        amount: -2000,
         provider,
         reference,
         status: 'completed',
