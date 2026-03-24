@@ -82,6 +82,22 @@ const BANK_CODE_MAP: Record<string, string> = {
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
+async function retryRequest<T>(fn: () => Promise<T>, maxAttempts: number = 3, baseDelayMs: number = 250): Promise<T> {
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (attempt >= maxAttempts) break
+      const delayMs = baseDelayMs * attempt
+      console.warn(`Monnify request attempt ${attempt} failed, retrying in ${delayMs}ms`, err)
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+  throw lastError
+}
+
 async function getAuthToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now()) {
     return cachedToken.token
@@ -89,23 +105,36 @@ async function getAuthToken() {
 
   const auth = Buffer.from(`${API_KEY}:${SECRET}`).toString('base64')
 
-  const res = await fetch(`${BASE}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      Accept: 'application/json',
-    },
+  const response = await retryRequest(async () => {
+    const res = await fetch(`${BASE}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        Accept: 'application/json',
+      },
+    })
+
+    let json: any
+    try {
+      json = await res.json()
+    } catch (err) {
+      throw new Error(`Monnify auth response JSON parse failed: ${err}`)
+    }
+
+    if (!res.ok) {
+      throw new Error(`Monnify auth failed: ${JSON.stringify(json)}`)
+    }
+
+    return json
   })
 
-  const json = await res.json()
-
-  if (!res.ok) {
-    throw new Error(`Monnify auth failed: ${JSON.stringify(json)}`)
+  cachedToken = {
+    token: response.responseBody?.accessToken,
+    expiresAt: Date.now() + (response.responseBody?.expiresIn || 0) * 1000,
   }
 
-  cachedToken = {
-    token: json.responseBody.accessToken,
-    expiresAt: Date.now() + json.responseBody.expiresIn * 1000,
+  if (!cachedToken.token) {
+    throw new Error('Monnify auth failed: missing accessToken')
   }
 
   return cachedToken.token
@@ -267,25 +296,31 @@ export async function initiateDisbursement({
     sourceAccountNumber: MONNIFY_WALLET_ACCOUNT,
   }
 
-  const res = await fetch(`${BASE}/api/v2/disbursements/single`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+  const disbursementResponse = await retryRequest(async () => {
+    const res = await fetch(`${BASE}/api/v2/disbursements/single`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
 
-  const json = await res.json()
+    const json = await res.json().catch((err) => {
+      throw new Error(`Monnify disbursement response JSON parse failed: ${err}`)
+    })
 
-  console.log(`Monnify disbursement response: ${res.status}`, JSON.stringify(json).substring(0, 500))
+    console.log(`Monnify disbursement response: ${res.status}`, JSON.stringify(json).substring(0, 500))
 
-  if (!res.ok || !json.requestSuccessful) {
-    throw new Error(`Monnify disbursement failed: ${JSON.stringify(json)}`)
-  }
+    if (!res.ok || !json.requestSuccessful) {
+      throw new Error(`Monnify disbursement failed: ${JSON.stringify(json)}`)
+    }
 
-  return json.responseBody
+    return json
+  }, 3, 500)
+
+  return disbursementResponse.responseBody
 }
 
 export async function checkDisbursementStatus(reference: string) {
