@@ -23,6 +23,7 @@ import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle,
 import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
+import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 
 type Campaign = {
   id: string
@@ -541,6 +542,7 @@ export default function AdvertiserDashboard() {
           )}
         </div>
       </main>
+      <WhatsAppGroupButton />
       <WhatsAppChatButton />
     </div>
   )

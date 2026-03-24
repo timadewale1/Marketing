@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
+import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 
 type WithdrawRecord = {
   id: string
@@ -590,6 +591,7 @@ export default function EarnerDashboard() {
           }}
         />
       )}
+      <WhatsAppGroupButton />
       <WhatsAppChatButton />
     </div>
   )
