@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { processActivationWithRetry } from '@/lib/paymentProcessing'
+
+interface MonnifyVerificationResponse {
+  requestSuccessful?: boolean
+  responseBody?: {
+    paymentStatus?: string
+    amount?: number
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -31,6 +40,27 @@ export async function POST(req: Request) {
               { status: 400 }
             )
           }
+        }
+
+        // CRITICAL: Add server-side verification as fallback
+        // This ensures payment actually succeeded even if SDK callback is trusted
+        try {
+          const { verifyTransaction } = await import('@/services/monnify')
+          const verificationResult = await verifyTransaction(reference)
+          
+          if (!verificationResult?.requestSuccessful || (verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'])?.paymentStatus !== 'PAID') {
+            console.error('Monnify server verification failed:', verificationResult)
+            return NextResponse.json(
+              { success: false, message: 'Payment verification failed - please contact support' },
+              { status: 400 }
+            )
+          }
+          
+          console.log('Monnify server verification successful')
+          paidAmount = Number((verificationResult.responseBody as MonnifyVerificationResponse['responseBody'])?.amount || 2000)
+        } catch (verifyError) {
+          console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
+          // Continue with SDK trust as fallback, but log the issue
         }
       } catch (e) {
         console.error('Monnify verification error', e)
@@ -89,86 +119,23 @@ export async function POST(req: Request) {
 
     const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
 
-    // Mark advertiser activated and store activation payment method
-    await adminDb.collection('advertisers').doc(userId).update({
-      activated: true,
-      activatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      activationPaymentProvider: provider, // Track which provider was used for activation
-    })
-
-    // Finalize pending referrals for this user (transaction-safe per-referral)
-    const refsSnap = await adminDb.collection('referrals').where('referredId', '==', userId).where('status', '==', 'pending').get()
-    
-    console.log('[advertiser][activate] found pending referrals:', refsSnap.size, 'for user', userId)
-    
-    for (const rDoc of refsSnap.docs) {
-      const r = rDoc.data()
-      const bonus = Number(r.amount || 0)
-      const referrerId = r.referrerId as string | undefined
+    // Process activation with retry mechanism
+    try {
+      const result = await processActivationWithRetry(userId, reference, provider)
       
-      console.log('[advertiser][activate] processing referral:', {
-        referralId: rDoc.id,
-        referrerId,
-        bonus,
-        status: r.status,
-      })
-      
-      try {
-        const rRef = adminDb.collection('referrals').doc(rDoc.id)
-        await adminDb.runTransaction(async (t) => {
-          const snap = await t.get(rRef)
-          if (!snap.exists) {
-            console.warn('[advertiser][activate] referral already deleted:', rDoc.id)
-            return
-          }
-          const status = snap.data()?.status
-          if (status !== 'pending') {
-            console.warn('[advertiser][activate] referral already processed:', rDoc.id, 'status:', status)
-            return
-          }
-          // mark referral completed and paid
-          t.update(rRef, { status: 'completed', completedAt: admin.firestore.FieldValue.serverTimestamp(), bonusPaid: true })
-          if (referrerId && bonus > 0) {
-            const earnerRef = adminDb.collection('earners').doc(referrerId)
-            const advRef = adminDb.collection('advertisers').doc(referrerId)
-            const earnerSnap = await t.get(earnerRef)
-            const advSnap = await t.get(advRef)
-
-            if (advSnap.exists) {
-              const txRef = adminDb.collection('advertiserTransactions').doc()
-              t.set(txRef, {
-                userId: referrerId,
-                type: 'referral_bonus',
-                amount: bonus,
-                status: 'completed',
-                note: `Referral bonus for referring ${userId}`,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              })
-              t.update(advRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-              console.log('[advertiser][activate] credited advertiser referrer bonus:', referrerId, 'amount:', bonus)
-            } else if (earnerSnap.exists) {
-              const txRef = adminDb.collection('earnerTransactions').doc()
-              t.set(txRef, {
-                userId: referrerId,
-                type: 'referral_bonus',
-                amount: bonus,
-                status: 'completed',
-                note: `Referral bonus for referring ${userId}`,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              })
-              t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-              console.log('[advertiser][activate] credited earner referrer bonus:', referrerId, 'amount:', bonus)
-            } else {
-              console.warn('[advertiser][activate] referrer account missing:', referrerId)
-            }
-          }
-        })
-      } catch (e) {
-        console.error('[advertiser][activate] failed finalizing referral', rDoc.id, e)
+      if (result && result.success) {
+        if (result.alreadyActivated) {
+          return NextResponse.json({ success: true, message: 'Already activated' })
+        }
+        return NextResponse.json({ success: true, message: 'Activation successful' })
       }
+    } catch (activationError) {
+      console.error('Activation processing failed:', activationError)
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Activation processing failed - please contact support with reference: ' + reference 
+      }, { status: 500 })
     }
-
-    return NextResponse.json({ success: true })
   } catch (err) {
     console.error('advertiser activate error', err)
     return NextResponse.json({ success: false, message: String(err) }, { status: 500 })

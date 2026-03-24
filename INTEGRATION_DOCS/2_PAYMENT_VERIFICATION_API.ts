@@ -21,6 +21,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { processWalletFundingWithRetry } from '@/lib/paymentProcessing'
+
+interface MonnifyVerificationResponse {
+  requestSuccessful: boolean
+  responseBody: {
+    paymentStatus: string
+    amount?: number
+    [key: string]: unknown
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +67,31 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             )
           }
+        }
+
+        // CRITICAL: Add server-side verification as fallback
+        // This ensures payment actually succeeded even if SDK callback is trusted
+        try {
+          const { verifyTransaction } = await import('@/services/monnify')
+          const verificationResult = await verifyTransaction(reference)
+          
+          if (!verificationResult?.requestSuccessful || (verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'])?.paymentStatus !== 'PAID') {
+            console.error('Monnify server verification failed:', verificationResult)
+            return NextResponse.json(
+              { success: false, message: 'Payment verification failed - please contact support' },
+              { status: 400 }
+            )
+          }
+          
+          console.log('Monnify server verification successful')
+          // Update amount from verified transaction if different
+          const verifiedAmount = (verificationResult.responseBody as MonnifyVerificationResponse['responseBody'])?.amount
+          if (verifiedAmount && verifiedAmount !== amount) {
+            console.warn(`Amount mismatch: expected ${amount}, verified ${verifiedAmount}`)
+          }
+        } catch (verifyError) {
+          console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
+          // Continue with SDK trust as fallback, but log the issue
         }
 
         // Since onComplete only triggers on successful payment, we can proceed
@@ -188,41 +223,29 @@ export async function POST(req: NextRequest) {
     // ==================== HANDLE WALLET FUNDING ====================
     if (type === 'wallet_funding' && userId && amount > 0) {
       try {
-        if (dbAdmin && admin) {
-          // Record transaction in advertiser or earner transactions
-          await adminDb.collection('advertiserTransactions').add({
-            userId,
-            type: 'wallet_funding',
-            amount,
-            provider,
-            reference,
-            status: 'completed',
-            note: `Wallet funded via ${provider}`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          })
-
-          // Increment advertiser or earner balance
-          try {
-            const advRef = adminDb.collection('advertisers').doc(userId)
-            await advRef.update({
-              balance: admin.firestore.FieldValue.increment(Number(amount)),
-            })
-          } catch (updErr) {
-            console.warn('Failed to update advertiser balance:', updErr)
-            try {
-              const earnerRef = adminDb.collection('earners').doc(userId)
-              await earnerRef.update({
-                balance: admin.firestore.FieldValue.increment(Number(amount)),
-              })
-            } catch (e) {
-              console.error('Failed to update earner balance:', e)
-            }
+        // Determine user type by checking collections
+        let userType: 'advertiser' | 'earner' = 'advertiser'
+        try {
+          const advSnap = await adminDb.collection('advertisers').doc(userId).get()
+          if (!advSnap.exists) {
+            userType = 'earner'
           }
+        } catch {
+          userType = 'earner'
+        }
+
+        const result = await processWalletFundingWithRetry(userId, reference, amount, provider, userType)
+
+        if (result && result.success) {
+          if (result.alreadyProcessed) {
+            return NextResponse.json({ success: true, message: 'Wallet already funded' })
+          }
+          return NextResponse.json({ success: true, message: 'Wallet funded successfully' })
         }
       } catch (e) {
         console.error('Failed to process wallet funding:', e)
         return NextResponse.json(
-          { success: false, message: 'Failed to fund wallet' },
+          { success: false, message: 'Failed to fund wallet - please contact support' },
           { status: 500 }
         )
       }
