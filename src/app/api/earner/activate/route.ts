@@ -39,17 +39,24 @@ export async function POST(req: Request) {
         try {
           const { verifyTransaction } = await import('@/services/monnify')
           const verificationResult = await verifyTransaction(reference)
-          
-          if (!verificationResult?.requestSuccessful || (verificationResult?.responseBody as any)?.paymentStatus !== 'PAID') {
+
+          type MonnifyResponseBody = {
+            paymentStatus?: string
+            amount?: number | string
+          }
+
+          const responseBody = verificationResult?.responseBody as MonnifyResponseBody | undefined
+
+          if (!verificationResult?.requestSuccessful || responseBody?.paymentStatus !== 'PAID') {
             console.error('Monnify server verification failed:', verificationResult)
             return NextResponse.json(
               { success: false, message: 'Payment verification failed - please contact support' },
               { status: 400 }
             )
           }
-          
+
           console.log('Monnify server verification successful')
-          paidAmount = Number((verificationResult.responseBody as any)?.amount || 2000)
+          paidAmount = Number(responseBody?.amount || 2000)
         } catch (verifyError) {
           console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
           // Continue with SDK trust as fallback, but log the issue

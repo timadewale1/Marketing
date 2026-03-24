@@ -98,6 +98,14 @@ async function retryRequest<T>(fn: () => Promise<T>, maxAttempts: number = 3, ba
   throw lastError
 }
 
+type MonnifyAuthResponse = {
+  requestSuccessful?: boolean
+  responseBody?: {
+    accessToken?: string
+    expiresIn?: number
+  }
+}
+
 async function getAuthToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now()) {
     return cachedToken.token
@@ -105,7 +113,7 @@ async function getAuthToken() {
 
   const auth = Buffer.from(`${API_KEY}:${SECRET}`).toString('base64')
 
-  const response = await retryRequest(async () => {
+  const response = await retryRequest<MonnifyAuthResponse>(async () => {
     const res = await fetch(`${BASE}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -114,7 +122,7 @@ async function getAuthToken() {
       },
     })
 
-    let json: any
+    let json: unknown
     try {
       json = await res.json()
     } catch (err) {
@@ -125,16 +133,19 @@ async function getAuthToken() {
       throw new Error(`Monnify auth failed: ${JSON.stringify(json)}`)
     }
 
-    return json
+    return json as MonnifyAuthResponse
   })
 
-  cachedToken = {
-    token: response.responseBody?.accessToken,
-    expiresAt: Date.now() + (response.responseBody?.expiresIn || 0) * 1000,
+  const token = response.responseBody?.accessToken
+  const expiresIn = response.responseBody?.expiresIn ?? 0
+
+  if (!token) {
+    throw new Error('Monnify auth failed: missing accessToken')
   }
 
-  if (!cachedToken.token) {
-    throw new Error('Monnify auth failed: missing accessToken')
+  cachedToken = {
+    token,
+    expiresAt: Date.now() + expiresIn * 1000,
   }
 
   return cachedToken.token
