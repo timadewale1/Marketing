@@ -706,7 +706,7 @@ export default function PAMBALanding() {
             {navLinks.map(l => <li key={l.label}><a href={l.href}>{l.label}</a></li>)}
           </ul>
           <div className="nav-actions">
-            <WhatsAppGroupButton />
+            {/* <WhatsAppGroupButton /> */}
             <Link href="/auth/sign-in" className="btn-ghost">Login</Link>
             <Link href="/auth/sign-up" className="btn-primary">Get Started <ArrowRight size={14} /></Link>
           </div>
@@ -719,7 +719,7 @@ export default function PAMBALanding() {
       {mobileOpen && (
         <div className="mobile-menu">
           <button className="mobile-close" onClick={() => setMobileOpen(false)}><X size={28} /></button>
-          <WhatsAppGroupButton />
+          {/* <WhatsAppGroupButton /> */}
           {navLinks.map(l => <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>{l.label}</a>)}
           <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>Login</Link>
           <Link href="/auth/sign-up" onClick={() => setMobileOpen(false)} style={{color: "var(--amber)"}}>Get Started →</Link>
@@ -998,6 +998,8 @@ export default function PAMBALanding() {
         </div>
       </footer>
       <WhatsAppChatButton />
+            <WhatsAppGroupButton />
+
     </>
   );
 }
