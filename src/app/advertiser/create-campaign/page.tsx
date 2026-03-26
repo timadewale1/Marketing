@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 // Dropzone removed: banner upload disabled, thumbnails auto-generated per task type
 import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { serverTimestamp, getDocs, query, where, collection, updateDoc } from "firebase/firestore"
+import { serverTimestamp, getDocs, query, where, collection, updateDoc, doc } from "firebase/firestore"
 import { PaymentSelector } from "@/components/payment-selector"
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
@@ -112,6 +112,7 @@ export default function CreateCampaignPage() {
   const [faceUploading, setFaceUploading] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const facePreviewUrlRef = useRef<string | null>(null)
 
   const [addressLine, setAddressLine] = useState("")
   const [city, setCity] = useState("")
@@ -196,6 +197,14 @@ const compressed = await imageCompression(file, options)
     void setMediaUrl
   }, [])
 
+  React.useEffect(() => {
+    return () => {
+      if (facePreviewUrlRef.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(facePreviewUrlRef.current)
+      }
+    }
+  }, [])
+
   // Banner upload removed; media upload still uses uploadFile helper above when needed elsewhere
 
   // Step validation
@@ -217,7 +226,7 @@ const compressed = await imageCompression(file, options)
     if (step === 3) {
       // If this is a product campaign require face capture upload and address
       if (category === "Share my Product") {
-        return Boolean((faceImageUrl || faceImage) && addressLine.trim().length > 3 && city.trim().length > 1)
+        return Boolean(faceImageUrl && addressLine.trim().length > 3 && city.trim().length > 1)
       }
       return true
     }
@@ -313,8 +322,11 @@ const compressed = await imageCompression(file, options)
 
     // If product campaign, attach face capture URL (preferred) and address
     if (category === "Share my Product") {
-      if (faceImageUrl) campaignData['advertiserFaceImage'] = faceImageUrl
-      else if (faceImage) campaignData['advertiserFaceImage'] = faceImage
+      if (!faceImageUrl) {
+        toast.error("Wait for the captured face image to finish uploading")
+        return
+      }
+      campaignData['advertiserFaceImage'] = faceImageUrl
       if (productImages.length > 0) campaignData['productImages'] = productImages
       campaignData['advertiserAddress'] = {
         addressLine: addressLine || "",
@@ -382,7 +394,11 @@ const compressed = await imageCompression(file, options)
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-      if (videoRef.current) videoRef.current.srcObject = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.muted = true
+        await videoRef.current.play().catch(() => undefined)
+      }
       setCameraActive(true)
     } catch (e) {
       console.error('Camera start failed', e)
@@ -405,21 +421,40 @@ const compressed = await imageCompression(file, options)
   const captureFace = async () => {
     if (!videoRef.current) return
     const v = videoRef.current
+    if (v.readyState < 2 || !v.videoWidth || !v.videoHeight) {
+      await new Promise<void>((resolve) => {
+        const handleLoaded = () => {
+          v.removeEventListener('loadeddata', handleLoaded)
+          resolve()
+        }
+        v.addEventListener('loadeddata', handleLoaded, { once: true })
+      })
+    }
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     const canvas = canvasRef.current || document.createElement('canvas')
     canvas.width = v.videoWidth || 320
     canvas.height = v.videoHeight || 240
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height)
-    const data = canvas.toDataURL('image/jpeg', 0.9)
-    setFaceImage(data)
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.95)
+    })
+    if (!blob || blob.size < 1024) {
+      toast.error('Camera frame was not ready. Please try again.')
+      return
+    }
+    if (facePreviewUrlRef.current?.startsWith("blob:")) {
+      URL.revokeObjectURL(facePreviewUrlRef.current)
+    }
+    const previewUrl = URL.createObjectURL(blob)
+    facePreviewUrlRef.current = previewUrl
+    setFaceImage(previewUrl)
     stopCamera()
 
     // upload captured image to Firebase Storage
     try {
       setFaceUploading(true)
-      // convert dataURL to blob
-      const blob = await (await fetch(data)).blob()
       const user = auth.currentUser
       const uid = user?.uid || 'anon'
       const filename = `face_${uid}_${Date.now()}.jpg`
@@ -442,9 +477,8 @@ const compressed = await imageCompression(file, options)
 
         // persist the uploaded face image URL into the advertiser profile if available
         try {
-          const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user?.email)))
-          if (!docs.empty) {
-            await updateDoc(docs.docs[0].ref, { advertiserFaceImage: url, advertiserFaceUploadedAt: serverTimestamp() })
+          if (user?.uid) {
+            await updateDoc(doc(db, 'advertisers', user.uid), { advertiserFaceImage: url, advertiserFaceUploadedAt: serverTimestamp() })
           }
         } catch (e) {
           console.warn('Failed to persist face URL to advertiser profile', e)
@@ -809,7 +843,15 @@ const getEmbeddedVideo = (url: string) => {
                         )}
                         {faceImage && (
                           <>
-                            <Button onClick={() => { setFaceImage(null); setTimeout(() => startCamera(), 120) }} size="sm">Retake</Button>
+                            <Button onClick={() => {
+                              if (facePreviewUrlRef.current?.startsWith("blob:")) {
+                                URL.revokeObjectURL(facePreviewUrlRef.current)
+                                facePreviewUrlRef.current = null
+                              }
+                              setFaceImage(null)
+                              setFaceImageUrl(null)
+                              setTimeout(() => startCamera(), 120)
+                            }} size="sm">Retake</Button>
                           </>
                         )}
                       </div>

@@ -11,10 +11,6 @@ import {
 } from "firebase/auth"
 import {
   doc,
-  getDocs,
-  query,
-  where,
-  collection,
   setDoc,
 } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
@@ -52,6 +48,23 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
+function getSignupErrorMessage(code?: string) {
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "This email is already registered."
+    case "auth/invalid-email":
+      return "That email address is not valid."
+    case "auth/weak-password":
+      return "Your password is too weak. Please use a stronger one."
+    case "auth/network-request-failed":
+      return "Network error while creating your account. Please try again."
+    case "auth/too-many-requests":
+      return "Too many signup attempts right now. Please wait a bit and retry."
+    default:
+      return "We could not create your account right now. Please try again."
+  }
+}
+
 export function SignUpForm() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -85,34 +98,45 @@ export function SignUpForm() {
 
   // Check if email or phone already exists
   const checkUnique = async (email: string, phone: string) => {
-    const collections = ["advertisers", "earners"]
-    for (const coll of collections) {
-      const emailQ = query(collection(db, coll), where("email", "==", email))
-      const phoneQ = query(collection(db, coll), where("phone", "==", phone))
-      const emailSnap = await getDocs(emailQ)
-      const phoneSnap = await getDocs(phoneQ)
-      if (!emailSnap.empty || !phoneSnap.empty) return false
+    const response = await fetch("/api/auth/availability", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        phone,
+      }),
+    })
+
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Could not validate email or phone right now")
     }
-    return true
+
+    return {
+      unique: Boolean(result.unique),
+      duplicate: result.duplicate as "email" | "phone" | undefined,
+    }
   }
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
-      const unique = await checkUnique(data.email, data.phone)
-      if (!unique) {
-        toast.error("Email or phone already exists")
+      const uniqueCheck = await checkUnique(data.email, data.phone)
+      if (!uniqueCheck.unique) {
+        toast.error(
+          uniqueCheck.duplicate === "email"
+            ? "That email is already registered."
+            : "That phone number is already in use."
+        )
         setLoading(false)
         return
       }
 
       const cred = await createUserWithEmailAndPassword(auth, data.email, data.password).catch(
         (err) => {
-          let msg = "Signup failed. Try again"
-          if (err.code === "auth/email-already-in-use") msg = "This email is already registered"
-          if (err.code === "auth/invalid-email") msg = "Invalid email format"
-          if (err.code === "auth/weak-password") msg = "Password is too weak, please use a stronger one"
-          toast.error(msg)
+          toast.error(getSignupErrorMessage(err.code))
           throw err
         }
       )
@@ -156,6 +180,9 @@ export function SignUpForm() {
       }
     } catch (err) {
       console.error("Signup error:", err)
+      if (!(typeof err === "object" && err && "code" in err)) {
+        toast.error("We could not create your account right now. Please try again.")
+      }
     } finally {
       setLoading(false)
     }

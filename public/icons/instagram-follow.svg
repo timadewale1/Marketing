@@ -1,5 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="128" height="128">
-  <rect rx="8" width="48" height="48" fill="#FFF7ED"/>
-  <circle cx="24" cy="18" r="6" fill="#FB923C" />
-  <path d="M8 34c4-6 12-8 16-8s12 2 16 8" stroke="#FB923C" stroke-width="2" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ig-follow" x1="0" x2="1" y1="1" y2="0">
+      <stop offset="0" stop-color="#F59E0B"/>
+      <stop offset="0.55" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#ig-follow)"/>
+  <rect x="14" y="14" width="28" height="28" rx="8" fill="none" stroke="#fff" stroke-width="4"/>
+  <circle cx="28" cy="28" r="7" fill="none" stroke="#fff" stroke-width="4"/>
+  <circle cx="37" cy="19" r="2.5" fill="#fff"/>
+  <path d="M48 18v12m-6-6h12" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
 </svg>

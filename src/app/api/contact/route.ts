@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { sendContactAlertEmail } from '@/lib/mailer'
 
 export async function POST(req: Request) {
   try {
@@ -52,9 +53,15 @@ export async function POST(req: Request) {
       type: 'contact_message',
       title: `New contact message from ${name}`,
       description: `${email} sent: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`,
+      body: `${email} sent a new contact message`,
+      link: `/admin/notifications/${adminNotificationRef.id}`,
       read: false,
       relatedId: contactRef.id,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    sendContactAlertEmail({ name, email, message }).catch((error) => {
+      console.error('Contact alert email failed:', error)
     })
 
     return NextResponse.json(

@@ -4,6 +4,8 @@ export async function initFirebaseAdmin() {
     const admin = await import('firebase-admin')
     const fs = await import('fs')
     const path = await import('path')
+    const storageBucket =
+      process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 
     let dbAdmin: import('firebase-admin').firestore.Firestore | null = null
 
@@ -18,6 +20,7 @@ export async function initFirebaseAdmin() {
       if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
+          storageBucket,
         })
       }
       dbAdmin = admin.firestore()
@@ -32,6 +35,7 @@ export async function initFirebaseAdmin() {
         if (!admin.apps.length) {
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
+            storageBucket,
           })
         }
         dbAdmin = admin.firestore()
@@ -43,7 +47,7 @@ export async function initFirebaseAdmin() {
     }
 
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      if (!admin.apps.length) admin.initializeApp()
+      if (!admin.apps.length) admin.initializeApp({ storageBucket })
       dbAdmin = admin.firestore()
       return { admin, dbAdmin }
     }

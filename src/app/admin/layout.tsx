@@ -15,16 +15,16 @@ import {
   LogOut,
   Menu,
   X,
+  Mail,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { normalizeAdminLoginEmail } from "@/lib/admin-auth";
 import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch } from "firebase/firestore";
 import { useRef } from "react";
 import { createPortal } from "react-dom";
-
-// Admin password is stored in server environment (process.env.ADMIN_PASSWORD).
-// This client layout uses server routes to authenticate and manage an httpOnly cookie session.
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -51,7 +51,7 @@ const NAVIGATION = [
     icon: Users,
   },
   {
-    name: "Tasks",
+    name: "Campaigns",
     href: "/admin/campaigns",
     icon: BarChart2,
   },
@@ -61,8 +61,18 @@ const NAVIGATION = [
     icon: Bell,
   },
   {
+    name: "Activities",
+    href: "/admin/activities",
+    icon: Mail,
+  },
+  {
     name: "Direct Ads",
     href: "/admin/direct-ad-requests",
+    icon: Megaphone,
+  },
+  {
+    name: "Homepage Ads",
+    href: "/admin/homepage-direct-ads",
     icon: Megaphone,
   },
   {
@@ -78,7 +88,9 @@ const NAVIGATION = [
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -89,25 +101,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   const handleLogin = async () => {
+    setLoggingIn(true);
     try {
+      const loginEmail = normalizeAdminLoginEmail(email);
+      const cred = await signInWithEmailAndPassword(auth, loginEmail, password);
+      const idToken = await cred.user.getIdToken();
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ idToken }),
         credentials: "include",
       });
       if (res.ok) {
         setAuthenticated(true);
+        setEmail("");
         setPassword("");
         toast.success("Admin access granted");
       } else {
+        await signOut(auth).catch(() => undefined);
         setAuthenticated(false);
         const data = await res.json().catch(() => ({}));
-        toast.error((data && data.message) || "Incorrect password");
+        toast.error((data && data.message) || "Admin access denied");
       }
     } catch (err) {
       console.error(err);
       toast.error("Login failed");
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -200,6 +220,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <Card className="p-8 max-w-md mx-auto w-full">
           <h2 className="text-xl font-bold mb-4 text-stone-800">Admin Login</h2>
           <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Admin email"
+            className="mb-4"
+          />
+          <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -208,9 +235,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           />
           <Button
             onClick={handleLogin}
+            disabled={loggingIn}
             className="bg-amber-500 text-stone-900 font-semibold w-full"
           >
-            Login
+            {loggingIn ? "Signing in..." : "Login"}
           </Button>
         </Card>
       </div>
@@ -218,10 +246,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-stone-100 via-amber-50 to-stone-200">
+      <div className="flex h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(120,113,108,0.16),_transparent_24%),linear-gradient(135deg,rgba(245,245,244,1),rgba(255,251,235,0.92),rgba(231,229,228,1))]">
       {/* Sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow pt-5 bg-white/70 backdrop-blur border-r border-stone-200">
+        <div className="flex flex-col flex-grow pt-5 bg-white/75 backdrop-blur border-r border-stone-200 shadow-[20px_0_60px_-50px_rgba(28,25,23,0.85)]">
           <div className="flex items-center flex-shrink-0 px-4 mb-5">
             <div className="flex items-center gap-2">
               <span className="bg-amber-500 text-stone-900 px-2 py-1 rounded text-sm font-bold">PAMBA</span>
@@ -236,10 +264,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg ${
+                    className={`group flex items-center px-4 py-3 text-sm font-medium rounded-2xl transition ${
                       isActive
-                        ? "bg-amber-100 text-amber-700"
-                        : "text-stone-700 hover:bg-stone-100"
+                        ? "bg-gradient-to-r from-amber-100 to-orange-50 text-amber-800 shadow-sm"
+                        : "text-stone-700 hover:bg-stone-100/90"
                     }`}
                   >
                     <item.icon
@@ -265,7 +293,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   // call server logout to clear cookie
                   fetch("/api/admin/logout", { method: "POST", credentials: "include" })
                     .finally(() => {
+                      signOut(auth).catch(() => undefined);
                       setAuthenticated(false);
+                      setEmail("");
                       setPassword("");
                       toast.success("Logged out successfully");
                     });
@@ -283,7 +313,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="flex flex-col flex-1">
-        <div className="flex items-center justify-between p-4 md:p-4 border-b border-stone-200 bg-white/60 backdrop-blur">
+        <div className="flex items-center justify-between p-4 md:p-4 border-b border-stone-200 bg-white/65 backdrop-blur">
           <div className="flex items-center gap-3">
             {/* Mobile menu button */}
             <button
@@ -390,7 +420,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   onClick={() => {
                     fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
                       .finally(() => {
+                        signOut(auth).catch(() => undefined);
                         setAuthenticated(false);
+                        setEmail('');
                         setPassword('');
                         setMobileOpen(false);
                         toast.success('Logged out successfully');

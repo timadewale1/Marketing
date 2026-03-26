@@ -1,27 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  BriefcaseBusiness,
+  CircleSlash,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Users,
+  Wallet,
+} from "lucide-react";
 import {
   collection,
-  onSnapshot,
-  updateDoc,
   doc,
-  query,
-  orderBy,
-  where,
   getDocs,
+  orderBy,
+  query,
+  updateDoc,
 } from "firebase/firestore";
-import { Card } from "@/components/ui/card";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -31,333 +31,448 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import toast from "react-hot-toast";
-import { Ban, CheckCircle, User } from "lucide-react";
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
-interface User {
+type AdminUser = {
   id: string;
-  email: string;
   name: string;
-  type: "earner" | "advertiser";
-  status: "active" | "suspended" | "pending";
-  createdAt: { seconds: number };
+  email: string;
+  role: "earner" | "advertiser";
+  status: string;
+  activated: boolean;
+  verified: boolean;
+  createdAtMs: number;
   balance: number;
-  leadsPaidFor?: number;
-  campaignsCreated?: number;
+  totalSpent: number;
+  totalEarned: number;
+  campaignsCreated: number;
+  submissionsCount: number;
+};
+
+const roleOptions = [
+  { value: "all", label: "All roles" },
+  { value: "advertiser", label: "Advertisers" },
+  { value: "earner", label: "Earners" },
+];
+
+const activationOptions = [
+  { value: "all", label: "All activation" },
+  { value: "activated", label: "Activated" },
+  { value: "inactive", label: "Not activated" },
+];
+
+const statusOptions = [
+  { value: "all", label: "All status" },
+  { value: "active", label: "Active" },
+  { value: "pending", label: "Pending" },
+  { value: "suspended", label: "Suspended" },
+];
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  if (value instanceof Date) return value.getTime();
+  return 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
+}
+
+function statusTone(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "active") return "green" as const;
+  if (normalized === "pending") return "amber" as const;
+  if (normalized === "suspended") return "red" as const;
+  return "stone" as const;
 }
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [activationFilter, setActivationFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [perPage] = useState(15)
-  const [page, setPage] = useState(1)
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
+    const load = async () => {
+      setLoading(true);
 
-    // Fetch all users (both earners and advertisers)
-    const fetchAllUsers = async () => {
       try {
-        const [earnersSnap, advertisersSnap] = await Promise.all([
-          getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"))),
-          getDocs(
-            query(collection(db, "advertisers"), orderBy("createdAt", "desc"))
-          ),
-        ]);
+        const [earnersSnap, advertisersSnap, campaignsSnap, submissionsSnap] =
+          await Promise.all([
+            getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"))),
+            getDocs(
+              query(collection(db, "advertisers"), orderBy("createdAt", "desc"))
+            ),
+            getDocs(collection(db, "campaigns")),
+            getDocs(collection(db, "earnerSubmissions")),
+          ]);
 
-        const earners = earnersSnap.docs.map((doc) => {
-          const data = doc.data();
+        const campaignCountByOwner = new Map<string, number>();
+        campaignsSnap.docs.forEach((campaignDoc) => {
+          const ownerId = String(campaignDoc.data().ownerId || "");
+          if (!ownerId) return;
+          campaignCountByOwner.set(ownerId, (campaignCountByOwner.get(ownerId) || 0) + 1);
+        });
+
+        const submissionCountByUser = new Map<string, number>();
+        submissionsSnap.docs.forEach((submissionDoc) => {
+          const userId = String(submissionDoc.data().userId || "");
+          if (!userId) return;
+          submissionCountByUser.set(
+            userId,
+            (submissionCountByUser.get(userId) || 0) + 1
+          );
+        });
+
+        const earners = earnersSnap.docs.map((userDoc) => {
+          const data = userDoc.data();
           return {
-            id: doc.id,
-            email: data.email || "",
-            name: data.name || "",
-            type: "earner" as const,
-            status: data.status || "active",
-            createdAt: data.createdAt || { seconds: Date.now() / 1000 },
-            balance: data.balance || 0,
-            leadsPaidFor: data.leadsPaidFor || 0,
+            id: userDoc.id,
+            name: String(data.name || "Unnamed earner"),
+            email: String(data.email || ""),
+            role: "earner" as const,
+            status: String(data.status || "pending"),
+            activated: Boolean(data.activated),
+            verified: Boolean(data.verified),
+            createdAtMs: toMillis(data.createdAt),
+            balance: Number(data.balance || 0),
+            totalSpent: 0,
+            totalEarned: Number(data.totalEarned || 0),
+            campaignsCreated: 0,
+            submissionsCount: submissionCountByUser.get(userDoc.id) || 0,
           };
         });
 
-        const advertisers = await Promise.all(advertisersSnap.docs.map(async (doc) => {
-          const data = doc.data();
-          // Get actual campaigns count for this advertiser
-          const campaignsQuery = query(collection(db, "campaigns"), where("advertiserId", "==", doc.id));
-          const campaignsSnap = await getDocs(campaignsQuery);
-          
+        const advertisers = advertisersSnap.docs.map((userDoc) => {
+          const data = userDoc.data();
           return {
-            id: doc.id,
-            email: data.email || "",
-            name: data.name || "",
-            type: "advertiser" as const,
-            status: data.status || "active",
-            createdAt: data.createdAt || { seconds: Date.now() / 1000 },
-            balance: data.walletBalance || 0, // Use walletBalance instead of balance
-            campaignsCreated: campaignsSnap.size, // Get actual campaign count
+            id: userDoc.id,
+            name: String(data.name || data.companyName || "Unnamed advertiser"),
+            email: String(data.email || ""),
+            role: "advertiser" as const,
+            status: String(data.status || "pending"),
+            activated: Boolean(data.activated),
+            verified: Boolean(data.verified),
+            createdAtMs: toMillis(data.createdAt),
+            balance: Number(data.balance || data.walletBalance || 0),
+            totalSpent: Number(data.totalSpent || 0),
+            totalEarned: 0,
+            campaignsCreated: campaignCountByOwner.get(userDoc.id) || 0,
+            submissionsCount: 0,
           };
-        }));
+        });
 
-        setUsers([...earners, ...advertisers]);
-        setLoading(false);
+        setUsers([...advertisers, ...earners].sort((a, b) => b.createdAtMs - a.createdAtMs));
       } catch (error) {
         console.error("Error fetching users:", error);
-        toast.error("Failed to load users");
+        toast.error("Failed to load admin users");
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchAllUsers();
+    load();
   }, []);
 
-  const updateUserStatus = async (userId: string, userType: string, status: string) => {
-    try {
-      const collectionName = userType === "earner" ? "earners" : "advertisers";
-      await updateDoc(doc(db, collectionName, userId), { status });
-      toast.success(`User ${status === "active" ? "activated" : status}`);
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const searchText = search.trim().toLowerCase();
+      const matchesSearch =
+        !searchText ||
+        user.name.toLowerCase().includes(searchText) ||
+        user.email.toLowerCase().includes(searchText);
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesStatus =
+        statusFilter === "all" || user.status.toLowerCase() === statusFilter;
+      const matchesActivation =
+        activationFilter === "all" ||
+        (activationFilter === "activated" ? user.activated : !user.activated);
 
-      // If an advertiser was activated, finalize any pending referral for them.
-      if (userType === 'advertiser' && status === 'active') {
-        try {
-          const { getDocs, query, where, collection } = await import('firebase/firestore')
-          const snap = await getDocs(query(collection(db, 'referrals'), where('referredId', '==', userId)))
-          const pending = snap.docs.find(d => {
-            interface Referral {
-              userType: string;
-              status: string;
-              [key: string]: unknown;
-            }
-            const data = d.data() as Referral;
-            return data.userType === 'advertiser' && data.status === 'pending'
-          })
-          if (pending) {
-            // Call server-side referral finalize endpoint
-            await fetch('/api/referral', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ referralId: pending.id, action: 'activate' }),
-            })
-            toast.success('Referral finalized for activated advertiser')
-          }
-        } catch (err) {
-          console.error('Failed to finalize referral on advertiser activation', err)
-        }
-      }
+      return matchesSearch && matchesRole && matchesStatus && matchesActivation;
+    });
+  }, [activationFilter, roleFilter, search, statusFilter, users]);
+
+  const stats = useMemo(() => {
+    const advertisers = users.filter((user) => user.role === "advertiser");
+    const earners = users.filter((user) => user.role === "earner");
+    return {
+      totalUsers: users.length,
+      totalAdvertisers: advertisers.length,
+      totalEarners: earners.length,
+      activatedUsers: users.filter((user) => user.activated).length,
+      suspendedUsers: users.filter((user) => user.status === "suspended").length,
+      totalWalletValue: users.reduce((sum, user) => sum + user.balance, 0),
+    };
+  }, [users]);
+
+  const updateUserStatus = async (user: AdminUser, nextStatus: string) => {
+    try {
+      setUpdatingId(user.id);
+      const collectionName = user.role === "earner" ? "earners" : "advertisers";
+      await updateDoc(doc(db, collectionName, user.id), { status: nextStatus });
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.id === user.id ? { ...entry, status: nextStatus } : entry
+        )
+      );
+      toast.success(`${user.name} is now ${nextStatus}`);
     } catch (error) {
       console.error("Error updating user status:", error);
       toast.error("Failed to update user status");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesType = typeFilter === "all" || user.type === typeFilter;
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
-    const matchesSearch =
-      search === "" ||
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-    return matchesType && matchesStatus && matchesSearch;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / perPage))
-  const paginated = filteredUsers.slice((page - 1) * perPage, page * perPage)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-800">Users</h1>
+      <AdminPageHeader
+        eyebrow="Admin control"
+        title="Users and account health"
+        description="Filter by role, activation state, or account status, then jump directly into advertiser and earner timelines with campaign and submission context."
+        action={
+          <Button
+            variant="outline"
+            className="rounded-full border-stone-300 bg-white/80"
+            onClick={() => window.location.reload()}
+          >
+            <Sparkles className="h-4 w-4" />
+            Refresh snapshot
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Total users"
+          value={stats.totalUsers}
+          hint={`${stats.activatedUsers} activated`}
+          icon={Users}
+        />
+        <MetricCard
+          label="Advertisers"
+          value={stats.totalAdvertisers}
+          hint={`${stats.totalEarners} earners`}
+          icon={BriefcaseBusiness}
+          tone="blue"
+        />
+        <MetricCard
+          label="Suspended"
+          value={stats.suspendedUsers}
+          hint="Accounts currently restricted"
+          icon={ShieldAlert}
+          tone="rose"
+        />
+        <MetricCard
+          label="Wallet balances"
+          value={currency(stats.totalWalletValue)}
+          hint="Combined visible balances"
+          icon={Wallet}
+          tone="emerald"
+        />
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1">
+      <SectionCard
+        title="Filter users"
+        description="Mix role, activation, and status filters to isolate advertisers or earners that need attention."
+      >
+        <div className="grid gap-3 lg:grid-cols-[1.5fr_repeat(3,minmax(0,0.7fr))]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
             <Input
-              placeholder="Search by name or email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name or email"
+              className="h-11 rounded-2xl border-stone-200 bg-white pl-10"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by type" />
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="earner">Earners</SelectItem>
-              <SelectItem value="advertiser">Advertisers</SelectItem>
+              {roleOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={activationFilter} onValueChange={setActivationFilter}>
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Activation" />
+            </SelectTrigger>
+            <SelectContent>
+              {activationOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-      </Card>
+      </SectionCard>
 
-      {/* Users Table */}
-      <Card className="p-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[250px]">User</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Balance</TableHead>
-              <TableHead>Stats</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <User className="w-8 h-8 text-stone-400" />
-                    <div>
-                      <a href={`/admin/${user.type === "earner" ? "earners" : "advertisers"}/${user.id}`} className="font-medium hover:underline">
-                        {user.name}
-                      </a>
-                      <div className="text-sm text-stone-500">
-                        <a href={`/admin/${user.type === "earner" ? "earners" : "advertisers"}/${user.id}`} className="hover:underline">
-                          {user.email}
-                        </a>
+      <SectionCard
+        title="User directory"
+        description={`${filteredUsers.length} account${filteredUsers.length === 1 ? "" : "s"} matched the current filters.`}
+      >
+        {loading ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-48 animate-pulse rounded-3xl bg-stone-100"
+              />
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <EmptyState
+            title="No users matched"
+            description="Try widening the filters. The new user filters combine role, activation state, and account status, so it is easy to narrow too far."
+          />
+        ) : (
+          <PaginatedCardList
+            items={filteredUsers}
+            itemsPerPage={3}
+            renderItem={(user) => {
+              const detailHref =
+                user.role === "advertiser"
+                  ? `/admin/advertisers/${user.id}`
+                  : `/admin/earners/${user.id}`;
+
+              return (
+                <div
+                  key={user.id}
+                  className="group rounded-3xl border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,250,249,0.88))] p-5 shadow-[0_18px_40px_-34px_rgba(28,25,23,0.7)] transition duration-200 hover:-translate-y-1 hover:border-amber-300 hover:shadow-[0_24px_50px_-34px_rgba(217,119,6,0.45)]"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge
+                          label={
+                            user.role === "advertiser" ? "Advertiser" : "Earner"
+                          }
+                          tone={user.role === "advertiser" ? "blue" : "amber"}
+                        />
+                        <StatusBadge
+                          label={user.activated ? "Activated" : "Not activated"}
+                          tone={user.activated ? "green" : "stone"}
+                        />
+                        <StatusBadge
+                          label={user.status}
+                          tone={statusTone(user.status)}
+                        />
+                        {user.verified ? (
+                          <StatusBadge label="Verified" tone="green" />
+                        ) : null}
+                      </div>
+
+                      <div>
+                        <Link
+                          href={detailHref}
+                          className="text-xl font-semibold text-stone-900 transition group-hover:text-amber-700"
+                        >
+                          {user.name}
+                        </Link>
+                        <p className="text-sm text-stone-500">{user.email || "No email recorded"}</p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl bg-stone-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                            Wallet
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-stone-900">
+                            {currency(user.balance)}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-stone-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                            {user.role === "advertiser" ? "Campaigns" : "Submissions"}
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-stone-900">
+                            {user.role === "advertiser"
+                              ? user.campaignsCreated
+                              : user.submissionsCount}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-stone-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                            {user.role === "advertiser" ? "Total spent" : "Total earned"}
+                          </p>
+                          <p className="mt-2 text-lg font-semibold text-stone-900">
+                            {currency(
+                              user.role === "advertiser"
+                                ? user.totalSpent
+                                : user.totalEarned
+                            )}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-stone-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                            Joined
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-stone-900">
+                            {user.createdAtMs
+                              ? new Date(user.createdAtMs).toLocaleString()
+                              : "Unknown"}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.type === "earner"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-blue-100 text-blue-700"
-                    }`}
-                  >
-                    {user.type.charAt(0).toUpperCase() + user.type.slice(1)}
-                  </span>
-                </TableCell>
-                <TableCell>₦{user.balance.toLocaleString()}</TableCell>
-                <TableCell>
-          {user.type === "earner"
-            ? `${user.leadsPaidFor} leads completed`
-            : `${user.campaignsCreated} tasks created`}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      user.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : user.status === "suspended"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {new Date(user.createdAt.seconds * 1000).toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        onClick={() => setSelectedUser(user)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        Manage
+
+                    <div className="flex flex-row gap-2 md:flex-col md:items-end">
+                      <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
+                        <Link href={detailHref}>Open profile</Link>
                       </Button>
-                    </DialogTrigger>
-                    {selectedUser && (
-                      <DialogContent className="bg-stone-50 border-stone-200">
-                        <DialogHeader>
-                          <DialogTitle className="text-xl">Manage User Account</DialogTitle>
-                          <DialogDescription className="text-stone-600">
-                            Update the status of {selectedUser.name}&apos;s account
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="flex flex-col gap-4 mt-4">
-                          <Button
-                            onClick={() =>
-                              updateUserStatus(
-                                selectedUser.id,
-                                selectedUser.type,
-                                "active"
-                              )
-                            }
-                            variant="outline"
-                            className="bg-stone-50 hover:bg-green-50 text-green-700 border-green-200"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Activate Account
-                          </Button>
-                          <Button
-                            onClick={() =>
-                              updateUserStatus(
-                                selectedUser.id,
-                                selectedUser.type,
-                                "suspended"
-                              )
-                            }
-                            variant="outline"
-                            className="bg-stone-50 hover:bg-red-50 text-red-700 border-red-200"
-                          >
-                            <Ban className="w-4 h-4 mr-2" />
-                            Suspend Account
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    )}
-                  </Dialog>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredUsers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
-                  No users found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, filteredUsers.length)} of {filteredUsers.length}</div>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page===1}>Prev</button>
-            <span className="text-sm">{page} / {totalPages}</span>
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page===totalPages}>Next</button>
-          </div>
-        </div>
-      </Card>
+                      {user.status === "active" ? (
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                          disabled={updatingId === user.id}
+                          onClick={() => updateUserStatus(user, "suspended")}
+                        >
+                          <CircleSlash className="h-4 w-4" />
+                          Suspend
+                        </Button>
+                      ) : (
+                        <p className="max-w-[12rem] text-right text-xs leading-5 text-stone-500">
+                          Activation stays self-service. Admin can review the profile, but not activate the account.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
+          />
+        )}
+      </SectionCard>
     </div>
   );
 }

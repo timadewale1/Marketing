@@ -1,0 +1,45 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /earners/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /advertisers/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /earnerSubmissions/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /advertiserFaces/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /advertiserProducts/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /homepage-direct-ads/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

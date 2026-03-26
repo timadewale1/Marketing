@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useState } from "react"
-import { db } from "@/lib/firebase"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +16,6 @@ export default function AdvertiseDirectlyPage() {
   const [phone, setPhone] = useState("")
   const [advertType, setAdvertType] = useState("")
   const [duration, setDuration] = useState("")
-  // const [budget, setBudget] = useState("")
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -28,40 +25,36 @@ export default function AdvertiseDirectlyPage() {
       toast.error("Please complete required fields")
       return
     }
+
     setSubmitting(true)
     try {
-      const docRef = await addDoc(collection(db, "directAdvertRequests"), {
-        businessName,
-        contactName,
-        email,
-        phone,
-        advertType: advertType || null,
-        duration: duration || null,
-        // budget: budget ? Number(budget) : null,
-        message: message || null,
-        status: "pending",
-        createdAt: serverTimestamp(),
+      const response = await fetch("/api/direct-ad-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          businessName,
+          contactName,
+          email,
+          phone,
+          advertType,
+          duration,
+          message,
+        }),
       })
 
-      // notify admin
-      try {
-        await addDoc(collection(db, 'adminNotifications'), {
-          type: 'direct_ad_request',
-          title: 'New direct advert request',
-          body: `${businessName} submitted a direct advert request`,
-          link: `/admin/direct-ad-requests/${docRef.id}`,
-          requestId: docRef.id,
-          read: false,
-          createdAt: serverTimestamp(),
-        })
-      } catch (noteErr) {
-        console.error('Failed to create admin notification for direct advert request', noteErr)
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success) {
+        toast.error(result.message || "Failed to submit request")
+        return
       }
-      toast.success("Thanks — your request has been submitted")
+
+      toast.success("Thanks, your request has been submitted")
       router.push("/advertise-directly/thank-you")
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to submit — try again")
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to submit, please try again")
     } finally {
       setSubmitting(false)
     }
@@ -69,10 +62,13 @@ export default function AdvertiseDirectlyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-100 via-amber-100 to-stone-200 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+      <div className="container mx-auto max-w-3xl px-4">
         <Card className="p-6">
-          <h1 className="text-2xl font-semibold mb-4">Advertise Directly</h1>
-          <p className="text-sm text-stone-600 mb-4">Fill this short form and our team will reach out to help set up your campaign.</p>
+          <h1 className="mb-4 text-2xl font-semibold">Advertise Directly</h1>
+          <p className="mb-4 text-sm text-stone-600">
+            Fill this short form and our team will reach out to help set up your campaign.
+          </p>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs text-stone-600">Business name *</label>
@@ -84,7 +80,7 @@ export default function AdvertiseDirectlyPage() {
               <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="text-xs text-stone-600">Phone *</label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -95,19 +91,23 @@ export default function AdvertiseDirectlyPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <label className="text-xs text-stone-600">Advert type</label>
-                <Input value={advertType} onChange={(e) => setAdvertType(e.target.value)} placeholder="e.g., Video, Social, Survey" />
+                <Input
+                  value={advertType}
+                  onChange={(e) => setAdvertType(e.target.value)}
+                  placeholder="e.g., Video, Social, Survey"
+                />
               </div>
               <div>
                 <label className="text-xs text-stone-600">Duration</label>
-                <Input value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g., 7 days" />
+                <Input
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="e.g., 7 days"
+                />
               </div>
-              {/* <div>
-                <label className="text-xs text-stone-600">Budget (₦)</label>
-                <Input value={budget} onChange={(e) => setBudget(e.target.value)} type="number" />
-              </div> */}
             </div>
 
             <div>
@@ -116,7 +116,11 @@ export default function AdvertiseDirectlyPage() {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={submitting} className="bg-amber-500 hover:bg-amber-600 text-stone-900">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-amber-500 text-stone-900 hover:bg-amber-600"
+              >
                 {submitting ? "Submitting..." : "Send request"}
               </Button>
             </div>

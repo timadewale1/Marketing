@@ -1,25 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BarChart3, Search, Sparkles } from "lucide-react";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  onSnapshot,
-  updateDoc,
-  doc,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,137 +14,195 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import toast from "react-hot-toast";
-import { ExternalLink } from "lucide-react";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
+import { summarizeCampaignProgress } from "@/lib/campaign-progress";
 
-interface Campaign {
+type Campaign = {
   id: string;
   title: string;
   advertiserName: string;
   category: string;
   status: string;
-  earnerPrice: number;
   budget: number;
-  reservedBudget?: number;
+  reservedBudget: number;
+  earnerPrice: number;
   generatedLeads: number;
   targetLeads: number;
-  createdAt: { seconds: number };
   description: string;
-  proofInstructions: string;
+  createdAtMs: number;
+};
+
+type SubmissionProgressRecord = {
+  id: string;
+  campaignId: string;
+  status: string;
+};
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  return value instanceof Date ? value.getTime() : 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
 }
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionProgressRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [perPage] = useState(15)
-  const [page, setPage] = useState(1)
 
   useEffect(() => {
-    setLoading(true);
-    const q = query(collection(db, "campaigns"), orderBy("createdAt", "desc"));
+    const load = async () => {
+      setLoading(true);
+      const [campaignSnap, submissionsSnap] = await Promise.all([
+        getDocs(query(collection(db, "campaigns"), orderBy("createdAt", "desc"))),
+        getDocs(collection(db, "earnerSubmissions")),
+      ]);
+      setCampaigns(
+        campaignSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: String(data.title || "Untitled campaign"),
+            advertiserName: String(data.advertiserName || "Unknown advertiser"),
+            category: String(data.category || "Unknown"),
+            status: String(data.status || "Unknown"),
+            budget: Number(data.budget || 0),
+            reservedBudget: Number(data.reservedBudget || 0),
+            earnerPrice: Number(data.earnerPrice || data.costPerLead || 0),
+            generatedLeads: Number(data.generatedLeads || data.completedLeads || 0),
+            targetLeads: Number(data.targetLeads || data.estimatedLeads || 0),
+            description: String(data.description || ""),
+            createdAtMs: toMillis(data.createdAt),
+          };
+        })
+      );
+      setSubmissions(
+        submissionsSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            campaignId: String(data.campaignId || ""),
+            status: String(data.status || ""),
+          };
+        })
+      );
+      setLoading(false);
+    };
 
-    const unsubCampaigns = onSnapshot(q, (snap) => {
-        const campaignsData = snap.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          title: data.title || "",
-          advertiserName: data.advertiserName || "",
-          category: data.category || "",
-          status: data.status || "",
-          earnerPrice: data.earnerPrice || 0,
-          budget: data.budget || 0,
-          reservedBudget: data.reservedBudget || 0,
-          generatedLeads: data.generatedLeads || 0,
-            targetLeads: data.targetLeads || data.estimatedLeads || 0,
-          createdAt: data.createdAt || { seconds: Date.now() / 1000 },
-          description: data.description || "",
-          proofInstructions: data.proofInstructions || "",
-        };
-      });
-      setCampaigns(campaignsData);
+    load().catch((error) => {
+      console.error("Failed to load admin campaigns", error);
       setLoading(false);
     });
-
-    return () => unsubCampaigns();
   }, []);
 
-  const updateCampaignStatus = async (id: string, status: string) => {
-    try {
-      await updateDoc(doc(db, "campaigns", id), { status });
-      toast.success(`Campaign ${status === "Active" ? "activated" : status.toLowerCase()}`);
-    } catch (error) {
-      console.error("Error updating campaign status:", error);
-      toast.error("Failed to update campaign status");
-    }
-  };
-
-  const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
-    const matchesCategory =
-      categoryFilter === "all" || campaign.category === categoryFilter;
-    const matchesSearch =
-      search === "" ||
-      campaign.title.toLowerCase().includes(search.toLowerCase()) ||
-      campaign.advertiserName.toLowerCase().includes(search.toLowerCase()) ||
-      campaign.description.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesCategory && matchesSearch;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / perPage))
-  const paginated = filteredCampaigns.slice((page - 1) * perPage, page * perPage)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  // Get unique categories for filter
-  const categories = Array.from(
-    new Set(campaigns.map((campaign) => campaign.category))
+  const categories = useMemo(
+    () => Array.from(new Set(campaigns.map((campaign) => campaign.category))).filter(Boolean),
+    [campaigns]
   );
+
+  const filteredCampaigns = useMemo(() => {
+    const searchValue = search.trim().toLowerCase();
+    return campaigns.filter((campaign) => {
+      const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
+      const matchesCategory =
+        categoryFilter === "all" || campaign.category === categoryFilter;
+      const matchesSearch =
+        !searchValue ||
+        campaign.title.toLowerCase().includes(searchValue) ||
+        campaign.advertiserName.toLowerCase().includes(searchValue) ||
+        campaign.description.toLowerCase().includes(searchValue);
+      return matchesStatus && matchesCategory && matchesSearch;
+    });
+  }, [campaigns, categoryFilter, search, statusFilter]);
+
+  const stats = useMemo(() => {
+    return {
+      active: campaigns.filter((campaign) => campaign.status === "Active").length,
+      paused: campaigns.filter((campaign) => campaign.status === "Paused").length,
+      deleted: campaigns.filter((campaign) => campaign.status === "Deleted").length,
+      visibleBudget: campaigns.reduce(
+        (sum, campaign) => sum + campaign.budget + campaign.reservedBudget,
+        0
+      ),
+    };
+  }, [campaigns]);
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-800">Campaigns</h1>
+      <AdminPageHeader
+        eyebrow="Campaign registry"
+        title="All campaigns"
+        description="Review active, paused, completed, or deleted campaigns with cleaner linked summaries."
+        action={
+          <Button
+            variant="outline"
+            className="rounded-full border-stone-300 bg-white/80"
+            onClick={() => window.location.reload()}
+          >
+            <Sparkles className="h-4 w-4" />
+            Refresh
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Active" value={stats.active} hint="Currently running" icon={BarChart3} />
+        <MetricCard label="Paused" value={stats.paused} hint="Temporarily halted" icon={BarChart3} tone="amber" />
+        <MetricCard label="Deleted" value={stats.deleted} hint="History preserved" icon={BarChart3} tone="rose" />
+        <MetricCard
+          label="Visible budget"
+          value={currency(stats.visibleBudget)}
+          hint="Budget plus reserved funds"
+          icon={BarChart3}
+          tone="emerald"
+        />
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1">
+      <SectionCard title="Filters" description="Narrow campaigns by status, category, or text search.">
+        <div className="grid gap-3 lg:grid-cols-[1.6fr_0.8fr_0.8fr]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
             <Input
-              placeholder="Search campaigns..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search title, advertiser, or description"
+              className="h-11 rounded-2xl border-stone-200 bg-white pl-10"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Paused">Paused</SelectItem>
-              <SelectItem value="Stopped">Stopped</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="all">All status</SelectItem>
+              {["Active", "Paused", "Stopped", "Completed", "Deleted"].map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by category" />
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
@@ -167,132 +211,105 @@ export default function CampaignsPage() {
             </SelectContent>
           </Select>
         </div>
-      </Card>
+      </SectionCard>
 
-      {/* Campaigns Table */}
-      <Card className="p-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[300px]">Campaign</TableHead>
-              <TableHead>Advertiser</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>Budget</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.map((campaign) => (
-              <TableRow key={campaign.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium text-stone-900">
-                      <a href={`/admin/campaigns/${campaign.id}`} className="hover:underline">
-                        {campaign.title}
-                      </a>
+      <SectionCard
+        title="Campaign list"
+        description={`${filteredCampaigns.length} campaign${filteredCampaigns.length === 1 ? "" : "s"} matched the current filters.`}
+      >
+        {loading ? (
+          <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+        ) : filteredCampaigns.length === 0 ? (
+          <EmptyState
+            title="No campaigns matched"
+            description="Try widening the filters to see more campaigns."
+          />
+        ) : (
+          <PaginatedCardList
+            items={filteredCampaigns}
+            itemsPerPage={3}
+            renderItem={(campaign) => {
+              const progress = summarizeCampaignProgress({
+                target: campaign.targetLeads,
+                generatedLeads: campaign.generatedLeads,
+                submissions: submissions.filter((submission) => submission.campaignId === campaign.id),
+              });
+
+              return (
+                <div
+                  key={campaign.id}
+                  className="rounded-3xl border border-stone-200 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(28,25,23,0.6)]"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/admin/campaigns/${campaign.id}`}
+                          className="text-lg font-semibold text-stone-900 hover:text-amber-700"
+                        >
+                          {campaign.title}
+                        </Link>
+                        <StatusBadge
+                          label={campaign.status}
+                          tone={
+                            campaign.status === "Active"
+                              ? "green"
+                              : campaign.status === "Paused"
+                                ? "amber"
+                                : campaign.status === "Deleted"
+                                  ? "red"
+                                  : "blue"
+                          }
+                        />
+                      </div>
+                      <p className="text-sm text-stone-500">
+                        {campaign.advertiserName} • {campaign.category}
+                      </p>
+                      <p className="text-sm leading-6 text-stone-600">
+                        {campaign.description || "No description recorded."}
+                      </p>
                     </div>
-                    <div className="text-sm text-stone-600">{campaign.category}</div>
+                    <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
+                      <Link href={`/admin/campaigns/${campaign.id}`}>Open campaign</Link>
+                    </Button>
                   </div>
-                </TableCell>
-                <TableCell>{campaign.advertiserName}</TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="text-sm text-stone-600">
-                      {campaign.generatedLeads} of {campaign.targetLeads} leads
+                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                    <div className="rounded-2xl bg-stone-50 p-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Available</p>
+                      <p className="mt-2 font-semibold text-stone-900">{currency(campaign.budget)}</p>
                     </div>
-                    <div className="h-2 w-24 bg-stone-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-amber-500 transition-all duration-500"
-                        style={{
-                          width: `${campaign.targetLeads > 0 ? Math.min((campaign.generatedLeads / campaign.targetLeads) * 100, 100) : 0}%`,
-                        }}
-                      />
+                    <div className="rounded-2xl bg-stone-50 p-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Reserved</p>
+                      <p className="mt-2 font-semibold text-stone-900">
+                        {currency(campaign.reservedBudget)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-stone-50 p-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Payout</p>
+                      <p className="mt-2 font-semibold text-stone-900">
+                        {currency(campaign.earnerPrice)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-stone-50 p-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Progress</p>
+                      <p className="mt-2 font-semibold text-stone-900">
+                        {progress.verified}/{progress.target || 0}
+                      </p>
+                      <p className="mt-1 text-xs text-stone-500">{progress.pending} pending</p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${progress.progressPercent}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">
-                      ₦{(Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)).toLocaleString()} (available)
-                    </div>
-                    {Number(campaign.reservedBudget || 0) > 0 && (
-                      <div className="text-sm text-stone-600">Reserved: ₦{Number(campaign.reservedBudget || 0).toLocaleString()}</div>
-                    )}
-                    <div className="text-sm text-stone-600">
-                      ₦{campaign.earnerPrice.toLocaleString()} per lead
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      campaign.status === "Active"
-                        ? "bg-green-100 text-green-700"
-                        : campaign.status === "Paused"
-                        ? "bg-amber-100 text-amber-700"
-                        : campaign.status === "Completed"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {campaign.status}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {campaign.status !== "Active" && (
-                      <Button
-                        onClick={() => updateCampaignStatus(campaign.id, "Active")}
-                        variant="outline"
-                        size="sm"
-                        className="text-green-700"
-                      >
-                        Activate
-                      </Button>
-                    )}
-                    {campaign.status === "Active" && (
-                      <Button
-                        onClick={() => updateCampaignStatus(campaign.id, "Paused")}
-                        variant="outline"
-                        size="sm"
-                        className="text-amber-700"
-                      >
-                        Pause
-                      </Button>
-                    )}
-                    {campaign.status !== "Stopped" && (
-                      <Button
-                        onClick={() => updateCampaignStatus(campaign.id, "Stopped")}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-700"
-                      >
-                        Stop
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredCampaigns.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-4">
-                  No campaigns found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, filteredCampaigns.length)} of {filteredCampaigns.length}</div>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page===1}>Prev</button>
-            <span className="text-sm">{page} / {totalPages}</span>
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page===totalPages}>Next</button>
-          </div>
-        </div>
-      </Card>
+                </div>
+              );
+            }}
+          />
+        )}
+      </SectionCard>
     </div>
   );
 }

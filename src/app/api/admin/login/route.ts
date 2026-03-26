@@ -1,34 +1,26 @@
 import { NextResponse } from 'next/server'
+import { createAdminSessionCookie, setAdminSessionCookie } from '@/lib/admin-session'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const password = body?.password
-    if (!password) return NextResponse.json({ message: 'Missing password' }, { status: 400 })
-
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
-    if (!ADMIN_PASSWORD) {
-      console.error('ADMIN_PASSWORD not set')
-      return NextResponse.json({ message: 'Server misconfiguration' }, { status: 500 })
+    const idToken = body?.idToken
+    if (!idToken) {
+      return NextResponse.json({ message: 'Missing Firebase ID token' }, { status: 400 })
     }
 
-    if (password !== ADMIN_PASSWORD) {
-      return NextResponse.json({ message: 'Incorrect password' }, { status: 401 })
-    }
+    const session = await createAdminSessionCookie(idToken)
+    await setAdminSessionCookie(session.sessionCookie)
 
-    const res = NextResponse.json({ authenticated: true })
-    res.cookies.set({
-      name: 'adminSession',
-      value: '1',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60,
+    return NextResponse.json({
+      authenticated: true,
+      uid: session.uid,
+      email: session.email,
     })
-    return res
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ message: 'Login failed' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Login failed'
+    const status = message === 'User is not authorized as admin' ? 403 : 500
+    return NextResponse.json({ message }, { status })
   }
 }

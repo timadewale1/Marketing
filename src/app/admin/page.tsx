@@ -1,486 +1,463 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { Card } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   BarChart3,
+  BellRing,
   Users,
-  DollarSign,
-  ActivitySquare,
-  TrendingUp,
-  Clock,
-  Mail,
+  Wallet,
 } from "lucide-react";
+import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-  import { LucideIcon } from "lucide-react";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
+type Submission = {
+  id: string;
+  campaignId: string;
+  campaignTitle: string;
+  status: string;
+  createdAtMs: number;
+};
+
+type Withdrawal = {
+  id: string;
+  userId: string;
+  amount: number;
+  status: string;
+  bankName: string;
+  accountNumber: string;
+};
+
+type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  status: string;
+  createdAtMs: number;
+};
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  if (value instanceof Date) return value.getTime();
+  return 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
+}
 
 export default function Page() {
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCampaigns: 0,
-    totalEarnings: 0,
-    pendingWithdrawals: 0,
     pendingSubmissions: 0,
-    unreadContactMessages: 0,
+    pendingWithdrawals: 0,
+    unreadMessages: 0,
+    totalTrackedSpend: 0,
   });
-
-  interface Submission {
-    id: string;
-    campaignId?: string;
-    campaignTitle: string;
-    status: string;
-    createdAt: { seconds: number };
-  }
-
-  interface Withdrawal {
-    id: string;
-    amount: number;
-    status: string;
-    userId?: string;
-    bank: {
-      bankName: string;
-      accountNumber: string;
-      accountName?: string;
-    };
-  }
-
-  interface ContactMessage {
-    id: string;
-    name: string;
-    email: string;
-    message: string;
-    status: string;
-    createdAt: { seconds: number };
-  }
-
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
   const [recentWithdrawals, setRecentWithdrawals] = useState<Withdrawal[]>([]);
-  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
-  const [unreadContactCount, setUnreadContactCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [recentMessages, setRecentMessages] = useState<ContactMessage[]>([]);
 
   useEffect(() => {
-    // Fetch statistics
-    const fetchStats = async () => {
+    const load = async () => {
+      setLoading(true);
       try {
-        // Users count
-        const usersSnap = await getDocs(collection(db, "earners"));
-        const advertisersSnap = await getDocs(collection(db, "advertisers"));
-        const totalUsers = usersSnap.size + advertisersSnap.size;
+        const [
+          earnersSnap,
+          advertisersSnap,
+          campaignsSnap,
+          pendingSubmissionsSnap,
+          pendingWithdrawalsSnap,
+          unreadMessagesSnap,
+          advertiserTransactionsSnap,
+        ] = await Promise.all([
+          getDocs(collection(db, "earners")),
+          getDocs(collection(db, "advertisers")),
+          getDocs(collection(db, "campaigns")),
+          getDocs(query(collection(db, "earnerSubmissions"), where("status", "==", "Pending"))),
+          getDocs(query(collection(db, "earnerWithdrawals"), where("status", "==", "pending"))),
+          getDocs(query(collection(db, "contactMessages"), where("status", "==", "unread"))),
+          getDocs(query(collection(db, "advertiserTransactions"), where("type", "==", "campaign_payment"))),
+        ]);
 
-        // Campaigns count
-        const campaignsSnap = await getDocs(collection(db, "campaigns"));
-        const totalCampaigns = campaignsSnap.size;
-
-        // Total earnings calculation
-        // Get total amount paid by advertisers for campaigns and take 50%
-        const campaignEarnings = campaignsSnap.docs.reduce((sum, doc) => {
-          const data = doc.data();
-          // Only include campaign if it has a payment reference (meaning payment was successful)
-          if (data.paymentRef) {
-            return sum + (data.budget || 0) / 2;  // Platform takes 50% of all campaign payments
-          }
-          return sum;
+        const totalTrackedSpend = advertiserTransactionsSnap.docs.reduce((sum, docItem) => {
+          const amount = Number(docItem.data().amount || 0);
+          return sum + Math.abs(amount);
         }, 0);
 
-        // Add activation fees
-        const activatedEarnersSnap = await getDocs(
-          query(collection(db, "earners"), where("activated", "==", true))
-        );
-        
-        let activationEarnings = 0;
-        const ACTIVATION_FEE = 2000; // ₦2000 activation fee
-
-        for (const doc of activatedEarnersSnap.docs) {
-          const earnerData = doc.data();
-          // If referred, platform keeps half of activation fee (₦1000)
-          // If not referred, platform keeps full activation fee (₦2000)
-          if (earnerData.referredBy) {
-            activationEarnings += ACTIVATION_FEE / 2;
-          } else {
-            activationEarnings += ACTIVATION_FEE;
-          }
-        }
-
-        const totalEarnings = campaignEarnings + activationEarnings;
-
-        // Pending withdrawals
-        const withdrawalsSnap = await getDocs(
-          query(collection(db, "earnerWithdrawals"), where("status", "==", "pending"))
-        );
-        const pendingWithdrawals = withdrawalsSnap.size;
-
-        // Pending submissions
-        const submissionsSnap = await getDocs(
-          query(collection(db, "earnerSubmissions"), where("status", "==", "Pending"))
-        );
-        const pendingSubmissions = submissionsSnap.size;
-
-        // Unread contact messages
-        const contactSnap = await getDocs(
-          query(collection(db, "contactMessages"), where("status", "==", "unread"))
-        );
-        const unreadContactMessages = contactSnap.size;
-
         setStats({
-          totalUsers,
-          totalCampaigns,
-          totalEarnings,
-          pendingWithdrawals,
-          pendingSubmissions,
-          unreadContactMessages,
+          totalUsers: earnersSnap.size + advertisersSnap.size,
+          totalCampaigns: campaignsSnap.size,
+          pendingSubmissions: pendingSubmissionsSnap.size,
+          pendingWithdrawals: pendingWithdrawalsSnap.size,
+          unreadMessages: unreadMessagesSnap.size,
+          totalTrackedSpend,
         });
-      } catch (error) {
-        console.error("Error fetching stats:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Fetch recent submissions
-    const unsubSubmissions = onSnapshot(
-      query(
-        collection(db, "earnerSubmissions"),
-        orderBy("createdAt", "desc"),
-        limit(5)
-      ),
+    const unsubmissions = onSnapshot(
+      query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(6)),
       (snap) => {
         setRecentSubmissions(
-          snap.docs.map((doc) => {
-            const data = doc.data();
+          snap.docs.map((docItem) => {
+            const data = docItem.data();
             return {
-              id: doc.id,
-              campaignId: data.campaignId || "",
-              campaignTitle: data.campaignTitle || "",
-              status: data.status || "",
-              createdAt: data.createdAt || { seconds: Date.now() / 1000 }
+              id: docItem.id,
+              campaignId: String(data.campaignId || ""),
+              campaignTitle: String(data.campaignTitle || ""),
+              status: String(data.status || ""),
+              createdAtMs: toMillis(data.createdAt),
             };
           })
         );
       }
     );
 
-    // Fetch recent withdrawals
     const unsubWithdrawals = onSnapshot(
-      query(
-        collection(db, "earnerWithdrawals"),
-        orderBy("createdAt", "desc"),
-        limit(5)
-      ),
+      query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(6)),
       (snap) => {
         setRecentWithdrawals(
-          snap.docs.map((doc) => {
-            const data = doc.data();
+          snap.docs.map((docItem) => {
+            const data = docItem.data();
             return {
-              id: doc.id,
-              userId: data.userId || "",
-              amount: data.amount || 0,
-              status: data.status || "",
-              bank: {
-                bankName: data.bank?.bankName || "",
-                accountNumber: data.bank?.accountNumber || "",
-                accountName: data.bank?.accountName || ""
-              }
+              id: docItem.id,
+              userId: String(data.userId || ""),
+              amount: Number(data.amount || 0),
+              status: String(data.status || ""),
+              bankName: String(data.bank?.bankName || ""),
+              accountNumber: String(data.bank?.accountNumber || ""),
             };
           })
         );
       }
     );
 
-    // Fetch recent contact messages
-    const unsubContactMessages = onSnapshot(
-      query(
-        collection(db, "contactMessages"),
-        orderBy("createdAt", "desc"),
-        limit(5)
-      ),
+    const unsubMessages = onSnapshot(
+      query(collection(db, "contactMessages"), orderBy("createdAt", "desc"), limit(6)),
       (snap) => {
-        setContactMessages(
-          snap.docs.map((doc) => {
-            const data = doc.data();
+        setRecentMessages(
+          snap.docs.map((docItem) => {
+            const data = docItem.data();
             return {
-              id: doc.id,
-              name: data.name || "",
-              email: data.email || "",
-              message: data.message || "",
-              status: data.status || "",
-              createdAt: data.createdAt || { seconds: Date.now() / 1000 }
+              id: docItem.id,
+              name: String(data.name || ""),
+              email: String(data.email || ""),
+              message: String(data.message || ""),
+              status: String(data.status || ""),
+              createdAtMs: toMillis(data.createdAt),
             };
           })
         );
       }
     );
 
-    fetchStats();
-    // VTpass manager data can be loaded via admin APIs in a follow-up task
-    setLoading(false);
+    load();
 
     return () => {
-      unsubSubmissions();
+      unsubmissions();
       unsubWithdrawals();
-      unsubContactMessages();
+      unsubMessages();
     };
   }, []);
 
-  const StatCard = ({
-    title,
-    value,
-    icon: Icon,
-    change,
-    changeType = "positive",
-  }: {
-    title: string;
-    value: string | number;
-    icon: LucideIcon;
-    change?: string;
-    changeType?: "positive" | "negative" | "neutral";
-  }) => (
-    <Card className="p-6 flex items-start justify-between">
-      <div>
-        <p className="text-sm font-medium text-stone-600">{title}</p>
-        <p className="text-2xl font-bold text-stone-900 mt-2">{value}</p>
-        {change && (
-          <p
-            className={`text-xs mt-2 ${
-              changeType === "positive"
-                ? "text-green-600"
-                : changeType === "negative"
-                ? "text-red-600"
-                : "text-stone-600"
-            }`}
-          >
-            {change}
-          </p>
-        )}
-      </div>
-      <div className="bg-amber-100 p-3 rounded-lg">
-        <Icon className="w-6 h-6 text-amber-600" />
-      </div>
-    </Card>
-  );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
+  const healthLabel = useMemo(() => {
+    if (stats.pendingSubmissions + stats.pendingWithdrawals > 20) {
+      return "High queue pressure";
+    }
+    if (stats.pendingSubmissions + stats.pendingWithdrawals > 0) {
+      return "Moderate queue";
+    }
+    return "Queues are clear";
+  }, [stats.pendingSubmissions, stats.pendingWithdrawals]);
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-800">Dashboard Overview</h1>
-        <div className="flex gap-4">
+      <AdminPageHeader
+        eyebrow="Operations"
+        title="Admin dashboard"
+        description="A cleaner command view of users, campaign volume, moderation queues, and support load."
+        action={
           <Button
             variant="outline"
+            className="rounded-full border-stone-300 bg-white/80"
             onClick={() => window.location.reload()}
-            className="flex items-center gap-2"
           >
-            <Clock size={16} /> Refresh Data
+            Refresh dashboard
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="Total Users"
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Users"
           value={stats.totalUsers}
+          hint="Earners and advertisers combined"
           icon={Users}
-          change="+12% from last month"
-          changeType="positive"
         />
-        <StatCard
-          title="Total Tasks"
+        <MetricCard
+          label="Campaigns"
           value={stats.totalCampaigns}
+          hint="Visible in current collection"
           icon={BarChart3}
-          change="+5 this week"
-          changeType="positive"
+          tone="blue"
         />
-        <StatCard
-          title="Total Earnings"
-          value={`₦${stats.totalEarnings.toLocaleString()}`}
-          icon={DollarSign}
-          change="+15% this month"
-          changeType="positive"
-        />
-        <StatCard
-          title="Pending Withdrawals"
-          value={stats.pendingWithdrawals}
-          icon={ActivitySquare}
-          change="Requires attention"
-          changeType={stats.pendingWithdrawals > 10 ? "negative" : "neutral"}
-        />
-        <StatCard
-          title="Pending Submissions"
+        <MetricCard
+          label="Pending moderation"
           value={stats.pendingSubmissions}
-          icon={TrendingUp}
-          change="Needs review"
-          changeType={stats.pendingSubmissions > 20 ? "negative" : "neutral"}
+          hint={healthLabel}
+          icon={BellRing}
+          tone="amber"
         />
-        <StatCard
-          title="Unread Messages"
-          value={stats.unreadContactMessages}
-          icon={Mail}
-          change="Contact form messages"
-          changeType={stats.unreadContactMessages > 0 ? "negative" : "neutral"}
+        <MetricCard
+          label="Tracked spend"
+          value={currency(stats.totalTrackedSpend)}
+          hint={`${stats.pendingWithdrawals} pending withdrawals`}
+          icon={Wallet}
+          tone="emerald"
         />
       </div>
 
-      {/* Recent Activity */}
-      {/* VTpass Manager Card */}
-      <div className="mt-6">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-stone-600">VTpass Manager</h3>
-              <p className="text-lg font-bold text-stone-900">Overview & transactions</p>
-            </div>
-            <div>
-              <Link href="/admin/vtpass">
-                <Button variant="ghost">Open VTpass Manager</Button>
-              </Link>
-            </div>
-          </div>
-        </Card>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Submissions */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-stone-800">
-              Recent Submissions
-            </h2>
-            <Link href="/admin/submissions">
-              <Button variant="ghost" className="text-amber-600">
-                View All
-              </Button>
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <SectionCard
+          title="Operational shortcuts"
+          description="Jump straight into the parts of admin that need action."
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            <Link
+              href="/admin/users"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                User management
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Filter users by role and activation
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Open advertiser and earner timelines with linked campaigns and proof history.
+              </p>
+            </Link>
+            <Link
+              href="/admin/campaigns"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Campaign review
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Inspect budgets, spend, and proof queues
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Campaign detail pages now expose submissions and verification controls together.
+              </p>
+            </Link>
+            <Link
+              href="/admin/submissions"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Submission queue
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Clear pending proof faster
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Review pending items from the main queue or drop into each campaign page.
+              </p>
+            </Link>
+            <Link
+              href="/admin/contact-messages"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Support inbox
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                {stats.unreadMessages} unread messages
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Keep the contact queue from piling up while moderation is running.
+              </p>
             </Link>
           </div>
-          <div className="space-y-4">
-            {recentSubmissions.map((sub) => (
-              <div
-                key={sub.id}
-                className="flex items-center justify-between py-3 border-b last:border-0"
-              >
-                <div>
-                  <p className="font-medium text-stone-800">
-                    <a href={`/admin/campaigns/${sub.campaignId}`} className="hover:underline">
-                      {sub.campaignTitle}
-                    </a>
-                  </p>
-                  <p className="text-sm text-stone-500">
-                    {new Date(sub.createdAt?.seconds * 1000).toLocaleString()}
-                  </p>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    sub.status === "Verified"
-                      ? "bg-green-100 text-green-700"
-                      : sub.status === "Rejected"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {sub.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        </SectionCard>
 
-        {/* Recent Withdrawals */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-stone-800">
-              Recent Withdrawals
-            </h2>
-            <Link href="/admin/withdrawals">
-              <Button variant="ghost" className="text-amber-600">
-                View All
-              </Button>
-            </Link>
+        <SectionCard
+          title="Queue snapshot"
+          description="A quick sense of what needs attention right now."
+        >
+          <div className="space-y-3">
+            <div className="rounded-2xl bg-stone-50 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                Pending submissions
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-stone-900">
+                {stats.pendingSubmissions}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-stone-50 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                Pending withdrawals
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-stone-900">
+                {stats.pendingWithdrawals}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-stone-50 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+                Unread contact messages
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-stone-900">
+                {stats.unreadMessages}
+              </p>
+            </div>
           </div>
-          <div className="space-y-4">
-            {recentWithdrawals.map((withdrawal) => (
-              <div
-                key={withdrawal.id}
-                className="flex items-center justify-between py-3 border-b last:border-0"
-              >
-                  <div>
-                    <p className="font-medium text-stone-800">₦{withdrawal.amount?.toLocaleString()}</p>
-                    <p className="text-sm text-stone-500">
-                      {withdrawal.bank?.bankName} • {withdrawal.bank?.accountNumber}
-                    </p>
-                    <div>
-                      <a href={`/admin/earners/${withdrawal.userId}`} className="text-amber-600 hover:underline">
-                        View earner
-                      </a>
-                    </div>
-                  </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    withdrawal.status === "sent"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {withdrawal.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        </SectionCard>
       </div>
 
-      {/* Recent Contact Messages */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-stone-800">
-            Recent Contact Messages
-          </h2>
-          <Link href="/admin/contact-messages">
-            <Button variant="ghost" className="text-amber-600">
-              View All
-            </Button>
-          </Link>
-        </div>
-        <div className="space-y-4">
-          {contactMessages.length === 0 ? (
-            <p className="text-stone-600">No messages yet.</p>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <SectionCard
+          title="Recent submissions"
+          description="Newest proof submissions entering review."
+        >
+          {loading ? (
+            <div className="h-28 animate-pulse rounded-2xl bg-stone-100" />
+          ) : recentSubmissions.length === 0 ? (
+            <EmptyState
+              title="No submissions yet"
+              description="Nothing has entered the submission queue yet."
+            />
           ) : (
-            contactMessages.map((msg) => (
-              <div
-                key={msg.id}
-                className="flex items-center justify-between py-3 border-b last:border-0"
-              >
-                <div>
-                  <p className="font-medium text-stone-800">{msg.name}</p>
-                  <p className="text-sm text-stone-600">{msg.email}</p>
-                  <p className="text-sm text-stone-600 line-clamp-1">{msg.message}</p>
-                  <p className="text-xs text-stone-500 mt-1">
-                    {new Date(msg.createdAt?.seconds * 1000).toLocaleString()}
-                  </p>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium whitespace-nowrap ml-4 ${
-                    msg.status === "unread"
-                      ? "bg-amber-100 text-amber-700"
-                      : msg.status === "replied"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-blue-100 text-blue-700"
-                  }`}
+            <div className="space-y-3">
+              {recentSubmissions.map((submission) => (
+                <Link
+                  key={submission.id}
+                  href={`/admin/campaigns/${submission.campaignId}`}
+                  className="block rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-amber-300 hover:shadow-sm"
                 >
-                  {msg.status}
-                </span>
-              </div>
-            ))
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-stone-900">
+                        {submission.campaignTitle || submission.campaignId}
+                      </p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        {submission.createdAtMs
+                          ? new Date(submission.createdAtMs).toLocaleString()
+                          : "Unknown date"}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      label={submission.status}
+                      tone={
+                        submission.status === "Verified"
+                          ? "green"
+                          : submission.status === "Rejected"
+                            ? "red"
+                            : "amber"
+                      }
+                    />
+                  </div>
+                </Link>
+              ))}
+            </div>
           )}
-        </div>
-      </Card>
+        </SectionCard>
+
+        <SectionCard
+          title="Recent withdrawals"
+          description="Latest payout requests coming from earners."
+        >
+          {recentWithdrawals.length === 0 ? (
+            <EmptyState
+              title="No withdrawals"
+              description="No payout requests have been logged yet."
+            />
+          ) : (
+            <div className="space-y-3">
+              {recentWithdrawals.map((withdrawal) => (
+                <Link
+                  key={withdrawal.id}
+                  href={`/admin/earners/${withdrawal.userId}`}
+                  className="block rounded-2xl border border-stone-200 bg-white p-4 transition hover:border-amber-300 hover:shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-stone-900">
+                        {currency(withdrawal.amount)}
+                      </p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        {withdrawal.bankName} • {withdrawal.accountNumber}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      label={withdrawal.status}
+                      tone={
+                        withdrawal.status.toLowerCase().includes("sent")
+                          ? "green"
+                          : withdrawal.status.toLowerCase().includes("reject")
+                            ? "red"
+                            : "amber"
+                      }
+                    />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Recent messages"
+          description="Latest support and contact conversations."
+        >
+          {recentMessages.length === 0 ? (
+            <EmptyState
+              title="No messages"
+              description="No contact messages have been received yet."
+            />
+          ) : (
+            <div className="space-y-3">
+              {recentMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className="rounded-2xl border border-stone-200 bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-stone-900">{message.name}</p>
+                      <p className="mt-1 text-sm text-stone-500">{message.email}</p>
+                      <p className="mt-2 line-clamp-2 text-sm text-stone-600">
+                        {message.message}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      label={message.status}
+                      tone={message.status === "unread" ? "amber" : "green"}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
     </div>
   );
 }

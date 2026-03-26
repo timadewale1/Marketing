@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="128" height="128">
-  <rect rx="8" width="48" height="48" fill="#FEF2F2"/>
-  <path d="M24 34s-8-6-12-10a6 6 0 1 1 8-8l4 4 4-4a6 6 0 1 1 8 8c-4 4-12 10-12 10z" fill="#EF4444"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ig-like" x1="0" x2="1" y1="1" y2="0">
+      <stop offset="0" stop-color="#F59E0B"/>
+      <stop offset="0.55" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#ig-like)"/>
+  <rect x="13" y="13" width="38" height="38" rx="10" fill="none" stroke="#fff" stroke-width="4"/>
+  <circle cx="32" cy="32" r="8" fill="none" stroke="#fff" stroke-width="4"/>
+  <circle cx="43" cy="21" r="2.5" fill="#fff"/>
+  <path d="M24 46c4-6 12-6 16 0 4-6 12-4 12 3 0 7-8 11-20 17-12-6-20-10-20-17 0-7 8-9 12-3z" fill="#fff" transform="translate(0 -8) scale(.45)"/>
 </svg>

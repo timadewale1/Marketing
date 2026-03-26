@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { requireAdminSession } from '@/lib/admin-session'
 
 // Firebase types
 type AdminModule = typeof import('firebase-admin')
@@ -29,11 +29,9 @@ interface Campaign {
   [key: string]: unknown
 }
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const cookieStore = await cookies()
-    const val = cookieStore.get('adminSession')?.value
-    if (val !== '1') return NextResponse.json({ ok: false, message: 'unauthorized' }, { status: 401 })
+    await requireAdminSession()
 
     const { admin, dbAdmin } = (await initFirebaseAdmin()) as {
       admin: AdminModule | null

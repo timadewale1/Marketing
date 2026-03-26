@@ -7,13 +7,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
   collection,
   query,
   where,
-  serverTimestamp,
-  runTransaction,
-  increment,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -322,75 +318,24 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
 
       console.log("Creating submission document...");
       try {
-        const submissionData = {
-          userId: user.uid,
-          campaignId: campaign.id,
-          campaignTitle: campaign.title || null,
-          advertiserName: campaignData?.advertiserName || null,
-          advertiserId: campaignData?.ownerId || null,
-          category: campaign.category || null,
-          note: note || null,
-          socialHandle: socialHandle || null,
-          proofUrl: proofUrl || null,
-          status: "Pending",
-          createdAt: serverTimestamp(),
-          earnerPrice: Math.round((campaign.costPerLead || 0) / 2),
-          // reservedAmount will be set within a transaction to reserve campaign funds
-          reservedAmount: 0,
-          reviewedAt: null,
-          reviewedBy: null,
-          rejectionReason: null,
-        };
-        // Create submission and reserve campaign funds atomically
-        const submissionsCol = collection(db, "earnerSubmissions");
-        const newSubRef = doc(submissionsCol);
-        const fullAmount = submissionData.earnerPrice * 2;
-
-        try {
-          await runTransaction(db, async (t) => {
-            const campaignRef = doc(db, "campaigns", campaign.id);
-            const cSnap = await t.get(campaignRef);
-            if (!cSnap.exists()) throw new Error('Task not found during reservation');
-            const cData = cSnap.data() as CampaignData;
-            const available = Number(cData.budget || 0);
-            if (available < fullAmount) throw new Error('Insufficient campaign budget to reserve funds');
-
-            // decrement available budget and increment reservedBudget
-            t.update(campaignRef, {
-              budget: increment(-fullAmount),
-              reservedBudget: increment(fullAmount),
-            });
-
-            // set reservedAmount on the submission
-            t.set(newSubRef, {
-              ...submissionData,
-              reservedAmount: fullAmount,
-              createdAt: serverTimestamp(),
-            });
-          });
-          console.log('Submission created with reservation');
-        } catch (txErr) {
-          console.error('Reservation transaction failed', txErr);
-          throw txErr;
+        const idToken = await user.getIdToken()
+        const res = await fetch('/api/earner/submissions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            proofUrl,
+            note: note || null,
+            socialHandle: socialHandle || null,
+          }),
+        })
+        const submitData = await res.json().catch(() => ({}))
+        if (!res.ok || !submitData?.success) {
+          throw new Error(submitData?.message || 'Failed to submit participation')
         }
-
-        // Notify admin of new submission
-        try {
-          await addDoc(collection(db, "adminNotifications"), {
-            type: 'submission_created',
-            title: 'New task submission',
-            body: `${submissionData.campaignTitle || 'A campaign'} has a new submission from ${user.uid}`,
-            link: `/admin/submissions`,
-            userId: user.uid,
-            submissionId: newSubRef.id,
-            campaignId: submissionData.campaignId,
-            read: false,
-            createdAt: serverTimestamp(),
-          })
-        } catch (noteErr) {
-          console.error('Failed to notify admin of submission:', noteErr)
-        }
-
         toast.success("Submission sent. Awaiting review.");
         router.push("/earner/campaigns/done");
       } catch (submitError) {

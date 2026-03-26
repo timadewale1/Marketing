@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-
-// Firebase types
-type AdminModule = typeof import('firebase-admin')
-type Firestore = import('firebase-admin').firestore.Firestore
-type FirestoreFieldValue = import('firebase-admin').firestore.FieldValue
+import { requireAdminSession } from '@/lib/admin-session'
 
 interface Submission {
   status?: string
@@ -29,9 +25,9 @@ interface Campaign {
 }
 
 export async function POST(req: Request) {
+  await requireAdminSession()
   const body = await req.json()
   const { action, rejectionReason, submissionId, userId: bodyUserId, campaignId: bodyCampaignId } = body
-  const { getAuth } = await import('firebase-admin/auth')
   const firebaseAdmin = await initFirebaseAdmin()
   if (!firebaseAdmin || !firebaseAdmin.dbAdmin) {
     return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
@@ -39,7 +35,6 @@ export async function POST(req: Request) {
   const adminDb = firebaseAdmin.dbAdmin
   const admin = await import('firebase-admin')
   const now = new Date()
-  const adminAuth = getAuth()
   const adminUid = req.headers.get('x-admin-uid') || 'system'
 
   try {
@@ -81,14 +76,20 @@ export async function POST(req: Request) {
         const campaignRef = adminDb.collection('campaigns').doc(campaignId)
         const campaignSnap = await t.get(campaignRef)
         if (!campaignSnap.exists) {
-          throw new Error('Campaign not found')
+          throw new Error('Campaign no longer exists. It was likely deleted after submissions were created, so pending proofs cannot be verified.')
         }
         const campaign = campaignSnap.data() as Campaign
         const campaignBudget = Number(campaign.budget || 0)
+        const campaignReservedBudget = Number(campaign.reservedBudget || 0)
         const earnerAmount = Number(submission.earnerPrice || 0)
         const fullAmount = earnerAmount * 2
+        const reservedAmount = Number(submission.reservedAmount || 0)
 
-        if (campaignBudget < fullAmount) {
+        if (reservedAmount > 0) {
+          if (campaignReservedBudget < reservedAmount) {
+            throw new Error('Reserved funds for this submission are no longer available')
+          }
+        } else if (campaignBudget < fullAmount) {
           throw new Error('Insufficient campaign budget')
         }
 
@@ -115,12 +116,12 @@ export async function POST(req: Request) {
           completionRate,
           dailySubmissionCount: admin.firestore.FieldValue.increment(1),
         }
-        if (Number(submission.reservedAmount || 0) > 0) {
-          campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(-Number(submission.reservedAmount || 0))
+        if (reservedAmount > 0) {
+          campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(-reservedAmount)
         } else {
           campaignUpdates.budget = admin.firestore.FieldValue.increment(-fullAmount)
         }
-        if (completionRate >= 100) campaignUpdates.status = 'Completed'
+        if (completionRate >= 100 && campaign.status !== 'Deleted') campaignUpdates.status = 'Completed'
         // add lastUpdated so clients observing campaigns detect changes
         campaignUpdates.lastUpdated = now
         t.update(campaignRef, campaignUpdates)
@@ -243,32 +244,73 @@ export async function POST(req: Request) {
               leadsGenerated: admin.firestore.FieldValue.increment(-1),
             })
             // If this submission had a reservedAmount, return that reserved amount to budget; otherwise increment budget
-            const reservedAmt = Number(submission.reservedAmount || 0)
-            if (reservedAmt > 0) {
-              t.update(campaignRef, {
-                generatedLeads: admin.firestore.FieldValue.increment(-1),
-                reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-                budget: admin.firestore.FieldValue.increment(reservedAmt),
-                completedLeads: admin.firestore.FieldValue.increment(-1),
-              })
-            } else {
-              t.update(campaignRef, {
-                generatedLeads: admin.firestore.FieldValue.increment(-1),
-                budget: admin.firestore.FieldValue.increment(fullAmount),
-                completedLeads: admin.firestore.FieldValue.increment(-1),
-              })
+            if (campaignSnap.exists) {
+              const reservedAmt = Number(submission.reservedAmount || 0)
+              if (reservedAmt > 0) {
+                if (campaign?.status === 'Deleted') {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                  if (advertiserId) {
+                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
+                      balance: admin.firestore.FieldValue.increment(reservedAmt),
+                    })
+                  }
+                } else {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+                    budget: admin.firestore.FieldValue.increment(reservedAmt),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                }
+              } else {
+                if (campaign?.status === 'Deleted') {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                  if (advertiserId) {
+                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
+                      balance: admin.firestore.FieldValue.increment(fullAmount),
+                    })
+                  }
+                } else {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    budget: admin.firestore.FieldValue.increment(fullAmount),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                }
+              }
             }
           }
       }
       // If the submission was not previously verified, we must release reserved funds (reservation created at submission time)
       if (!wasVerified && campaignId) {
         const campaignRef2 = adminDb.collection('campaigns').doc(campaignId)
+        const campaignSnap2 = await t.get(campaignRef2)
         const reservedAmt = Number(submission.reservedAmount || 0)
-        if (reservedAmt > 0) {
-          t.update(campaignRef2, {
-            reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-            budget: admin.firestore.FieldValue.increment(reservedAmt),
-          })
+        if (campaignSnap2.exists && reservedAmt > 0) {
+          const campaignData2 = campaignSnap2.data() as Campaign
+          if (campaignData2?.status === 'Deleted') {
+            t.update(campaignRef2, {
+              reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+            })
+            const advertiserId = submission.advertiserId || campaignData2?.ownerId
+            if (advertiserId) {
+              t.update(adminDb.collection('advertisers').doc(advertiserId), {
+                balance: admin.firestore.FieldValue.increment(reservedAmt),
+              })
+            }
+          } else {
+            t.update(campaignRef2, {
+              reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+              budget: admin.firestore.FieldValue.increment(reservedAmt),
+            })
+          }
         }
       }
       } else {

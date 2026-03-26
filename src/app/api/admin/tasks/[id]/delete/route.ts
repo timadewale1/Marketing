@@ -61,21 +61,39 @@ export async function POST(
 
       const advertiserRef = db.collection('advertisers').doc(advertiserId)
 
-      // Calculate unused budget
-      const unusedBudget = Number(campaign?.budget || 0) + Number(campaign?.reservedBudget || 0)
+      if (campaign?.status === 'Deleted') {
+        throw new Error('Task has already been deleted')
+      }
+
+      const pendingSubmissionsSnap = await transaction.get(
+        db.collection('earnerSubmissions')
+          .where('campaignId', '==', taskId)
+          .where('status', '==', 'Pending')
+      )
+      const pendingReservedAmount = pendingSubmissionsSnap.docs.reduce(
+        (sum, submissionDoc) => sum + Number(submissionDoc.data()?.reservedAmount || 0),
+        0
+      )
+      const reservedBudget = Math.max(
+        Number(campaign?.reservedBudget || 0),
+        pendingReservedAmount
+      )
+      const refundableBudget = Math.max(0, Number(campaign?.budget || 0))
 
       console.log('[delete-task][admin]', {
         taskId,
         adminId: userId,
         advertiserId,
         totalBudget: campaign?.originalBudget || 0,
-        unusedBudget,
+        refundableBudget,
+        pendingReservedAmount,
+        reservedBudget,
       })
 
       // Refund unused budget to advertiser balance
-      if (unusedBudget > 0) {
+      if (refundableBudget > 0) {
         transaction.update(advertiserRef, {
-          balance: adminSdk.firestore.FieldValue.increment(unusedBudget),
+          balance: adminSdk.firestore.FieldValue.increment(refundableBudget),
         })
 
         // Log transaction
@@ -83,10 +101,12 @@ export async function POST(
         transaction.set(txRef, {
           userId: advertiserId,
           type: 'task_refund_admin',
-          amount: unusedBudget,
+          amount: refundableBudget,
           status: 'completed',
           reference: taskId,
-          note: `Refund for task deleted by admin: ${campaign?.title || 'Unknown'}`,
+          note: pendingReservedAmount > 0
+            ? `Partial refund for admin-deleted task with pending submissions: ${campaign?.title || 'Unknown'}`
+            : `Refund for task deleted by admin: ${campaign?.title || 'Unknown'}`,
           createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
         })
       }
@@ -98,20 +118,31 @@ export async function POST(
         action: 'delete_task',
         taskId,
         advertiserId,
-        refundedAmount: unusedBudget,
+        refundedAmount: refundableBudget,
+        pendingReservedAmount,
         taskTitle: campaign?.title,
         createdAt: adminSdk.firestore.FieldValue.serverTimestamp(),
       })
 
-      // Delete the campaign
-      transaction.delete(campaignRef)
+      // Preserve the campaign document so admin links and history remain valid.
+      transaction.update(campaignRef, {
+        status: 'Deleted',
+        budget: 0,
+        reservedBudget,
+        deletedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+        deletedBy: userId,
+      })
 
-      console.log('[delete-task][admin] completed', { taskId, refunded: unusedBudget })
+      console.log('[delete-task][admin] completed', {
+        taskId,
+        refunded: refundableBudget,
+        pendingReservedAmount,
+      })
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Task deleted and budget refunded to advertiser',
+      message: 'Task deleted and refundable budget returned to advertiser',
     })
   } catch (error) {
     console.error('[delete-task][admin] error', error)

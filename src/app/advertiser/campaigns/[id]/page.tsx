@@ -7,24 +7,20 @@ import {
   doc,
   onSnapshot,
   updateDoc,
-  deleteDoc,
   collection,
-  getDocs,
   query,
-  orderBy,
-  limit,
   where,
   addDoc,
   serverTimestamp,
 } from "firebase/firestore"
-import type { Timestamp } from "firebase/firestore"
 import { getAuth } from "firebase/auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Pause, Play, StopCircle, Edit, Trash, ArrowLeft } from "lucide-react"
+import { Trash, ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import { toast } from "react-hot-toast"
 import { Dialog } from "@headlessui/react"
+import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 
 // types
 type Campaign = {
@@ -43,11 +39,9 @@ type Campaign = {
   originalBudget?: number
 }
 
-type Lead = {
+type Submission = {
   id: string
-  name: string
-  proofUrl?: string
-  createdAt?: Timestamp | { toDate: () => Date }
+  status?: string
 }
 
 interface PaystackResponse {
@@ -72,9 +66,9 @@ export default function CampaignDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
-  const [avgCPL, setAvgCPL] = useState<number | null>(null)
+  const avgCPL: number | null = null
   const [loading, setLoading] = useState(true)
-  const [leads, setLeads] = useState<Lead[]>([])
+  const [submissions, setSubmissions] = useState<Submission[]>([])
 
   // Resume modal state
   const [showResumeModal, setShowResumeModal] = useState(false)
@@ -109,34 +103,28 @@ export default function CampaignDetailsPage() {
     return () => unsub()
   }, [id])
 
-  // ⚡ Fetch Avg CPL once
   useEffect(() => {
-    const fetchAvg = async () => {
-      try {
-        const snap = await getDocs(collection(db, "campaigns"))
-        if (!snap.empty) {
-          const avg =
-            snap.docs.reduce(
-              (sum, d) => sum + ((d.data() as Campaign).costPerLead || 0),
-              0
-            ) / snap.size
-          setAvgCPL(avg)
-        }
-      } catch (error) {
-        console.error(error)
-      }
-    }
-    fetchAvg()
-  }, [])
+    if (!id) return
 
+    const submissionsQuery = query(
+      collection(db, "earnerSubmissions"),
+      where("campaignId", "==", id as string)
+    )
+
+    const unsub = onSnapshot(submissionsQuery, (snap) => {
+      setSubmissions(
+        snap.docs.map((submissionDoc) => ({
+          id: submissionDoc.id,
+          status: String(submissionDoc.data().status || ""),
+        }))
+      )
+    })
+
+    return () => unsub()
+  }, [id])
+
+  // ⚡ Fetch Avg CPL once
   // Note: latest leads and realtime submission list removed to simplify details view.
-
-  const updateStatus = async (): Promise<void> => {
-    // Pause/Resume/Stop features have been disabled per product decision.
-    toast('This action is disabled')
-    return
-  }
-
 
   const handleDelete = async () => {
     if (!campaign) return
@@ -336,9 +324,12 @@ await updateDoc(campaignRef, {
 
   if (!campaign) return <p className="p-6">Task not found.</p>
 
-  const safeGenerated = Number(campaign.generatedLeads || 0)
-  const safeEstimated = Number(campaign.estimatedLeads || 0)
-  const percent = safeEstimated > 0 ? Math.min((safeGenerated / safeEstimated) * 100, 100) : 0
+  const progress = summarizeCampaignProgress({
+    target: Number(campaign.estimatedLeads || 0),
+    generatedLeads: Number(campaign.generatedLeads || 0),
+    submissions,
+  })
+  const percent = progress.progressPercent
 
   const progressColor =
     percent >= 75
@@ -348,30 +339,6 @@ await updateDoc(campaignRef, {
       : "from-red-500 to-red-700"
 
   // 🎛️ Status buttons
-  const statusActions = [
-    {
-      label: campaign.status === "Active" ? "Pause" : "Resume",
-      action: () => updateStatus(),
-      color:
-        campaign.status === "Active"
-          ? "bg-yellow-500 hover:bg-yellow-600"
-          : "bg-green-500 hover:bg-green-600",
-      icon: campaign.status === "Active" ? Pause : Play,
-    },
-    {
-      label: "Edit",
-      action: () => router.push(`/advertiser/create-campaign?edit=${id}`),
-      color: "bg-blue-500 hover:bg-blue-600",
-      icon: Edit,
-    },
-    {
-      label: "Stop",
-      action: () => updateStatus(),
-      color: "bg-red-500 hover:bg-red-600",
-      icon: StopCircle,
-    },
-  ]
-
   return (
     <div className="px-6 py-10 space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 min-h-screen">
       {/* Back Button */}
@@ -430,8 +397,25 @@ await updateDoc(campaignRef, {
               />
             </div>
             <p className="text-xs text-stone-600 mt-1">
-              {safeGenerated} of {safeEstimated > 0 ? safeEstimated : "N/A"} leads ({percent.toFixed(1)}%)
+              {progress.verified} verified
+              {progress.pending > 0 ? ` • ${progress.pending} pending review` : ""}
+              {progress.target > 0 ? ` • ${progress.target} target` : ""}
+              {` (${percent.toFixed(1)}%)`}
             </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-center text-sm">
+            <div className="rounded-xl bg-white/70 p-3">
+              <p className="text-stone-500">Verified</p>
+              <p className="mt-1 font-semibold text-stone-900">{progress.verified}</p>
+            </div>
+            <div className="rounded-xl bg-white/70 p-3">
+              <p className="text-stone-500">Pending</p>
+              <p className="mt-1 font-semibold text-stone-900">{progress.pending}</p>
+            </div>
+            <div className="rounded-xl bg-white/70 p-3">
+              <p className="text-stone-500">Rejected</p>
+              <p className="mt-1 font-semibold text-stone-900">{progress.rejected}</p>
+            </div>
           </div>
         </Card>
 
@@ -456,7 +440,7 @@ await updateDoc(campaignRef, {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
             <p>Total Budget: ₦{(Number(campaign.originalBudget || (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)))).toLocaleString()}</p>
-            <p>Estimated Leads: {campaign.estimatedLeads}</p>
+            <p>Estimated Leads: {progress.target}</p>
             <p>Cost per Lead: ₦{campaign.costPerLead}</p>
           </div>
         </Card>

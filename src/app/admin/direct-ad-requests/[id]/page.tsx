@@ -1,81 +1,149 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { db } from "@/lib/firebase"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { toast } from "react-hot-toast"
-import { useParams, useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  AdminPageHeader,
+  EmptyState,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
-interface DirectAdRequest {
-  id: string
-  businessName?: string
-  contactName?: string
-  phone?: string
-  email?: string
-  advertType?: string
-  duration?: string
-  budget?: number
-  message?: string
-  status?: string
-}
+type DirectAdRequest = {
+  id: string;
+  businessName?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  advertType?: string;
+  duration?: string;
+  budget?: number;
+  message?: string;
+  status?: string;
+};
 
 export default function DirectAdRequestDetail() {
-  const { id } = useParams()
-  const router = useRouter()
-  const [req, setReq] = useState<DirectAdRequest | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { id } = useParams();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [request, setRequest] = useState<DirectAdRequest | null>(null);
 
   useEffect(() => {
-    const docId = typeof id === 'string' ? id : id?.[0]
-    if (!docId) return
-    (async () => {
+    const load = async () => {
+      const docId = typeof id === "string" ? id : id?.[0];
+      if (!docId) return;
+
       try {
-        const snap = await getDoc(doc(db, 'directAdvertRequests', docId))
-        if (!snap.exists()) return toast.error('Request not found')
-        setReq({ id: snap.id, ...(snap.data() || {}) })
-        setLoading(false)
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to load request')
-        setLoading(false)
+        const snap = await getDoc(doc(db, "directAdvertRequests", docId));
+        if (!snap.exists()) {
+          setRequest(null);
+          return;
+        }
+        setRequest({ id: snap.id, ...(snap.data() || {}) });
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to load request");
+      } finally {
+        setLoading(false);
       }
-    })()
-  }, [id])
+    };
+    load();
+  }, [id]);
 
   const setStatus = async (status: string) => {
-    if (!req) return
+    if (!request) return;
     try {
-      await updateDoc(doc(db, 'directAdvertRequests', req.id), { status })
-      setReq({ ...req, status })
-      toast.success('Updated')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to update')
+      await updateDoc(doc(db, "directAdvertRequests", request.id), { status });
+      setRequest({ ...request, status });
+      toast.success("Request updated");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update request");
     }
+  };
+
+  if (loading) {
+    return <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />;
   }
 
-  if (loading) return <p>Loading…</p>
-  if (!req) return <p>Request not found</p>
+  if (!request) {
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader eyebrow="Direct ad detail" title="Request not found" description="This direct advert request could not be located." />
+        <EmptyState
+          title="Missing request"
+          description="The request may have been removed or the link may be incorrect."
+          href="/admin/direct-ad-requests"
+          cta="Back to direct ads"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-stone-50 py-8">
-      <div className="container mx-auto px-4">
-        <Button variant="ghost" onClick={() => router.back()} className="mb-4">Back</Button>
-        <Card className="p-6">
-          <h1 className="text-xl font-semibold mb-2">{req.businessName || '(No name)'}</h1>
-          <p className="text-sm text-stone-600">Contact: {req.contactName} • {req.phone} • {req.email}</p>
-          <p className="text-sm mt-4">Type: {req.advertType || '—'} • Duration: {req.duration || '—'} • Budget: {req.budget ? `₦${req.budget}` : '—'}</p>
-          {req.message && <p className="text-sm mt-4">{req.message}</p>}
-          <p className="text-xs text-stone-500 mt-4">Status: <strong>{req.status || 'pending'}</strong></p>
+    <div className="space-y-8">
+      <AdminPageHeader
+        eyebrow="Direct ad detail"
+        title={request.businessName || "Unnamed request"}
+        description="Review the full submission details and update the approval state."
+        action={
+          <Button variant="outline" className="rounded-full" onClick={() => router.back()}>
+            Back
+          </Button>
+        }
+      />
 
-          <div className="flex gap-3 mt-6">
-            <Button onClick={() => setStatus('approved')} className="bg-amber-500 text-stone-900">Approve</Button>
-            <Button variant="outline" onClick={() => setStatus('rejected')}>Reject</Button>
-          </div>
-        </Card>
+      <div className="flex gap-2">
+        <StatusBadge
+          label={request.status || "pending"}
+          tone={
+            request.status === "approved"
+              ? "green"
+              : request.status === "rejected"
+                ? "red"
+                : "amber"
+          }
+        />
       </div>
+
+      <SectionCard title="Request details" description="Business, contact, and request information.">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl bg-stone-50 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Contact</p>
+            <div className="mt-3 space-y-2 text-sm text-stone-700">
+              <p>{request.contactName || "No contact name"}</p>
+              <p>{request.phone || "No phone"}</p>
+              <p>{request.email || "No email"}</p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-stone-50 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Campaign ask</p>
+            <div className="mt-3 space-y-2 text-sm text-stone-700">
+              <p>{request.advertType || "No advert type"}</p>
+              <p>{request.duration || "No duration"}</p>
+              <p>₦{Number(request.budget || 0).toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-stone-50 p-4 md:col-span-2">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Message</p>
+            <p className="mt-3 text-sm leading-7 text-stone-700">
+              {request.message || "No message supplied."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" onClick={() => setStatus("approved")}>
+            Approve
+          </Button>
+          <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => setStatus("rejected")}>
+            Reject
+          </Button>
+        </div>
+      </SectionCard>
     </div>
-  )
+  );
 }

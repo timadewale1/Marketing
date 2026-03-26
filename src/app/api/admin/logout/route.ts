@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server'
+import { clearAdminSessionCookie } from '@/lib/admin-session'
 
 export async function POST() {
-  const res = NextResponse.json({ ok: true })
-  res.cookies.set({
-    name: 'adminSession',
-    value: '',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 0,
-  })
-  return res
+  await clearAdminSessionCookie()
+  return NextResponse.json({ ok: true })
 }

@@ -1,32 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { auth, db } from "@/lib/firebase"
-import {
-  collection,
-  onSnapshot,
-  updateDoc,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-  increment,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore";
-import { Card } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Search, Sparkles } from "lucide-react";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -35,265 +15,228 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import toast from "react-hot-toast";
-import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
-interface Submission {
+type Submission = {
   id: string;
   userId: string;
-  earnerName?: string;
   campaignId: string;
   campaignTitle: string;
-  advertiserName?: string;
-  advertiserId?: string;
   category: string;
   note: string;
   proofUrl: string;
   status: string;
-  createdAt: { seconds: number };
   earnerPrice: number;
-  autoVerified?: boolean;
-  reviewedAt?: { seconds: number };
-  reviewedBy?: string;
-  rejectionReason?: string;
-  completionRate?: number;
-  campaignProgress?: number;
-  dailySubmissionCount?: number;
+  createdAtMs: number;
+};
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  return value instanceof Date ? value.getTime() : 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
 }
 
 export default function SubmissionsPage() {
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [perPage] = useState(15)
-  const [page, setPage] = useState(1)
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    const q = query(
-      collection(db, "earnerSubmissions"),
-      orderBy("createdAt", "desc")
-    );
+    const load = async () => {
+      setLoading(true);
+      const snap = await getDocs(query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc")));
+      setSubmissions(
+        snap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: String(data.userId || ""),
+            campaignId: String(data.campaignId || ""),
+            campaignTitle: String(data.campaignTitle || ""),
+            category: String(data.category || ""),
+            note: String(data.note || ""),
+            proofUrl: String(data.proofUrl || ""),
+            status: String(data.status || ""),
+            earnerPrice: Number(data.earnerPrice || 0),
+            createdAtMs: toMillis(data.createdAt),
+          };
+        })
+      );
+      setLoading(false);
+    };
 
-    const unsubSubmissions = onSnapshot(q, (snap) => {
-      const submissionsData = snap.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          userId: data.userId || "",
-          autoVerified: !!data.autoVerified,
-          campaignId: data.campaignId || "",
-          campaignTitle: data.campaignTitle || "",
-          category: data.category || "",
-          note: data.note || "",
-          proofUrl: data.proofUrl || "",
-          status: data.status || "",
-          createdAt: data.createdAt || { seconds: Date.now() / 1000 },
-          earnerPrice: data.earnerPrice || 0,
-        };
-      });
-      setSubmissions(submissionsData);
+    load().catch((error) => {
+      console.error("Failed to load submissions", error);
+      toast.error("Failed to load submissions");
       setLoading(false);
     });
-
-    return () => unsubSubmissions();
   }, []);
 
-  const markProofStatus = async (submissionIdOrObj: string | Submission, status: string) => {
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return submissions.filter((submission) => {
+      const matchesStatus = statusFilter === "all" || submission.status === statusFilter;
+      const matchesSearch =
+        !term ||
+        submission.campaignTitle.toLowerCase().includes(term) ||
+        submission.category.toLowerCase().includes(term) ||
+        submission.note.toLowerCase().includes(term);
+      return matchesStatus && matchesSearch;
+    });
+  }, [search, statusFilter, submissions]);
+
+  const stats = {
+    pending: submissions.filter((submission) => submission.status === "Pending").length,
+    verified: submissions.filter((submission) => submission.status === "Verified").length,
+    rejected: submissions.filter((submission) => submission.status === "Rejected").length,
+  };
+
+  const markProofStatus = async (submission: Submission, status: "Verified" | "Rejected") => {
     try {
-      const user = auth.currentUser
-      const opts: RequestInit = {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          submissionId: typeof submissionIdOrObj === 'string' ? submissionIdOrObj : submissionIdOrObj.id,
-          action: status,
-          userId: typeof submissionIdOrObj === 'string' ? undefined : submissionIdOrObj.userId,
-          campaignId: typeof submissionIdOrObj === 'string' ? undefined : submissionIdOrObj.campaignId,
-        }),
-      }
-
+      setProcessingId(submission.id);
+      const user = auth.currentUser;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (user) {
-        const idToken = await user.getIdToken()
-        // attach Authorization but still include credentials so adminSession cookie (if any) is sent
-        const headers = opts.headers as Record<string, string>
-        headers.Authorization = `Bearer ${idToken}`
-        opts.headers = headers
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
       }
 
-      const res = await fetch('/api/admin/submissions/review', opts)
-
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.success) {
-        toast.success(`Marked as ${status}`)
-      } else {
-        toast.error(data?.message || 'Failed to update status')
+      const response = await fetch("/api/admin/submissions/review", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          submissionId: submission.id,
+          action: status,
+          userId: submission.userId,
+          campaignId: submission.campaignId,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to update submission");
       }
-    } catch (err) {
-      console.error('Review API error', err)
-      toast.error('Failed to update status')
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === submission.id ? { ...item, status } : item
+        )
+      );
+      toast.success(`Submission marked ${status.toLowerCase()}`);
+    } catch (error) {
+      console.error("Failed to update submission", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update submission");
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const filteredSubmissions = submissions.filter((s) => {
-    const matchesStatus = statusFilter === "all" || s.status === statusFilter;
-    const matchesSearch =
-      search === "" ||
-      s.campaignTitle.toLowerCase().includes(search.toLowerCase()) ||
-      s.category.toLowerCase().includes(search.toLowerCase()) ||
-      s.note.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / perPage))
-  const paginated = filteredSubmissions.slice((page - 1) * perPage, page * perPage)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-800">Campaign Submissions</h1>
+      <AdminPageHeader
+        eyebrow="Moderation queue"
+        title="Campaign submissions"
+        description="Review pending proof, jump to the linked campaign, and verify or reject from a cleaner queue."
+        action={
+          <Button variant="outline" className="rounded-full border-stone-300 bg-white/80" onClick={() => window.location.reload()}>
+            <Sparkles className="h-4 w-4" />
+            Refresh
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard label="Pending" value={stats.pending} hint="Awaiting review" icon={Sparkles} tone="amber" />
+        <MetricCard label="Verified" value={stats.verified} hint="Approved proofs" icon={Sparkles} tone="emerald" />
+        <MetricCard label="Rejected" value={stats.rejected} hint="Declined proofs" icon={Sparkles} tone="rose" />
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Search by campaign title, category, or notes..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+      <SectionCard title="Filters" description="Search by campaign, category, or note.">
+        <div className="grid gap-3 lg:grid-cols-[1.4fr_0.7fr]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search submissions" className="h-11 rounded-2xl border-stone-200 bg-white pl-10" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="all">All status</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Verified">Verified</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
         </div>
-      </Card>
+      </SectionCard>
 
-      {/* Submissions Table */}
-      <Card className="p-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[250px]">Campaign</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Proof</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.map((submission) => (
-              <TableRow key={submission.id}>
-                <TableCell className="font-medium">
-                  <a href={`/admin/campaigns/${submission.campaignId}`} className="hover:underline">
-                    {submission.campaignTitle}
-                  </a>
-                  {submission.note && (
-                    <p className="text-sm text-stone-500 mt-1">Note: {submission.note}</p>
-                  )}
-                  {submission.autoVerified && (
-                    <div className="inline-block ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">Auto</div>
-                  )}
-                </TableCell>
-                <TableCell>{submission.category}</TableCell>
-                <TableCell>₦{submission.earnerPrice.toLocaleString()}</TableCell>
-                <TableCell>
-                  {new Date(
-                    submission.createdAt.seconds * 1000
-                  ).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      submission.status === "Verified"
-                        ? "bg-green-100 text-green-700"
-                        : submission.status === "Rejected"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {submission.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {submission.proofUrl && (
-                    <Link
-                      href={submission.proofUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-600 hover:text-amber-700"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {submission.status !== "Verified" && (
-                      <Button
-                          onClick={() => markProofStatus(submission, "Verified")}
-                        variant="outline"
-                        size="sm"
-                        className="text-green-700"
-                      >
+      <SectionCard title="Submission cards" description={`${filtered.length} submission${filtered.length === 1 ? "" : "s"} matched the current filters.`}>
+        {loading ? (
+          <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+        ) : filtered.length === 0 ? (
+          <EmptyState title="No submissions" description="No submissions matched the selected filters." />
+        ) : (
+          <PaginatedCardList
+            items={filtered}
+            itemsPerPage={3}
+            renderItem={(submission) => (
+              <div key={submission.id} className="rounded-3xl border border-stone-200 bg-white p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/admin/campaigns/${submission.campaignId}`} className="text-lg font-semibold text-stone-900 hover:text-amber-700">
+                        {submission.campaignTitle || submission.campaignId}
+                      </Link>
+                      <StatusBadge
+                        label={submission.status}
+                        tone={submission.status === "Verified" ? "green" : submission.status === "Rejected" ? "red" : "amber"}
+                      />
+                    </div>
+                    <p className="text-sm text-stone-500">
+                      {submission.category} • {currency(submission.earnerPrice)} • Earner {submission.userId}
+                    </p>
+                    {submission.note ? <p className="text-sm leading-6 text-stone-600">{submission.note}</p> : null}
+                    <p className="text-xs uppercase tracking-[0.24em] text-stone-400">
+                      {submission.createdAtMs ? new Date(submission.createdAtMs).toLocaleString() : "Unknown date"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {submission.proofUrl ? (
+                      <Button asChild variant="outline" className="rounded-full">
+                        <Link href={submission.proofUrl} target="_blank">Proof</Link>
+                      </Button>
+                    ) : null}
+                    {submission.status !== "Verified" ? (
+                      <Button className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Verified")}>
                         Verify
                       </Button>
-                    )}
-                    {submission.status !== "Rejected" && (
-                      <Button
-                        onClick={() => markProofStatus(submission, "Rejected")}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-700"
-                      >
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Rejected")}>
                         Reject
                       </Button>
-                    )}
+                    ) : null}
                   </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredSubmissions.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
-                  No submissions found.
-                </TableCell>
-              </TableRow>
+                </div>
+              </div>
             )}
-          </TableBody>
-        </Table>
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, filteredSubmissions.length)} of {filteredSubmissions.length}</div>
-          <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page===1}>Prev</button>
-            <span className="text-sm">{page} / {totalPages}</span>
-            <button className="px-3 py-1 border rounded" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page===totalPages}>Next</button>
-          </div>
-        </div>
-      </Card>
+          />
+        )}
+      </SectionCard>
     </div>
   );
 }

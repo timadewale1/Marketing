@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { requireAdminSession } from '@/lib/admin-session'
 
 // Handle all campaign state transitions and financial implications
 export async function POST(req: Request) {
   try {
-    const { campaignId, action, userId } = await req.json()
+    await requireAdminSession()
+    const { campaignId, action } = await req.json()
     
     if (!campaignId || !action) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
@@ -46,10 +48,27 @@ export async function POST(req: Request) {
 
     switch (action) {
       case 'delete': {
+        const pendingSubmissionsSnap = await adminDb
+          .collection('earnerSubmissions')
+          .where('campaignId', '==', campaignId)
+          .where('status', '==', 'Pending')
+          .get()
+        const pendingReservedAmount = pendingSubmissionsSnap.docs.reduce(
+          (sum, submissionDoc) => sum + Number(submissionDoc.data()?.reservedAmount || 0),
+          0
+        )
+        const reservedBudget = Math.max(
+          Number(campaign.reservedBudget || 0),
+          pendingReservedAmount
+        )
+        const refundAmount = Math.max(0, Number(campaign.budget || 0))
+
         // Mark campaign as deleted
         batch.update(campaignRef, { 
           status: 'Deleted',
-          deletedAt: admin.firestore.FieldValue.serverTimestamp()
+          deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+          budget: 0,
+          reservedBudget,
         })
 
         // Decrement advertiser campaign count
@@ -57,9 +76,8 @@ export async function POST(req: Request) {
           campaignsCreated: admin.firestore.FieldValue.increment(-1)
         })
 
-        // If campaign was active, refund remaining budget to advertiser wallet
-        if (campaign.status === 'Active' && campaign.budget > 0) {
-          const refundAmount = campaign.budget
+        // Refund remaining budget to advertiser wallet
+        if (refundAmount > 0) {
           batch.update(advertiserRef, {
             balance: admin.firestore.FieldValue.increment(refundAmount)
           })
@@ -73,7 +91,9 @@ export async function POST(req: Request) {
             type: 'refund',
             amount: refundAmount,
             status: 'completed',
-            note: `Refund from deleted campaign: ${campaign.title}`,
+            note: pendingReservedAmount > 0
+              ? `Partial refund from deleted campaign with pending submissions: ${campaign.title}`
+              : `Refund from deleted campaign: ${campaign.title}`,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
           })
         }

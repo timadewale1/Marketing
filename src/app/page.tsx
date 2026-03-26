@@ -11,6 +11,7 @@ import {
 import BillsCard from "@/components/bills/BillsCard";
 import WhatsAppChatButton from "@/components/WhatsAppChatButton";
 import WhatsAppGroupButton from "@/components/WhatsAppGroupButton";
+import HomepageDirectAds from "@/components/homepage/HomepageDirectAds";
 
 // ─── Social Media SVG Icons ───────────────────────────────────────────────────
 const FacebookIcon = () => (
@@ -866,6 +867,8 @@ export default function PAMBALanding() {
           </div>
         </div>
       </section>
+
+      <HomepageDirectAds />
 
       {/* ── FEATURES ── */}
       <section className="section features-bg" id="features">

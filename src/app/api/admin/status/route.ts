@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { requireAdminSession } from '@/lib/admin-session'
 
 export async function GET() {
   try {
-    const cookieStore = await cookies()
-    const val = cookieStore.get('adminSession')?.value
-    if (val === '1') return NextResponse.json({ authenticated: true })
+    const session = await requireAdminSession()
+    return NextResponse.json({ authenticated: true, uid: session.uid, email: session.email })
+  } catch {
     return NextResponse.json({ authenticated: false }, { status: 401 })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ authenticated: false }, { status: 500 })
   }
 }

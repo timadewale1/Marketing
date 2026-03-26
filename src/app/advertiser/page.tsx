@@ -19,11 +19,12 @@ import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import { PaymentSelector } from '@/components/payment-selector'
 import Image from "next/image"
-import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, Grid, Clock, XCircle, CheckCircle } from "lucide-react"
+import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut } from "lucide-react"
 import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
+import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 
 type Campaign = {
   id: string
@@ -37,6 +38,12 @@ type Campaign = {
   generatedLeads?: number
   costPerLead?: number
   originalBudget?: number
+}
+
+type Submission = {
+  id: string
+  campaignId?: string
+  status?: string
 }
 
 export default function AdvertiserDashboard() {
@@ -57,8 +64,8 @@ export default function AdvertiserDashboard() {
     campaignRejected: 0,
     campaignApproved: 0,
   })
-  const [filter, setFilter] = useState("Active")
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [submissions, setSubmissions] = useState<Submission[]>([])
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
 
   useEffect(() => {
@@ -66,6 +73,7 @@ export default function AdvertiserDashboard() {
     let unsubWithdrawals: (() => void) | null = null
     let unsubReroutes: (() => void) | null = null
     let unsubResumed: (() => void) | null = null
+    let unsubSubmissions: (() => void) | null = null
 
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
       if (!u) {
@@ -117,6 +125,26 @@ export default function AdvertiserDashboard() {
           })
         })
       })
+
+      unsubSubmissions = onSnapshot(
+        query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid)),
+        (snapshot) => {
+          const data: Submission[] = snapshot.docs.map((submissionDoc) => ({
+            id: submissionDoc.id,
+            campaignId: String(submissionDoc.data().campaignId || ""),
+            status: String(submissionDoc.data().status || ""),
+          }))
+          setSubmissions(data)
+          setStats((prev) => ({
+            ...prev,
+            leadsGenerated: data.filter((submission) => submission.status === "Verified").length,
+            campaignSubmitted: data.length,
+            campaignPending: data.filter((submission) => submission.status === "Pending" || submission.status === "In Review").length,
+            campaignRejected: data.filter((submission) => submission.status === "Rejected").length,
+            campaignApproved: data.filter((submission) => ["Completed", "Paid", "Verified"].includes(submission.status || "")).length,
+          }))
+        }
+      )
 
       // Withdrawals
       const wq = query(collection(db, "withdrawals"), where("userId", "==", u.uid))
@@ -215,6 +243,7 @@ export default function AdvertiserDashboard() {
       if (unsubWithdrawals) unsubWithdrawals()
       if (unsubReroutes) unsubReroutes()
       if (unsubResumed) unsubResumed()
+      if (unsubSubmissions) unsubSubmissions()
     }
   }, [router])
 
@@ -306,7 +335,7 @@ export default function AdvertiserDashboard() {
   }
 
   const filteredCampaigns = campaigns.filter(
-    (c) => c.status.toLowerCase() === filter.toLowerCase()
+    (c) => c.status.toLowerCase() === "active"
   )
 
   return (
@@ -385,6 +414,13 @@ export default function AdvertiserDashboard() {
       </aside>
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+        <div className="mb-8 rounded-3xl border border-white/40 bg-white/55 p-6 backdrop-blur">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
+          <h2 className="mt-2 text-3xl font-semibold text-stone-900">{name}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            Your dashboard is ready for campaign planning. Track wallet health, monitor live results, and launch the next task when you are ready.
+          </p>
+        </div>
         {/* Top Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {statCards.map((card, i) => (
@@ -482,9 +518,11 @@ export default function AdvertiserDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {filteredCampaigns.length > 0 ? (
             filteredCampaigns.map((c) => {
-              const total = c.estimatedLeads || 0
-              const achieved = c.generatedLeads || 0
-              const percent = total > 0 ? Math.min((achieved / total) * 100, 100) : 0
+              const progress = summarizeCampaignProgress({
+                target: c.estimatedLeads,
+                generatedLeads: c.generatedLeads,
+                submissions: submissions.filter((submission) => submission.campaignId === c.id),
+              })
 
               return (
                 <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
@@ -514,14 +552,18 @@ export default function AdvertiserDashboard() {
                       <p className="text-xs text-stone-500">{c.category}</p>
                               <div className="flex justify-between text-xs text-stone-600 mt-1">
                                 <span>₦{(Number(c.originalBudget || (Number(c.budget || 0) + Number(c.reservedBudget || 0)))).toLocaleString()}</span>
-                                <span>{(c.estimatedLeads || 0).toLocaleString()} leads</span>
+                                <span>{progress.target.toLocaleString()} leads</span>
                               </div>
+                      <p className="mt-2 text-xs text-stone-600">
+                        {progress.verified} verified
+                        {progress.pending > 0 ? ` • ${progress.pending} pending` : ""}
+                      </p>
 
-                      {total > 0 && (
+                      {progress.target > 0 && (
                         <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2">
                           <div
                             className="h-1.5 bg-amber-500 rounded-full transition-all duration-300"
-                            style={{ width: `${percent}%` }}
+                            style={{ width: `${progress.progressPercent}%` }}
                           />
                         </div>
                       )}
@@ -532,7 +574,7 @@ export default function AdvertiserDashboard() {
             })
           ) : (
             <div className="col-span-full flex flex-col items-center justify-center py-12">
-              <p className="text-lg text-stone-600 mb-3">No {filter} tasks found.</p>
+              <p className="text-lg text-stone-600 mb-3">No active tasks found.</p>
               <Link href="/advertiser/create-campaign">
                 <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow">
                   <Plus size={18} className="mr-2" /> Create Your First Task
