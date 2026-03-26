@@ -22,6 +22,26 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
+function getFirebaseLoginErrorMessage(code?: string) {
+  switch (code) {
+    case "auth/invalid-email":
+      return "That email address is not valid."
+    case "auth/user-not-found":
+      return "No account was found with that email."
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "The email or password you entered is incorrect."
+    case "auth/user-disabled":
+      return "This account has been disabled. Please contact support."
+    case "auth/too-many-requests":
+      return "Too many login attempts. Please wait a bit and try again."
+    case "auth/network-request-failed":
+      return "Network error while signing in. Check your connection and try again."
+    default:
+      return "We could not sign you in right now. Please try again."
+  }
+}
+
 export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -44,13 +64,7 @@ export default function SignInPage() {
         data.email,
         data.password
       ).catch((err) => {
-        let msg = "Login failed. Try again"
-        if (err.code === "auth/invalid-email") msg = "Invalid email address"
-        if (err.code === "auth/user-not-found") msg = "No account found"
-        if (err.code === "auth/wrong-password") msg = "Incorrect password"
-        if (err.code === "auth/user-disabled")
-          msg = "This account has been disabled"
-        toast.error(msg)
+        toast.error(getFirebaseLoginErrorMessage(err.code))
         throw err
       })
 
@@ -98,6 +112,9 @@ export default function SignInPage() {
       }
     } catch (err) {
       console.error("Login error:", err)
+      if (!(typeof err === "object" && err && "code" in err)) {
+        toast.error("We could not sign you in right now. Please try again.")
+      }
     } finally {
       setLoading(false)
     }

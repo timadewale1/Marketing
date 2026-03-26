@@ -1,99 +1,194 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { db } from "@/lib/firebase"
-import { collection, query, orderBy, onSnapshot, updateDoc, doc } from "firebase/firestore"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Bell, Check, ExternalLink } from "lucide-react"
-import Link from "next/link"
-import { toast } from "react-hot-toast"
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Bell, CheckCheck, Search } from "lucide-react";
+import { collection, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
-interface AdminNotification {
-  id: string
-  title: string
-  body: string
-  createdAt?: { toDate(): Date }
-  link?: string
-  read?: boolean
+type AdminNotification = {
+  id: string;
+  title: string;
+  body: string;
+  link?: string;
+  read: boolean;
+  createdAtMs: number;
+};
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  return value instanceof Date ? value.getTime() : 0;
 }
 
 export default function AdminNotificationsPage() {
-  const [notes, setNotes] = useState<AdminNotification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [perPage] = useState(15)
-  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      setNotes(snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) } as AdminNotification)))
-      setLoading(false)
-    }, (err) => {
-      console.error('Failed to load admin notifications', err)
-      toast.error('Failed to load notifications')
-      setLoading(false)
-    })
-    return () => unsub()
-  }, [])
+    const load = async () => {
+      setLoading(true);
+      const snap = await getDocs(query(collection(db, "adminNotifications"), orderBy("createdAt", "desc")));
+      setNotifications(
+        snap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: String(data.title || ""),
+            body: String(data.body || ""),
+            link: data.link ? String(data.link) : undefined,
+            read: Boolean(data.read),
+            createdAtMs: toMillis(data.createdAt),
+          };
+        })
+      );
+      setLoading(false);
+    };
+
+    load().catch((error) => {
+      console.error("Failed to load notifications", error);
+      toast.error("Failed to load notifications");
+      setLoading(false);
+    });
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return notifications.filter((notification) => {
+      if (!term) return true;
+      return (
+        notification.title.toLowerCase().includes(term) ||
+        notification.body.toLowerCase().includes(term)
+      );
+    });
+  }, [notifications, search]);
+
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   const markRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'adminNotifications', id), { read: true })
-      toast.success('Marked read')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to mark read')
+      await updateDoc(doc(db, "adminNotifications", id), { read: true });
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === id ? { ...notification, read: true } : notification
+        )
+      );
+      toast.success("Marked as read");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to mark notification as read");
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-stone-50 py-8">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold">Admin Notifications</h1>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => window.location.reload()} className="flex items-center gap-2">
-              <Bell size={16} /> Refresh
-            </Button>
-          </div>
-        </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        eyebrow="Notification center"
+        title="Admin notifications"
+        description="Track campaign, submission, and system alerts from one paginated list."
+      />
 
-        {loading ? <p>Loading…</p> : (
-          <div className="space-y-4">
-            {notes.length === 0 && <p className="text-sm text-stone-600">No notifications</p>}
-            {notes.slice((page - 1) * perPage, page * perPage).map(n => (
-              <Card key={n.id} className="p-4">
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <h3 className="font-semibold">{n.title}</h3>
-                    <p className="text-sm text-stone-600 mt-1">{n.body}</p>
-                    <p className="text-xs text-stone-500 mt-2">{n.createdAt?.toDate ? new Date(n.createdAt.toDate()).toLocaleString() : ''}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => markRead(n.id)} className="bg-amber-500 text-stone-900"><Check size={14} /> Mark read</Button>
-                      {n.link && (
-                        <Link href={n.link} className="text-amber-600 hover:underline flex items-center gap-2"><ExternalLink size={14} /> View</Link>
-                      )}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <MetricCard label="Total" value={notifications.length} hint="All notifications" icon={Bell} />
+        <MetricCard label="Unread" value={unreadCount} hint="Still needs attention" icon={Bell} tone="amber" />
+        <MetricCard
+          label="Read"
+          value={notifications.length - unreadCount}
+          hint="Already reviewed"
+          icon={CheckCheck}
+          tone="emerald"
+        />
+      </div>
+
+      <SectionCard title="Search notifications" description="Search titles and message bodies.">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search notifications"
+            className="h-11 rounded-2xl border-stone-200 bg-white pl-10"
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Notification list"
+        description={`${filtered.length} notification${filtered.length === 1 ? "" : "s"} matched the current search.`}
+      >
+        {loading ? (
+          <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="No notifications"
+            description="There are no notifications matching this search."
+          />
+        ) : (
+          <PaginatedCardList
+            items={filtered}
+            itemsPerPage={3}
+            renderItem={(notification) => (
+              <div
+                key={notification.id}
+                className="rounded-3xl border border-stone-200 bg-white p-5"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/admin/notifications/${notification.id}`}
+                        className="text-lg font-semibold text-stone-900 hover:text-amber-700"
+                      >
+                        {notification.title}
+                      </Link>
+                      <StatusBadge
+                        label={notification.read ? "Read" : "Unread"}
+                        tone={notification.read ? "stone" : "amber"}
+                      />
                     </div>
-                    {!n.read && <span className="text-xs text-amber-600">New</span>}
+                    <p className="text-sm leading-6 text-stone-600">{notification.body}</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-stone-400">
+                      {notification.createdAtMs
+                        ? new Date(notification.createdAtMs).toLocaleString()
+                        : "Unknown date"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!notification.read ? (
+                      <Button
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => markRead(notification.id)}
+                      >
+                        Mark read
+                      </Button>
+                    ) : null}
+                    {notification.link ? (
+                      <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
+                        <Link href={notification.link}>Open target</Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
-              </Card>
-            ))}
-
-            <div className="flex items-center justify-between mt-2">
-              <div className="text-sm text-stone-600">Showing {(page-1)*perPage + 1} - {Math.min(page*perPage, notes.length)} of {notes.length}</div>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1 border rounded" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
-                <span className="text-sm">{page} / {Math.max(1, Math.ceil(notes.length / perPage))}</span>
-                <button className="px-3 py-1 border rounded" onClick={() => setPage(p => Math.min(Math.max(1, Math.ceil(notes.length / perPage)), p + 1))} disabled={page >= Math.ceil(notes.length / perPage)}>Next</button>
               </div>
-            </div>
-          </div>
+            )}
+          />
         )}
-      </div>
+      </SectionCard>
     </div>
-  )
+  );
 }

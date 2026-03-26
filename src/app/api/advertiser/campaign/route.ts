@@ -47,10 +47,31 @@ export async function POST(req: Request) {
       // Handle campaign actions
       switch (action) {
         case 'delete': {
+          if (campaign.status === 'Deleted') {
+            throw new Error('Campaign has already been deleted')
+          }
+
+          const pendingSubmissionsSnap = await transaction.get(
+            adminDb.collection('earnerSubmissions')
+              .where('campaignId', '==', campaignId)
+              .where('status', '==', 'Pending')
+          )
+          const pendingReservedAmount = pendingSubmissionsSnap.docs.reduce(
+            (sum, submissionDoc) => sum + Number(submissionDoc.data()?.reservedAmount || 0),
+            0
+          )
+          const reservedBudget = Math.max(
+            Number(campaign.reservedBudget || 0),
+            pendingReservedAmount
+          )
+          const refundAmount = Math.max(0, Number(campaign.budget || 0))
+
           // Mark campaign as deleted
           transaction.update(campaignRef, {
             status: 'Deleted',
-            deletedAt: admin.firestore.FieldValue.serverTimestamp()
+            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+            budget: 0,
+            reservedBudget,
           })
 
           // Decrement campaign counter
@@ -59,8 +80,7 @@ export async function POST(req: Request) {
           })
 
           // Refund remaining budget to advertiser
-          if (campaign.status === 'Active' && campaign.budget > 0) {
-            const refundAmount = campaign.budget
+          if (refundAmount > 0) {
             transaction.update(advertiserRef, {
               balance: admin.firestore.FieldValue.increment(refundAmount)
             })
@@ -73,7 +93,9 @@ export async function POST(req: Request) {
               amount: refundAmount,
               campaignId,
               campaignTitle: campaign.title,
-              note: `Refund from deleted campaign: ${campaign.title}`,
+              note: pendingReservedAmount > 0
+                ? `Partial refund from deleted campaign with pending submissions: ${campaign.title}`
+                : `Refund from deleted campaign: ${campaign.title}`,
               status: 'completed',
               createdAt: admin.firestore.FieldValue.serverTimestamp()
             })

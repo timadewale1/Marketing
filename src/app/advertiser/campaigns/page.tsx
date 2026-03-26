@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { ArrowLeft, Plus } from "lucide-react"
 import Image from "next/image"
+import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 
 type Campaign = {
   id: string
@@ -32,10 +33,16 @@ type Campaign = {
   originalBudget?: number // Added as optional
 }
 
+type Submission = {
+  id: string
+  campaignId?: string
+  status?: string
+}
+
 export default function CampaignsPage() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [filter, setFilter] = useState<string>("All")
+  const [submissions, setSubmissions] = useState<Submission[]>([])
   const [search, setSearch] = useState<string>("")
 
   // Fetch advertiser campaigns realtime
@@ -60,10 +67,31 @@ export default function CampaignsPage() {
     return () => unsub()
   }, [])
 
+  useEffect(() => {
+    const user = auth.currentUser
+    if (!user) return
+
+    const submissionsQuery = query(
+      collection(db, "earnerSubmissions"),
+      where("advertiserId", "==", user.uid)
+    )
+
+    const unsub = onSnapshot(submissionsQuery, (snap) => {
+      setSubmissions(
+        snap.docs.map((doc) => ({
+          id: doc.id,
+          campaignId: String(doc.data().campaignId || ""),
+          status: String(doc.data().status || ""),
+        }))
+      )
+    })
+
+    return () => unsub()
+  }, [])
+
   const filtered = campaigns.filter((c) => {
-    const matchesFilter = filter === "All" || c.status === filter
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase())
-    return matchesFilter && matchesSearch
+    return matchesSearch
   })
 
   return (
@@ -119,9 +147,11 @@ export default function CampaignsPage() {
       {filtered.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {filtered.map((c) => {
-            const total = c.estimatedLeads || 0
-            const achieved = c.generatedLeads || 0
-            const percent = total > 0 ? Math.min((achieved / total) * 100, 100) : 0
+            const progress = summarizeCampaignProgress({
+              target: c.estimatedLeads,
+              generatedLeads: c.generatedLeads,
+              submissions: submissions.filter((submission) => submission.campaignId === c.id),
+            })
 
             return (
               <Link key={c.id} href={`/advertiser/campaigns/${c.id}`}>
@@ -160,14 +190,18 @@ export default function CampaignsPage() {
     Number(c.originalBudget || (Number(c.budget || 0) + Number(c.reservedBudget || 0)))
   ).toLocaleString()}
 </span>
-                      <span>{c.estimatedLeads} leads</span>
+                      <span>{progress.target} leads</span>
                     </div>
+                    <p className="mt-2 text-xs text-stone-600">
+                      {progress.verified} verified
+                      {progress.pending > 0 ? ` • ${progress.pending} pending` : ""}
+                    </p>
 
-                    {total > 0 && (
+                    {progress.target > 0 && (
                       <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2">
                         <div
                           className="h-1.5 bg-amber-500 rounded-full"
-                          style={{ width: `${percent}%` }}
+                          style={{ width: `${progress.progressPercent}%` }}
                         />
                       </div>
                     )}
@@ -179,7 +213,7 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <p className="p-4 text-sm text-stone-500">
-          No {filter} tasks found.
+          No tasks found.
         </p>
       )}
     </div>

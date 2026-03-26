@@ -1,72 +1,127 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { db } from "@/lib/firebase"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { toast } from "react-hot-toast"
-import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  AdminPageHeader,
+  EmptyState,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
 
-interface Notification {
-  id: string
-  title: string
-  body: string
-  read?: boolean
-  link?: string
-}
+type Notification = {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  link?: string;
+};
 
 export default function NotificationDetail() {
-  const { id } = useParams()
-  const router = useRouter()
-  const [note, setNote] = useState<Notification | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { id } = useParams();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
-    if (!id) return
-    (async () => {
+    const load = async () => {
+      const docId = Array.isArray(id) ? id[0] : id;
+      if (!docId) return;
       try {
-        const snap = await getDoc(doc(db, 'adminNotifications', Array.isArray(id) ? id[0] : id))
-        if (!snap.exists()) return toast.error('Notification not found')
-        setNote({ id: snap.id, ...(snap.data() as Omit<Notification, 'id'> || {}) })
-        setLoading(false)
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to load notification')
-        setLoading(false)
+        const snap = await getDoc(doc(db, "adminNotifications", docId));
+        if (!snap.exists()) {
+          setNotification(null);
+          return;
+        }
+        const data = snap.data();
+        setNotification({
+          id: snap.id,
+          title: String(data.title || ""),
+          body: String(data.body || ""),
+          read: Boolean(data.read),
+          link: data.link ? String(data.link) : undefined,
+        });
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to load notification");
+      } finally {
+        setLoading(false);
       }
-    })()
-  }, [id])
+    };
+    load();
+  }, [id]);
 
   const markRead = async () => {
-    if (!note) return
+    if (!notification) return;
     try {
-      await updateDoc(doc(db, 'adminNotifications', note.id), { read: true })
-      setNote({ ...note, read: true })
-      toast.success('Marked read')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to mark read')
+      await updateDoc(doc(db, "adminNotifications", notification.id), { read: true });
+      setNotification({ ...notification, read: true });
+      toast.success("Notification marked as read");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update notification");
     }
+  };
+
+  if (loading) {
+    return <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />;
   }
 
-  if (loading) return <p>Loading…</p>
-  if (!note) return <p>Notification not found</p>
+  if (!notification) {
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader
+          eyebrow="Notification detail"
+          title="Notification not found"
+          description="This admin notification could not be located."
+        />
+        <EmptyState
+          title="Missing notification"
+          description="It may have been removed or the link may be incorrect."
+          href="/admin/notifications"
+          cta="Back to notifications"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-stone-50 py-8">
-      <div className="container mx-auto px-4">
-        <Button variant="ghost" onClick={() => router.back()} className="mb-4">Back</Button>
-        <Card className="p-6">
-          <h1 className="text-xl font-semibold mb-2">{note.title}</h1>
-          <p className="text-sm text-stone-700 mb-4">{note.body}</p>
-          <div className="flex gap-3">
-            {!note.read && <Button onClick={markRead} className="bg-amber-500 text-stone-900">Mark read</Button>}
-            {note.link && <Link href={note.link} className="text-amber-600 hover:underline">Open link</Link>}
-          </div>
-        </Card>
+    <div className="space-y-8">
+      <AdminPageHeader
+        eyebrow="Notification detail"
+        title={notification.title}
+        description="Inspect the full message and jump to the linked destination if one exists."
+        action={
+          <Button variant="outline" className="rounded-full" onClick={() => router.back()}>
+            Back
+          </Button>
+        }
+      />
+
+      <div className="flex gap-2">
+        <StatusBadge label={notification.read ? "Read" : "Unread"} tone={notification.read ? "stone" : "amber"} />
       </div>
+
+      <SectionCard title="Message" description="The full notification body is shown below.">
+        <p className="text-sm leading-7 text-stone-700">{notification.body}</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {!notification.read ? (
+            <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" onClick={markRead}>
+              Mark as read
+            </Button>
+          ) : null}
+          {notification.link ? (
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href={notification.link}>Open linked page</Link>
+            </Button>
+          ) : null}
+        </div>
+      </SectionCard>
     </div>
-  )
+  );
 }

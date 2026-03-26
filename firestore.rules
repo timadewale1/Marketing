@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function sameUser(field) {
+      return signedIn() && request.resource.data[field] == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow create: if isSelf(uid);
+      allow read, update, delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /advertisers/{uid} {
+      allow create: if isSelf(uid);
+      allow get, list: if signedIn();
+      allow update, delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /earners/{uid} {
+      allow create: if isSelf(uid);
+      allow get, list: if signedIn();
+      allow update, delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /marketers/{uid} {
+      allow create: if isSelf(uid);
+      allow get, list: if signedIn();
+      allow update, delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /campaigns/{campaignId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow get, list: if signedIn();
+      allow update, delete: if isAdmin() || (
+        signedIn() &&
+        resource.data.ownerId == request.auth.uid &&
+        request.resource.data.ownerId == resource.data.ownerId
+      );
+    }
+
+    match /earnerSubmissions/{submissionId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (
+        signedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          resource.data.advertiserId == request.auth.uid
+        )
+      );
+      allow update, delete: if isAdmin() || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.campaignId == resource.data.campaignId
+      );
+    }
+
+    match /submissions/{submissionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /advertiserTransactions/{transactionId} {
+      allow create: if sameUser('userId') || isAdmin();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /earnerTransactions/{transactionId} {
+      allow create: if sameUser('userId') || isAdmin();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /advertiserWithdrawals/{withdrawalId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /earnerWithdrawals/{withdrawalId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /reroutes/{rerouteId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /resumedCampaigns/{resumeId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /referrals/{referralId} {
+      allow create: if signedIn();
+      allow get, list: if isAdmin() || (
+        signedIn() &&
+        (
+          resource.data.referrerId == request.auth.uid ||
+          resource.data.referredId == request.auth.uid
+        )
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    match /directAdvertRequests/{requestId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /homepageDirectAds/{adId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /contactMessages/{messageId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /adminNotifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /adminLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /vtpassTransactions/{transactionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow create: if signedIn();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

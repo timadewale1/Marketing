@@ -241,6 +241,13 @@ export default function EarnerDashboard() {
       </header>
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+  <div className="mb-8 rounded-3xl border border-white/40 bg-white/55 p-6 backdrop-blur">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
+          <h2 className="mt-2 text-3xl font-semibold text-stone-900">{userName}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            Keep the momentum going. Check fresh tasks, track your proof queue, and turn completed work into withdrawable earnings.
+          </p>
+        </div>
   {/* Top Cards */}
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {/* Balance */}
@@ -254,20 +261,20 @@ export default function EarnerDashboard() {
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       size="sm"
-                      className="bg-amber-500 text-stone-900"
+                      className="bg-amber-500 text-stone-900 flex-none"
                       onClick={() => router.push("/earner/transactions")}
                     >
                       Withdraw
                     </Button>
                     {activated ? (
-                      <Button size="sm" variant="outline" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
+                      <Button size="sm" variant="outline" className="flex-none" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
                     ) : needsReactivation ? (
-                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
+                      <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
+                      <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
                     )}
                   </div>
               </div>
