@@ -76,6 +76,26 @@ async function sendEmail({
   })
 }
 
+export async function sendEmailsInBatches<T>(
+  items: T[],
+  sender: (item: T) => Promise<void>,
+  chunkSize = 20
+) {
+  const errors: Array<{ item: T; error: unknown }> = []
+
+  for (let index = 0; index < items.length; index += chunkSize) {
+    const chunk = items.slice(index, index + chunkSize)
+    const results = await Promise.allSettled(chunk.map((item) => sender(item)))
+    results.forEach((result, chunkIndex) => {
+      if (result.status === 'rejected') {
+        errors.push({ item: chunk[chunkIndex], error: result.reason })
+      }
+    })
+  }
+
+  return errors
+}
+
 function wrapEmail(title: string, body: string, ctaLabel?: string, ctaUrl?: string) {
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; background: #f8fafc; padding: 24px;">
@@ -223,6 +243,31 @@ export async function sendDirectAdvertRequestEmail({
   })
 }
 
+export async function sendDirectAdvertAcceptedEmail({
+  businessName,
+  contactName,
+  email,
+}: {
+  businessName: string
+  contactName?: string | null
+  email: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: `We received your direct advert request for ${businessName}`,
+    html: wrapEmail(
+      'Direct advert request received',
+      `
+        <p>Hi ${contactName ? String(contactName) : 'there'},</p>
+        <p>We received your direct advert request for <strong>${businessName}</strong>.</p>
+        <p>Our team will review the request and get back to you shortly with the next steps.</p>
+      `,
+      'Visit Pamba',
+      APP_URL
+    ),
+  })
+}
+
 export async function sendContactAlertEmail({
   name,
   email,
@@ -248,26 +293,6 @@ export async function sendContactAlertEmail({
       `${APP_URL}/admin/notifications`
     ),
   })
-}
-
-async function sendWithChunking<T>(
-  items: T[],
-  sender: (item: T) => Promise<void>,
-  chunkSize = 10
-) {
-  const errors: Array<{ item: T; error: unknown }> = []
-
-  for (let index = 0; index < items.length; index += chunkSize) {
-    const chunk = items.slice(index, index + chunkSize)
-    const results = await Promise.allSettled(chunk.map((item) => sender(item)))
-    results.forEach((result, chunkIndex) => {
-      if (result.status === 'rejected') {
-        errors.push({ item: chunk[chunkIndex], error: result.reason })
-      }
-    })
-  }
-
-  return errors
 }
 
 export async function sendNewTaskNotificationToEarners({
@@ -305,14 +330,14 @@ export async function sendNewTaskNotificationToEarners({
     return { attempted: 0, sent: 0, failed: 0 }
   }
 
-  const failures = await sendWithChunking(recipients, async (recipient) => {
+  const failures = await sendEmailsInBatches(recipients, async (recipient) => {
     await sendNewTaskEmail({
       email: recipient.email as string,
       name: recipient.name,
       taskTitle: campaignTitle,
       taskId: campaignId,
     })
-  })
+  }, 20)
 
   if (failures.length > 0) {
     console.error(

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import BillsCard from "@/components/bills/BillsCard";
 import WhatsAppChatButton from "@/components/WhatsAppChatButton";
-import WhatsAppGroupButton from "@/components/WhatsAppGroupButton";
+import WhatsAppGroupButton, { WHATSAPP_GROUP_URL } from "@/components/WhatsAppGroupButton";
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds";
 
 // ─── Social Media SVG Icons ───────────────────────────────────────────────────
@@ -100,12 +100,33 @@ function CountUp({ end, suffix = "", prefix = "" }: { end: number; suffix?: stri
 export default function PAMBALanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showWelcomePrompt, setShowWelcomePrompt] = useState(false);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  useEffect(() => {
+    try {
+      const dismissed = window.sessionStorage.getItem("pamba-home-welcome-dismissed");
+      if (!dismissed) {
+        setShowWelcomePrompt(true);
+      }
+    } catch {
+      setShowWelcomePrompt(true);
+    }
+  }, []);
+
+  const dismissWelcomePrompt = () => {
+    setShowWelcomePrompt(false);
+    try {
+      window.sessionStorage.setItem("pamba-home-welcome-dismissed", "1");
+    } catch {
+      // ignore session storage failures
+    }
+  };
 
   const [heroRef, heroVisible] = useInView(0.1);
   const [aboutRef, aboutVisible] = useInView();
@@ -259,6 +280,64 @@ export default function PAMBALanding() {
           background-image: linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px);
           background-size: 80px 80px;
           pointer-events: none;
+        }
+        .welcome-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 160;
+          background: rgba(28,25,23,0.68);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .welcome-modal {
+          width: min(100%, 520px);
+          border-radius: 28px;
+          background: linear-gradient(145deg, #1c1917, #292524);
+          color: #fff;
+          border: 1px solid rgba(251,191,36,0.22);
+          box-shadow: 0 35px 90px -45px rgba(0,0,0,0.85);
+          padding: 28px;
+        }
+        .welcome-modal-kicker {
+          font-size: 0.74rem;
+          letter-spacing: 0.28em;
+          text-transform: uppercase;
+          color: #fbbf24;
+          font-weight: 700;
+        }
+        .welcome-modal-title {
+          margin-top: 10px;
+          font-size: clamp(1.7rem, 3vw, 2.3rem);
+          font-family: 'Sora', sans-serif;
+          line-height: 1.05;
+        }
+        .welcome-modal-copy {
+          margin-top: 14px;
+          color: rgba(255,255,255,0.76);
+          line-height: 1.7;
+          font-size: 0.98rem;
+        }
+        .welcome-modal-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin-top: 22px;
+        }
+        .welcome-modal-secondary {
+          border: 1px solid rgba(255,255,255,0.16);
+          background: transparent;
+          color: rgba(255,255,255,0.88);
+          border-radius: 999px;
+          padding: 12px 18px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .homepage-direct-ads-wrap {
+          padding: 28px 0 58px;
+          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
         }
         .hero-inner {
           position: relative; z-index: 2;
@@ -697,6 +776,33 @@ export default function PAMBALanding() {
         }
       `}</style>
 
+      {showWelcomePrompt ? (
+        <div className="welcome-modal-backdrop">
+          <div className="welcome-modal">
+            <div className="welcome-modal-kicker">Welcome To Pamba</div>
+            <h2 className="welcome-modal-title">Join the Pamba WhatsApp group for updates.</h2>
+            <p className="welcome-modal-copy">
+              We share important platform updates, opportunities, and announcements there so you do
+              not miss anything useful.
+            </p>
+            <div className="welcome-modal-actions">
+              <a
+                href={WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-primary-lg"
+                onClick={dismissWelcomePrompt}
+              >
+                Join WhatsApp Group
+              </a>
+              <button type="button" className="welcome-modal-secondary" onClick={dismissWelcomePrompt}>
+                Continue to homepage
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ── NAVBAR ── */}
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-inner">
@@ -868,7 +974,9 @@ export default function PAMBALanding() {
         </div>
       </section>
 
-      <HomepageDirectAds />
+      <div className="homepage-direct-ads-wrap">
+        <HomepageDirectAds />
+      </div>
 
       {/* ── FEATURES ── */}
       <section className="section features-bg" id="features">

@@ -4,6 +4,7 @@ import { requireAdminSession } from '@/lib/admin-session'
 import {
   sendActivationReminderEmail,
   sendAdminUpdateEmail,
+  sendEmailsInBatches,
 } from '@/lib/mailer'
 
 type Role = 'earner' | 'advertiser'
@@ -96,8 +97,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const results = await Promise.allSettled(
-      filteredRecipients.map(async (recipient) => {
+    const failures = await sendEmailsInBatches(
+      filteredRecipients,
+      async (recipient) => {
         if (type === 'activation_reminder') {
           await sendActivationReminderEmail({
             email: recipient.email,
@@ -112,10 +114,11 @@ export async function POST(req: Request) {
             message: message as string,
           })
         }
-      })
+      },
+      20
     )
 
-    const failed = results.filter((result) => result.status === 'rejected').length
+    const failed = failures.length
     return NextResponse.json({
       success: true,
       message:

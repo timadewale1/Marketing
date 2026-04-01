@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { Film, Image as ImageIcon, Megaphone, Phone, RefreshCcw, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -282,11 +281,11 @@ export default function HomepageDirectAdsPage() {
                             playsInline
                           />
                         ) : (
-                          <Image
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
                             src={ad.mediaUrl}
                             alt={ad.brandName}
-                            fill
-                            className="object-cover"
+                            className="h-full w-full object-cover"
                           />
                         )}
                       </div>

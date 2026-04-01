@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Megaphone, Search } from "lucide-react";
-import { collection, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,18 @@ export default function AdminDirectAdRequestsPage() {
 
   const setStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(db, "directAdvertRequests", id), { status });
+      const response = await fetch(`/api/admin/direct-ad-requests/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update request");
+      }
       setRequests((current) =>
         current.map((request) => (request.id === id ? { ...request, status } : request))
       );
