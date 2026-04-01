@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,18 @@ export default function DirectAdRequestDetail() {
   const setStatus = async (status: string) => {
     if (!request) return;
     try {
-      await updateDoc(doc(db, "directAdvertRequests", request.id), { status });
+      const response = await fetch(`/api/admin/direct-ad-requests/${request.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update request");
+      }
       setRequest({ ...request, status });
       toast.success("Request updated");
     } catch (error) {

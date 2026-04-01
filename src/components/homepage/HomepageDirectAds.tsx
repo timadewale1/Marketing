@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 
 type HomepageDirectAd = {
   id: string;
@@ -94,7 +93,7 @@ export default function HomepageDirectAds() {
           display: flex;
           gap: 18px;
           width: max-content;
-          animation: homepageDirectAdsSlide 38s linear infinite;
+          animation: homepageDirectAdsSlide 24s linear infinite;
           will-change: transform;
         }
         .homepage-direct-ads-track.paused {
@@ -105,7 +104,7 @@ export default function HomepageDirectAds() {
           100% { transform: translateX(-52%); }
         }
         .homepage-direct-ads-card {
-          width: min(76vw, 420px);
+          width: min(68vw, 320px);
           border: 1px solid rgba(255,255,255,0.08);
           background:
             linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03)),
@@ -193,7 +192,7 @@ export default function HomepageDirectAds() {
             padding-top: 34px;
           }
           .homepage-direct-ads-card {
-            width: min(86vw, 360px);
+            width: min(82vw, 280px);
           }
         }
       `}</style>
@@ -228,12 +227,8 @@ export default function HomepageDirectAds() {
                         controls={isActive}
                       />
                     ) : (
-                      <Image
-                        src={ad.mediaUrl}
-                        alt={ad.brandName}
-                        fill
-                        className="object-cover"
-                      />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={ad.mediaUrl} alt={ad.brandName} />
                     )}
                   </div>
 
