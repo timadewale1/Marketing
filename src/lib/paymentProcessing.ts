@@ -2,6 +2,75 @@
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 
+async function processPendingActivationReferrals(
+  adminDb: AdminFirestore,
+  admin: typeof import('firebase-admin'),
+  userId: string
+) {
+  const refsSnap = await adminDb.collection('referrals')
+    .where('referredId', '==', userId)
+    .where('status', '==', 'pending')
+    .get()
+
+  console.log(`[activation][retry] processing ${refsSnap.size} referrals for ${userId}`)
+
+  for (const rDoc of refsSnap.docs) {
+    const r = rDoc.data()
+    const bonus = Number(r.amount || 0)
+    const referrerId = r.referrerId
+
+    try {
+      await adminDb.runTransaction(async (t) => {
+        const referralRef = adminDb.collection('referrals').doc(rDoc.id)
+        const snap = await t.get(referralRef)
+        if (!snap.exists || snap.data()?.status !== 'pending') return
+
+        t.update(referralRef, {
+          status: 'completed',
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          bonusPaid: true,
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAmount: bonus,
+        })
+
+        if (!referrerId || bonus <= 0) return
+
+        const advRef = adminDb.collection('advertisers').doc(referrerId)
+        const earnerRef = adminDb.collection('earners').doc(referrerId)
+
+        const [advSnap, earnerSnap] = await Promise.all([
+          t.get(advRef),
+          t.get(earnerRef)
+        ])
+
+        if (advSnap.exists) {
+          t.set(adminDb.collection('advertiserTransactions').doc(), {
+            userId: referrerId,
+            type: 'referral_bonus',
+            amount: bonus,
+            status: 'completed',
+            note: `Referral bonus for referring ${userId}`,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+          t.update(advRef, { balance: admin.firestore.FieldValue.increment(bonus) })
+        } else if (earnerSnap.exists) {
+          t.set(adminDb.collection('earnerTransactions').doc(), {
+            userId: referrerId,
+            type: 'referral_bonus',
+            amount: bonus,
+            status: 'completed',
+            note: `Referral bonus for referring ${userId}`,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+          t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
+        }
+      })
+    } catch (e) {
+      console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
+    }
+  }
+}
+
 export async function processActivationWithRetry(userId: string, reference: string, provider: string = 'monnify', maxRetries: number = 3) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
@@ -21,6 +90,7 @@ export async function processActivationWithRetry(userId: string, reference: stri
       
       if (userDoc.exists && userDoc.data()?.activated) {
         console.log(`[activation][retry] user ${userId} already activated`)
+        await processPendingActivationReferrals(adminDb, admin, userId)
         return { success: true, alreadyActivated: true }
       }
 
@@ -59,66 +129,7 @@ export async function processActivationWithRetry(userId: string, reference: stri
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      // Process pending referrals
-      const refsSnap = await adminDb.collection('referrals')
-        .where('referredId', '==', userId)
-        .where('status', '==', 'pending')
-        .get()
-
-      console.log(`[activation][retry] processing ${refsSnap.size} referrals for ${userId}`)
-
-      for (const rDoc of refsSnap.docs) {
-        const r = rDoc.data()
-        const bonus = Number(r.amount || 0)
-        const referrerId = r.referrerId
-
-        try {
-          await adminDb.runTransaction(async (t) => {
-            const snap = await t.get(adminDb.collection('referrals').doc(rDoc.id))
-            if (!snap.exists || snap.data()?.status !== 'pending') return
-
-            t.update(adminDb.collection('referrals').doc(rDoc.id), {
-              status: 'completed',
-              completedAt: admin.firestore.FieldValue.serverTimestamp(),
-              bonusPaid: true,
-            })
-
-            if (referrerId && bonus > 0) {
-              const advRef = adminDb.collection('advertisers').doc(referrerId)
-              const earnerRef = adminDb.collection('earners').doc(referrerId)
-
-              const [advSnap, earnerSnap] = await Promise.all([
-                t.get(advRef),
-                t.get(earnerRef)
-              ])
-
-              if (advSnap.exists) {
-                t.set(adminDb.collection('advertiserTransactions').doc(), {
-                  userId: referrerId,
-                  type: 'referral_bonus',
-                  amount: bonus,
-                  status: 'completed',
-                  note: `Referral bonus for referring ${userId}`,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                })
-                t.update(advRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-              } else if (earnerSnap.exists) {
-                t.set(adminDb.collection('earnerTransactions').doc(), {
-                  userId: referrerId,
-                  type: 'referral_bonus',
-                  amount: bonus,
-                  status: 'completed',
-                  note: `Referral bonus for referring ${userId}`,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                })
-                t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-              }
-            }
-          })
-        } catch (e) {
-          console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
-        }
-      }
+      await processPendingActivationReferrals(adminDb, admin, userId)
 
       console.log(`[activation][retry] success for user ${userId}`)
       return { success: true, attempt }

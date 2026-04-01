@@ -172,13 +172,14 @@ export default function EarnerDashboard() {
           let pendingBonuses = 0
           let earnings = 0
           snap.docs.forEach((d) => {
-            type ReferralRecord = { status?: string; bonusAmount?: number; bonusPaid?: boolean }
+            type ReferralRecord = { status?: string; amount?: number; bonusPaid?: boolean }
             const r = d.data() as ReferralRecord
+            const amount = Number(r.amount || 0)
             if (r.status === 'completed') {
               completedReferrals += 1
-              earnings += Number(r.bonusAmount || 0)
+              earnings += amount
             }
-            if (!r.bonusPaid) pendingBonuses += r.bonusAmount || 0
+            if (!r.bonusPaid) pendingBonuses += amount
           })
           setReferralStats({ totalReferrals, completedReferrals, pendingBonuses, totalReferralEarnings: earnings })
         }
