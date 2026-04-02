@@ -18,5 +18,5 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
     return () => unsubscribe();
   }, [router]);
 
-  return <>{children}</>;
+  return <div className="min-w-0 overflow-x-hidden">{children}</div>;
 }

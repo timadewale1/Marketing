@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   --background: 0 0% 100%;
   --foreground: 274 68% 25%;
@@ -19,8 +25,35 @@
   --radius: 0.5rem;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background-color: rgb(250 250 249);
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+p,
+li,
+dd,
+td,
+th {
+  overflow-wrap: break-word;
+}
+
+a {
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* When Paystack inline overlay is active we want the injected iframe to
