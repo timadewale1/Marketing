@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#f59e0b" />
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="220" font-weight="700" fill="#1C1917">ADJ</text>
+  <rect width="512" height="512" rx="120" fill="#f59e0b" />
+  <path
+    d="M168 102h116c64.066 0 108 38.937 108 96.4 0 57.744-43.934 97.2-108 97.2h-52v78.4h-64V102Zm64 142h45.6c31.04 0 50.4-16.832 50.4-45.064 0-27.696-19.36-44.536-50.4-44.536H232V244Z"
+    fill="#1c1917"
+  />
 </svg>

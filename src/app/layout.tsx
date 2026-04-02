@@ -8,9 +8,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#f59e0b" />
-        {/* Use link tags in head instead of an img to avoid invalid HTML nesting */}
-        <link rel="icon" href="/Pamba-phone.png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/Pamba-phone.png" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+        <link rel="shortcut icon" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         {/* Open Graph / Twitter metadata for link previews and install UX */}
