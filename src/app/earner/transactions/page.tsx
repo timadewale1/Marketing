@@ -41,7 +41,6 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 5;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const u = auth.currentUser;
     if (!u) {
@@ -53,6 +52,7 @@ export default function TransactionsPage() {
     const unsubUser = onSnapshot(doc(db, "earners", u.uid), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+        setAvailableBalance(Number(data.balance || 0));
         if (data.bank) {
           setBankDetails({
             accountNumber: data.bank.accountNumber,
@@ -105,25 +105,6 @@ export default function TransactionsPage() {
       unsubW();
     };
   }, [router]);
-
-  // whenever either the history list or the withdrawal status map changes we need
-  // to recompute the available balance; previously this was only done when the
-  // transaction snapshot fired which meant completed withdrawals didn’t cause
-  // the UI to update until the next transaction change.
-  useEffect(() => {
-    const balance = history.reduce((sum, tx) => {
-      const isWithdrawal = tx.type === 'withdrawal' || tx.type === 'withdrawal_request';
-      let statusToCheck: string | undefined = tx.status as string | undefined;
-      if (isWithdrawal && tx.withdrawalId) {
-        statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as string | undefined;
-      }
-      const isCompleted =
-        statusToCheck === 'completed' ||
-        (statusToCheck === 'pending' && !isWithdrawal);
-      return sum + (isCompleted ? tx.amount : 0);
-    }, 0);
-    setAvailableBalance(balance);
-  }, [history, withdrawalStatusMap]);
 
   const requestWithdraw = async (amount: number): Promise<void> => {
     const u = auth.currentUser;

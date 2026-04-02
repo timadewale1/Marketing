@@ -16,15 +16,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         initial={{ width: 240 }}
         animate={{ width: collapsed ? 80 : 240 }}
         transition={{ duration: 0.3 }}
-        className="h-full bg-stone-900 text-white shadow-lg"
+        className="h-full shrink-0 bg-stone-900 text-white shadow-lg"
       >
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 bg-stone-50">
+      <div className="flex min-w-0 flex-1 flex-col bg-stone-50">
         <Topbar />
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   )

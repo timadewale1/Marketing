@@ -777,6 +777,12 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 </div>
               )}
 
+            <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+              <p className="text-sm text-blue-900">
+                Submitted participations can take up to 24 hours to be reviewed and approved.
+              </p>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium h-12"
