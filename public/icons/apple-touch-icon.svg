@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
-  <rect width="180" height="180" rx="28" fill="#f59e0b" />
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" fill="#1C1917">BT</text>
+  <rect width="180" height="180" rx="42" fill="#f59e0b" />
+  <path
+    d="M59 36h40.5c22.368 0 37.75 13.586 37.75 33.65 0 20.161-15.382 33.95-37.75 33.95H81v27.4H59V36Zm22 49.5h15.95c10.857 0 17.65-5.887 17.65-15.763 0-9.689-6.793-15.537-17.65-15.537H81v31.3Z"
+    fill="#1c1917"
+  />
 </svg>
