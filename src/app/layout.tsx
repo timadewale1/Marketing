@@ -8,9 +8,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#f59e0b" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
-        <link rel="shortcut icon" href="/favicon.svg" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+        <link rel="shortcut icon" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         {/* Open Graph / Twitter metadata for link previews and install UX */}
