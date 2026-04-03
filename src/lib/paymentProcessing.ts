@@ -2,6 +2,30 @@
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 
+export function extractMonnifyReferenceCandidates(
+  reference: string,
+  source?: Record<string, unknown> | null,
+  transactionReference?: string | null
+) {
+  const nestedData =
+    source && typeof source.data === 'object' && source.data !== null
+      ? (source.data as Record<string, unknown>)
+      : null
+
+  const values = [
+    reference,
+    transactionReference || null,
+    source?.transactionReference,
+    source?.reference,
+    source?.paymentReference,
+    nestedData?.transactionReference,
+    nestedData?.reference,
+    nestedData?.paymentReference,
+  ]
+
+  return [...new Set(values.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean))]
+}
+
 async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
   admin: typeof import('firebase-admin'),
@@ -71,11 +95,19 @@ async function processPendingActivationReferrals(
   }
 }
 
-export async function processActivationWithRetry(userId: string, reference: string, provider: string = 'monnify', maxRetries: number = 3) {
+export async function processActivationWithRetry(
+  userId: string,
+  reference: string,
+  provider: string = 'monnify',
+  maxRetries: number = 3,
+  extraReferences: string[] = []
+) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
 
   const adminDb = dbAdmin as AdminFirestore
+  const activationReferences = [...new Set([reference, ...extraReferences].filter(Boolean))]
+  const primaryReference = activationReferences[0] || reference
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -96,8 +128,12 @@ export async function processActivationWithRetry(userId: string, reference: stri
 
       // Store activation reference for webhook processing
       await adminDb.collection(userType).doc(userId).update({
-        activationReference: reference,
+        activationReference: primaryReference,
+        activationReferences,
         activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        pendingActivationReference: admin.firestore.FieldValue.delete(),
+        pendingActivationReferences: admin.firestore.FieldValue.delete(),
+        pendingActivationProvider: admin.firestore.FieldValue.delete(),
       })
 
       // Mark user activated
@@ -122,7 +158,7 @@ export async function processActivationWithRetry(userId: string, reference: stri
         type: 'activation_fee',
         amount: -2000,
         provider,
-        reference,
+        reference: primaryReference,
         status: 'completed',
         note: `Activation fee payment`,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),

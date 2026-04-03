@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { PaymentSelector } from '@/components/payment-selector';
+import { registerActivationReference } from "@/lib/activation-client";
 
 type Campaign = {
   id: string;
@@ -246,16 +247,19 @@ export default function AvailableCampaignsPage() {
           email={auth.currentUser?.email || undefined}
           fullName={auth.currentUser?.displayName || 'Earner'}
           description="Earner Account Activation"
+          onMonnifyReferenceCreated={async (reference: string) => {
+            await registerActivationReference({ role: 'earner', reference, provider: 'monnify' })
+          }}
           onClose={() => {
             setShowActivationPaymentSelector(false)
           }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
             setShowActivationPaymentSelector(false)
             try {
               const res = await fetch('/api/earner/activate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
               })
               const data = await res.json()
               if (res.ok && data.success) {

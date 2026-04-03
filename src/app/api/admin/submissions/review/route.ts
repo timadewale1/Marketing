@@ -84,16 +84,48 @@ export async function POST(req: Request) {
         const earnerAmount = Number(submission.earnerPrice || 0)
         const fullAmount = earnerAmount * 2
         const reservedAmount = Number(submission.reservedAmount || 0)
+        const advertiserId = submission.advertiserId || campaign.ownerId
+        let reservedBudgetAdjustment = 0
+        let reservedToConsume = 0
+        let budgetToConsume = 0
+        let remainingToCover = 0
 
         if (reservedAmount > 0) {
-          if (campaignReservedBudget < reservedAmount) {
+          const pendingSnap = await t.get(
+            adminDb
+              .collection('earnerSubmissions')
+              .where('campaignId', '==', campaignId)
+              .where('status', '==', 'Pending')
+          )
+          const expectedReservedBudget = pendingSnap.docs.reduce((sum, pendingDoc) => {
+            const pendingData = pendingDoc.data() as Submission
+            return sum + Number(pendingData.reservedAmount || 0)
+          }, 0)
+
+          if (expectedReservedBudget > campaignReservedBudget) {
+            reservedBudgetAdjustment = expectedReservedBudget - campaignReservedBudget
+          }
+
+          const effectiveReservedBudget = campaignReservedBudget + reservedBudgetAdjustment
+          if (effectiveReservedBudget < reservedAmount) {
             throw new Error('Reserved funds for this submission are no longer available')
           }
-        } else if (campaignBudget < fullAmount) {
-          throw new Error('Insufficient campaign budget')
+          reservedToConsume = reservedAmount
+        } else {
+          budgetToConsume = Math.min(campaignBudget, fullAmount)
+          remainingToCover = Math.max(0, fullAmount - budgetToConsume)
         }
 
-        const advertiserId = submission.advertiserId || campaign.ownerId
+        let advertiserBalance = 0
+        if (remainingToCover > 0 && advertiserId) {
+          const advertiserRef = adminDb.collection('advertisers').doc(String(advertiserId))
+          const advertiserSnap = await t.get(advertiserRef)
+          advertiserBalance = Number(advertiserSnap.data()?.balance || 0)
+        }
+
+        if (remainingToCover > 0 && advertiserBalance < remainingToCover) {
+          throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
+        }
 
         // 1) Update submission (add updatedAt to ensure clients pick up change)
         t.update(subRef, {
@@ -116,10 +148,11 @@ export async function POST(req: Request) {
           completionRate,
           dailySubmissionCount: admin.firestore.FieldValue.increment(1),
         }
-        if (reservedAmount > 0) {
-          campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(-reservedAmount)
-        } else {
-          campaignUpdates.budget = admin.firestore.FieldValue.increment(-fullAmount)
+        if (reservedBudgetAdjustment !== 0 || reservedToConsume > 0) {
+          campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(reservedBudgetAdjustment - reservedToConsume)
+        }
+        if (budgetToConsume > 0) {
+          campaignUpdates.budget = admin.firestore.FieldValue.increment(-budgetToConsume)
         }
         if (completionRate >= 100 && campaign.status !== 'Deleted') campaignUpdates.status = 'Completed'
         // add lastUpdated so clients observing campaigns detect changes
@@ -158,11 +191,15 @@ export async function POST(req: Request) {
             note: `Payment for lead in ${submission.campaignTitle}`,
             createdAt: now,
           })
-          t.update(adminDb.collection('advertisers').doc(advertiserId), {
+          const advertiserUpdates: Record<string, unknown> = {
             totalSpent: admin.firestore.FieldValue.increment(fullAmount),
             leadsGenerated: admin.firestore.FieldValue.increment(1),
             lastLeadAt: now,
-          })
+          }
+          if (remainingToCover > 0) {
+            advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
+          }
+          t.update(adminDb.collection('advertisers').doc(advertiserId), advertiserUpdates)
         }
       } else if (action === 'Rejected') {
         if (prevStatus === 'Rejected') return // idempotent

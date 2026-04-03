@@ -15,6 +15,7 @@ import { PaymentSelector } from "@/components/payment-selector"
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
 import { motion, AnimatePresence } from "framer-motion"
+import { registerActivationReference } from "@/lib/activation-client"
 import {
   FileText,
   ArrowRight,
@@ -112,6 +113,7 @@ export default function CreateCampaignPage() {
   const [faceUploading, setFaceUploading] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const faceStreamRef = useRef<MediaStream | null>(null)
   const facePreviewUrlRef = useRef<string | null>(null)
 
   const [addressLine, setAddressLine] = useState("")
@@ -199,11 +201,23 @@ const compressed = await imageCompression(file, options)
 
   React.useEffect(() => {
     return () => {
+      if (faceStreamRef.current) {
+        faceStreamRef.current.getTracks().forEach((track) => track.stop())
+        faceStreamRef.current = null
+      }
       if (facePreviewUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(facePreviewUrlRef.current)
       }
     }
   }, [])
+
+  React.useEffect(() => {
+    if (!cameraActive || !videoRef.current || !faceStreamRef.current) return
+    const videoEl = videoRef.current
+    videoEl.srcObject = faceStreamRef.current
+    videoEl.muted = true
+    void videoEl.play().catch(() => undefined)
+  }, [cameraActive])
 
   // Banner upload removed; media upload still uses uploadFile helper above when needed elsewhere
 
@@ -394,11 +408,7 @@ const compressed = await imageCompression(file, options)
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.muted = true
-        await videoRef.current.play().catch(() => undefined)
-      }
+      faceStreamRef.current = stream
       setCameraActive(true)
     } catch (e) {
       console.error('Camera start failed', e)
@@ -408,10 +418,11 @@ const compressed = await imageCompression(file, options)
 
   const stopCamera = () => {
     try {
-      const stream = videoRef.current?.srcObject as MediaStream | null
+      const stream = faceStreamRef.current || (videoRef.current?.srcObject as MediaStream | null)
       if (stream) {
         stream.getTracks().forEach((t) => t.stop())
       }
+      faceStreamRef.current = null
       if (videoRef.current) videoRef.current.srcObject = null
     } finally {
       setCameraActive(false)
@@ -1005,6 +1016,9 @@ const getEmbeddedVideo = (url: string) => {
           email={auth.currentUser?.email || undefined}
           fullName={auth.currentUser?.displayName || 'Advertiser'}
           description="Advertiser Account Activation"
+          onMonnifyReferenceCreated={async (reference: string) => {
+            await registerActivationReference({ role: 'advertiser', reference, provider: 'monnify' })
+          }}
           onClose={() => {
             setShowActivationPaymentSelector(false)
             setShowActivatePrompt(false)

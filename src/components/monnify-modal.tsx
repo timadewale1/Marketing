@@ -100,6 +100,7 @@ interface MonnifyModalProps {
   open: boolean
   onClose: () => void
   onSuccess: (response: MonnifyResponse) => void
+  onReferenceCreated?: (reference: string) => Promise<void> | void
 }
 
 export default function MonnifyModal({
@@ -110,6 +111,7 @@ export default function MonnifyModal({
   open,
   onClose,
   onSuccess,
+  onReferenceCreated,
 }: MonnifyModalProps) {
   const paymentInitiatedRef = useRef(false)
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
@@ -141,6 +143,11 @@ export default function MonnifyModal({
 
         // Generate reference for the SDK request
         const txRef = `TX_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+        try {
+          await onReferenceCreated?.(txRef)
+        } catch (referenceError) {
+          console.warn('Failed to register Monnify reference before payment:', referenceError)
+        }
 
         // Use initialize to open modal
         window.MonnifySDK.initialize({
@@ -175,7 +182,7 @@ export default function MonnifyModal({
     }
 
     initializePayment()
-  }, [open, amount, email, fullName, phone, onClose, onSuccess])
+  }, [open, amount, email, fullName, phone, onClose, onSuccess, onReferenceCreated])
 
   return null
 }

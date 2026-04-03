@@ -1,8 +1,6 @@
 "use client"
 
 import React, { useState } from "react"
-import Image from "next/image"
-import { PaystackModal } from "@/components/paystack-modal"
 import MonnifyModal from "@/components/monnify-modal"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -18,6 +16,7 @@ export type PaymentSelectorProps = {
   description?: string
   onClose: () => void
   onPaymentSuccess: (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => Promise<void>
+  onMonnifyReferenceCreated?: (reference: string) => Promise<void> | void
 }
 
 export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
@@ -29,10 +28,11 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   description,
   onClose,
   onPaymentSuccess,
+  onMonnifyReferenceCreated,
 }) => {
   // Commented out Paystack - using Monnify only
   // const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('paystack')
-  const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('monnify')
+  const [selectedProvider] = useState<'paystack' | 'monnify'>('monnify')
   const [paystackOpen, setPaystackOpen] = useState(false)
   const [monnifyOpen, setMonnifyOpen] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
@@ -134,7 +134,11 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
               // Extract reference from the response object
               const reference = typeof response === 'string'
                 ? response
-                : (response?.transactionReference as string) || (response?.reference as string) || 'unknown';
+                : (response?.transactionReference as string)
+                  || (response?.data?.transactionReference as string)
+                  || (response?.reference as string)
+                  || (response?.data?.reference as string)
+                  || 'unknown';
               await onPaymentSuccess(reference, 'monnify', response as Record<string, unknown>)
             } catch (err) {
               console.error('Payment processing error:', err)
@@ -147,6 +151,7 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
             setMonnifyOpen(false)
             setIsVerifying(false)
           }}
+          onReferenceCreated={onMonnifyReferenceCreated}
         />
       )}
     </>

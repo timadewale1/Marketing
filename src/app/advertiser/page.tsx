@@ -25,6 +25,7 @@ import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
+import { registerActivationReference } from "@/lib/activation-client"
 
 type Campaign = {
   id: string
@@ -462,13 +463,16 @@ export default function AdvertiserDashboard() {
             fullName={auth.currentUser?.displayName || 'Advertiser'}
             description="Advertiser Account Activation"
             onClose={() => setShowActivationPaymentSelector(false)}
-            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+            onMonnifyReferenceCreated={async (reference: string) => {
+              await registerActivationReference({ role: 'advertiser', reference, provider: 'monnify' })
+            }}
+            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
               setShowActivationPaymentSelector(false)
               try {
                 const res = await fetch('/api/advertiser/activate', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
                 })
                 const data = await res.json().catch(() => ({}))
                 if (res.ok && data?.success) {

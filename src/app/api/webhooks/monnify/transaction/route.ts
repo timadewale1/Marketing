@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
+import { extractMonnifyReferenceCandidates, processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 
 /**
  * Monnify Transaction Webhook Handler
@@ -25,6 +25,32 @@ function verifyMonnifyWebhookSignature(
     .digest('hex')
 
   return hash === signature
+}
+
+async function findActivationUserByReferences(
+  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
+  collectionName: 'advertisers' | 'earners',
+  references: string[]
+) {
+  const fields: Array<'activationReference' | 'pendingActivationReference' | 'pendingActivationReferences'> = [
+    'activationReference',
+    'pendingActivationReference',
+    'pendingActivationReferences',
+  ]
+
+  for (const reference of references) {
+    for (const field of fields) {
+      const queryBuilder = field === 'pendingActivationReferences'
+        ? dbAdmin.collection(collectionName).where(field, 'array-contains', reference)
+        : dbAdmin.collection(collectionName).where(field, '==', reference)
+      const snap = await queryBuilder.limit(1).get()
+      if (!snap.empty) {
+        return snap.docs[0]
+      }
+    }
+  }
+
+  return null
 }
 
 export async function POST(req: NextRequest) {
@@ -56,6 +82,11 @@ export async function POST(req: NextRequest) {
 
     if (eventType === 'TRANSACTION_COMPLETION') {
       const { reference, status, amount, transactionReference } = eventData
+      const referenceCandidates = extractMonnifyReferenceCandidates(
+        String(reference || ''),
+        eventData as Record<string, unknown>,
+        typeof transactionReference === 'string' ? transactionReference : null
+      )
 
       console.log('[webhook][monnify][transaction] processing transaction', {
         reference,
@@ -128,33 +159,25 @@ export async function POST(req: NextRequest) {
               }
             } else {
               // Check if this is an activation payment (advertiser first, then earner)
-              const activationAdvertiserSnap = await dbAdmin.collection('advertisers')
-                .where('activationReference', '==', reference)
-                .limit(1)
-                .get()
+              const advertiserDoc = await findActivationUserByReferences(dbAdmin, 'advertisers', referenceCandidates)
 
-              if (!activationAdvertiserSnap.empty) {
-                const advertiserDoc = activationAdvertiserSnap.docs[0]
+              if (advertiserDoc) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                  await processActivationWithRetry(advertiserDoc.id, reference, 'monnify')
+                  await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
                   console.log('[webhook][monnify][transaction] activation processed successfully')
                 } catch (activationError) {
                   console.error('[webhook][monnify][transaction] activation failed:', activationError)
                 }
               } else {
-                const activationEarnerSnap = await dbAdmin.collection('earners')
-                  .where('activationReference', '==', reference)
-                  .limit(1)
-                  .get()
+                const earnerDoc = await findActivationUserByReferences(dbAdmin, 'earners', referenceCandidates)
 
-                if (!activationEarnerSnap.empty) {
-                  const earnerDoc = activationEarnerSnap.docs[0]
+                if (earnerDoc) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, reference, 'monnify')
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
                     console.log('[webhook][monnify][transaction] activation processed successfully')
                   } catch (activationError) {
                     console.error('[webhook][monnify][transaction] activation failed:', activationError)
