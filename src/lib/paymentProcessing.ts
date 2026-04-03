@@ -217,19 +217,40 @@ export async function processWalletFundingWithRetry(
         return { success: true, alreadyProcessed: true }
       }
 
-      // Create transaction record
-      const txRef = adminDb.collection(collectionName).doc()
-      await txRef.set({
-        userId,
-        type: 'wallet_funding',
-        amount,
-        provider,
-        reference,
-        status: 'completed',
-        note: `Wallet funded via ${provider}`,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        completedAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
+      const pendingTxSnap = await adminDb.collection(collectionName)
+        .where('userId', '==', userId)
+        .where('reference', '==', reference)
+        .where('type', '==', 'wallet_funding')
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get()
+
+      let txId = ''
+      if (!pendingTxSnap.empty) {
+        const pendingDoc = pendingTxSnap.docs[0]
+        txId = pendingDoc.id
+        await pendingDoc.ref.update({
+          amount,
+          provider,
+          status: 'completed',
+          note: `Wallet funded via ${provider}`,
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      } else {
+        const txRef = adminDb.collection(collectionName).doc()
+        txId = txRef.id
+        await txRef.set({
+          userId,
+          type: 'wallet_funding',
+          amount,
+          provider,
+          reference,
+          status: 'completed',
+          note: `Wallet funded via ${provider}`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
 
       // Update balance
       await adminDb.collection(userCollection).doc(userId).update({
@@ -237,7 +258,7 @@ export async function processWalletFundingWithRetry(
       })
 
       console.log(`[wallet-funding][retry] success for ${userType} ${userId}`)
-      return { success: true, attempt, txId: txRef.id }
+      return { success: true, attempt, txId }
 
     } catch (error) {
       console.error(`[wallet-funding][retry] attempt ${attempt} failed for ${userId}:`, error)

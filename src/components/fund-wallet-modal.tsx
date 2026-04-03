@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
 import { auth } from '@/lib/firebase'
 import Image from "next/image"
+import { registerWalletFundingReference } from "@/lib/wallet-funding-client"
+import { extractMonnifyReferenceCandidates } from "@/lib/paymentProcessing"
 
 export type FundWalletModalProps = {
   open: boolean
@@ -155,10 +157,10 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
                 })
                 const text = await res.text().catch(() => '')
                 let data: Record<string, unknown> = {}
-                try { data = text ? JSON.parse(text) : {} } catch (e) { data = { raw: text } }
+                try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
                 if (!res.ok) throw new Error(String(data?.message || `Status ${res.status}`))
                 toast.success('Wallet funded successfully')
-                try { localStorage.removeItem('pamba_pending_payment') } catch (e) {}
+                try { localStorage.removeItem('pamba_pending_payment') } catch {}
                 onClose()
                 if (onSuccess) onSuccess()
               } catch (err) {
@@ -185,7 +187,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
               setIsLoading(false)
               try {
                 // Extract reference from the response object
-                const reference = response?.transactionReference || response?.reference || response
+                const reference = extractMonnifyReferenceCandidates("", response)[0] || response
                 const verifyUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/verify-payment` : '/api/verify-payment'
                 const res = await fetch(verifyUrl, {
                   method: 'POST',
@@ -194,10 +196,10 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
                 })
                 const text = await res.text().catch(() => '')
                 let data: Record<string, unknown> = {}
-                try { data = text ? JSON.parse(text) : {} } catch (e) { data = { raw: text } }
+                try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
                 if (!res.ok) throw new Error(String(data?.message || `Status ${res.status}`))
                 toast.success('Wallet funded successfully')
-                try { localStorage.removeItem('pamba_pending_payment') } catch (e) {}
+                try { localStorage.removeItem('pamba_pending_payment') } catch {}
                 onClose()
                 if (onSuccess) onSuccess()
               } catch (err) {
@@ -209,6 +211,13 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
               setMonnifyOpen(false)
               setIsLoading(false)
               onClose()
+            }}
+            onReferenceCreated={async (reference) => {
+              await registerWalletFundingReference({
+                reference,
+                amount: Number(amount),
+                provider: 'monnify',
+              })
             }}
           />
         )}

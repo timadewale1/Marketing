@@ -1,0 +1,208 @@
+import { NextResponse } from "next/server"
+import { requireAdminSession } from "@/lib/admin-session"
+import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { processActivationWithRetry, processWalletFundingWithRetry } from "@/lib/paymentProcessing"
+
+type UserRole = "earner" | "advertiser"
+
+function serializeDate(value: unknown) {
+  if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
+    return ((value as { toDate: () => Date }).toDate()).toISOString()
+  }
+  if (value instanceof Date) return value.toISOString()
+  return value ?? null
+}
+
+export async function GET() {
+  await requireAdminSession()
+  const { dbAdmin } = await initFirebaseAdmin()
+  if (!dbAdmin) {
+    return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
+  }
+
+  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap] = await Promise.all([
+    dbAdmin.collection("earners").get(),
+    dbAdmin.collection("advertisers").get(),
+    dbAdmin.collection("earnerTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
+    dbAdmin.collection("advertiserTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
+    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
+  ])
+
+  const activationTxByUser = new Map<string, { reference: string | null; createdAt: string | null }>()
+  for (const doc of [...earnerActivationTxSnap.docs, ...advertiserActivationTxSnap.docs]) {
+    const data = doc.data()
+    const userId = String(data.userId || "")
+    if (!userId || activationTxByUser.has(userId)) continue
+    activationTxByUser.set(userId, {
+      reference: data.reference ? String(data.reference) : null,
+      createdAt: serializeDate(data.createdAt) as string | null,
+    })
+  }
+
+  const activationCandidates = [
+    ...earnersSnap.docs.map((doc) => ({ doc, role: "earner" as const })),
+    ...advertisersSnap.docs.map((doc) => ({ doc, role: "advertiser" as const })),
+  ]
+    .map(({ doc, role }) => {
+      const data = doc.data()
+      const pendingReferences = Array.isArray(data.pendingActivationReferences)
+        ? data.pendingActivationReferences.map((value: unknown) => String(value)).filter(Boolean)
+        : []
+      const activationReferences = Array.isArray(data.activationReferences)
+        ? data.activationReferences.map((value: unknown) => String(value)).filter(Boolean)
+        : []
+      const txInfo = activationTxByUser.get(doc.id)
+
+      const references = [...new Set([
+        ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
+        ...pendingReferences,
+        ...(data.activationReference ? [String(data.activationReference)] : []),
+        ...activationReferences,
+        ...(txInfo?.reference ? [txInfo.reference] : []),
+      ])]
+
+      return {
+        id: doc.id,
+        role,
+        name: String(data.fullName || data.businessName || data.name || data.companyName || "Unnamed user"),
+        email: String(data.email || ""),
+        activated: Boolean(data.activated),
+        pendingActivationReference: data.pendingActivationReference ? String(data.pendingActivationReference) : null,
+        activationReference: data.activationReference ? String(data.activationReference) : null,
+        activationAttemptedAt: serializeDate(data.activationAttemptedAt) as string | null,
+        activatedAt: serializeDate(data.activatedAt) as string | null,
+        references,
+        lastActivationTxAt: txInfo?.createdAt || null,
+      }
+    })
+    .filter((candidate) => !candidate.activated && candidate.references.length > 0)
+    .sort((a, b) => (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || ""))
+
+  const walletCandidates = await Promise.all(
+    pendingWalletSnap.docs.map(async (txDoc) => {
+      const data = txDoc.data()
+      const advertiserId = String(data.userId || "")
+      const advertiserSnap = advertiserId ? await dbAdmin.collection("advertisers").doc(advertiserId).get() : null
+      const advertiser = advertiserSnap?.exists ? advertiserSnap.data() : null
+      return {
+        id: txDoc.id,
+        userId: advertiserId,
+        name: String(advertiser?.name || advertiser?.businessName || advertiser?.companyName || "Unnamed advertiser"),
+        email: String(advertiser?.email || ""),
+        amount: Number(data.amount || 0),
+        reference: String(data.reference || ""),
+        provider: String(data.provider || "monnify"),
+        status: String(data.status || "pending"),
+        createdAt: serializeDate(data.createdAt) as string | null,
+        currentBalance: Number(advertiser?.balance || 0),
+      }
+    })
+  )
+
+  return NextResponse.json({
+    success: true,
+    activationCandidates,
+    walletCandidates: walletCandidates.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+  })
+}
+
+export async function POST(req: Request) {
+  const adminSession = await requireAdminSession()
+  const body = await req.json()
+  const action = body?.action as "activate_user" | "complete_wallet_funding" | undefined
+  const { dbAdmin, admin } = await initFirebaseAdmin()
+  if (!dbAdmin || !admin) {
+    return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
+  }
+
+  try {
+    if (action === "activate_user") {
+      const userId = String(body?.userId || "")
+      const role = body?.role as UserRole | undefined
+      if (!userId || !role) {
+        return NextResponse.json({ success: false, message: "Missing user details" }, { status: 400 })
+      }
+
+      const userRef = dbAdmin.collection(role === "earner" ? "earners" : "advertisers").doc(userId)
+      const userSnap = await userRef.get()
+      if (!userSnap.exists) {
+        return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
+      }
+
+      const data = userSnap.data() || {}
+      const references = [...new Set([
+        ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
+        ...((Array.isArray(data.pendingActivationReferences) ? data.pendingActivationReferences : []).map((value: unknown) => String(value))),
+        ...(data.activationReference ? [String(data.activationReference)] : []),
+        ...((Array.isArray(data.activationReferences) ? data.activationReferences : []).map((value: unknown) => String(value))),
+      ].filter(Boolean))]
+
+      if (references.length === 0) {
+        return NextResponse.json({ success: false, message: "No activation reference found for this user" }, { status: 400 })
+      }
+
+      await processActivationWithRetry(userId, references[0], String(data.pendingActivationProvider || data.activationPaymentProvider || "monnify"), 3, references)
+
+      await dbAdmin.collection("adminNotifications").add({
+        type: "activation_recovered",
+        title: "Activation recovered",
+        body: `${String(data.fullName || data.businessName || data.name || data.companyName || userId)} was manually activated by admin recovery`,
+        link: role === "earner" ? `/admin/earners/${userId}` : `/admin/advertisers/${userId}`,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        actor: adminSession.email,
+        userId,
+      })
+
+      return NextResponse.json({ success: true, message: "User activated successfully" })
+    }
+
+    if (action === "complete_wallet_funding") {
+      const transactionId = String(body?.transactionId || "")
+      if (!transactionId) {
+        return NextResponse.json({ success: false, message: "Missing transaction details" }, { status: 400 })
+      }
+
+      const txRef = dbAdmin.collection("advertiserTransactions").doc(transactionId)
+      const txSnap = await txRef.get()
+      if (!txSnap.exists) {
+        return NextResponse.json({ success: false, message: "Pending wallet funding record not found" }, { status: 404 })
+      }
+
+      const tx = txSnap.data() || {}
+      if (tx.type !== "wallet_funding") {
+        return NextResponse.json({ success: false, message: "This record is not a wallet funding transaction" }, { status: 400 })
+      }
+
+      await processWalletFundingWithRetry(
+        String(tx.userId || ""),
+        String(tx.reference || ""),
+        Number(tx.amount || 0),
+        String(tx.provider || "monnify"),
+        "advertiser"
+      )
+
+      await dbAdmin.collection("adminNotifications").add({
+        type: "wallet_funding_recovered",
+        title: "Wallet funding recovered",
+        body: `Recovered wallet funding of ₦${Number(tx.amount || 0).toLocaleString()} for ${String(tx.userId || "advertiser")}`,
+        link: "/admin/recovery",
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        actor: adminSession.email,
+        userId: String(tx.userId || ""),
+        amount: Number(tx.amount || 0),
+      })
+
+      return NextResponse.json({ success: true, message: "Wallet funded successfully" })
+    }
+
+    return NextResponse.json({ success: false, message: "Unknown recovery action" }, { status: 400 })
+  } catch (error) {
+    console.error("[admin][recovery] action failed", error)
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : "Recovery action failed" },
+      { status: 500 }
+    )
+  }
+}

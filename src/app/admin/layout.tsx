@@ -12,6 +12,7 @@ import {
   BarChart2,
   FileCheck,
   Wallet,
+  LifeBuoy,
   LogOut,
   Menu,
   X,
@@ -64,6 +65,11 @@ const NAVIGATION = [
     name: "Activities",
     href: "/admin/activities",
     icon: Mail,
+  },
+  {
+    name: "Recovery",
+    href: "/admin/recovery",
+    icon: LifeBuoy,
   },
   {
     name: "Direct Ads",

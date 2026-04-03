@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,13 +18,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
     }
     const adminDb = dbAdmin as AdminFirestore
+    const referenceCandidates = provider === 'monnify'
+      ? extractMonnifyReferenceCandidates(String(reference), monnifyResponse || null)
+      : [String(reference)]
 
     if (provider === 'monnify') {
       try {
         console.log('Monnify SDK payment verification - trusting SDK callback')
         if (monnifyResponse) {
           console.log('Monnify SDK response:', JSON.stringify(monnifyResponse).substring(0, 200))
-          if (!monnifyResponse.transactionReference && !monnifyResponse.reference) {
+          if (referenceCandidates.length === 0) {
             return NextResponse.json(
               { success: false, message: 'Invalid Monnify SDK response - missing reference' },
               { status: 400 }
@@ -64,20 +68,13 @@ export async function POST(req: NextRequest) {
 
     if (type === 'wallet_funding' && userId && amount > 0) {
       try {
-        await adminDb.collection('advertiserTransactions').add({
-          userId,
-          type: 'wallet_funding',
-          amount,
-          status: 'completed',
-          note: 'Wallet funded via Paystack',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-        try {
-          const advRef = adminDb.collection('advertisers').doc(userId)
-          await advRef.update({ balance: admin.firestore.FieldValue.increment(Number(amount)) })
-        } catch (updErr) {
-          console.warn('Failed to increment advertiser balance', updErr)
-        }
+        await processWalletFundingWithRetry(
+          String(userId),
+          referenceCandidates[0] || String(reference),
+          Number(amount),
+          provider === 'monnify' ? 'monnify' : 'paystack',
+          'advertiser'
+        )
         await adminDb.collection('adminNotifications').add({
           type: 'wallet_funding',
           title: 'Wallet funded',
