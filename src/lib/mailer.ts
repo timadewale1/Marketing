@@ -252,15 +252,62 @@ export async function sendDirectAdvertAcceptedEmail({
   contactName?: string | null
   email: string
 }) {
+  const buildDirectAdvertPackages = () => {
+    const selectedDurations = [3, 4, 5, 6, 7, 10, 14, 21, 30, 45, 60]
+    const weeklyRate = 10000 / 7
+    const computedPrice = (days: number) => {
+      if (days === 3) return 5000
+      if (days === 7) return 10000
+      if (days < 7) {
+        const perDayBetweenAnchors = (10000 - 5000) / (7 - 3)
+        return Math.ceil((5000 + (days - 3) * perDayBetweenAnchors) / 500) * 500
+      }
+      return Math.ceil((days * weeklyRate) / 500) * 500
+    }
+
+    return selectedDurations.map((days) => ({
+      days,
+      price: computedPrice(days),
+    }))
+  }
+
+  const packageCards = buildDirectAdvertPackages()
+    .map(
+      (pkg) => `
+        <div style="border: 1px solid #fde68a; border-radius: 14px; padding: 14px 16px; background: #fffbeb;">
+          <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.22em; color: #92400e;">Package</div>
+          <div style="margin-top: 8px; font-size: 22px; font-weight: 700; color: #111827;">${pkg.days} day${pkg.days === 1 ? '' : 's'}</div>
+          <div style="margin-top: 4px; font-size: 16px; font-weight: 600; color: #b45309;">₦${pkg.price.toLocaleString()}</div>
+        </div>
+      `
+    )
+    .join('')
+
   await sendEmail({
     to: email,
-    subject: `We received your direct advert request for ${businessName}`,
+    subject: `${businessName}, let’s get your direct advert live on Pamba`,
     html: wrapEmail(
-      'Direct advert request received',
+      'Your direct advert request is in',
       `
         <p>Hi ${contactName ? String(contactName) : 'there'},</p>
-        <p>We received your direct advert request for <strong>${businessName}</strong>.</p>
-        <p>Our team will review the request and get back to you shortly with the next steps.</p>
+        <p>Thank you for reaching out to Pamba for <strong>${businessName}</strong>. We are excited about the opportunity to help you put your brand in front of the right audience.</p>
+        <p>Your request has been received successfully, and we would love to move you to the next step by helping you choose the advert duration that fits your campaign goals best.</p>
+        <div style="margin: 24px 0; padding: 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(146,64,14,0.08)); border: 1px solid #fcd34d;">
+          <p style="margin: 0 0 10px; font-size: 18px; font-weight: 700; color: #111827;">Current direct advert packages</p>
+          <p style="margin: 0; color: #57534e;">Here are the available package options we can run for you right now. These are built from our current 3-day and 1-week pricing.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0 24px;">
+          ${packageCards}
+        </div>
+        <p>If you already know what you want, simply <strong>reply to this email with your preferred package choice</strong>, and our team will continue the setup process with you right away.</p>
+        <p>You can reply with something as simple as:</p>
+        <ul style="padding-left: 20px; color: #374151;">
+          <li><strong>“We want the 7-day package.”</strong></li>
+          <li><strong>“Please reserve the 30-day package for us.”</strong></li>
+          <li><strong>“We need a custom plan and want to discuss the best option.”</strong></li>
+        </ul>
+        <p>We are looking forward to helping your advert gain strong visibility on Pamba, and we will be happy to guide you to the best-fit option for your campaign.</p>
+        <p>Once you reply with your preferred package, we will take it from there.</p>
       `,
       'Visit Pamba',
       APP_URL
