@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { processActivationWithRetry } from '@/lib/paymentProcessing'
+import { extractMonnifyReferenceCandidates, processActivationWithRetry } from '@/lib/paymentProcessing'
 
 export async function POST(req: Request) {
   try {
@@ -12,8 +12,6 @@ export async function POST(req: Request) {
   const userId = body?.userId as string | undefined
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
 
-    let paidAmount = 0
-
     if (provider === 'monnify') {
       try {
         // For Monnify SDK payments, trust the onComplete callback
@@ -21,12 +19,11 @@ export async function POST(req: Request) {
         console.log('Monnify SDK activation verification - trusting SDK callback')
         
         // Set paidAmount to 2000 (activation fee)
-        paidAmount = 2000
-        
         // If monnifyResponse was provided, validate it has the expected structure
         if (monnifyResponse) {
           console.log('Monnify SDK response:', JSON.stringify(monnifyResponse).substring(0, 200))
-          if (!monnifyResponse.transactionReference && !monnifyResponse.reference) {
+          const responseReferences = extractMonnifyReferenceCandidates(reference, monnifyResponse)
+          if (responseReferences.length === 0) {
             return NextResponse.json(
               { success: false, message: 'Invalid Monnify SDK response - missing reference' },
               { status: 400 }
@@ -56,7 +53,6 @@ export async function POST(req: Request) {
           }
 
           console.log('Monnify server verification successful')
-          paidAmount = Number(responseBody?.amount || 2000)
         } catch (verifyError) {
           console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
           // Continue with SDK trust as fallback, but log the issue
@@ -90,10 +86,20 @@ export async function POST(req: Request) {
     if (!dbAdmin || !admin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
 
     const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
+    const referenceCandidates = provider === 'monnify'
+      ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
+      : [reference]
+
+    await adminDb.collection('earners').doc(userId).set({
+      pendingActivationReference: referenceCandidates[0] || reference,
+      pendingActivationReferences: referenceCandidates,
+      pendingActivationProvider: provider,
+      activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
 
     // Process activation with retry mechanism
     try {
-      const result = await processActivationWithRetry(userId, reference, provider)
+      const result = await processActivationWithRetry(userId, reference, provider, 3, referenceCandidates)
       
       if (result && result.success) {
         if (result.alreadyActivated) {

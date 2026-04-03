@@ -21,6 +21,7 @@ import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
+import { registerActivationReference } from "@/lib/activation-client";
 
 type Campaign = {
   id: string;
@@ -810,13 +811,16 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             fullName={auth.currentUser?.displayName || 'Earner'}
             description="Earner Account Activation"
             onClose={() => setShowActivationPaymentSelector(false)}
-            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+            onMonnifyReferenceCreated={async (reference: string) => {
+              await registerActivationReference({ role: 'earner', reference, provider: 'monnify' })
+            }}
+            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
               setShowActivationPaymentSelector(false)
               try {
                 const res = await fetch('/api/earner/activate', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider }),
+                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
                 })
                 if (res.ok) {
                   toast.success('Account activated successfully!')
