@@ -9,7 +9,7 @@ import toast from "react-hot-toast"
 import { auth } from '@/lib/firebase'
 import Image from "next/image"
 import { registerWalletFundingReference } from "@/lib/wallet-funding-client"
-import { extractMonnifyReferenceCandidates } from "@/lib/paymentProcessing"
+import { extractMonnifyReferenceCandidates } from "@/lib/monnify-reference"
 
 export type FundWalletModalProps = {
   open: boolean
