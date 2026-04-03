@@ -1,6 +1,7 @@
 import "./globals.css"
 import { Toaster } from "react-hot-toast"
 import PwaInstaller from "@/components/PwaInstaller"
+import { Analytics } from "@vercel/analytics/next"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PwaInstaller />
         {children}
+        <Analytics />
         <Toaster
           position="top-right"
           toastOptions={{
