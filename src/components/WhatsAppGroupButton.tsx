@@ -2,7 +2,7 @@
 
 import { Users } from "lucide-react";
 
-export const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/FcYJkb4LLpF0NboOxUEJeJ?mode=gi_t";
+export const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/HxvnJo7OpA24IPPKkAZqxp?mode=gi_t";
 
 export default function WhatsAppGroupButton() {
   return (
