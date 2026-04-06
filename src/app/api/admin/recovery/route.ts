@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
-import { processActivationWithRetry, processWalletFundingWithRetry } from "@/lib/paymentProcessing"
+import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
 import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
@@ -265,7 +265,13 @@ export async function POST(req: Request) {
         }
       }
 
-      await processActivationWithRetry(userId, references[0], String(data.pendingActivationProvider || data.activationPaymentProvider || "monnify"), 3, references)
+      await runFullActivationFlow(
+        userId,
+        references[0],
+        String(data.pendingActivationProvider || data.activationPaymentProvider || "monnify"),
+        role,
+        references
+      )
 
       await dbAdmin.collection("adminNotifications").add({
         type: "activation_recovered",

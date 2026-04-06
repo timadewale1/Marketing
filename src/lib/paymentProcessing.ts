@@ -3,6 +3,8 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
+type UserRole = 'earner' | 'advertiser'
+
 async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
   admin: typeof import('firebase-admin'),
@@ -159,6 +161,48 @@ export async function processActivationWithRetry(
       await new Promise(resolve => setTimeout(resolve, delayMs))
     }
   }
+}
+
+export async function runFullActivationFlow(
+  userId: string,
+  reference: string,
+  provider: string = 'monnify',
+  role?: UserRole,
+  extraReferences: string[] = []
+) {
+  const { admin, dbAdmin } = await initFirebaseAdmin()
+  if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
+
+  const adminDb = dbAdmin as AdminFirestore
+  const activationReferences = [...new Set([reference, ...extraReferences].filter(Boolean))]
+  const primaryReference = activationReferences[0] || reference
+
+  let userType: 'earners' | 'advertisers'
+  if (role) {
+    userType = role === 'earner' ? 'earners' : 'advertisers'
+  } else {
+    const [earnerSnap, advertiserSnap] = await Promise.all([
+      adminDb.collection('earners').doc(userId).get(),
+      adminDb.collection('advertisers').doc(userId).get(),
+    ])
+
+    if (earnerSnap.exists) {
+      userType = 'earners'
+    } else if (advertiserSnap.exists) {
+      userType = 'advertisers'
+    } else {
+      throw new Error(`User not found for activation flow: ${userId}`)
+    }
+  }
+
+  await adminDb.collection(userType).doc(userId).set({
+    pendingActivationReference: primaryReference,
+    pendingActivationReferences: activationReferences,
+    pendingActivationProvider: provider,
+    activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true })
+
+  return processActivationWithRetry(userId, primaryReference, provider, 3, activationReferences)
 }
 
 export async function processWalletFundingWithRetry(
