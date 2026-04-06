@@ -133,7 +133,7 @@ export async function POST(req: Request) {
 
     // Attempt transfer via matched provider
     try {
-      const recipientName = earner.fullName || bank.accountName || 'Pamba User'
+      const recipientName = earner?.fullName || bank.accountName || 'Pamba User'
       
       if (activationPaymentProvider === 'monnify') {
         // Handle Monnify withdrawal via Monnify disbursement API
