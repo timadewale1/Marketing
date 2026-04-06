@@ -27,15 +27,6 @@ async function processPendingActivationReferrals(
         const referralRef = adminDb.collection('referrals').doc(rDoc.id)
         const snap = await t.get(referralRef)
         if (!snap.exists || snap.data()?.status !== 'pending') return
-
-        t.update(referralRef, {
-          status: 'completed',
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          bonusPaid: true,
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
-          paidAmount: bonus,
-        })
-
         if (!referrerId || bonus <= 0) return
 
         const advRef = adminDb.collection('advertisers').doc(referrerId)
@@ -45,6 +36,14 @@ async function processPendingActivationReferrals(
           t.get(advRef),
           t.get(earnerRef)
         ])
+
+        t.update(referralRef, {
+          status: 'completed',
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          bonusPaid: true,
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAmount: bonus,
+        })
 
         if (advSnap.exists) {
           t.set(adminDb.collection('advertiserTransactions').doc(), {
