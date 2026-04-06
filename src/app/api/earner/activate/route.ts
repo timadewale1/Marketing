@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { extractMonnifyReferenceCandidates, processActivationWithRetry } from '@/lib/paymentProcessing'
+import { extractMonnifyReferenceCandidates, runFullActivationFlow } from '@/lib/paymentProcessing'
 
 export async function POST(req: Request) {
   try {
@@ -82,24 +82,13 @@ export async function POST(req: Request) {
     */
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
 
-    const { admin, dbAdmin } = await initFirebaseAdmin()
-    if (!dbAdmin || !admin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
-
-    const adminDb = dbAdmin as import('firebase-admin').firestore.Firestore
     const referenceCandidates = provider === 'monnify'
       ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
       : [reference]
 
-    await adminDb.collection('earners').doc(userId).set({
-      pendingActivationReference: referenceCandidates[0] || reference,
-      pendingActivationReferences: referenceCandidates,
-      pendingActivationProvider: provider,
-      activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true })
-
     // Process activation with retry mechanism
     try {
-      const result = await processActivationWithRetry(userId, reference, provider, 3, referenceCandidates)
+      const result = await runFullActivationFlow(userId, reference, provider, 'earner', referenceCandidates)
       
       if (result && result.success) {
         if (result.alreadyActivated) {
