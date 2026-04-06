@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { getBankDetails } from '@/lib/bank-details'
 import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
 import monnify from '@/services/monnify'
 
@@ -40,13 +41,31 @@ export async function POST(req: Request) {
     const earnerRef = db.collection('earners').doc(userId)
     const earnerSnap = await earnerRef.get()
     if (!earnerSnap.exists) return NextResponse.json({ success: false, message: 'Earner not found' }, { status: 404 })
-    type BankField = { accountNumber?: string; bankCode?: string; accountName?: string; bankName?: string }
-    type EarnerDoc = { balance?: number; bank?: BankField; fullName?: string; paystackRecipientCode?: string }
+    type EarnerDoc = {
+      balance?: number
+      bank?: { accountNumber?: string; bankCode?: string; accountName?: string; bankName?: string }
+      bankCode?: string
+      bankName?: string
+      accountNumber?: string
+      accountName?: string
+      fullName?: string
+      paystackRecipientCode?: string
+    }
     const earner = earnerSnap.data() as EarnerDoc | null
 
-    const bank = earner?.bank
+    const bank = getBankDetails(earner)
     if (!bank || !bank.accountNumber || !bank.bankCode) {
       return NextResponse.json({ success: false, message: 'No bank details on file' }, { status: 400 })
+    }
+
+    if (
+      !earner?.bank ||
+      earner.bank.accountNumber !== bank.accountNumber ||
+      earner.bank.bankCode !== bank.bankCode ||
+      earner.bank.accountName !== bank.accountName ||
+      earner.bank.bankName !== bank.bankName
+    ) {
+      await earnerRef.set({ bank }, { merge: true })
     }
 
     const balance = Number(earner?.balance || 0)
