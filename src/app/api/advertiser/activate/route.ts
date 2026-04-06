@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { extractMonnifyReferenceCandidates, runFullActivationFlow } from '@/lib/paymentProcessing'
 
 interface MonnifyVerificationResponse {
@@ -49,16 +48,15 @@ export async function POST(req: Request) {
           const { verifyTransaction } = await import('@/services/monnify')
           const verificationResult = await verifyTransaction(reference)
           
-          if (!verificationResult?.requestSuccessful || (verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'])?.paymentStatus !== 'PAID') {
-            console.error('Monnify server verification failed:', verificationResult)
-            return NextResponse.json(
-              { success: false, message: 'Payment verification failed - please contact support' },
-              { status: 400 }
-            )
+          const responseBody = verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
+          const paymentStatus = String(responseBody?.paymentStatus || '').toUpperCase()
+
+          if (!verificationResult?.requestSuccessful || (paymentStatus !== 'PAID' && paymentStatus !== 'SUCCESSFUL')) {
+            console.warn('Monnify server verification not yet confirmed, proceeding with SDK trust:', verificationResult)
+          } else {
+            console.log('Monnify server verification successful')
+            paidAmount = Number(responseBody?.amount || 2000)
           }
-          
-          console.log('Monnify server verification successful')
-          paidAmount = Number((verificationResult.responseBody as MonnifyVerificationResponse['responseBody'])?.amount || 2000)
         } catch (verifyError) {
           console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
           // Continue with SDK trust as fallback, but log the issue

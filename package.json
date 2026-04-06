@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node tools/vercel-postbuild.js",
     "start": "next start",
     "lint": "eslint",
     "mock-paystack": "node tools/integration/mock-paystack.js",
