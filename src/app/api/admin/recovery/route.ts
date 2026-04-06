@@ -59,10 +59,19 @@ async function verifyProviderPayment(reference: string, provider: PaymentProvide
 async function hasVerifiedSuccessfulPayment(
   references: string[],
   providerHint: unknown,
-  verificationCache: Map<string, Promise<boolean>>
+  verificationCache: Map<string, Promise<boolean>>,
+  successfulWebhookReferences?: Set<string>
 ) {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return false
+
+  if (successfulWebhookReferences) {
+    for (const reference of uniqueReferences) {
+      if (successfulWebhookReferences.has(reference)) {
+        return true
+      }
+    }
+  }
 
   const hintedProvider = normalizeProvider(providerHint)
   const providersToTry: PaymentProvider[] = hintedProvider
@@ -96,12 +105,13 @@ export async function GET() {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
   }
 
-  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap] = await Promise.all([
+  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap, processedWebhookSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
     dbAdmin.collection("earnerTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
+    dbAdmin.collection("processedWebhooks").where("eventType", "==", "TRANSACTION_COMPLETION").get(),
   ])
 
   const activationTxByUser = new Map<string, { reference: string | null; createdAt: string | null }>()
@@ -116,6 +126,15 @@ export async function GET() {
   }
 
   const verificationCache = new Map<string, Promise<boolean>>()
+  const successfulWebhookReferences = new Set(
+    processedWebhookSnap.docs
+      .filter((doc) => {
+        const status = String(doc.data().status || "").toUpperCase()
+        return status === "SUCCESS" || status === "SUCCESSFUL"
+      })
+      .map((doc) => String(doc.data().reference || "").trim())
+      .filter(Boolean)
+  )
 
   const activationCandidateDrafts = [
     ...earnersSnap.docs.map((doc) => ({ doc, role: "earner" as const })),
@@ -164,7 +183,8 @@ export async function GET() {
       const isVerified = await hasVerifiedSuccessfulPayment(
         candidate.references,
         candidate.providerHint,
-        verificationCache
+        verificationCache,
+        successfulWebhookReferences
       )
 
       return isVerified ? candidate : null
@@ -178,7 +198,12 @@ export async function GET() {
       const data = txDoc.data()
       const reference = String(data.reference || "")
       const provider = String(data.provider || "monnify")
-      const isVerified = await hasVerifiedSuccessfulPayment([reference], provider, verificationCache)
+      const isVerified = await hasVerifiedSuccessfulPayment(
+        [reference],
+        provider,
+        verificationCache,
+        successfulWebhookReferences
+      )
       if (!isVerified) return null
 
       const advertiserId = String(data.userId || "")
@@ -254,10 +279,24 @@ export async function POST(req: Request) {
 
       if (completedActivationTxSnap.empty) {
         const verificationCache = new Map<string, Promise<boolean>>()
+        const processedWebhookSnap = await dbAdmin
+          .collection("processedWebhooks")
+          .where("eventType", "==", "TRANSACTION_COMPLETION")
+          .get()
+        const successfulWebhookReferences = new Set(
+          processedWebhookSnap.docs
+            .filter((doc) => {
+              const status = String(doc.data().status || "").toUpperCase()
+              return status === "SUCCESS" || status === "SUCCESSFUL"
+            })
+            .map((doc) => String(doc.data().reference || "").trim())
+            .filter(Boolean)
+        )
         const paymentVerified = await hasVerifiedSuccessfulPayment(
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || null,
-          verificationCache
+          verificationCache,
+          successfulWebhookReferences
         )
 
         if (!paymentVerified) {
@@ -308,10 +347,24 @@ export async function POST(req: Request) {
       }
 
       const verificationCache = new Map<string, Promise<boolean>>()
+      const processedWebhookSnap = await dbAdmin
+        .collection("processedWebhooks")
+        .where("eventType", "==", "TRANSACTION_COMPLETION")
+        .get()
+      const successfulWebhookReferences = new Set(
+        processedWebhookSnap.docs
+          .filter((doc) => {
+            const status = String(doc.data().status || "").toUpperCase()
+            return status === "SUCCESS" || status === "SUCCESSFUL"
+          })
+          .map((doc) => String(doc.data().reference || "").trim())
+          .filter(Boolean)
+      )
       const paymentVerified = await hasVerifiedSuccessfulPayment(
         [String(tx.reference || "")],
         tx.provider || "monnify",
-        verificationCache
+        verificationCache,
+        successfulWebhookReferences
       )
 
       if (!paymentVerified) {
