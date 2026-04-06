@@ -54,7 +54,11 @@ export async function POST(req: Request) {
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
 
     // Check which payment provider was used for activation
-    const activationPaymentProvider = advertiserSnap.data()?.activationPaymentProvider || 'paystack'
+    const activationPaymentProviderRaw =
+      advertiserSnap.data()?.activationPaymentProvider ||
+      advertiserSnap.data()?.pendingActivationProvider ||
+      'monnify'
+    const activationPaymentProvider = activationPaymentProviderRaw === 'paystack' ? 'paystack' : 'monnify'
 
     // Platform fee (10%) — send net amount via Paystack
     const fee = Math.round(amount * 0.1)
