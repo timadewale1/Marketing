@@ -2,8 +2,10 @@ import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processActivationWithRetry, processWalletFundingWithRetry } from "@/lib/paymentProcessing"
+import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
+type PaymentProvider = "monnify" | "paystack"
 
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
@@ -11,6 +13,77 @@ function serializeDate(value: unknown) {
   }
   if (value instanceof Date) return value.toISOString()
   return value ?? null
+}
+
+function normalizeProvider(value: unknown): PaymentProvider | null {
+  return String(value || "").toLowerCase() === "paystack" ? "paystack" : String(value || "").toLowerCase() === "monnify" ? "monnify" : null
+}
+
+async function verifyPaystackPayment(reference: string) {
+  const secret = process.env.PAYSTACK_SECRET_KEY
+  if (!secret || !reference) return false
+
+  const encodedReference = encodeURIComponent(reference)
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodedReference}`, {
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      Accept: "application/json",
+    },
+  })
+
+  const payload = await response.json().catch(() => null) as
+    | { status?: boolean; data?: { status?: string } }
+    | null
+
+  return Boolean(response.ok && payload?.status && payload.data?.status === "success")
+}
+
+async function verifyProviderPayment(reference: string, provider: PaymentProvider) {
+  if (!reference) return false
+
+  if (provider === "paystack") {
+    return verifyPaystackPayment(reference)
+  }
+
+  try {
+    const payload = await verifyMonnifyTransaction(reference)
+    const paymentStatus = String(payload?.responseBody?.paymentStatus || "").toUpperCase()
+    return Boolean(payload?.requestSuccessful && (paymentStatus === "PAID" || paymentStatus === "SUCCESSFUL"))
+  } catch (error) {
+    console.warn("[admin][recovery] failed to verify monnify payment", { reference, error })
+    return false
+  }
+}
+
+async function hasVerifiedSuccessfulPayment(
+  references: string[],
+  providerHint: unknown,
+  verificationCache: Map<string, Promise<boolean>>
+) {
+  const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
+  if (uniqueReferences.length === 0) return false
+
+  const hintedProvider = normalizeProvider(providerHint)
+  const providersToTry: PaymentProvider[] = hintedProvider
+    ? [hintedProvider, ...(hintedProvider === "monnify" ? ["paystack"] : ["monnify"])]
+    : ["monnify", "paystack"]
+
+  for (const reference of uniqueReferences) {
+    for (const provider of providersToTry) {
+      const cacheKey = `${provider}:${reference}`
+      let verification = verificationCache.get(cacheKey)
+      if (!verification) {
+        verification = verifyProviderPayment(reference, provider)
+        verificationCache.set(cacheKey, verification)
+      }
+
+      if (await verification) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 export async function GET() {
@@ -39,7 +112,9 @@ export async function GET() {
     })
   }
 
-  const activationCandidates = [
+  const verificationCache = new Map<string, Promise<boolean>>()
+
+  const activationCandidateDrafts = [
     ...earnersSnap.docs.map((doc) => ({ doc, role: "earner" as const })),
     ...advertisersSnap.docs.map((doc) => ({ doc, role: "advertiser" as const })),
   ]
@@ -71,16 +146,38 @@ export async function GET() {
         activationReference: data.activationReference ? String(data.activationReference) : null,
         activationAttemptedAt: serializeDate(data.activationAttemptedAt) as string | null,
         activatedAt: serializeDate(data.activatedAt) as string | null,
+        providerHint: data.pendingActivationProvider || data.activationPaymentProvider || null,
         references,
         lastActivationTxAt: txInfo?.createdAt || null,
+        hasCompletedActivationTx: Boolean(txInfo?.reference),
       }
     })
     .filter((candidate) => !candidate.activated && candidate.references.length > 0)
+
+  const activationCandidates = (await Promise.all(
+    activationCandidateDrafts.map(async (candidate) => {
+      if (candidate.hasCompletedActivationTx) return candidate
+
+      const isVerified = await hasVerifiedSuccessfulPayment(
+        candidate.references,
+        candidate.providerHint,
+        verificationCache
+      )
+
+      return isVerified ? candidate : null
+    })
+  ))
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
     .sort((a, b) => (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || ""))
 
   const walletCandidates = await Promise.all(
     pendingWalletSnap.docs.map(async (txDoc) => {
       const data = txDoc.data()
+      const reference = String(data.reference || "")
+      const provider = String(data.provider || "monnify")
+      const isVerified = await hasVerifiedSuccessfulPayment([reference], provider, verificationCache)
+      if (!isVerified) return null
+
       const advertiserId = String(data.userId || "")
       const advertiserSnap = advertiserId ? await dbAdmin.collection("advertisers").doc(advertiserId).get() : null
       const advertiser = advertiserSnap?.exists ? advertiserSnap.data() : null
@@ -90,8 +187,8 @@ export async function GET() {
         name: String(advertiser?.name || advertiser?.businessName || advertiser?.companyName || "Unnamed advertiser"),
         email: String(advertiser?.email || ""),
         amount: Number(data.amount || 0),
-        reference: String(data.reference || ""),
-        provider: String(data.provider || "monnify"),
+        reference,
+        provider,
         status: String(data.status || "pending"),
         createdAt: serializeDate(data.createdAt) as string | null,
         currentBalance: Number(advertiser?.balance || 0),
@@ -102,7 +199,9 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     activationCandidates,
-    walletCandidates: walletCandidates.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    walletCandidates: walletCandidates
+      .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
   })
 }
 
@@ -141,6 +240,31 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "No activation reference found for this user" }, { status: 400 })
       }
 
+      const activationTxCollection = role === "earner" ? "earnerTransactions" : "advertiserTransactions"
+      const completedActivationTxSnap = await dbAdmin
+        .collection(activationTxCollection)
+        .where("userId", "==", userId)
+        .where("type", "==", "activation_fee")
+        .where("status", "==", "completed")
+        .limit(1)
+        .get()
+
+      if (completedActivationTxSnap.empty) {
+        const verificationCache = new Map<string, Promise<boolean>>()
+        const paymentVerified = await hasVerifiedSuccessfulPayment(
+          references,
+          data.pendingActivationProvider || data.activationPaymentProvider || null,
+          verificationCache
+        )
+
+        if (!paymentVerified) {
+          return NextResponse.json(
+            { success: false, message: "Activation payment has not been verified as successful for this user" },
+            { status: 400 }
+          )
+        }
+      }
+
       await processActivationWithRetry(userId, references[0], String(data.pendingActivationProvider || data.activationPaymentProvider || "monnify"), 3, references)
 
       await dbAdmin.collection("adminNotifications").add({
@@ -172,6 +296,20 @@ export async function POST(req: Request) {
       const tx = txSnap.data() || {}
       if (tx.type !== "wallet_funding") {
         return NextResponse.json({ success: false, message: "This record is not a wallet funding transaction" }, { status: 400 })
+      }
+
+      const verificationCache = new Map<string, Promise<boolean>>()
+      const paymentVerified = await hasVerifiedSuccessfulPayment(
+        [String(tx.reference || "")],
+        tx.provider || "monnify",
+        verificationCache
+      )
+
+      if (!paymentVerified) {
+        return NextResponse.json(
+          { success: false, message: "Wallet funding payment has not been verified as successful" },
+          { status: 400 }
+        )
       }
 
       await processWalletFundingWithRetry(
