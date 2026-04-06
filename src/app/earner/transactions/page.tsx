@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
+import { getBankDetails, type BankDetails } from "@/lib/bank-details";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,6 @@ interface Transaction {
     seconds: number;
     nanoseconds: number;
   };
-}
-
-interface BankDetails {
-  accountNumber: string;
-  bankName: string;
-  accountName: string;
 }
 
 export default function TransactionsPage() {
@@ -53,13 +48,7 @@ export default function TransactionsPage() {
       if (snap.exists()) {
         const data = snap.data();
         setAvailableBalance(Number(data.balance || 0));
-        if (data.bank) {
-          setBankDetails({
-            accountNumber: data.bank.accountNumber,
-            bankName: data.bank.bankName,
-            accountName: data.bank.accountName,
-          });
-        }
+        setBankDetails(getBankDetails(data));
       }
     });
 

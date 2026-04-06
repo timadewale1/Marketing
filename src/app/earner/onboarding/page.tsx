@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/command"
 import toast from "react-hot-toast"
 import { useRouter } from "next/navigation"
+import { NIGERIAN_BANKS } from "@/lib/banks"
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -41,26 +42,6 @@ const formSchema = z.object({
 })
 
 type FormData = z.infer<typeof formSchema>
-
-const NIGERIAN_BANKS = [
-  { code: "011", name: "First Bank of Nigeria" },
-  { code: "033", name: "United Bank for Africa" },
-  { code: "044", name: "Access Bank" },
-  { code: "050", name: "Zenith Bank" },
-  { code: "070", name: "Guaranty Trust Bank" },
-  { code: "075", name: "Polaris Bank" },
-  { code: "076", name: "Equatorial Trust Bank" },
-  { code: "082", name: "Keystone Bank" },
-  { code: "089", name: "Wema Bank" },
-  { code: "090", name: "Ecobank" },
-  { code: "101", name: "Providus Bank" },
-  { code: "103", name: "Fidelity Bank" },
-  { code: "106", name: "Sterling Bank" },
-  { code: "108", name: "Tangerine Bank" },
-  { code: "110", name: "Stanbic IBTC" },
-  { code: "400", name: "Fido" },
-  { code: "500", name: "FinTech" },
-]
 
 export default function EarnerOnboarding() {
   const [loading, setLoading] = useState(false)
@@ -220,6 +201,13 @@ export default function EarnerOnboarding() {
           bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
           accountNumber: data.accountNumber,
           accountName: accountName,
+          bank: {
+            bankCode: data.bankCode,
+            bankName: banks.find((b) => b.code === data.bankCode)?.name || "",
+            accountNumber: data.accountNumber,
+            accountName,
+            verified: !!accountName,
+          },
           profilePic: profilePicUrl,
           onboarded: true,
           /* Wallet field commented out until Paystack DVA is ready
