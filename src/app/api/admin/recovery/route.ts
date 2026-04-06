@@ -47,7 +47,8 @@ async function verifyProviderPayment(reference: string, provider: PaymentProvide
 
   try {
     const payload = await verifyMonnifyTransaction(reference)
-    const paymentStatus = String(payload?.responseBody?.paymentStatus || "").toUpperCase()
+    const responseBody = payload?.responseBody as { paymentStatus?: string } | undefined
+    const paymentStatus = String(responseBody?.paymentStatus || "").toUpperCase()
     return Boolean(payload?.requestSuccessful && (paymentStatus === "PAID" || paymentStatus === "SUCCESSFUL"))
   } catch (error) {
     console.warn("[admin][recovery] failed to verify monnify payment", { reference, error })
@@ -65,7 +66,9 @@ async function hasVerifiedSuccessfulPayment(
 
   const hintedProvider = normalizeProvider(providerHint)
   const providersToTry: PaymentProvider[] = hintedProvider
-    ? [hintedProvider, ...(hintedProvider === "monnify" ? ["paystack"] : ["monnify"])]
+    ? hintedProvider === "monnify"
+      ? ["monnify", "paystack"]
+      : ["paystack", "monnify"]
     : ["monnify", "paystack"]
 
   for (const reference of uniqueReferences) {
