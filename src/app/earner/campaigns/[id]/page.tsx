@@ -823,7 +823,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                   body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
                 })
                 if (res.ok) {
-                  toast.success('Account activated successfully!')
+                  toast.success('Activation payment received. We will verify it now and your account will be activated immediately after confirmation.')
                   await submitParticipation()
                 } else {
                   const data = await res.json().catch(() => ({}))

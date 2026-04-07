@@ -476,7 +476,7 @@ export default function AdvertiserDashboard() {
                 })
                 const data = await res.json().catch(() => ({}))
                 if (res.ok && data?.success) {
-                  toast.success('Account activated successfully')
+                  toast.success('Activation payment received. We will verify it now and your account will be activated immediately after confirmation.')
                   setActivated(true)
                 } else {
                   toast.error(data?.message || 'Activation failed')

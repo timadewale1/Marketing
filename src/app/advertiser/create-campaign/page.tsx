@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 // Dropzone removed: banner upload disabled, thumbnails auto-generated per task type
 import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { serverTimestamp, getDocs, query, where, collection, updateDoc, doc } from "firebase/firestore"
+import { serverTimestamp, getDoc, getDocs, query, where, collection, updateDoc, doc } from "firebase/firestore"
 import { PaymentSelector } from "@/components/payment-selector"
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
@@ -302,13 +302,23 @@ const compressed = await imageCompression(file, options)
       createdAt: serverTimestamp(),
     }
     try {
-      const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
-      if (docs.empty) {
+      const advertiserRef = doc(db, 'advertisers', user.uid)
+      const advertiserSnap = await getDoc(advertiserRef)
+
+      if (advertiserSnap.exists()) {
+        advertiserProfile = advertiserSnap.data() as Record<string, unknown>
+      } else {
+        const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
+        if (!docs.empty) {
+          advertiserProfile = docs.docs[0].data() as Record<string, unknown>
+        }
+      }
+
+      if (!advertiserProfile) {
         toast.error('Advertiser profile not found - please complete onboarding')
         router.push('/advertiser/onboarding')
         return
       }
-      advertiserProfile = docs.docs[0].data() as Record<string, unknown>
       // If not onboarded, send to onboarding
       if (!advertiserProfile['onboarded']) {
         toast.error('Please complete advertiser onboarding before creating tasks')
@@ -1033,7 +1043,7 @@ const getEmbeddedVideo = (url: string) => {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Account activated successfully')
+                toast.success('Activation payment received. We will verify it now and your account will be activated immediately after confirmation.')
                 setShowActivatePrompt(false)
                 // If there was a pending campaign, proceed with payment after a short delay
                 if (pendingCampaign) {
