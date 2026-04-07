@@ -382,6 +382,109 @@ async function repairActivation(dbAdmin, admin, candidate, verifiedReferences) {
   await processPendingActivationReferrals(dbAdmin, admin, candidate.userId)
 }
 
+async function recoverPendingWalletFundings(dbAdmin, admin, monnify) {
+  if (!monnify) {
+    console.log('[postbuild] skipping wallet funding recovery because Monnify client is unavailable')
+    return
+  }
+
+  const pendingWalletSnap = await dbAdmin.collection('advertiserTransactions')
+    .where('type', '==', 'wallet_funding')
+    .where('status', '==', 'pending')
+    .get()
+
+  console.log(`[postbuild] found ${pendingWalletSnap.size} pending advertiser wallet funding records`)
+
+  let repaired = 0
+  let unresolved = 0
+
+  for (const txDoc of pendingWalletSnap.docs) {
+    const tx = txDoc.data() || {}
+    const userId = String(tx.userId || '')
+    const amount = Number(tx.amount || 0)
+    if (!userId || amount <= 0) {
+      unresolved += 1
+      continue
+    }
+
+    const advertiserSnap = await dbAdmin.collection('advertisers').doc(userId).get()
+    const advertiser = advertiserSnap.exists ? advertiserSnap.data() || {} : {}
+    const references = normalizeReferences([
+      tx.reference,
+      ...(Array.isArray(tx.referenceCandidates) ? tx.referenceCandidates : []),
+    ])
+
+    let verified = null
+    for (const reference of references) {
+      verified = await monnify.verifyReference(reference)
+      if (verified) break
+    }
+
+    if (!verified) {
+      verified = await monnify.searchByContext({
+        references,
+        email: String(advertiser.email || '').trim().toLowerCase(),
+        amount,
+        notBefore: parseDate(tx.createdAt),
+      })
+    }
+
+    if (!verified) {
+      unresolved += 1
+      console.log('[postbuild] wallet funding still requires manual check', {
+        transactionId: txDoc.id,
+        userId,
+        amount,
+        references,
+      })
+      continue
+    }
+
+    const verifiedReferences = normalizeReferences([...(verified.references || []), ...references])
+    const primaryReference = verifiedReferences[0] || String(tx.reference || '')
+    const completedExists = await dbAdmin.collection('advertiserTransactions')
+      .where('userId', '==', userId)
+      .where('reference', '==', primaryReference)
+      .where('type', '==', 'wallet_funding')
+      .where('status', '==', 'completed')
+      .limit(1)
+      .get()
+
+    if (completedExists.empty) {
+      await txDoc.ref.update({
+        amount,
+        provider: String(tx.provider || 'monnify'),
+        reference: primaryReference,
+        referenceCandidates: verifiedReferences,
+        status: 'completed',
+        note: `Wallet funded via ${String(tx.provider || 'monnify')}`,
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+
+      await dbAdmin.collection('advertisers').doc(userId).update({
+        balance: admin.firestore.FieldValue.increment(amount),
+      })
+    } else {
+      await txDoc.ref.update({
+        reference: primaryReference,
+        referenceCandidates: verifiedReferences,
+        status: 'completed',
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+
+    repaired += 1
+    console.log('[postbuild] repaired pending wallet funding', {
+      transactionId: txDoc.id,
+      userId,
+      amount,
+      references: verifiedReferences,
+    })
+  }
+
+  console.log(`[postbuild] wallet funding recovery complete; repaired=${repaired}, unresolved=${unresolved}`)
+}
+
 async function backfillReferralBonuses() {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!admin || !dbAdmin) {
@@ -581,6 +684,8 @@ async function recoverStuckActivations() {
   }
 
   console.log(`[postbuild] activation recovery complete; repaired=${repaired}, surfacedOnly=${surfacedOnly}`)
+
+  await recoverPendingWalletFundings(dbAdmin, admin, monnify)
 }
 
 async function main() {
