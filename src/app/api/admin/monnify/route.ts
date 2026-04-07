@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import {
-  getSettlementInformationForTransaction,
   getTransactionsSearch,
   getWalletBalance,
-  getWalletTransactions,
+  getWalletStatement,
+  searchDisbursementTransactions,
 } from "@/services/monnify"
 
 function asNumber(value: unknown) {
@@ -18,111 +18,150 @@ function toIso(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
 }
 
-function getSettlementEntries(payload: Record<string, unknown> | undefined) {
-  const responseBody = payload?.responseBody
-  if (!responseBody || typeof responseBody !== "object") return []
-  const settlements = (responseBody as Record<string, unknown>).settlements
-  return Array.isArray(settlements) ? settlements : []
+function asRecord(value: unknown) {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+}
+
+function asArray<T = Record<string, unknown>>(value: unknown) {
+  return Array.isArray(value) ? (value as T[]) : []
+}
+
+function parseDateParam(value: string | null) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function matchesStatementFilter(type: string, filter: string) {
+  const normalizedType = type.toLowerCase()
+  if (filter === "credit") {
+    return normalizedType.includes("credit") || normalizedType.includes("inflow")
+  }
+  if (filter === "debit") {
+    return normalizedType.includes("debit") || normalizedType.includes("withdraw") || normalizedType.includes("disbursement")
+  }
+  return true
+}
+
+function getTransactionSearchItems(payload: Record<string, unknown>) {
+  const responseBody = asRecord(payload.responseBody)
+  return asArray<Record<string, unknown>>(responseBody.content).length > 0
+    ? asArray<Record<string, unknown>>(responseBody.content)
+    : asArray<Record<string, unknown>>(responseBody.transactions)
 }
 
 export async function GET(req: Request) {
   await requireAdminSession()
 
   const { searchParams } = new URL(req.url)
-  const page = Math.max(0, Number(searchParams.get("page") || 0))
-  const size = Math.min(50, Math.max(5, Number(searchParams.get("size") || 20)))
+  const statementPage = Math.max(0, Number(searchParams.get("statementPage") || 0))
+  const statementSize = Math.min(50, Math.max(5, Number(searchParams.get("statementSize") || 20)))
+  const disbursementPage = Math.max(0, Number(searchParams.get("disbursementPage") || 0))
+  const disbursementSize = Math.min(50, Math.max(5, Number(searchParams.get("disbursementSize") || 20)))
+  const statementFilter = String(searchParams.get("statementFilter") || "all").toLowerCase()
+  const disbursementFilter = String(searchParams.get("disbursementFilter") || "all").toLowerCase()
+  const startDate = parseDateParam(searchParams.get("startDate"))
+  const endDate = parseDateParam(searchParams.get("endDate"))
 
   try {
-    const [walletBalanceResponse, walletTransactionsResponse, transactionSearchResponse] = await Promise.all([
+    const [walletBalanceResponse, walletStatementResponse, disbursementResponse, creditsResponse] = await Promise.all([
       getWalletBalance(),
-      getWalletTransactions({ pageNo: page, pageSize: size }),
-      getTransactionsSearch({ page, size: Math.max(size, 30) }),
+      getWalletStatement({
+        pageNo: statementPage,
+        pageSize: statementSize,
+        startDate: startDate?.getTime() ?? null,
+        endDate: endDate?.getTime() ?? null,
+        enableTimeFilter: Boolean(startDate || endDate),
+      }),
+      searchDisbursementTransactions({
+        pageNo: disbursementPage,
+        pageSize: disbursementSize,
+        startDate: startDate?.getTime() ?? null,
+        endDate: endDate?.getTime() ?? null,
+      }),
+      getTransactionsSearch({
+        page: 0,
+        size: 50,
+      }),
     ])
 
-    const walletBalanceBody = walletBalanceResponse.responseBody || {}
-    const walletTransactionsBody = (walletTransactionsResponse.responseBody || {}) as Record<string, unknown>
-    const searchBody = (transactionSearchResponse.responseBody || {}) as Record<string, unknown>
+    const walletBalanceBody = asRecord(walletBalanceResponse.responseBody)
+    const statementBody = asRecord(walletStatementResponse.responseBody)
+    const disbursementBody = asRecord(disbursementResponse.responseBody)
 
-    const walletTransactions = Array.isArray(walletTransactionsBody.content)
-      ? walletTransactionsBody.content.map((transaction) => {
-          const row = transaction as Record<string, unknown>
-          return {
-            walletTransactionReference: String(row.walletTransactionReference || row.reference || ""),
-            monnifyTransactionReference: String(row.monnifyTransactionReference || ""),
-            transactionType: String(row.transactionType || row.type || ""),
-            amount: asNumber(row.amount),
-            balanceBefore: asNumber(row.balanceBefore),
-            balanceAfter: asNumber(row.balanceAfter),
-            currency: String(row.currency || "NGN"),
-            status: String(row.status || row.paymentStatus || ""),
-            createdOn: toIso(row.createdOn || row.transactionDate || row.createdAt),
-            narration: String(row.narration || row.remark || ""),
-          }
-        })
-      : []
+    const walletStatementItems = asArray<Record<string, unknown>>(statementBody.content).map((entry) => {
+      const amount = asNumber(entry.amount)
+      const transactionType = String(entry.transactionType || entry.type || entry.entryType || "")
+      const reference = String(
+        entry.walletTransactionReference ||
+        entry.transactionReference ||
+        entry.monnifyTransactionReference ||
+        entry.reference ||
+        ""
+      )
 
-    const collectionTransactions = Array.isArray(searchBody.content)
-      ? searchBody.content
-      : Array.isArray(searchBody.transactions)
-        ? searchBody.transactions
-        : []
+      return {
+        reference,
+        transactionType,
+        amount,
+        balanceBefore: asNumber(entry.balanceBefore),
+        balanceAfter: asNumber(entry.balanceAfter),
+        currency: String(entry.currency || "NGN"),
+        status: String(entry.status || entry.paymentStatus || transactionType || "Recorded"),
+        createdOn: toIso(entry.createdOn || entry.transactionDate || entry.createdAt),
+        narration: String(entry.narration || entry.remark || entry.description || ""),
+      }
+    })
 
-    const successfulTransactions = collectionTransactions
-      .map((transaction) => transaction as Record<string, unknown>)
-      .filter((transaction) => {
-        const status = String(transaction.paymentStatus || transaction.status || "").toUpperCase()
-        return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
-      })
-      .slice(0, 12)
-
-    const settlementResults = await Promise.all(
-      successfulTransactions.map(async (transaction) => {
-        const transactionReference = String(transaction.transactionReference || "")
-        if (!transactionReference) return null
-        try {
-          const payload = await getSettlementInformationForTransaction(transactionReference)
-          const settlements = getSettlementEntries(payload)
-          if (settlements.length > 0) {
-            return {
-              transactionReference,
-              settled: true,
-              payload,
-              settlements,
-              transaction,
-            }
-          }
-          return {
-            transactionReference,
-            settled: false,
-            payload,
-            settlements: [],
-            transaction,
-          }
-        } catch {
-          return {
-            transactionReference,
-            settled: false,
-            payload: null,
-            settlements: [],
-            transaction,
-          }
-        }
-      })
+    const filteredWalletStatement = walletStatementItems.filter((item) =>
+      matchesStatementFilter(item.transactionType, statementFilter)
     )
 
-    const pendingSettlements = settlementResults
-      .filter((item): item is NonNullable<typeof item> => Boolean(item) && !item?.settled)
-      .map((item) => ({
-        transactionReference: item.transactionReference,
-        paymentReference: String(item.transaction.paymentReference || ""),
-        amountPaid: asNumber(item.transaction.amountPaid || item.transaction.amount || item.transaction.totalPayable),
-        customerName: String((item.transaction.customer as Record<string, unknown> | undefined)?.name || ""),
-        customerEmail: String((item.transaction.customer as Record<string, unknown> | undefined)?.email || ""),
-        paidOn: toIso(item.transaction.paidOn || item.transaction.completedOn || item.transaction.createdOn),
-        status: String(item.transaction.paymentStatus || item.transaction.status || ""),
+    const disbursementItems = asArray<Record<string, unknown>>(
+      disbursementBody.content ?? disbursementBody.items ?? disbursementBody.transactions
+    )
+      .map((entry) => ({
+        reference: String(entry.reference || entry.transactionReference || entry.disbursementReference || ""),
+        amount: asNumber(entry.amount),
+        status: String(entry.status || entry.paymentStatus || "Recorded"),
+        createdOn: toIso(entry.createdOn || entry.transactionDate || entry.createdAt),
+        narration: String(entry.narration || entry.remark || entry.description || ""),
+        destinationAccountNumber: String(entry.destinationAccountNumber || ""),
+        destinationBankCode: String(entry.destinationBankCode || ""),
+        fee: asNumber(entry.fee || entry.transactionFee),
+        currency: String(entry.currency || "NGN"),
       }))
+      .filter((item) => disbursementFilter === "all" || item.status.toLowerCase() === disbursementFilter)
 
-    const pendingSettlementAmount = pendingSettlements.reduce((sum, item) => sum + item.amountPaid, 0)
+    const recentCollections = getTransactionSearchItems(creditsResponse)
+      .map((entry) => {
+        const customer = asRecord(entry.customer)
+        return {
+          reference: String(entry.transactionReference || entry.paymentReference || entry.reference || ""),
+          paymentReference: String(entry.paymentReference || ""),
+          amount: asNumber(entry.amountPaid || entry.amount || entry.totalPayable),
+          status: String(entry.paymentStatus || entry.status || ""),
+          paidOn: toIso(entry.paidOn || entry.completedOn || entry.createdOn),
+          customerName: String(customer.name || ""),
+          customerEmail: String(customer.email || ""),
+        }
+      })
+      .filter((entry) => entry.amount > 0)
+      .slice(0, 20)
+
+    const pendingSettlementItems = recentCollections.filter((item) => {
+      const status = item.status.toUpperCase()
+      return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
+    })
+
+    const pendingSettlementAmount = pendingSettlementItems.reduce((sum, item) => sum + item.amount, 0)
+    const totalCredits = filteredWalletStatement
+      .filter((item) => matchesStatementFilter(item.transactionType, "credit"))
+      .reduce((sum, item) => sum + Math.max(0, item.amount), 0)
+    const totalDebits = filteredWalletStatement
+      .filter((item) => matchesStatementFilter(item.transactionType, "debit"))
+      .reduce((sum, item) => sum + Math.abs(item.amount), 0)
+    const totalDisbursements = disbursementItems.reduce((sum, item) => sum + Math.max(0, item.amount), 0)
 
     return NextResponse.json({
       success: true,
@@ -132,17 +171,35 @@ export async function GET(req: Request) {
         ledgerBalance: asNumber(walletBalanceBody.ledgerBalance ?? walletBalanceBody.actualBalance ?? walletBalanceBody.balance),
         currency: String(walletBalanceBody.currency || "NGN"),
       },
-      pendingSettlements: {
-        count: pendingSettlements.length,
-        totalAmount: pendingSettlementAmount,
-        note: "Pending settlements are inferred from successful recent Monnify transactions that do not yet return settlement details.",
-        items: pendingSettlements,
+      summary: {
+        totalCredits,
+        totalDebits,
+        totalDisbursements,
+        pendingSettlementsAmount: pendingSettlementAmount,
       },
-      transactions: {
-        page,
-        size,
-        total: asNumber(walletTransactionsBody.totalElements ?? walletTransactionsBody.totalCount ?? walletTransactions.length),
-        items: walletTransactions,
+      filters: {
+        startDate: startDate?.toISOString() ?? null,
+        endDate: endDate?.toISOString() ?? null,
+        statementFilter,
+        disbursementFilter,
+      },
+      pendingSettlements: {
+        count: pendingSettlementItems.length,
+        totalAmount: pendingSettlementAmount,
+        note: "Recent successful collections returned by Monnify transaction search for your account.",
+        items: pendingSettlementItems,
+      },
+      statement: {
+        page: statementPage,
+        size: statementSize,
+        total: asNumber(statementBody.totalElements ?? statementBody.totalCount ?? walletStatementItems.length),
+        items: filteredWalletStatement,
+      },
+      disbursements: {
+        page: disbursementPage,
+        size: disbursementSize,
+        total: asNumber(disbursementBody.totalElements ?? disbursementBody.totalCount ?? disbursementItems.length),
+        items: disbursementItems,
       },
     })
   } catch (error) {
@@ -150,7 +207,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to load Monnify data",
+        message: error instanceof Error ? error.message : "Failed to load Monnify account data",
       },
       { status: 500 }
     )
