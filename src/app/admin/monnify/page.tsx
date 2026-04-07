@@ -21,6 +21,13 @@ type WalletSummary = {
   currency: string;
 };
 
+type FeatureAccess = {
+  walletBalance: { enabled: boolean; message: string | null };
+  walletStatement: { enabled: boolean; message: string | null };
+  disbursements: { enabled: boolean; message: string | null };
+  collections: { enabled: boolean; message: string | null };
+};
+
 type PendingSettlement = {
   reference: string;
   paymentReference: string;
@@ -67,6 +74,12 @@ export default function AdminMonnifyPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  const [featureAccess, setFeatureAccess] = useState<FeatureAccess>({
+    walletBalance: { enabled: true, message: null },
+    walletStatement: { enabled: true, message: null },
+    disbursements: { enabled: true, message: null },
+    collections: { enabled: true, message: null },
+  });
   const [summary, setSummary] = useState({
     totalCredits: 0,
     totalDebits: 0,
@@ -141,6 +154,12 @@ export default function AdminMonnifyPage() {
       }
 
       setWallet(data.wallet || null);
+      setFeatureAccess(data.featureAccess || {
+        walletBalance: { enabled: true, message: null },
+        walletStatement: { enabled: true, message: null },
+        disbursements: { enabled: true, message: null },
+        collections: { enabled: true, message: null },
+      });
       setSummary(data.summary || { totalCredits: 0, totalDebits: 0, totalDisbursements: 0, pendingSettlementsAmount: 0 });
       setPendingSettlements(data.pendingSettlements || { count: 0, totalAmount: 0, note: "", items: [] });
       setStatement(data.statement || { page: 0, size: 20, total: 0, items: [] });
@@ -211,6 +230,40 @@ export default function AdminMonnifyPage() {
           tone="rose"
         />
       </div>
+
+      {Object.values(featureAccess).some((item) => !item.enabled) ? (
+        <SectionCard
+          title="Feature availability"
+          description="Some Monnify dashboard features are restricted on your current Monnify account, so the page is showing the parts Monnify does allow."
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            {!featureAccess.walletBalance.enabled ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">Wallet balance</p>
+                <p className="mt-1 text-sm text-amber-800">{featureAccess.walletBalance.message}</p>
+              </div>
+            ) : null}
+            {!featureAccess.walletStatement.enabled ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">Wallet statement</p>
+                <p className="mt-1 text-sm text-amber-800">{featureAccess.walletStatement.message}</p>
+              </div>
+            ) : null}
+            {!featureAccess.disbursements.enabled ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">Disbursements</p>
+                <p className="mt-1 text-sm text-amber-800">{featureAccess.disbursements.message}</p>
+              </div>
+            ) : null}
+            {!featureAccess.collections.enabled ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">Collections history</p>
+                <p className="mt-1 text-sm text-amber-800">{featureAccess.collections.message}</p>
+              </div>
+            ) : null}
+          </div>
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Filters"
@@ -302,7 +355,12 @@ export default function AdminMonnifyPage() {
           title="Collections and pending settlements"
           description={pendingSettlements.note || "Recent successful collections returned from your Monnify account."}
         >
-          {loading ? (
+          {!featureAccess.collections.enabled ? (
+            <EmptyState
+              title="Collections endpoint not enabled"
+              description={featureAccess.collections.message || "Monnify has not enabled this account feature yet."}
+            />
+          ) : loading ? (
             <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
           ) : pendingSettlements.items.length === 0 ? (
             <EmptyState
@@ -345,7 +403,12 @@ export default function AdminMonnifyPage() {
           description="Directly from your Monnify wallet statement endpoint, including credits and debits."
           action={<StatusBadge label={`${statement.total} record${statement.total === 1 ? "" : "s"}`} tone="stone" />}
         >
-          {loading ? (
+          {!featureAccess.walletStatement.enabled ? (
+            <EmptyState
+              title="Wallet statement endpoint not enabled"
+              description={featureAccess.walletStatement.message || "Monnify has not enabled this account feature yet."}
+            />
+          ) : loading ? (
             <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
           ) : statement.items.length === 0 ? (
             <EmptyState
@@ -399,7 +462,12 @@ export default function AdminMonnifyPage() {
         description="Outgoing transfers from your Monnify wallet, filtered directly from the disbursement search endpoint."
         action={<StatusBadge label={`${disbursements.total} record${disbursements.total === 1 ? "" : "s"}`} tone="stone" />}
       >
-        {loading ? (
+        {!featureAccess.disbursements.enabled ? (
+          <EmptyState
+            title="Disbursement endpoint not enabled"
+            description={featureAccess.disbursements.message || "Monnify has not enabled this account feature yet."}
+          />
+        ) : loading ? (
           <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
         ) : disbursements.items.length === 0 ? (
           <EmptyState
