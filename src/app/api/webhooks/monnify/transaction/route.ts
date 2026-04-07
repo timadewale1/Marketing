@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { getActivationAttemptDocId } from '@/lib/activation-attempts'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { extractMonnifyReferenceCandidates, processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 
@@ -122,6 +123,43 @@ async function findActivationUserByEmail(
   const doc = snap.docs[0]
   if (doc.data()?.activated) return null
   return doc
+}
+
+async function findActivationAttemptByReferences(
+  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
+  references: string[]
+) {
+  for (const reference of references) {
+    const snap = await dbAdmin.collection('activationAttempts')
+      .where('references', 'array-contains', reference)
+      .limit(1)
+      .get()
+
+    if (!snap.empty) {
+      const doc = snap.docs[0]
+      if (String(doc.data()?.status || '').toLowerCase() !== 'completed') {
+        return doc
+      }
+    }
+  }
+
+  return null
+}
+
+async function findActivationAttemptByEmail(
+  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
+  email: string
+) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!normalizedEmail) return null
+
+  const snap = await dbAdmin.collection('activationAttempts')
+    .where('email', '==', normalizedEmail)
+    .limit(5)
+    .get()
+
+  const pendingDoc = snap.docs.find((doc) => String(doc.data()?.status || '').toLowerCase() !== 'completed')
+  return pendingDoc || null
 }
 
 export async function POST(req: NextRequest) {
@@ -293,7 +331,49 @@ export async function POST(req: NextRequest) {
                     console.error('[webhook][monnify][transaction] activation failed:', activationError)
                   }
                 } else {
-                  console.log('[webhook][monnify][transaction] no matching transaction found for reference:', reference)
+                  const activationAttemptDoc =
+                    await findActivationAttemptByReferences(dbAdmin, referenceCandidates) ||
+                    await findActivationAttemptByEmail(dbAdmin, customerEmail)
+
+                  if (activationAttemptDoc) {
+                    const attemptData = activationAttemptDoc.data()
+                    const attemptedRole = String(attemptData.role || '') === 'advertiser' ? 'advertiser' : 'earner'
+                    const attemptedUserId = String(attemptData.userId || '')
+                    if (attemptedUserId) {
+                      console.log('[webhook][monnify][transaction] processing activation from attempt record', {
+                        userId: attemptedUserId,
+                        role: attemptedRole,
+                        attemptId: activationAttemptDoc.id,
+                      })
+
+                      try {
+                        await processActivationWithRetry(
+                          attemptedUserId,
+                          referenceCandidates[0] || String(reference || ''),
+                          'monnify',
+                          3,
+                          referenceCandidates
+                        )
+
+                        await dbAdmin.collection('activationAttempts').doc(getActivationAttemptDocId(attemptedRole, attemptedUserId)).set({
+                          reference: referenceCandidates[0] || String(reference || ''),
+                          references: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
+                          status: 'completed',
+                          pendingReference: admin.firestore.FieldValue.delete(),
+                          completedReference: referenceCandidates[0] || String(reference || ''),
+                          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        }, { merge: true })
+                        console.log('[webhook][monnify][transaction] activation processed successfully from attempt record')
+                      } catch (activationError) {
+                        console.error('[webhook][monnify][transaction] activation failed from attempt record:', activationError)
+                      }
+                    } else {
+                      console.log('[webhook][monnify][transaction] activation attempt record missing userId:', activationAttemptDoc.id)
+                    }
+                  } else {
+                    console.log('[webhook][monnify][transaction] no matching transaction found for reference:', reference)
+                  }
                 }
               }
             }

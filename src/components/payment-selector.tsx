@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
 import { auth } from '@/lib/firebase'
+import { extractMonnifyReferenceCandidates } from "@/lib/monnify-reference"
 
 export type PaymentSelectorProps = {
   open: boolean
@@ -126,19 +127,15 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
           email={email || auth.currentUser?.email || "no-reply@example.com"}
           fullName={fullName || auth.currentUser?.displayName || 'Customer'}
           phone={phone}
+          description={description}
           open={monnifyOpen}
           onSuccess={async (response) => {
             setMonnifyOpen(false)
             setIsVerifying(true)
             try {
-              // Extract reference from the response object
               const reference = typeof response === 'string'
                 ? response
-                : (response?.transactionReference as string)
-                  || (response?.data?.transactionReference as string)
-                  || (response?.reference as string)
-                  || (response?.data?.reference as string)
-                  || 'unknown';
+                : extractMonnifyReferenceCandidates('', response as unknown as Record<string, unknown>)[0] || 'unknown'
               await onPaymentSuccess(reference, 'monnify', response as Record<string, unknown>)
             } catch (err) {
               console.error('Payment processing error:', err)

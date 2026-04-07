@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
+import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
 import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
@@ -10,6 +11,20 @@ type PaymentProvider = "monnify" | "paystack"
 type ProcessedWebhookRecord = {
   reference?: unknown
   referenceCandidates?: unknown
+  status?: unknown
+}
+
+type ActivationAttemptRecord = {
+  userId?: unknown
+  role?: unknown
+  email?: unknown
+  name?: unknown
+  provider?: unknown
+  reference?: unknown
+  references?: unknown
+  attemptedAt?: unknown
+  updatedAt?: unknown
+  completedAt?: unknown
   status?: unknown
 }
 
@@ -172,13 +187,14 @@ export async function GET() {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
   }
 
-  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap, processedWebhookSnap] = await Promise.all([
+  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
     dbAdmin.collection("earnerTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
     dbAdmin.collection("processedWebhooks").where("eventType", "==", "TRANSACTION_COMPLETION").get(),
+    dbAdmin.collection("activationAttempts").get(),
   ])
 
   const activationTxByUser = new Map<string, { reference: string | null; createdAt: string | null }>()
@@ -202,12 +218,48 @@ export async function GET() {
       .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
   )
 
+  const activationAttemptsByUser = new Map<string, {
+    references: string[]
+    providerHint: string | null
+    activationAttemptedAt: string | null
+    name: string
+    email: string
+  }>()
+  for (const doc of activationAttemptsSnap.docs) {
+    const data = doc.data() as ActivationAttemptRecord
+    const userId = String(data.userId || "")
+    const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
+    if (!userId || !role) continue
+    if (String(data.status || "").toLowerCase() === "completed") continue
+
+    const key = `${role}:${userId}`
+    const references = normalizeReferences([
+      data.reference,
+      ...(Array.isArray(data.references) ? data.references : []),
+    ])
+    if (references.length === 0) continue
+
+    const previous = activationAttemptsByUser.get(key)
+    activationAttemptsByUser.set(key, {
+      references: normalizeReferences([...(previous?.references || []), ...references]),
+      providerHint: String(data.provider || previous?.providerHint || "") || null,
+      activationAttemptedAt:
+        (serializeDate(data.attemptedAt) as string | null) ||
+        (serializeDate(data.updatedAt) as string | null) ||
+        previous?.activationAttemptedAt ||
+        null,
+      name: String(data.name || previous?.name || ""),
+      email: String(data.email || previous?.email || "").trim().toLowerCase(),
+    })
+  }
+
   const activationCandidateDrafts = [
     ...earnersSnap.docs.map((doc) => ({ doc, role: "earner" as const })),
     ...advertisersSnap.docs.map((doc) => ({ doc, role: "advertiser" as const })),
   ]
     .map(({ doc, role }) => {
       const data = doc.data()
+      const attemptInfo = activationAttemptsByUser.get(`${role}:${doc.id}`)
       const pendingReferences = Array.isArray(data.pendingActivationReferences)
         ? data.pendingActivationReferences.map((value: unknown) => String(value)).filter(Boolean)
         : []
@@ -221,30 +273,37 @@ export async function GET() {
         ...pendingReferences,
         ...(data.activationReference ? [String(data.activationReference)] : []),
         ...activationReferences,
+        ...(attemptInfo?.references || []),
         ...(txInfo?.reference ? [txInfo.reference] : []),
       ])]
 
       return {
         id: doc.id,
         role,
-        name: String(data.fullName || data.businessName || data.name || data.companyName || "Unnamed user"),
-        email: String(data.email || ""),
+        name: String(data.fullName || data.businessName || data.name || data.companyName || attemptInfo?.name || "Unnamed user"),
+        email: String(data.email || attemptInfo?.email || "").trim().toLowerCase(),
         activated: Boolean(data.activated),
         pendingActivationReference: data.pendingActivationReference ? String(data.pendingActivationReference) : null,
         activationReference: data.activationReference ? String(data.activationReference) : null,
-        activationAttemptedAt: serializeDate(data.activationAttemptedAt) as string | null,
+        activationAttemptedAt: (serializeDate(data.activationAttemptedAt) as string | null) || attemptInfo?.activationAttemptedAt || null,
         activatedAt: serializeDate(data.activatedAt) as string | null,
-        providerHint: data.pendingActivationProvider || data.activationPaymentProvider || null,
+        providerHint: data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
         references,
         lastActivationTxAt: txInfo?.createdAt || null,
         hasCompletedActivationTx: Boolean(txInfo?.reference),
+        paymentVerified: false,
       }
     })
     .filter((candidate) => !candidate.activated && candidate.references.length > 0)
 
   const activationCandidates = (await Promise.all(
     activationCandidateDrafts.map(async (candidate) => {
-      if (candidate.hasCompletedActivationTx) return candidate
+      if (candidate.hasCompletedActivationTx) {
+        return {
+          ...candidate,
+          paymentVerified: true,
+        }
+      }
 
       const isVerified = await hasVerifiedSuccessfulPayment(
         candidate.references,
@@ -258,11 +317,17 @@ export async function GET() {
         }
       )
 
-      return isVerified ? candidate : null
+      return {
+        ...candidate,
+        paymentVerified: isVerified,
+      }
     })
   ))
-    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
-    .sort((a, b) => (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || ""))
+    .sort((a, b) => {
+      const verifiedSort = Number(b.paymentVerified) - Number(a.paymentVerified)
+      if (verifiedSort !== 0) return verifiedSort
+      return (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || "")
+    })
 
   const walletCandidates = await Promise.all(
     pendingWalletSnap.docs.map(async (txDoc) => {
@@ -337,11 +402,17 @@ export async function POST(req: Request) {
       }
 
       const data = userSnap.data() || {}
+      const attemptSnap = await dbAdmin.collection("activationAttempts").doc(getActivationAttemptDocId(role, userId)).get()
+      const attemptData = attemptSnap.exists ? attemptSnap.data() as ActivationAttemptRecord : null
       const references = [...new Set([
         ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
         ...((Array.isArray(data.pendingActivationReferences) ? data.pendingActivationReferences : []).map((value: unknown) => String(value))),
         ...(data.activationReference ? [String(data.activationReference)] : []),
         ...((Array.isArray(data.activationReferences) ? data.activationReferences : []).map((value: unknown) => String(value))),
+        ...normalizeReferences([
+          attemptData?.reference,
+          ...(Array.isArray(attemptData?.references) ? attemptData?.references : []),
+        ]),
       ].filter(Boolean))]
 
       if (references.length === 0) {
@@ -373,21 +444,22 @@ export async function POST(req: Request) {
         )
         const paymentVerified = await hasVerifiedSuccessfulPayment(
           references,
-          data.pendingActivationProvider || data.activationPaymentProvider || null,
+          data.pendingActivationProvider || data.activationPaymentProvider || attemptData?.provider || null,
           verificationCache,
           successfulWebhookReferences,
           {
-            email: String(data.email || ""),
+            email: String(data.email || attemptData?.email || "").trim().toLowerCase(),
             amount: 2000,
-            notBefore: serializeDate(data.activationAttemptedAt) as string | null,
+            notBefore: (serializeDate(data.activationAttemptedAt) as string | null) || (serializeDate(attemptData?.attemptedAt) as string | null),
           }
         )
 
         if (!paymentVerified) {
-          return NextResponse.json(
-            { success: false, message: "Activation payment has not been verified as successful for this user" },
-            { status: 400 }
-          )
+          console.warn("[admin][recovery] proceeding with manual activation despite unverified payment", {
+            userId,
+            role,
+            references,
+          })
         }
       }
 

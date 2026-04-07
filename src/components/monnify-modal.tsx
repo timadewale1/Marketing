@@ -97,6 +97,7 @@ interface MonnifyModalProps {
   email: string
   fullName: string
   phone?: string
+  description?: string
   open: boolean
   onClose: () => void
   onSuccess: (response: MonnifyResponse) => void
@@ -108,6 +109,7 @@ export default function MonnifyModal({
   email,
   fullName,
   phone,
+  description,
   open,
   onClose,
   onSuccess,
@@ -157,7 +159,7 @@ export default function MonnifyModal({
           customerFullName: fullName,
           customerEmail: email,
           customerPhoneNumber: phone ?? '',
-          paymentDescription: 'Wallet Funding',
+          paymentDescription: description || 'Wallet Funding',
           apiKey: process.env.NEXT_PUBLIC_MONNIFY_API_KEY,
           contractCode: process.env.NEXT_PUBLIC_MONNIFY_CONTRACT_CODE,
           onComplete: (response: MonnifyResponse) => {
@@ -182,7 +184,7 @@ export default function MonnifyModal({
     }
 
     initializePayment()
-  }, [open, amount, email, fullName, phone, onClose, onSuccess, onReferenceCreated])
+  }, [open, amount, email, fullName, phone, description, onClose, onSuccess, onReferenceCreated])
 
   return null
 }
