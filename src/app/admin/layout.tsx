@@ -13,6 +13,7 @@ import {
   FileCheck,
   Wallet,
   LifeBuoy,
+  Landmark,
   LogOut,
   Menu,
   X,
@@ -70,6 +71,11 @@ const NAVIGATION = [
     name: "Recovery",
     href: "/admin/recovery",
     icon: LifeBuoy,
+  },
+  {
+    name: "Monnify",
+    href: "/admin/monnify",
+    icon: Landmark,
   },
   {
     name: "Direct Ads",
