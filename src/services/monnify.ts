@@ -108,6 +108,51 @@ type MonnifyAuthResponse = {
   }
 }
 
+type MonnifyTransactionRecord = Record<string, unknown>
+
+function normalizeMonnifyAmount(value: unknown) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : null
+}
+
+function parseMonnifyDate(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+
+  const normalized = value.replace(' ', 'T')
+  const retry = new Date(normalized)
+  return Number.isNaN(retry.getTime()) ? null : retry
+}
+
+function isSuccessfulMonnifyTransaction(transaction: MonnifyTransactionRecord) {
+  const status = String(transaction.paymentStatus || transaction.status || '').toUpperCase()
+  return status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL'
+}
+
+function getMonnifyTransactionEmail(transaction: MonnifyTransactionRecord) {
+  const customer = transaction.customer
+  if (!customer || typeof customer !== 'object') return ''
+  return String((customer as Record<string, unknown>).email || '').trim().toLowerCase()
+}
+
+function getMonnifyTransactionAmount(transaction: MonnifyTransactionRecord) {
+  return normalizeMonnifyAmount(
+    transaction.amountPaid ??
+    transaction.amount ??
+    transaction.totalPayable ??
+    transaction.payableAmount
+  )
+}
+
+function getMonnifyTransactionDate(transaction: MonnifyTransactionRecord) {
+  return (
+    parseMonnifyDate(transaction.paidOn) ||
+    parseMonnifyDate(transaction.completedOn) ||
+    parseMonnifyDate(transaction.createdOn)
+  )
+}
+
 async function getAuthToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now()) {
     return cachedToken.token
@@ -268,6 +313,77 @@ export async function verifyTransaction(reference: string) {
   throw new Error(`Monnify verify failed: ${JSON.stringify({ status: last.res.status, body: last.json })}`)
 }
 
+export async function findSuccessfulTransactionMatch({
+  references = [],
+  email,
+  amount,
+  notBefore,
+}: {
+  references?: string[]
+  email?: string | null
+  amount?: number | null
+  notBefore?: Date | string | null
+}) {
+  const token = await getAuthToken()
+  const normalizedReferences = [...new Set(references.map((value) => String(value || '').trim()).filter(Boolean))]
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedAmount = normalizeMonnifyAmount(amount)
+  const notBeforeDate = notBefore instanceof Date ? notBefore : parseMonnifyDate(notBefore)
+
+  async function queryUrl(pageNo: number) {
+    const url = `${BASE}/api/v1/merchant/transactions?pageSize=100&pageNo=${pageNo}`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    })
+    const json = await res.json().catch(() => ({}))
+    return { res, json }
+  }
+
+  for (let pageNo = 0; pageNo < 5; pageNo++) {
+    const attempt = await queryUrl(pageNo)
+    if (!attempt.res.ok || !attempt.json?.requestSuccessful) {
+      break
+    }
+
+    const transactions = Array.isArray(attempt.json?.responseBody?.transactions)
+      ? (attempt.json.responseBody.transactions as MonnifyTransactionRecord[])
+      : []
+
+    for (const transaction of transactions) {
+      if (!isSuccessfulMonnifyTransaction(transaction)) continue
+
+      const candidates = extractMonnifyReferenceCandidates('', transaction)
+      if (normalizedReferences.length > 0 && candidates.some((candidate) => normalizedReferences.includes(candidate))) {
+        return transaction
+      }
+
+      if (!normalizedEmail || normalizedAmount == null) continue
+
+      const transactionEmail = getMonnifyTransactionEmail(transaction)
+      const transactionAmount = getMonnifyTransactionAmount(transaction)
+      if (!transactionEmail || transactionEmail !== normalizedEmail) continue
+      if (transactionAmount == null || transactionAmount !== normalizedAmount) continue
+
+      const transactionDate = getMonnifyTransactionDate(transaction)
+      if (notBeforeDate && transactionDate && transactionDate.getTime() + 5 * 60 * 1000 < notBeforeDate.getTime()) {
+        continue
+      }
+
+      return transaction
+    }
+
+    if (transactions.length < 100) {
+      break
+    }
+  }
+
+  return null
+}
+
 export async function initiateTransaction(payload: Record<string, unknown>) {
   const token = await getAuthToken()
 
@@ -396,4 +512,4 @@ export async function checkDisbursementStatus(reference: string) {
   return json.responseBody || json
 }
 
-export default { verifyTransaction, initiateTransaction, refundTransaction, initiateDisbursement, checkDisbursementStatus }
+export default { verifyTransaction, findSuccessfulTransactionMatch, initiateTransaction, refundTransaction, initiateDisbursement, checkDisbursementStatus }

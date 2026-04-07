@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
-import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
+import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
 type PaymentProvider = "monnify" | "paystack"
@@ -74,11 +74,42 @@ async function verifyProviderPayment(reference: string, provider: PaymentProvide
   }
 }
 
+async function verifyMonnifyPaymentContext(
+  references: string[],
+  email: string | null | undefined,
+  amount: number | null | undefined,
+  notBefore: string | null | undefined
+) {
+  try {
+    const transaction = await findSuccessfulTransactionMatch({
+      references,
+      email,
+      amount,
+      notBefore,
+    })
+    return Boolean(transaction)
+  } catch (error) {
+    console.warn("[admin][recovery] failed contextual monnify verification", {
+      references,
+      email,
+      amount,
+      notBefore,
+      error,
+    })
+    return false
+  }
+}
+
 async function hasVerifiedSuccessfulPayment(
   references: string[],
   providerHint: unknown,
   verificationCache: Map<string, Promise<boolean>>,
-  successfulWebhookReferences?: Set<string>
+  successfulWebhookReferences?: Set<string>,
+  context?: {
+    email?: string | null
+    amount?: number | null
+    notBefore?: string | null
+  }
 ) {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return false
@@ -110,6 +141,24 @@ async function hasVerifiedSuccessfulPayment(
       if (await verification) {
         return true
       }
+    }
+  }
+
+  if (providersToTry.includes("monnify") && context?.email && context?.amount != null) {
+    const cacheKey = `monnify-context:${uniqueReferences.join("|")}:${context.email}:${context.amount}:${context.notBefore || ""}`
+    let verification = verificationCache.get(cacheKey)
+    if (!verification) {
+      verification = verifyMonnifyPaymentContext(
+        uniqueReferences,
+        context.email,
+        context.amount,
+        context.notBefore || null
+      )
+      verificationCache.set(cacheKey, verification)
+    }
+
+    if (await verification) {
+      return true
     }
   }
 
@@ -201,7 +250,12 @@ export async function GET() {
         candidate.references,
         candidate.providerHint,
         verificationCache,
-        successfulWebhookReferences
+        successfulWebhookReferences,
+        {
+          email: candidate.email || null,
+          amount: 2000,
+          notBefore: candidate.activationAttemptedAt || candidate.lastActivationTxAt || null,
+        }
       )
 
       return isVerified ? candidate : null
@@ -219,17 +273,22 @@ export async function GET() {
       ])
       const reference = txReferences[0] || ""
       const provider = String(data.provider || "monnify")
+      const advertiserId = String(data.userId || "")
+      const advertiserSnap = advertiserId ? await dbAdmin.collection("advertisers").doc(advertiserId).get() : null
+      const advertiser = advertiserSnap?.exists ? advertiserSnap.data() : null
       const isVerified = await hasVerifiedSuccessfulPayment(
         txReferences,
         provider,
         verificationCache,
-        successfulWebhookReferences
+        successfulWebhookReferences,
+        {
+          email: String(advertiser?.email || ""),
+          amount: Number(data.amount || 0),
+          notBefore: serializeDate(data.createdAt) as string | null,
+        }
       )
       if (!isVerified) return null
 
-      const advertiserId = String(data.userId || "")
-      const advertiserSnap = advertiserId ? await dbAdmin.collection("advertisers").doc(advertiserId).get() : null
-      const advertiser = advertiserSnap?.exists ? advertiserSnap.data() : null
       return {
         id: txDoc.id,
         userId: advertiserId,
@@ -316,7 +375,12 @@ export async function POST(req: Request) {
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || null,
           verificationCache,
-          successfulWebhookReferences
+          successfulWebhookReferences,
+          {
+            email: String(data.email || ""),
+            amount: 2000,
+            notBefore: serializeDate(data.activationAttemptedAt) as string | null,
+          }
         )
 
         if (!paymentVerified) {
@@ -387,7 +451,12 @@ export async function POST(req: Request) {
         txReferences,
         tx.provider || "monnify",
         verificationCache,
-        successfulWebhookReferences
+        successfulWebhookReferences,
+        {
+          email: String((await dbAdmin.collection("advertisers").doc(String(tx.userId || "")).get()).data()?.email || ""),
+          amount: Number(tx.amount || 0),
+          notBefore: serializeDate(tx.createdAt) as string | null,
+        }
       )
 
       if (!paymentVerified) {
