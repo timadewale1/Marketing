@@ -50,6 +50,7 @@ export async function POST(req: Request) {
         amount,
         provider,
         reference,
+        referenceCandidates: [reference],
         status: "pending",
         note: `Wallet funding initiated via ${provider}`,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
