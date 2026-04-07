@@ -89,6 +89,7 @@ export async function GET(req: Request) {
   const disbursementSize = Math.min(50, Math.max(5, Number(searchParams.get("disbursementSize") || 20)))
   const statementFilter = String(searchParams.get("statementFilter") || "all").toLowerCase()
   const disbursementFilter = String(searchParams.get("disbursementFilter") || "all").toLowerCase()
+  const search = String(searchParams.get("search") || "").trim().toLowerCase()
   const startDate = parseDateParam(searchParams.get("startDate"))
   const endDate = parseDateParam(searchParams.get("endDate"))
 
@@ -132,6 +133,15 @@ export async function GET(req: Request) {
       })
       .filter((entry) => entry.amount > 0)
       .filter((entry) => matchesTransactionFilter(entry.status, statementFilter))
+      .filter((entry) => {
+        if (!search) return true
+        return (
+          entry.reference.toLowerCase().includes(search) ||
+          entry.paymentReference.toLowerCase().includes(search) ||
+          entry.customerEmail.toLowerCase().includes(search) ||
+          entry.customerName.toLowerCase().includes(search)
+        )
+      })
 
     const successfulCollections = collectionItems.filter((item) => {
       const status = item.status.toUpperCase()
@@ -155,6 +165,15 @@ export async function GET(req: Request) {
             currency: String(entry.currency || "NGN"),
           }))
           .filter((item) => disbursementFilter === "all" || item.status.toLowerCase() === disbursementFilter)
+          .filter((item) => {
+            if (!search) return true
+            return (
+              item.reference.toLowerCase().includes(search) ||
+              item.destinationAccountNumber.toLowerCase().includes(search) ||
+              item.destinationBankCode.toLowerCase().includes(search) ||
+              item.narration.toLowerCase().includes(search)
+            )
+          })
       : []
 
     const totalCredits = successfulCollections.reduce((sum, item) => sum + item.amount, 0)
@@ -199,6 +218,7 @@ export async function GET(req: Request) {
         endDate: endDate?.toISOString() ?? null,
         statementFilter,
         disbursementFilter,
+        search,
       },
       pendingSettlements: {
         count: successfulCollections.length,
@@ -212,6 +232,7 @@ export async function GET(req: Request) {
         total: collectionItems.length,
         items: collectionItems.map((item) => ({
           reference: item.reference,
+          paymentReference: item.paymentReference,
           transactionType: item.status || "Recorded",
           amount: item.amount,
           balanceBefore: 0,
@@ -220,6 +241,8 @@ export async function GET(req: Request) {
           status: item.status || "Recorded",
           createdOn: item.paidOn,
           narration: item.narration,
+          customerName: item.customerName,
+          customerEmail: item.customerEmail,
         })),
       },
       disbursements: {
