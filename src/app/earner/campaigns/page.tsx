@@ -263,7 +263,7 @@ export default function AvailableCampaignsPage() {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Activation payment received. We will verify it now and your account will be activated immediately after confirmation.')
+                toast.success('Activation payment received. Your account will be activated as soon as the payment is verified.')
                 setActivated(true)
               } else {
                 toast.error(data?.message || 'Activation failed')
