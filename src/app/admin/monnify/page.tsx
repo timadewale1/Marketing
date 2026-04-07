@@ -187,7 +187,7 @@ export default function AdminMonnifyPage() {
       <AdminPageHeader
         eyebrow="Monnify"
         title="Monnify account console"
-        description="This view is built from your Monnify account endpoints: wallet balance, wallet statement, disbursement search, and account-level collections history."
+        description="This view is built primarily from your Monnify transactions search and disbursement endpoints, so it still works even when wallet-only endpoints are unavailable on your account."
         action={
           <Button
             variant="outline"
@@ -203,22 +203,22 @@ export default function AdminMonnifyPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard
-          label="Available balance"
+          label="Net flow"
           value={wallet ? currency(wallet.availableBalance, wallet.currency) : "₦0.00"}
-          hint={wallet?.accountNumber ? `Wallet: ${wallet.accountNumber}` : "Monnify wallet"}
+          hint={wallet?.accountNumber ? `Derived for wallet ${wallet.accountNumber}` : "Collections minus disbursements"}
           icon={Wallet}
         />
         <MetricCard
-          label="Ledger balance"
+          label="Estimated ledger"
           value={wallet ? currency(wallet.ledgerBalance, wallet.currency) : "₦0.00"}
-          hint="Reported directly by Monnify wallet balance"
+          hint="Estimated from transactions API and disbursements"
           icon={Landmark}
           tone="blue"
         />
         <MetricCard
           label="Credits in filter"
           value={currency(summary.totalCredits, wallet?.currency || "NGN")}
-          hint="Wallet statement inflows under current filter"
+          hint="Successful collections under current filter"
           icon={ArrowDownLeft}
           tone="emerald"
         />
@@ -239,13 +239,13 @@ export default function AdminMonnifyPage() {
           <div className="grid gap-3 md:grid-cols-2">
             {!featureAccess.walletBalance.enabled ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="font-medium text-amber-900">Wallet balance</p>
+                <p className="font-medium text-amber-900">Wallet summary</p>
                 <p className="mt-1 text-sm text-amber-800">{featureAccess.walletBalance.message}</p>
               </div>
             ) : null}
             {!featureAccess.walletStatement.enabled ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="font-medium text-amber-900">Wallet statement</p>
+                <p className="font-medium text-amber-900">Transactions history</p>
                 <p className="mt-1 text-sm text-amber-800">{featureAccess.walletStatement.message}</p>
               </div>
             ) : null}
@@ -295,7 +295,7 @@ export default function AdminMonnifyPage() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Wallet statement</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Transactions</label>
             <select
               className="flex h-10 w-full rounded-md border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none"
               value={filters.statementFilter}
@@ -399,14 +399,14 @@ export default function AdminMonnifyPage() {
         </SectionCard>
 
         <SectionCard
-          title="Wallet statement"
-          description="Directly from your Monnify wallet statement endpoint, including credits and debits."
+          title="Transactions history"
+          description="Built from Monnify transactions search, including successful collections and other returned transaction states."
           action={<StatusBadge label={`${statement.total} record${statement.total === 1 ? "" : "s"}`} tone="stone" />}
         >
           {!featureAccess.walletStatement.enabled ? (
             <EmptyState
-              title="Wallet statement endpoint not enabled"
-              description={featureAccess.walletStatement.message || "Monnify has not enabled this account feature yet."}
+              title="Transactions endpoint not enabled"
+              description={featureAccess.walletStatement.message || featureAccess.collections.message || "Monnify has not enabled this account feature yet."}
             />
           ) : loading ? (
             <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
@@ -423,7 +423,7 @@ export default function AdminMonnifyPage() {
                 <div key={`${item.reference}-${item.createdOn || ""}`} className="rounded-2xl border border-stone-200 bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="font-medium text-stone-900 break-all">{item.reference || "Wallet statement entry"}</p>
+                      <p className="font-medium text-stone-900 break-all">{item.reference || "Transaction entry"}</p>
                       <p className="mt-1 text-sm text-stone-500">
                         {item.createdOn ? new Date(item.createdOn).toLocaleString() : "No date"}
                       </p>

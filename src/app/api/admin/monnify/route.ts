@@ -2,8 +2,6 @@ import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import {
   getTransactionsSearch,
-  getWalletBalance,
-  getWalletStatement,
   searchDisbursementTransactions,
 } from "@/services/monnify"
 
@@ -38,13 +36,13 @@ function parseDateParam(value: string | null) {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-function matchesStatementFilter(type: string, filter: string) {
-  const normalizedType = type.toLowerCase()
+function matchesTransactionFilter(status: string, filter: string) {
+  const normalizedStatus = status.toLowerCase()
   if (filter === "credit") {
-    return normalizedType.includes("credit") || normalizedType.includes("inflow")
+    return normalizedStatus === "paid" || normalizedStatus === "success" || normalizedStatus === "successful"
   }
   if (filter === "debit") {
-    return normalizedType.includes("debit") || normalizedType.includes("withdraw") || normalizedType.includes("disbursement")
+    return normalizedStatus === "reversed" || normalizedStatus === "failed" || normalizedStatus === "cancelled"
   }
   return true
 }
@@ -95,15 +93,11 @@ export async function GET(req: Request) {
   const endDate = parseDateParam(searchParams.get("endDate"))
 
   try {
-    const [walletBalanceResult, walletStatementResult, disbursementResult, creditsResult] = await Promise.all([
-      safeFeature(() => getWalletBalance()),
+    const [collectionsResult, disbursementResult] = await Promise.all([
       safeFeature(() =>
-        getWalletStatement({
-          pageNo: statementPage,
-          pageSize: statementSize,
-          startDate: startDate?.getTime() ?? null,
-          endDate: endDate?.getTime() ?? null,
-          enableTimeFilter: Boolean(startDate || endDate),
+        getTransactionsSearch({
+          page: statementPage,
+          size: Math.max(statementSize, 50),
         })
       ),
       safeFeature(() =>
@@ -114,48 +108,37 @@ export async function GET(req: Request) {
           endDate: endDate?.getTime() ?? null,
         })
       ),
-      safeFeature(() =>
-        getTransactionsSearch({
-          page: 0,
-          size: 50,
-        })
-      ),
     ])
 
-    const walletBalanceBody = asRecord(asRecord(walletBalanceResult.data).responseBody)
-    const statementBody = asRecord(asRecord(walletStatementResult.data).responseBody)
-    const disbursementBody = asRecord(asRecord(disbursementResult.data).responseBody)
-
-    const walletStatementItems = walletStatementResult.ok
-      ? asArray<Record<string, unknown>>(statementBody.content).map((entry) => {
-          const amount = asNumber(entry.amount)
-          const transactionType = String(entry.transactionType || entry.type || entry.entryType || "")
-          const reference = String(
-            entry.walletTransactionReference ||
-            entry.transactionReference ||
-            entry.monnifyTransactionReference ||
-            entry.reference ||
-            ""
-          )
-
-          return {
-            reference,
-            transactionType,
-            amount,
-            balanceBefore: asNumber(entry.balanceBefore),
-            balanceAfter: asNumber(entry.balanceAfter),
-            currency: String(entry.currency || "NGN"),
-            status: String(entry.status || entry.paymentStatus || transactionType || "Recorded"),
-            createdOn: toIso(entry.createdOn || entry.transactionDate || entry.createdAt),
-            narration: String(entry.narration || entry.remark || entry.description || ""),
-          }
-        })
+    const collectionsItemsRaw = collectionsResult.ok
+      ? getTransactionSearchItems(asRecord(collectionsResult.data))
       : []
 
-    const filteredWalletStatement = walletStatementItems.filter((item) =>
-      matchesStatementFilter(item.transactionType, statementFilter)
-    )
+    const collectionItems = collectionsItemsRaw
+      .map((entry) => {
+        const customer = asRecord(entry.customer)
+        const status = String(entry.paymentStatus || entry.status || "")
+        return {
+          reference: String(entry.transactionReference || entry.paymentReference || entry.reference || ""),
+          paymentReference: String(entry.paymentReference || ""),
+          amount: asNumber(entry.amountPaid || entry.amount || entry.totalPayable),
+          status,
+          paidOn: toIso(entry.paidOn || entry.completedOn || entry.createdOn),
+          customerName: String(customer.name || ""),
+          customerEmail: String(customer.email || ""),
+          narration: String(entry.paymentDescription || entry.description || ""),
+          currency: String(entry.currencyCode || entry.currency || "NGN"),
+        }
+      })
+      .filter((entry) => entry.amount > 0)
+      .filter((entry) => matchesTransactionFilter(entry.status, statementFilter))
 
+    const successfulCollections = collectionItems.filter((item) => {
+      const status = item.status.toUpperCase()
+      return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
+    })
+
+    const disbursementBody = asRecord(asRecord(disbursementResult.data).responseBody)
     const disbursementItems = disbursementResult.ok
       ? asArray<Record<string, unknown>>(
           disbursementBody.content ?? disbursementBody.items ?? disbursementBody.transactions
@@ -174,69 +157,42 @@ export async function GET(req: Request) {
           .filter((item) => disbursementFilter === "all" || item.status.toLowerCase() === disbursementFilter)
       : []
 
-    const recentCollections = creditsResult.ok
-      ? getTransactionSearchItems(asRecord(creditsResult.data))
-          .map((entry) => {
-            const customer = asRecord(entry.customer)
-            return {
-              reference: String(entry.transactionReference || entry.paymentReference || entry.reference || ""),
-              paymentReference: String(entry.paymentReference || ""),
-              amount: asNumber(entry.amountPaid || entry.amount || entry.totalPayable),
-              status: String(entry.paymentStatus || entry.status || ""),
-              paidOn: toIso(entry.paidOn || entry.completedOn || entry.createdOn),
-              customerName: String(customer.name || ""),
-              customerEmail: String(customer.email || ""),
-            }
-          })
-          .filter((entry) => entry.amount > 0)
-          .slice(0, 20)
-      : []
-
-    const successfulCollections = recentCollections.filter((item) => {
-      const status = item.status.toUpperCase()
-      return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
-    })
-
-    const successfulCollectionAmount = successfulCollections.reduce((sum, item) => sum + item.amount, 0)
-    const totalCredits = filteredWalletStatement
-      .filter((item) => matchesStatementFilter(item.transactionType, "credit"))
-      .reduce((sum, item) => sum + Math.max(0, item.amount), 0)
-    const totalDebits = filteredWalletStatement
-      .filter((item) => matchesStatementFilter(item.transactionType, "debit"))
-      .reduce((sum, item) => sum + Math.abs(item.amount), 0)
+    const totalCredits = successfulCollections.reduce((sum, item) => sum + item.amount, 0)
+    const totalDebits = disbursementItems.reduce((sum, item) => sum + Math.max(0, item.amount + item.fee), 0)
     const totalDisbursements = disbursementItems.reduce((sum, item) => sum + Math.max(0, item.amount), 0)
+    const netFlow = totalCredits - totalDebits
 
     return NextResponse.json({
       success: true,
       wallet: {
-        accountNumber: String(walletBalanceBody.accountNumber || process.env.MONNIFY_WALLET_ACCOUNT_NUMBER || ""),
-        availableBalance: asNumber(walletBalanceBody.availableBalance ?? walletBalanceBody.availableBalanceAmount ?? walletBalanceBody.balance),
-        ledgerBalance: asNumber(walletBalanceBody.ledgerBalance ?? walletBalanceBody.actualBalance ?? walletBalanceBody.balance),
-        currency: String(walletBalanceBody.currency || "NGN"),
+        accountNumber: String(process.env.MONNIFY_WALLET_ACCOUNT_NUMBER || ""),
+        availableBalance: netFlow,
+        ledgerBalance: netFlow,
+        currency: collectionItems[0]?.currency || disbursementItems[0]?.currency || "NGN",
       },
       featureAccess: {
         walletBalance: {
-          enabled: walletBalanceResult.ok,
-          message: walletBalanceResult.message,
+          enabled: false,
+          message: "Using Monnify transactions API totals because wallet balance is not enabled on this account.",
         },
         walletStatement: {
-          enabled: walletStatementResult.ok,
-          message: walletStatementResult.message,
+          enabled: collectionsResult.ok,
+          message: collectionsResult.message,
         },
         disbursements: {
           enabled: disbursementResult.ok,
           message: disbursementResult.message,
         },
         collections: {
-          enabled: creditsResult.ok,
-          message: creditsResult.message,
+          enabled: collectionsResult.ok,
+          message: collectionsResult.message,
         },
       },
       summary: {
         totalCredits,
         totalDebits,
         totalDisbursements,
-        pendingSettlementsAmount: successfulCollectionAmount,
+        pendingSettlementsAmount: totalCredits,
       },
       filters: {
         startDate: startDate?.toISOString() ?? null,
@@ -246,17 +202,25 @@ export async function GET(req: Request) {
       },
       pendingSettlements: {
         count: successfulCollections.length,
-        totalAmount: successfulCollectionAmount,
-        note: "Recent successful collections returned by Monnify transaction search for your account.",
+        totalAmount: totalCredits,
+        note: "Recent successful collections returned by Monnify transactions search for your account.",
         items: successfulCollections,
       },
       statement: {
         page: statementPage,
         size: statementSize,
-        total: walletStatementResult.ok
-          ? asNumber(statementBody.totalElements ?? statementBody.totalCount ?? walletStatementItems.length)
-          : 0,
-        items: filteredWalletStatement,
+        total: collectionItems.length,
+        items: collectionItems.map((item) => ({
+          reference: item.reference,
+          transactionType: item.status || "Recorded",
+          amount: item.amount,
+          balanceBefore: 0,
+          balanceAfter: 0,
+          currency: item.currency || "NGN",
+          status: item.status || "Recorded",
+          createdOn: item.paidOn,
+          narration: item.narration,
+        })),
       },
       disbursements: {
         page: disbursementPage,
