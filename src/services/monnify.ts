@@ -281,6 +281,76 @@ export async function getWalletTransactions({
   }
 }
 
+export async function getWalletStatement({
+  accountNumber = MONNIFY_WALLET_ACCOUNT,
+  startDate,
+  endDate,
+  enableTimeFilter = false,
+  pageNo = 0,
+  pageSize = 20,
+}: {
+  accountNumber?: string
+  startDate?: number | null
+  endDate?: number | null
+  enableTimeFilter?: boolean
+  pageNo?: number
+  pageSize?: number
+} = {}) {
+  const query = new URLSearchParams({
+    startDate: String(startDate ?? 0),
+    endDate: String(endDate ?? Date.now()),
+    enableTimeFilter: String(enableTimeFilter),
+    pageNo: String(pageNo),
+    pageSize: String(pageSize),
+  })
+
+  try {
+    return await monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/${encodeURIComponent(accountNumber)}/statement?${query.toString()}`,
+      { authMode: 'bearer' }
+    )
+  } catch (bearerError) {
+    console.warn('Monnify wallet statement bearer request failed, retrying with basic auth', bearerError)
+    return monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/${encodeURIComponent(accountNumber)}/statement?${query.toString()}`,
+      { authMode: 'basic' }
+    )
+  }
+}
+
+export async function searchDisbursementTransactions({
+  sourceAccountNumber = MONNIFY_WALLET_ACCOUNT,
+  pageNo = 0,
+  pageSize = 20,
+  startDate,
+  endDate,
+  amountFrom,
+  amountTo,
+}: {
+  sourceAccountNumber?: string
+  pageNo?: number
+  pageSize?: number
+  startDate?: number | null
+  endDate?: number | null
+  amountFrom?: number | null
+  amountTo?: number | null
+} = {}) {
+  const query = new URLSearchParams({
+    sourceAccountNumber,
+    pageNo: String(pageNo),
+    pageSize: String(pageSize),
+  })
+
+  if (startDate != null) query.set('startDate', String(startDate))
+  if (endDate != null) query.set('endDate', String(endDate))
+  if (amountFrom != null) query.set('amountFrom', String(amountFrom))
+  if (amountTo != null) query.set('amountTo', String(amountTo))
+
+  return monnifyGet<Record<string, unknown>>(
+    `/api/v2/disbursements/search-transactions?${query.toString()}`
+  )
+}
+
 export async function getTransactionsSearch({
   page = 0,
   size = 20,
@@ -705,6 +775,8 @@ const monnify = {
   checkDisbursementStatus,
   getWalletBalance,
   getWalletTransactions,
+  getWalletStatement,
+  searchDisbursementTransactions,
   getTransactionsSearch,
   getSettlementInformationForTransaction,
 }
