@@ -40,6 +40,7 @@ type PendingSettlement = {
 
 type StatementItem = {
   reference: string;
+  paymentReference?: string;
   transactionType: string;
   amount: number;
   balanceBefore: number;
@@ -48,6 +49,8 @@ type StatementItem = {
   status: string;
   createdOn: string | null;
   narration: string;
+  customerName?: string;
+  customerEmail?: string;
 };
 
 type DisbursementItem = {
@@ -124,6 +127,7 @@ export default function AdminMonnifyPage() {
     endDate: "",
     statementFilter: "all",
     disbursementFilter: "all",
+    search: "",
   });
 
   const queryString = useMemo(() => {
@@ -134,13 +138,14 @@ export default function AdminMonnifyPage() {
       disbursementSize: String(disbursements.size),
       statementFilter: filters.statementFilter,
       disbursementFilter: filters.disbursementFilter,
+      search: filters.search,
     });
 
     if (filters.startDate) params.set("startDate", filters.startDate);
     if (filters.endDate) params.set("endDate", filters.endDate);
 
     return params.toString();
-  }, [disbursements.page, disbursements.size, filters.disbursementFilter, filters.endDate, filters.startDate, filters.statementFilter, statement.page, statement.size]);
+  }, [disbursements.page, disbursements.size, filters.disbursementFilter, filters.endDate, filters.search, filters.startDate, filters.statementFilter, statement.page, statement.size]);
 
   const load = async (showToast = false) => {
     try {
@@ -269,7 +274,7 @@ export default function AdminMonnifyPage() {
         title="Filters"
         description="Filter your Monnify account view by date, wallet statement direction, and disbursement status."
       >
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <div className="space-y-2">
             <label className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Start date</label>
             <Input
@@ -327,8 +332,21 @@ export default function AdminMonnifyPage() {
               <option value="failed">Failed</option>
             </select>
           </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Search</label>
+            <Input
+              type="text"
+              placeholder="Email or reference"
+              value={filters.search}
+              onChange={(event) => {
+                setStatement((current) => ({ ...current, page: 0 }));
+                setDisbursements((current) => ({ ...current, page: 0 }));
+                setFilters((current) => ({ ...current, search: event.target.value }));
+              }}
+            />
+          </div>
         </div>
-        {(filters.startDate || filters.endDate || filters.statementFilter !== "all" || filters.disbursementFilter !== "all") ? (
+        {(filters.startDate || filters.endDate || filters.statementFilter !== "all" || filters.disbursementFilter !== "all" || filters.search) ? (
           <div className="mt-4 flex justify-end">
             <Button
               variant="outline"
@@ -341,6 +359,7 @@ export default function AdminMonnifyPage() {
                   endDate: "",
                   statementFilter: "all",
                   disbursementFilter: "all",
+                  search: "",
                 });
               }}
             >
@@ -425,6 +444,12 @@ export default function AdminMonnifyPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-stone-900 break-all">{item.reference || "Transaction entry"}</p>
                       <p className="mt-1 text-sm text-stone-500">
+                        {item.customerName || item.customerEmail || "Unknown payer"}
+                      </p>
+                      {item.customerEmail ? (
+                        <p className="mt-1 text-sm text-stone-500 break-all">{item.customerEmail}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm text-stone-500">
                         {item.createdOn ? new Date(item.createdOn).toLocaleString() : "No date"}
                       </p>
                     </div>
@@ -449,6 +474,9 @@ export default function AdminMonnifyPage() {
                   </div>
                   {item.narration ? (
                     <p className="mt-3 text-sm text-stone-600">{item.narration}</p>
+                  ) : null}
+                  {item.paymentReference ? (
+                    <p className="mt-2 text-xs text-stone-500 break-all">Payment ref: {item.paymentReference}</p>
                   ) : null}
                 </div>
               )}
