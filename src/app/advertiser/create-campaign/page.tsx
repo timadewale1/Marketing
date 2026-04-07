@@ -1043,7 +1043,7 @@ const getEmbeddedVideo = (url: string) => {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Activation payment received. We will verify it now and your account will be activated immediately after confirmation.')
+                toast.success('Activation payment received. Your account will be activated as soon as the payment is verified.')
                 setShowActivatePrompt(false)
                 // If there was a pending campaign, proceed with payment after a short delay
                 if (pendingCampaign) {
