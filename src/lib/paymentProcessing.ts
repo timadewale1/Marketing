@@ -210,7 +210,8 @@ export async function processWalletFundingWithRetry(
   amount: number,
   provider: string = 'monnify',
   userType: 'advertiser' | 'earner' = 'advertiser',
-  maxRetries: number = 3
+  maxRetries: number = 3,
+  extraReferences: string[] = []
 ) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
@@ -218,40 +219,58 @@ export async function processWalletFundingWithRetry(
   const adminDb = dbAdmin as AdminFirestore
   const collectionName = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions'
   const userCollection = userType === 'advertiser' ? 'advertisers' : 'earners'
+  const referenceCandidates = [...new Set([reference, ...extraReferences].map((value) => String(value || '').trim()).filter(Boolean))]
+  const primaryReference = referenceCandidates[0] || String(reference || '').trim()
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[wallet-funding][retry] attempt ${attempt} for ${userType} ${userId}, amount: ${amount}`)
 
-      // Check if already processed
-      const existingTxSnap = await adminDb.collection(collectionName)
-        .where('userId', '==', userId)
-        .where('reference', '==', reference)
-        .where('type', '==', 'wallet_funding')
-        .where('status', '==', 'completed')
-        .limit(1)
-        .get()
+      let existingTxDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+      for (const candidateReference of referenceCandidates) {
+        const existingTxSnap = await adminDb.collection(collectionName)
+          .where('userId', '==', userId)
+          .where('reference', '==', candidateReference)
+          .where('type', '==', 'wallet_funding')
+          .where('status', '==', 'completed')
+          .limit(1)
+          .get()
 
-      if (!existingTxSnap.empty) {
+        if (!existingTxSnap.empty) {
+          existingTxDoc = existingTxSnap.docs[0]
+          break
+        }
+      }
+
+      if (existingTxDoc) {
         console.log(`[wallet-funding][retry] already processed for ${userId}`)
         return { success: true, alreadyProcessed: true }
       }
 
-      const pendingTxSnap = await adminDb.collection(collectionName)
-        .where('userId', '==', userId)
-        .where('reference', '==', reference)
-        .where('type', '==', 'wallet_funding')
-        .where('status', '==', 'pending')
-        .limit(1)
-        .get()
+      let pendingDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+      for (const candidateReference of referenceCandidates) {
+        const pendingTxSnap = await adminDb.collection(collectionName)
+          .where('userId', '==', userId)
+          .where('reference', '==', candidateReference)
+          .where('type', '==', 'wallet_funding')
+          .where('status', '==', 'pending')
+          .limit(1)
+          .get()
+
+        if (!pendingTxSnap.empty) {
+          pendingDoc = pendingTxSnap.docs[0]
+          break
+        }
+      }
 
       let txId = ''
-      if (!pendingTxSnap.empty) {
-        const pendingDoc = pendingTxSnap.docs[0]
+      if (pendingDoc) {
         txId = pendingDoc.id
         await pendingDoc.ref.update({
           amount,
           provider,
+          reference: String(pendingDoc.data().reference || primaryReference),
+          referenceCandidates,
           status: 'completed',
           note: `Wallet funded via ${provider}`,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -264,7 +283,8 @@ export async function processWalletFundingWithRetry(
           type: 'wallet_funding',
           amount,
           provider,
-          reference,
+          reference: primaryReference,
+          referenceCandidates,
           status: 'completed',
           note: `Wallet funded via ${provider}`,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),

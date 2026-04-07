@@ -53,6 +53,27 @@ async function findActivationUserByReferences(
   return null
 }
 
+async function findPendingWalletTransactionByReferences(
+  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
+  collectionName: 'advertiserTransactions' | 'earnerTransactions',
+  references: string[]
+) {
+  for (const reference of references) {
+    const snap = await dbAdmin.collection(collectionName)
+      .where('reference', '==', reference)
+      .where('type', '==', 'wallet_funding')
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get()
+
+    if (!snap.empty) {
+      return snap.docs[0]
+    }
+  }
+
+  return null
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()
@@ -98,61 +119,77 @@ export async function POST(req: NextRequest) {
       if (status === 'SUCCESSFUL' || status === 'SUCCESS') {
         try {
           // Check if already processed (idempotency)
-          const processedSnap = await dbAdmin.collection('processedWebhooks')
-            .where('reference', '==', reference)
-            .where('eventType', '==', 'TRANSACTION_COMPLETION')
-            .limit(1)
-            .get()
+          for (const candidateReference of referenceCandidates) {
+            const processedSnap = await dbAdmin.collection('processedWebhooks')
+              .where('reference', '==', candidateReference)
+              .where('eventType', '==', 'TRANSACTION_COMPLETION')
+              .limit(1)
+              .get()
 
-          if (!processedSnap.empty) {
-            console.log('[webhook][monnify][transaction] already processed, skipping:', reference)
-            return NextResponse.json({ success: true, message: 'Already processed' })
+            if (!processedSnap.empty) {
+              console.log('[webhook][monnify][transaction] already processed, skipping:', candidateReference)
+              return NextResponse.json({ success: true, message: 'Already processed' })
+            }
           }
 
           // Mark as processing to prevent concurrent processing
           await dbAdmin.collection('processedWebhooks').doc().set({
-            reference,
+            reference: referenceCandidates[0] || String(reference || ''),
+            referenceCandidates,
             eventType: 'TRANSACTION_COMPLETION',
             status,
             amount,
+            transactionReference: transactionReference || null,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
           })
           // Check if this is a wallet funding transaction (advertiser first, then earner)
-          const walletTxSnap = await dbAdmin.collection('advertiserTransactions')
-            .where('reference', '==', reference)
-            .where('type', '==', 'wallet_funding')
-            .where('status', '==', 'pending')
-            .limit(1)
-            .get()
+          const walletTxDoc = await findPendingWalletTransactionByReferences(
+            dbAdmin,
+            'advertiserTransactions',
+            referenceCandidates
+          )
 
-          if (!walletTxSnap.empty) {
-            const txDoc = walletTxSnap.docs[0]
-            const txData = txDoc.data()
+          if (walletTxDoc) {
+            const txData = walletTxDoc.data()
 
             console.log('[webhook][monnify][transaction] processing wallet funding for', txData.userId)
 
             try {
-              await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'advertiser')
+              await processWalletFundingWithRetry(
+                txData.userId,
+                String(txData.reference || referenceCandidates[0] || reference || ''),
+                Number(txData.amount || 0),
+                'monnify',
+                'advertiser',
+                3,
+                referenceCandidates
+              )
               console.log('[webhook][monnify][transaction] wallet funding processed successfully')
             } catch (fundingError) {
               console.error('[webhook][monnify][transaction] wallet funding failed:', fundingError)
             }
           } else {
-            const earnerTxSnap = await dbAdmin.collection('earnerTransactions')
-              .where('reference', '==', reference)
-              .where('type', '==', 'wallet_funding')
-              .where('status', '==', 'pending')
-              .limit(1)
-              .get()
+            const earnerTxDoc = await findPendingWalletTransactionByReferences(
+              dbAdmin,
+              'earnerTransactions',
+              referenceCandidates
+            )
 
-            if (!earnerTxSnap.empty) {
-              const txDoc = earnerTxSnap.docs[0]
-              const txData = txDoc.data()
+            if (earnerTxDoc) {
+              const txData = earnerTxDoc.data()
 
               console.log('[webhook][monnify][transaction] processing earner wallet funding for', txData.userId)
 
               try {
-                await processWalletFundingWithRetry(txData.userId, reference, Number(txData.amount || 0), 'monnify', 'earner')
+                await processWalletFundingWithRetry(
+                  txData.userId,
+                  String(txData.reference || referenceCandidates[0] || reference || ''),
+                  Number(txData.amount || 0),
+                  'monnify',
+                  'earner',
+                  3,
+                  referenceCandidates
+                )
                 console.log('[webhook][monnify][transaction] earner wallet funding processed successfully')
               } catch (fundingError) {
                 console.error('[webhook][monnify][transaction] earner wallet funding failed:', fundingError)

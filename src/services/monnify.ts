@@ -1,3 +1,5 @@
+import { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
+
 const BASE = process.env.MONNIFY_BASE_URL!
 const API_KEY = process.env.MONNIFY_API_KEY!
 const SECRET = process.env.MONNIFY_SECRET_KEY!
@@ -170,6 +172,12 @@ export async function verifyTransaction(reference: string) {
     return { res, json }
   }
 
+  function extractResponseReferences(payload: Record<string, unknown> | null | undefined) {
+    const responseBody = payload?.responseBody
+    if (!responseBody || typeof responseBody !== 'object') return []
+    return extractMonnifyReferenceCandidates(reference, responseBody as Record<string, unknown>)
+  }
+
   // Helper to retry with backoff in case of sync delay
   async function tryWithRetry(attemptFn: () => Promise<{ res: Response; json: Record<string, unknown> }>, maxAttempts: number = 3) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -200,16 +208,31 @@ export async function verifyTransaction(reference: string) {
   // Strategy 2: Try merchant transactions endpoint
   console.log(`Trying merchant transactions endpoint`)
   const merchantResult = await tryWithRetry(async () => {
-    const url = `${BASE}/api/v1/merchant/transactions?pageSize=20&pageNo=0`
-    const attempt = await queryUrl(url)
-    if (attempt.res.ok && attempt.json?.requestSuccessful) {
-      const transactions = attempt.json?.responseBody?.transactions || []
-      const found = transactions.find((t: { transactionReference: string }) => t.transactionReference === reference)
-      if (found) {
-        return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
+    for (let pageNo = 0; pageNo < 5; pageNo++) {
+      const url = `${BASE}/api/v1/merchant/transactions?pageSize=100&pageNo=${pageNo}`
+      const attempt = await queryUrl(url)
+      if (attempt.res.ok && attempt.json?.requestSuccessful) {
+        const transactions = Array.isArray(attempt.json?.responseBody?.transactions)
+          ? (attempt.json.responseBody.transactions as Array<Record<string, unknown>>)
+          : []
+        const found = transactions.find((transaction: Record<string, unknown>) => {
+          const candidates = extractMonnifyReferenceCandidates(reference, transaction)
+          return candidates.includes(reference)
+        })
+        if (found) {
+          return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
+        }
+      }
+
+      const transactionsCount = Array.isArray(attempt.json?.responseBody?.transactions)
+        ? attempt.json.responseBody.transactions.length
+        : 0
+      if (!attempt.res.ok || !attempt.json?.requestSuccessful || transactionsCount < 100) {
+        return attempt
       }
     }
-    return attempt
+
+    return { res: new Response(null, { status: 404 }), json: { requestSuccessful: false } }
   })
   if (merchantResult) return merchantResult
 
@@ -220,6 +243,23 @@ export async function verifyTransaction(reference: string) {
     return queryUrl(url)
   })
   if (directResult) return directResult
+
+  // Strategy 4: Retry SDK query and accept when Monnify returns the same payment under an alternate reference field
+  if (contractCode) {
+    console.log(`Trying SDK endpoint alternate-reference match`)
+    const alternateSdkResult = await tryWithRetry(async () => {
+      const url = `${BASE}/api/v1/sdk/transactions/query/${contractCode}?transactionReference=${encodeURIComponent(reference)}&shouldIncludePaymentSessionInfo=true`
+      const attempt = await queryUrl(url)
+      if (attempt.res.ok && attempt.json?.requestSuccessful) {
+        const candidates = extractResponseReferences(attempt.json)
+        if (candidates.includes(reference)) {
+          return attempt
+        }
+      }
+      return attempt
+    })
+    if (alternateSdkResult) return alternateSdkResult
+  }
 
   // Log all failed attempts
   console.error(`All Monnify verification attempts failed for reference: ${reference}`)

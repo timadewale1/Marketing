@@ -7,6 +7,12 @@ import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnif
 type UserRole = "earner" | "advertiser"
 type PaymentProvider = "monnify" | "paystack"
 
+type ProcessedWebhookRecord = {
+  reference?: unknown
+  referenceCandidates?: unknown
+  status?: unknown
+}
+
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
     return ((value as { toDate: () => Date }).toDate()).toISOString()
@@ -17,6 +23,18 @@ function serializeDate(value: unknown) {
 
 function normalizeProvider(value: unknown): PaymentProvider | null {
   return String(value || "").toLowerCase() === "paystack" ? "paystack" : String(value || "").toLowerCase() === "monnify" ? "monnify" : null
+}
+
+function normalizeReferences(values: unknown[]) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
+}
+
+function getProcessedWebhookReferences(data: ProcessedWebhookRecord) {
+  const arrayReferences = Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []
+  return normalizeReferences([
+    data.reference,
+    ...arrayReferences,
+  ])
 }
 
 async function verifyPaystackPayment(reference: string) {
@@ -132,8 +150,7 @@ export async function GET() {
         const status = String(doc.data().status || "").toUpperCase()
         return status === "SUCCESS" || status === "SUCCESSFUL"
       })
-      .map((doc) => String(doc.data().reference || "").trim())
-      .filter(Boolean)
+      .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
   )
 
   const activationCandidateDrafts = [
@@ -196,10 +213,14 @@ export async function GET() {
   const walletCandidates = await Promise.all(
     pendingWalletSnap.docs.map(async (txDoc) => {
       const data = txDoc.data()
-      const reference = String(data.reference || "")
+      const txReferences = normalizeReferences([
+        data.reference,
+        ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+      ])
+      const reference = txReferences[0] || ""
       const provider = String(data.provider || "monnify")
       const isVerified = await hasVerifiedSuccessfulPayment(
-        [reference],
+        txReferences,
         provider,
         verificationCache,
         successfulWebhookReferences
@@ -289,8 +310,7 @@ export async function POST(req: Request) {
               const status = String(doc.data().status || "").toUpperCase()
               return status === "SUCCESS" || status === "SUCCESSFUL"
             })
-            .map((doc) => String(doc.data().reference || "").trim())
-            .filter(Boolean)
+            .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
         )
         const paymentVerified = await hasVerifiedSuccessfulPayment(
           references,
@@ -357,11 +377,14 @@ export async function POST(req: Request) {
             const status = String(doc.data().status || "").toUpperCase()
             return status === "SUCCESS" || status === "SUCCESSFUL"
           })
-          .map((doc) => String(doc.data().reference || "").trim())
-          .filter(Boolean)
+          .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
       )
+      const txReferences = normalizeReferences([
+        tx.reference,
+        ...(Array.isArray(tx.referenceCandidates) ? tx.referenceCandidates : []),
+      ])
       const paymentVerified = await hasVerifiedSuccessfulPayment(
-        [String(tx.reference || "")],
+        txReferences,
         tx.provider || "monnify",
         verificationCache,
         successfulWebhookReferences
@@ -376,10 +399,12 @@ export async function POST(req: Request) {
 
       await processWalletFundingWithRetry(
         String(tx.userId || ""),
-        String(tx.reference || ""),
+        txReferences[0] || String(tx.reference || ""),
         Number(tx.amount || 0),
         String(tx.provider || "monnify"),
-        "advertiser"
+        "advertiser",
+        3,
+        txReferences
       )
 
       await dbAdmin.collection("adminNotifications").add({

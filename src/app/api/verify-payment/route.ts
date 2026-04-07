@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
           referenceCandidates[0] || String(reference),
           Number(amount),
           provider === 'monnify' ? 'monnify' : 'paystack',
-          'advertiser'
+          'advertiser',
+          3,
+          referenceCandidates
         )
         await adminDb.collection('adminNotifications').add({
           type: 'wallet_funding',
