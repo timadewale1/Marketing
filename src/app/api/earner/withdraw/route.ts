@@ -149,7 +149,6 @@ export async function POST(req: Request) {
           narration: `Withdrawal for ${recipientName}`,
           destinationBankCode: bank.bankCode!,
           destinationAccountNumber: bank.accountNumber!,
-          accountName: recipientName,
         })
         
         console.log('[withdraw][earner] monnify disbursement initiated', disbursementResponse)
