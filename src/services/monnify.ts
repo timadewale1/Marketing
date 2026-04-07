@@ -6,7 +6,7 @@ const SECRET = process.env.MONNIFY_SECRET_KEY!
 const MONNIFY_WALLET_ACCOUNT = process.env.MONNIFY_WALLET_ACCOUNT_NUMBER!
 
 // Bank code mappings for Nigerian banks (Monnify format)
-const BANK_CODE_MAP: Record<string, string> = {
+export const BANK_CODE_MAP: Record<string, string> = {
   '007': 'Zenith Bank',
   '009': 'FCMB',
   '011': 'First Bank',
@@ -109,6 +109,12 @@ type MonnifyAuthResponse = {
 }
 
 type MonnifyTransactionRecord = Record<string, unknown>
+type MonnifyApiEnvelope<T = Record<string, unknown>> = {
+  requestSuccessful?: boolean
+  responseBody?: T
+  responseMessage?: string
+  responseCode?: string
+}
 
 function normalizeMonnifyAmount(value: unknown) {
   const amount = Number(value)
@@ -196,6 +202,104 @@ async function getAuthToken() {
   }
 
   return cachedToken.token
+}
+
+async function getBasicAuthHeader() {
+  const auth = Buffer.from(`${API_KEY}:${SECRET}`).toString('base64')
+  return `Basic ${auth}`
+}
+
+async function monnifyGet<T = Record<string, unknown>>(
+  path: string,
+  {
+    authMode = 'bearer',
+  }: {
+    authMode?: 'bearer' | 'basic'
+  } = {}
+) {
+  const authorization = authMode === 'basic'
+    ? await getBasicAuthHeader()
+    : `Bearer ${await getAuthToken()}`
+
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'GET',
+    headers: {
+      Authorization: authorization,
+      Accept: 'application/json',
+    },
+  })
+
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(`Monnify request failed for ${path}: ${JSON.stringify(json)}`)
+  }
+
+  return json as MonnifyApiEnvelope<T>
+}
+
+export async function getWalletBalance(accountNumber: string = MONNIFY_WALLET_ACCOUNT) {
+  try {
+    return await monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/balance?accountNumber=${encodeURIComponent(accountNumber)}`,
+      { authMode: 'bearer' }
+    )
+  } catch (bearerError) {
+    console.warn('Monnify wallet balance bearer request failed, retrying with basic auth', bearerError)
+    return monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/balance?accountNumber=${encodeURIComponent(accountNumber)}`,
+      { authMode: 'basic' }
+    )
+  }
+}
+
+export async function getWalletTransactions({
+  accountNumber = MONNIFY_WALLET_ACCOUNT,
+  pageNo = 0,
+  pageSize = 20,
+}: {
+  accountNumber?: string
+  pageNo?: number
+  pageSize?: number
+} = {}) {
+  const query = new URLSearchParams({
+    accountNumber,
+    pageNo: String(pageNo),
+    pageSize: String(pageSize),
+  })
+
+  try {
+    return await monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/transactions?${query.toString()}`,
+      { authMode: 'bearer' }
+    )
+  } catch (bearerError) {
+    console.warn('Monnify wallet transactions bearer request failed, retrying with basic auth', bearerError)
+    return monnifyGet<Record<string, unknown>>(
+      `/api/v1/disbursements/wallet/transactions?${query.toString()}`,
+      { authMode: 'basic' }
+    )
+  }
+}
+
+export async function getTransactionsSearch({
+  page = 0,
+  size = 20,
+}: {
+  page?: number
+  size?: number
+} = {}) {
+  const query = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  })
+
+  return monnifyGet<Record<string, unknown>>(`/api/v1/transactions/search?${query.toString()}`)
+}
+
+export async function getSettlementInformationForTransaction(transactionReference: string) {
+  return monnifyGet<Record<string, unknown>>(
+    `/api/v1/settlement-detail?transactionReference=${encodeURIComponent(transactionReference)}`
+  )
 }
 
 export async function verifyTransaction(reference: string) {
@@ -442,14 +546,12 @@ export async function initiateDisbursement({
   narration,
   destinationBankCode,
   destinationAccountNumber,
-  accountName,
 }: {
   amount: number // In Naira
   reference: string // Unique reference ID
   narration: string // Description
   destinationBankCode: string // 3-digit bank code
   destinationAccountNumber: string
-  accountName?: string
 }) {
   const token = await getAuthToken()
 
@@ -512,4 +614,17 @@ export async function checkDisbursementStatus(reference: string) {
   return json.responseBody || json
 }
 
-export default { verifyTransaction, findSuccessfulTransactionMatch, initiateTransaction, refundTransaction, initiateDisbursement, checkDisbursementStatus }
+const monnify = {
+  verifyTransaction,
+  findSuccessfulTransactionMatch,
+  initiateTransaction,
+  refundTransaction,
+  initiateDisbursement,
+  checkDisbursementStatus,
+  getWalletBalance,
+  getWalletTransactions,
+  getTransactionsSearch,
+  getSettlementInformationForTransaction,
+}
+
+export default monnify
