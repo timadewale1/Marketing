@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { recordActivationAttempt } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 
 export async function POST(req: Request) {
@@ -42,6 +43,13 @@ export async function POST(req: Request) {
       pendingActivationReferences: admin.firestore.FieldValue.arrayUnion(reference),
       pendingActivationProvider: provider,
       activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    await recordActivationAttempt({
+      userId,
+      role,
+      provider,
+      reference,
+      references: [reference],
     })
 
     return NextResponse.json({ success: true })

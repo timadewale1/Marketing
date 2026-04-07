@@ -302,6 +302,17 @@ export async function getSettlementInformationForTransaction(transactionReferenc
   )
 }
 
+function getTransactionSearchItems(payload: Record<string, unknown> | null | undefined) {
+  const responseBody = payload?.responseBody
+  if (!responseBody || typeof responseBody !== 'object') return []
+
+  const body = responseBody as Record<string, unknown>
+  if (Array.isArray(body.content)) return body.content as MonnifyTransactionRecord[]
+  if (Array.isArray(body.transactions)) return body.transactions as MonnifyTransactionRecord[]
+  if (Array.isArray(body.data)) return body.data as MonnifyTransactionRecord[]
+  return []
+}
+
 export async function verifyTransaction(reference: string) {
   const token = await getAuthToken()
 
@@ -354,7 +365,34 @@ export async function verifyTransaction(reference: string) {
     if (result) return result
   }
 
-  // Strategy 2: Try merchant transactions endpoint
+  // Strategy 2: Try transactions search endpoint
+  console.log(`Trying transactions search endpoint`)
+  const searchResult = await tryWithRetry(async () => {
+    for (let pageNo = 0; pageNo < 5; pageNo++) {
+      const url = `${BASE}/api/v1/transactions/search?page=${pageNo}&size=100`
+      const attempt = await queryUrl(url)
+      if (attempt.res.ok && attempt.json?.requestSuccessful) {
+        const transactions = getTransactionSearchItems(attempt.json as Record<string, unknown>)
+        const found = transactions.find((transaction: Record<string, unknown>) => {
+          const candidates = extractMonnifyReferenceCandidates(reference, transaction)
+          return candidates.includes(reference)
+        })
+        if (found) {
+          return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
+        }
+      }
+
+      const transactionsCount = getTransactionSearchItems(attempt.json as Record<string, unknown>).length
+      if (!attempt.res.ok || !attempt.json?.requestSuccessful || transactionsCount < 100) {
+        return attempt
+      }
+    }
+
+    return { res: new Response(null, { status: 404 }), json: { requestSuccessful: false } }
+  })
+  if (searchResult) return searchResult
+
+  // Strategy 2b: fallback to merchant transactions endpoint for older accounts
   console.log(`Trying merchant transactions endpoint`)
   const merchantResult = await tryWithRetry(async () => {
     for (let pageNo = 0; pageNo < 5; pageNo++) {
@@ -435,7 +473,7 @@ export async function findSuccessfulTransactionMatch({
   const notBeforeDate = notBefore instanceof Date ? notBefore : parseMonnifyDate(notBefore)
 
   async function queryUrl(pageNo: number) {
-    const url = `${BASE}/api/v1/merchant/transactions?pageSize=100&pageNo=${pageNo}`
+    const url = `${BASE}/api/v1/transactions/search?page=${pageNo}&size=100`
     const res = await fetch(url, {
       method: 'GET',
       headers: {
@@ -453,8 +491,52 @@ export async function findSuccessfulTransactionMatch({
       break
     }
 
-    const transactions = Array.isArray(attempt.json?.responseBody?.transactions)
-      ? (attempt.json.responseBody.transactions as MonnifyTransactionRecord[])
+    const transactions = getTransactionSearchItems(attempt.json as Record<string, unknown>)
+
+    for (const transaction of transactions) {
+      if (!isSuccessfulMonnifyTransaction(transaction)) continue
+
+      const candidates = extractMonnifyReferenceCandidates('', transaction)
+      if (normalizedReferences.length > 0 && candidates.some((candidate) => normalizedReferences.includes(candidate))) {
+        return transaction
+      }
+
+      if (!normalizedEmail || normalizedAmount == null) continue
+
+      const transactionEmail = getMonnifyTransactionEmail(transaction)
+      const transactionAmount = getMonnifyTransactionAmount(transaction)
+      if (!transactionEmail || transactionEmail !== normalizedEmail) continue
+      if (transactionAmount == null || transactionAmount !== normalizedAmount) continue
+
+      const transactionDate = getMonnifyTransactionDate(transaction)
+      if (notBeforeDate && transactionDate && transactionDate.getTime() + 5 * 60 * 1000 < notBeforeDate.getTime()) {
+        continue
+      }
+
+      return transaction
+    }
+
+    if (transactions.length < 100) {
+      break
+    }
+  }
+
+  for (let pageNo = 0; pageNo < 5; pageNo++) {
+    const url = `${BASE}/api/v1/merchant/transactions?pageSize=100&pageNo=${pageNo}`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || !json?.requestSuccessful) {
+      break
+    }
+
+    const transactions = Array.isArray(json?.responseBody?.transactions)
+      ? (json.responseBody.transactions as MonnifyTransactionRecord[])
       : []
 
     for (const transaction of transactions) {

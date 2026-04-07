@@ -25,6 +25,7 @@ type ActivationCandidate = {
   activatedAt: string | null;
   references: string[];
   lastActivationTxAt: string | null;
+  paymentVerified: boolean;
 };
 
 type WalletCandidate = {
@@ -165,6 +166,7 @@ export default function AdminRecoveryPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <StatusBadge label={candidate.role === "earner" ? "Earner" : "Advertiser"} tone={candidate.role === "earner" ? "amber" : "blue"} />
+                          <StatusBadge label={candidate.paymentVerified ? "Payment verified" : "Needs manual check"} tone={candidate.paymentVerified ? "green" : "amber"} />
                           <StatusBadge label="Not activated" tone="red" />
                         </div>
                       </div>

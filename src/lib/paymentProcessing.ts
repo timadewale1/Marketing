@@ -1,5 +1,6 @@
 // Payment processing utilities for reliable activation and wallet funding
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/activation-attempts'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
@@ -97,9 +98,17 @@ export async function processActivationWithRetry(
       
       const userDoc = earnerSnap.exists ? earnerSnap : advertiserSnap
       const userType = earnerSnap.exists ? 'earners' : 'advertisers'
+      const role: UserRole = userType === 'earners' ? 'earner' : 'advertiser'
       
       if (userDoc.exists && userDoc.data()?.activated) {
         console.log(`[activation][retry] user ${userId} already activated`)
+        await markActivationAttemptCompleted({
+          userId,
+          role,
+          provider,
+          reference: primaryReference,
+          references: activationReferences,
+        })
         await processPendingActivationReferrals(adminDb, admin, userId)
         return { success: true, alreadyActivated: true }
       }
@@ -128,6 +137,13 @@ export async function processActivationWithRetry(
       }
       
       await adminDb.collection(userType).doc(userId).update(updateData)
+      await markActivationAttemptCompleted({
+        userId,
+        role,
+        provider,
+        reference: primaryReference,
+        references: activationReferences,
+      })
 
       // Create activation fee transaction record (platform revenue; not credited to user)
       const collectionName = userType === 'earners' ? 'earnerTransactions' : 'advertiserTransactions'
@@ -200,6 +216,13 @@ export async function runFullActivationFlow(
     pendingActivationProvider: provider,
     activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, { merge: true })
+  await recordActivationAttempt({
+    userId,
+    role: userType === 'earners' ? 'earner' : 'advertiser',
+    provider,
+    reference: primaryReference,
+    references: activationReferences,
+  })
 
   return processActivationWithRetry(userId, primaryReference, provider, 3, activationReferences)
 }
