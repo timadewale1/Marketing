@@ -2,31 +2,26 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { db } from "@/lib/firebase"
+import Image from "next/image"
 import {
-  doc,
-  onSnapshot,
-  updateDoc,
   collection,
+  doc,
+  getDoc,
+  onSnapshot,
   query,
   where,
-  addDoc,
-  serverTimestamp,
 } from "firebase/firestore"
-import { getAuth } from "firebase/auth"
+import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
+import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trash, ArrowLeft } from "lucide-react"
-import Image from "next/image"
-import { toast } from "react-hot-toast"
-import { Dialog } from "@headlessui/react"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 
-// types
 type Campaign = {
   id: string
   title: string
   bannerUrl: string
+  description?: string
   category: string
   status: "Active" | "Paused" | "Stopped" | "Pending" | "Deleted" | "Completed"
   budget: number
@@ -37,62 +32,40 @@ type Campaign = {
   paymentRef?: string
   reservedBudget?: number
   originalBudget?: number
+  mediaUrl?: string
+  externalLink?: string
+  productImages?: string[]
+  advertiserFaceImage?: string
+  businessAddress?: {
+    addressLine?: string
+    city?: string
+    state?: string
+    country?: string
+  }
 }
 
 type Submission = {
   id: string
+  userId?: string
+  userName?: string
   status?: string
-}
-
-interface PaystackResponse {
-  reference?: string
-}
-
-interface WindowWithPaystack extends Window {
-  PaystackPop?: {
-    setup: (options: {
-      key: string
-      email: string
-      amount: number
-      currency?: string
-      label?: string
-      onClose?: () => void
-      callback?: (response: PaystackResponse) => void
-    }) => { openIframe: () => void }
-  }
+  proofUrl?: string
+  socialHandle?: string | null
+  note?: string | null
+  createdAt?: string | null
 }
 
 export default function CampaignDetailsPage() {
   const { id } = useParams()
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
-  const avgCPL: number | null = null
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<Submission[]>([])
 
-  // Resume modal state
-  const [showResumeModal, setShowResumeModal] = useState(false)
-  const [useRefundAmount, setUseRefundAmount] = useState<number>(0)
-  const [depositAmount, setDepositAmount] = useState<number>(0)
-  const availableRefundable = 0
-  const [processing, setProcessing] = useState<boolean>(false)
-
-  // Load Paystack script once (inline)
-  useEffect(() => {
-    const id = "paystack-inline-script"
-    if (!document.getElementById(id)) {
-      const script = document.createElement("script")
-      script.id = id
-      script.src = "https://js.paystack.co/v1/inline.js"
-      script.async = true
-      document.body.appendChild(script)
-    }
-  }, [])
-
-  // 🔄 Realtime campaign updates
   useEffect(() => {
     if (!id) return
-    const unsub = onSnapshot(doc(db, "campaigns", id as string), (snap) => {
+
+    const unsubscribe = onSnapshot(doc(db, "campaigns", id as string), (snap) => {
       if (snap.exists()) {
         setCampaign({ ...(snap.data() as Campaign), id: snap.id })
       } else {
@@ -100,7 +73,8 @@ export default function CampaignDetailsPage() {
       }
       setLoading(false)
     })
-    return () => unsub()
+
+    return () => unsubscribe()
   }, [id])
 
   useEffect(() => {
@@ -111,271 +85,127 @@ export default function CampaignDetailsPage() {
       where("campaignId", "==", id as string)
     )
 
-    const unsub = onSnapshot(submissionsQuery, (snap) => {
-      setSubmissions(
-        snap.docs.map((submissionDoc) => ({
+    const unsubscribe = onSnapshot(submissionsQuery, (snap) => {
+      void (async () => {
+        const rawSubmissions = snap.docs.map((submissionDoc) => ({
           id: submissionDoc.id,
+          userId: String(submissionDoc.data().userId || ""),
           status: String(submissionDoc.data().status || ""),
+          proofUrl: String(submissionDoc.data().proofUrl || ""),
+          socialHandle: submissionDoc.data().socialHandle ? String(submissionDoc.data().socialHandle) : null,
+          note: submissionDoc.data().note ? String(submissionDoc.data().note) : null,
+          createdAt: submissionDoc.data().createdAt?.toDate
+            ? submissionDoc.data().createdAt.toDate().toISOString()
+            : null,
         }))
-      )
+
+        const userIds = [...new Set(rawSubmissions.map((submission) => submission.userId).filter(Boolean))]
+        const userNames = new Map<string, string>()
+
+        await Promise.all(
+          userIds.map(async (userId) => {
+            try {
+              const earnerSnap = await getDoc(doc(db, "earners", userId))
+              if (!earnerSnap.exists()) return
+
+              const earner = earnerSnap.data() as Record<string, unknown>
+              userNames.set(
+                userId,
+                String(earner.fullName || earner.name || earner.email || userId)
+              )
+            } catch (error) {
+              console.warn("Failed to load earner details", userId, error)
+            }
+          })
+        )
+
+        setSubmissions(
+          rawSubmissions.map((submission) => ({
+            ...submission,
+            userName: submission.userId
+              ? userNames.get(submission.userId) || submission.userId
+              : "Unknown earner",
+          }))
+        )
+      })()
     })
 
-    return () => unsub()
+    return () => unsubscribe()
   }, [id])
-
-  // ⚡ Fetch Avg CPL once
-  // Note: latest leads and realtime submission list removed to simplify details view.
-
-  const handleDelete = async () => {
-    if (!campaign) return
-    try {
-      const user = getAuth().currentUser
-      if (!user) {
-        toast.error("Not authenticated")
-        return
-      }
-
-      const token = await user.getIdToken()
-      const response = await fetch(`/api/advertiser/tasks/${campaign.id}/delete`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      const result = await response.json()
-      if (!response.ok) {
-        toast.error(result.message || "Failed to delete task")
-        return
-      }
-
-      toast.success("Task deleted and budget refunded to your balance")
-      router.push("/advertiser")
-    } catch (error) {
-      console.error('Delete task error:', error)
-      toast.error("Failed to delete task")
-    }
-  }
-
-  // Resume feature disabled — tasks now run until funds exhaust. Keep handler as no-op.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleResume = async () => {
-    toast('Resume feature is disabled. Tasks will run until funds are exhausted.')
-    return
-  }
-
-  // Start resume flow: supports using refundable + depositing more
-  const startResumeFlow = async () => {
-  if (!campaign) return toast.error("Task missing")
-  const useRefund = Number(useRefundAmount || 0)
-  const deposit = Number(depositAmount || 0)
-
-  if (useRefund < 0 || deposit < 0) return toast.error("Invalid amounts")
-  if (useRefund > availableRefundable) return toast.error("Refundable exceeds balance")
-  const total = useRefund + deposit
-  if (total <= 0) return toast.error("Enter an amount to resume with")
-
-  const auth = getAuth()
-  const user = auth.currentUser
-  if (!user?.uid) return toast.error("Not authenticated")
-
-  setProcessing(true)
-
-  try {
-    // If deposit is required
-    if (deposit > 0) {
-    const win = window as WindowWithPaystack
-    if (!win.PaystackPop) {
-    toast.error("Payment library not loaded yet")
-    setProcessing(false)
-    return
-  }
-
-    const paystackPop = (window as WindowWithPaystack).PaystackPop
-    const handler = paystackPop!.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_KEY ?? "",
-      email: user.email || "",
-      amount: Math.round(deposit * 100),
-      currency: "NGN",
-      label: `Deposit for ${campaign.title}`,
-      onClose: () => {
-        toast.error("Payment cancelled")
-        setProcessing(false)
-      },
-      callback: (response: PaystackResponse) => {
-        ;(async () => {
-          try {
-            const resp = response || {}
-          // record transaction
-          await addDoc(collection(db, "transactions"), {
-            userId: user.uid,
-            campaignId: campaign.id,
-            type: "deposit",
-            amount: deposit,
-              reference: resp.reference || null,
-            status: "Success",
-            createdAt: serverTimestamp(),
-          })
-
-          // only deduct the refund amount entered
-          if (useRefund > 0) {
-              await addDoc(collection(db, "resumedCampaigns"), {
-              userId: user.uid,
-              campaignId: campaign.id,
-              amountUsed: useRefund,
-              source: "refundable",
-              status: "Approved",
-              createdAt: serverTimestamp(),
-            })
-          }
-
-          // reset campaign as new
-          const campaignRef = doc(db, "campaigns", campaign.id)
-
-// Create a subdocument under /campaigns/{id}/resumes/
-await addDoc(collection(campaignRef, "resumes"), {
-  resumedBudget: deposit + useRefund, // total used to resume
-  resumedAt: serverTimestamp(),
-  costPerLead: campaign.costPerLead,
-  estimatedLeads: Math.floor((deposit + useRefund) / campaign.costPerLead),
-  reference: undefined,
-  status: "Active",
-})
-
-// Update parent campaign basic fields (no new doc, no old budget overwrite)
-await updateDoc(campaignRef, {
-  status: "Active",
-  resumedBudget: deposit + useRefund, // just for summary display
-  generatedLeads: 0, // reset leads
-})
-
-
-          setCampaign({ ...campaign, status: "Active", budget: total, generatedLeads: 0 })
-          setShowResumeModal(false)
-          toast.success("Task resumed")
-        } catch (err) {
-          console.error("Finalize failed:", err)
-          toast.error("Something went wrong after payment")
-        } finally {
-          setProcessing(false)
-        }
-      })() // ✅ IIFE invocation
-    },
-  })
-  handler.openIframe()
-  return
-}
-
-    const campaignRef = doc(db, "campaigns", campaign.id)
-
-// Create a subdocument under /campaigns/{id}/resumes/
-await addDoc(collection(campaignRef, "resumes"), {
-  resumedBudget: deposit + useRefund, // total used to resume
-  resumedAt: serverTimestamp(),
-  costPerLead: campaign.costPerLead,
-  estimatedLeads: Math.floor((deposit + useRefund) / campaign.costPerLead),
-  status: "Active",
-})
-
-// Update parent campaign basic fields (no new doc, no old budget overwrite)
-await updateDoc(campaignRef, {
-  status: "Active",
-  resumedBudget: deposit + useRefund, // just for summary display
-  generatedLeads: 0, // reset leads
-})
-
-
-    setCampaign({ ...campaign, status: "Active", budget: total, generatedLeads: 0 })
-    setShowResumeModal(false)
-  toast.success("Task resumed using refundable balance")
-    setProcessing(false)
-  } catch (err) {
-    console.error("Resume failed:", err)
-    toast.error("Failed to resume")
-    setProcessing(false)
-  }
-}
-
-
-  // 📊 Insights logic
-  const getInsights = () => {
-    if (avgCPL === null) return "No benchmark available yet."
-    if (!campaign) return "N/A"
-    if (campaign.costPerLead < avgCPL * 0.9) {
-      return "Your CPL is better than most campaigns 🎉"
-    } else if (campaign.costPerLead <= avgCPL * 1.1) {
-      return "Your CPL is around the average. Solid performance 👍"
-    } else {
-      return "Your CPL is higher than average. Try optimizing your ads ⚡"
-    }
-  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
-        <Card className="p-8 shadow-md bg-gradient-to-br from-amber-50 to-stone-100 text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-stone-700 font-medium">Loading task...</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
+        <Card className="bg-gradient-to-br from-amber-50 to-stone-100 p-8 text-center shadow-md">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+          <p className="font-medium text-stone-700">Loading task...</p>
         </Card>
       </div>
     )
   }
 
-  if (!campaign) return <p className="p-6">Task not found.</p>
+  if (!campaign) {
+    return <p className="p-6">Task not found.</p>
+  }
 
   const progress = summarizeCampaignProgress({
     target: Number(campaign.estimatedLeads || 0),
     generatedLeads: Number(campaign.generatedLeads || 0),
     submissions,
   })
-  const percent = progress.progressPercent
 
+  const percent = progress.progressPercent
   const progressColor =
     percent >= 75
       ? "from-green-500 to-green-700"
       : percent >= 40
-      ? "from-yellow-400 to-yellow-600"
-      : "from-red-500 to-red-700"
+        ? "from-yellow-400 to-yellow-600"
+        : "from-red-500 to-red-700"
 
-  // 🎛️ Status buttons
+  const totalBudget = Number(
+    campaign.originalBudget || (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0))
+  )
+  const businessAddress = [
+    campaign.businessAddress?.addressLine,
+    campaign.businessAddress?.city,
+    campaign.businessAddress?.state,
+    campaign.businessAddress?.country,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
   return (
-    <div className="px-6 py-10 space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 min-h-screen">
-      {/* Back Button */}
+    <div className="min-h-screen space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 px-6 py-10">
       <Button
         onClick={() => router.back()}
-        className="flex gap-2 mb-4 bg-stone-700 hover:bg-stone-800 text-white"
+        className="mb-4 flex gap-2 bg-stone-700 text-white hover:bg-stone-800"
         size="sm"
       >
         <ArrowLeft size={16} /> Back
       </Button>
 
-      {/* Hero Section */}
       <div className="flex justify-center">
-        <Card className="w-full max-w-xs rounded-xl overflow-hidden shadow-md bg-gradient-to-br from-amber-50 to-stone-100">
-              <Image
-                src={campaign.bannerUrl || "/placeholders/default.jpg"}
-                alt={campaign.title || "Task banner"}
-                width={400}
-                height={400}
-                className="w-full aspect-square object-cover"
-                style={{ objectFit: "cover" }}
-                priority
-              />
-          <CardContent className="p-4 space-y-2 text-center">
-            <h1 className="text-lg font-semibold text-stone-800">
-              {campaign.title}
-            </h1>
+        <Card className="w-full max-w-xs overflow-hidden rounded-xl bg-gradient-to-br from-amber-50 to-stone-100 shadow-md">
+          <Image
+            src={campaign.bannerUrl || "/placeholders/default.jpg"}
+            alt={campaign.title || "Task banner"}
+            width={400}
+            height={400}
+            className="aspect-square w-full object-cover"
+            priority
+          />
+          <CardContent className="space-y-2 p-4 text-center">
+            <h1 className="text-lg font-semibold text-stone-800">{campaign.title}</h1>
             <p className="text-xs text-stone-500">{campaign.category}</p>
             <span
-              className={`px-3 py-1 text-xs rounded-full font-semibold ${
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 campaign.status === "Active"
                   ? "bg-green-100 text-green-700"
                   : campaign.status === "Paused"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : campaign.status === "Pending"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-red-100 text-red-600"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : campaign.status === "Pending"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-red-100 text-red-600"
               }`}
             >
               {campaign.status}
@@ -384,19 +214,17 @@ await updateDoc(campaignRef, {
         </Card>
       </div>
 
-      {/* Performance + Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Performance */}
-        <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100 shadow-md space-y-4">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <Card className="space-y-4 bg-gradient-to-br from-amber-50 to-stone-100 p-6 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800">Performance Overview</h2>
           <div>
-            <div className="w-full bg-stone-200 rounded-full h-2">
+            <div className="h-2 w-full rounded-full bg-stone-200">
               <div
-                className={`bg-gradient-to-r ${progressColor} h-2 rounded-full`}
+                className={`h-2 rounded-full bg-gradient-to-r ${progressColor}`}
                 style={{ width: `${percent}%` }}
               />
             </div>
-            <p className="text-xs text-stone-600 mt-1">
+            <p className="mt-1 text-xs text-stone-600">
               {progress.verified} verified
               {progress.pending > 0 ? ` • ${progress.pending} pending review` : ""}
               {progress.target > 0 ? ` • ${progress.target} target` : ""}
@@ -419,134 +247,201 @@ await updateDoc(campaignRef, {
           </div>
         </Card>
 
-        {/* Controls: Keep basic actions for edit/delete */}
-        {/* <Card className="p-6 bg-gradient-to-br from-stone-100 to-amber-50 shadow-md">
-          <h2 className="text-lg font-semibold text-stone-800 mb-4">Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => router.push(`/advertiser/create-campaign?edit=${id}`)} size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
-              <Edit size={16} /> Edit
-            </Button>
-            <Button onClick={handleDelete} size="sm" className="bg-red-500 hover:bg-red-600 text-white">
-              <Trash size={16} /> Delete
-            </Button>
+        <Card className="space-y-4 bg-gradient-to-br from-stone-100 to-amber-50 p-6 shadow-md">
+          <h2 className="text-lg font-semibold text-stone-800">Task Details</h2>
+          <div className="rounded-2xl bg-white/70 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Description</p>
+            <p className="mt-3 text-sm leading-6 text-stone-700">
+              {campaign.description?.trim() || "No description was added for this task."}
+            </p>
           </div>
-        </Card> */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-white/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Status</p>
+              <p className="mt-2 text-sm font-medium text-stone-900">{campaign.status}</p>
+            </div>
+            <div className="rounded-2xl bg-white/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Category</p>
+              <p className="mt-2 text-sm font-medium text-stone-900">{campaign.category}</p>
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {/* Billing + Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card className="p-6 bg-gradient-to-br from-amber-50 to-stone-100 shadow-md">
-          <h2 className="text-lg font-semibold text-stone-800 mb-4">Billing</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <Card className="bg-gradient-to-br from-amber-50 to-stone-100 p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold text-stone-800">Billing</h2>
+          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
-            <p>Total Budget: ₦{(Number(campaign.originalBudget || (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)))).toLocaleString()}</p>
+            <p>Total Budget: ₦{totalBudget.toLocaleString()}</p>
             <p>Estimated Leads: {progress.target}</p>
             <p>Cost per Lead: ₦{campaign.costPerLead}</p>
           </div>
         </Card>
 
-        {/* Insights removed per request */}
-      </div>
+        <Card className="space-y-4 bg-gradient-to-br from-stone-100 to-amber-50 p-6 shadow-md">
+          <h2 className="text-lg font-semibold text-stone-800">Materials</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2 text-stone-800">
+                <LinkIcon size={16} />
+                <p className="text-sm font-medium">External Link</p>
+              </div>
+              {campaign.externalLink ? (
+                <a
+                  href={campaign.externalLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
+                >
+                  Open link <ExternalLink size={14} />
+                </a>
+              ) : (
+                <p className="mt-3 text-sm text-stone-500">No external link attached.</p>
+              )}
+            </div>
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2 text-stone-800">
+                <FileText size={16} />
+                <p className="text-sm font-medium">Media</p>
+              </div>
+              {campaign.mediaUrl ? (
+                <a
+                  href={campaign.mediaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
+                >
+                  View attached media <ExternalLink size={14} />
+                </a>
+              ) : (
+                <p className="mt-3 text-sm text-stone-500">No media attachment added.</p>
+              )}
+            </div>
+          </div>
 
-      {/* Danger Zone */}
-      <div className="flex justify-center">
-        <Card className="p-4 bg-red-50 border border-red-200 shadow-md max-w-sm text-center">
-          <h2 className="text-base font-semibold text-red-700 mb-3">
-            Danger Zone
-          </h2>
-          <Button
-            onClick={handleDelete}
-            className="bg-red-500 hover:bg-red-600 text-white flex gap-2 mx-auto"
-            size="sm"
-          >
-            <Trash size={16} /> Delete Task
-          </Button>
+          {(campaign.productImages?.length ?? 0) > 0 && (
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2 text-stone-800">
+                <ImageIcon size={16} />
+                <p className="text-sm font-medium">Product Images</p>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+                {(campaign.productImages || []).map((imageUrl, index) => (
+                  <a
+                    key={`${imageUrl}-${index}`}
+                    href={imageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl}
+                      alt={`Product material ${index + 1}`}
+                      className="h-32 w-full object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {campaign.advertiserFaceImage && (
+            <div className="rounded-2xl bg-white/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Advertiser Face Verification</p>
+              <a
+                href={campaign.advertiserFaceImage}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 block overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={campaign.advertiserFaceImage}
+                  alt="Advertiser face verification"
+                  className="h-48 w-full object-cover"
+                />
+              </a>
+            </div>
+          )}
+
+          {businessAddress && (
+            <div className="rounded-2xl bg-white/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Business Address</p>
+              <p className="mt-3 text-sm text-stone-700">{businessAddress}</p>
+            </div>
+          )}
         </Card>
       </div>
 
-      {/* Resume Modal */}
-      <Dialog
-        open={showResumeModal}
-        onClose={() => {
-          if (!processing) setShowResumeModal(false)
-        }}
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      >
-        <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-md">
-          <Dialog.Title className="text-lg font-semibold mb-2">
-            Resume Task
-          </Dialog.Title>
-
-          <p className="text-sm text-stone-600 mb-4">
-            Refundable Balance:{" "}
-            <span className="font-semibold text-stone-900">
-              ₦{availableRefundable.toLocaleString()}
-            </span>
-          </p>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-stone-600 mb-1 block">Amount from refundable balance</label>
-              <input
-                type="number"
-                min={0}
-                max={availableRefundable}
-                value={useRefundAmount}
-                onChange={(e) => setUseRefundAmount(Number(e.target.value || 0))}
-                className="border rounded p-2 w-full"
-                placeholder="₦0"
-              />
-              <p className="text-xs text-stone-500 mt-1">You may use up to ₦{availableRefundable.toLocaleString()} from refundable funds.</p>
-            </div>
-
-            <div>
-              <label className="text-xs text-stone-600 mb-1 block">Additional deposit (optional)</label>
-              <input
-                type="number"
-                min={0}
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(Number(e.target.value || 0))}
-                className="border rounded p-2 w-full"
-                placeholder="₦0"
-              />
-              <p className="text-xs text-stone-500 mt-1">Deposit more to top-up the resume amount (Paystack will be used).</p>
-            </div>
-
-            {campaign && (
-              <p className="text-xs text-stone-600">
-                Total to apply:{" "}
-                <span className="font-semibold">
-                  ₦{(useRefundAmount + depositAmount).toLocaleString()}
-                </span>{" "}
-                • Estimated Leads:{" "}
-                <span className="font-semibold">
-                  {Math.floor(((useRefundAmount + depositAmount) || 0) / campaign.costPerLead)}
-                </span>
-              </p>
-            )}
-
-            {useRefundAmount > availableRefundable && (
-              <p className="text-xs text-red-600">Warning: requested refundable amount exceeds available refundable balance.</p>
-            )}
+      <Card className="space-y-4 bg-gradient-to-br from-stone-100 to-amber-50 p-6 shadow-md">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-stone-800">Submitted Proofs</h2>
+            <p className="mt-1 text-sm text-stone-600">
+              Proofs are view-only here. Verification and rejection stay on the admin side.
+            </p>
           </div>
-
-          <div className="flex gap-3 mt-5">
-            <Button
-              onClick={startResumeFlow}
-              disabled={processing}
-              className="bg-amber-500 text-stone-900 flex-1"
-            >
-              {processing ? "Processing..." : "Confirm & Resume"}
-            </Button>
-            <Button
-              onClick={() => !processing && setShowResumeModal(false)}
-              className="bg-stone-200 text-stone-800 flex-1"
-            >
-              Cancel
-            </Button>
+          <div className="rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-stone-700">
+            {submissions.length} proof{submissions.length === 1 ? "" : "s"}
           </div>
-        </Dialog.Panel>
-      </Dialog>
+        </div>
+
+        {submissions.length === 0 ? (
+          <div className="rounded-2xl bg-white/70 p-6 text-sm text-stone-500">
+            No proofs have been submitted for this task yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {submissions.map((submission) => (
+              <div key={submission.id} className="rounded-2xl border border-stone-200 bg-white/80 p-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 space-y-3">
+                    <div className="flex items-center gap-2 text-stone-900">
+                      <UserCircle2 size={18} />
+                      <p className="font-medium">{submission.userName || "Unknown earner"}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full bg-stone-100 px-3 py-1 font-medium text-stone-700">
+                        {submission.status || "Pending"}
+                      </span>
+                      {submission.createdAt && (
+                        <span className="rounded-full bg-amber-100 px-3 py-1 font-medium text-amber-800">
+                          {new Date(submission.createdAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    {submission.socialHandle && (
+                      <p className="text-sm text-stone-600">Handle: {submission.socialHandle}</p>
+                    )}
+                    {submission.note && (
+                      <p className="text-sm text-stone-600">Note: {submission.note}</p>
+                    )}
+                  </div>
+
+                  <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+                    {submission.proofUrl ? (
+                      <a href={submission.proofUrl} target="_blank" rel="noreferrer" className="block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={submission.proofUrl}
+                          alt={`Proof from ${submission.userName || "earner"}`}
+                          className="h-56 w-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex h-56 items-center justify-center text-sm text-stone-500">
+                        No proof file attached
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }
