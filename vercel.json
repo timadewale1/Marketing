@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/internal/recovery-sweep",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}

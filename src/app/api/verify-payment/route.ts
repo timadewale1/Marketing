@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
+import { runRecoverySweep } from '@/lib/recovery-sweep'
 
 export async function POST(req: NextRequest) {
   try {
@@ -91,6 +92,12 @@ export async function POST(req: NextRequest) {
         console.error('Failed to record wallet funding:', e)
         return NextResponse.json({ success: false, message: 'Failed to record transaction' }, { status: 500 })
       }
+    }
+
+    try {
+      await runRecoverySweep()
+    } catch (error) {
+      console.error('Recovery sweep after verify-payment failed:', error)
     }
 
     return NextResponse.json({ success: true })
