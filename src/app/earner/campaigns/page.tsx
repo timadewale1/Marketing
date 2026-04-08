@@ -18,6 +18,7 @@ type Campaign = {
   title: string;
   category?: string;
   budget?: number;
+  reservedBudget?: number;
   costPerLead?: number;
   reward?: number;
   bannerUrl?: string;
@@ -84,6 +85,7 @@ export default function AvailableCampaignsPage() {
             title: data.title,
             category: data.category,
             budget: data.budget,
+            reservedBudget: data.reservedBudget,
             costPerLead: data.costPerLead,
             reward: data.reward,
             bannerUrl: data.bannerUrl,
@@ -111,6 +113,7 @@ export default function AvailableCampaignsPage() {
   }, [router]);
 
   const filteredCampaigns = campaigns
+    .filter((c) => Number(c.budget || 0) > 0)
     .filter((c) => filterType === "All" || c.category === filterType)
     .filter((c) => !participatedIds.includes(c.id));
 
