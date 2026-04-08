@@ -78,14 +78,6 @@ export default function AdminRecoveryPage() {
       setActivationCandidates(data.activationCandidates || []);
       setWalletCandidates(data.walletCandidates || []);
 
-      const autoRecoveredActivations = Number(data.autoRecovered?.activations || 0);
-      const autoRecoveredWallet = Number(data.autoRecovered?.walletFunding || 0);
-      if (autoRecoveredActivations > 0 || autoRecoveredWallet > 0) {
-        toast.success(
-          `Auto-recovered ${autoRecoveredActivations} activation${autoRecoveredActivations === 1 ? "" : "s"} and ${autoRecoveredWallet} wallet funding${autoRecoveredWallet === 1 ? "" : "s"}.`
-        );
-      }
-
       if (showToast) {
         toast.success("Recovery data refreshed");
       }
@@ -175,7 +167,7 @@ export default function AdminRecoveryPage() {
       <AdminPageHeader
         eyebrow="Recovery"
         title="Repair stuck payments and activations"
-        description="Verified recoveries auto-run when this page loads. Pending or unclear Monnify references stay in manual check until the payment is confirmed."
+        description="This page shows recovery candidates only. Automatic recovery happens from the payment and webhook side after exact paid confirmation, while pending or unclear references stay in manual check."
         action={
           <Button
             variant="outline"
@@ -219,7 +211,7 @@ export default function AdminRecoveryPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard
           title="Verified activation recovery"
-          description="These payments are confirmed. They auto-run when the recovery page loads, and any leftovers here can still be activated manually."
+          description="These payments are confirmed as paid. They are safe to activate, and anything still listed here can be completed manually."
         >
           {loading ? (
             <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
@@ -347,7 +339,7 @@ export default function AdminRecoveryPage() {
 
         <SectionCard
           title="Verified wallet funding"
-          description="These payments are confirmed. They auto-credit when the recovery page loads, and any leftovers here can still be completed manually."
+          description="These payments are confirmed as paid. They are safe to credit, and anything still listed here can be completed manually."
         >
           {loading ? (
             <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />

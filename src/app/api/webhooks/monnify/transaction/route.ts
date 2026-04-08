@@ -106,26 +106,6 @@ async function findPendingWalletTransactionByEmailAndAmount(
   return null
 }
 
-async function findActivationUserByEmail(
-  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
-  collectionName: 'advertisers' | 'earners',
-  email: string
-) {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  if (!normalizedEmail) return null
-
-  const snap = await dbAdmin.collection(collectionName)
-    .where('email', '==', normalizedEmail)
-    .limit(1)
-    .get()
-
-  if (snap.empty) return null
-
-  const doc = snap.docs[0]
-  if (doc.data()?.activated) return null
-  return doc
-}
-
 async function findActivationAttemptByReferences(
   dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
   references: string[]
@@ -145,22 +125,6 @@ async function findActivationAttemptByReferences(
   }
 
   return null
-}
-
-async function findActivationAttemptByEmail(
-  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
-  email: string
-) {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  if (!normalizedEmail) return null
-
-  const snap = await dbAdmin.collection('activationAttempts')
-    .where('email', '==', normalizedEmail)
-    .limit(5)
-    .get()
-
-  const pendingDoc = snap.docs.find((doc) => String(doc.data()?.status || '').toLowerCase() !== 'completed')
-  return pendingDoc || null
 }
 
 export async function POST(req: NextRequest) {
@@ -304,9 +268,7 @@ export async function POST(req: NextRequest) {
               }
             } else {
               // Check if this is an activation payment (advertiser first, then earner)
-              const advertiserDoc =
-                await findActivationUserByReferences(dbAdmin, 'advertisers', referenceCandidates) ||
-                await findActivationUserByEmail(dbAdmin, 'advertisers', customerEmail)
+              const advertiserDoc = await findActivationUserByReferences(dbAdmin, 'advertisers', referenceCandidates)
 
               if (advertiserDoc) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
@@ -318,9 +280,7 @@ export async function POST(req: NextRequest) {
                   console.error('[webhook][monnify][transaction] activation failed:', activationError)
                 }
               } else {
-                const earnerDoc =
-                  await findActivationUserByReferences(dbAdmin, 'earners', referenceCandidates) ||
-                  await findActivationUserByEmail(dbAdmin, 'earners', customerEmail)
+                const earnerDoc = await findActivationUserByReferences(dbAdmin, 'earners', referenceCandidates)
 
                 if (earnerDoc) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
@@ -332,9 +292,7 @@ export async function POST(req: NextRequest) {
                     console.error('[webhook][monnify][transaction] activation failed:', activationError)
                   }
                 } else {
-                  const activationAttemptDoc =
-                    await findActivationAttemptByReferences(dbAdmin, referenceCandidates) ||
-                    await findActivationAttemptByEmail(dbAdmin, customerEmail)
+                  const activationAttemptDoc = await findActivationAttemptByReferences(dbAdmin, referenceCandidates)
 
                   if (activationAttemptDoc) {
                     const attemptData = activationAttemptDoc.data()

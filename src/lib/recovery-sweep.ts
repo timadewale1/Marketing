@@ -220,8 +220,6 @@ export async function runRecoverySweep() {
       const data = txDoc.data()
       const advertiserId = String(data.userId || "")
       if (!advertiserId) return null
-      const advertiserSnap = await dbAdmin.collection("advertisers").doc(advertiserId).get()
-      const advertiser = advertiserSnap.exists ? advertiserSnap.data() : null
       const references = normalizeReferences([data.reference, ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : [])])
       const verificationState = await resolveRecoveryVerificationState(
         references,

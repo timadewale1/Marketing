@@ -3,7 +3,6 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
-import { runRecoverySweep } from "@/lib/recovery-sweep"
 import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
@@ -177,11 +176,6 @@ async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Fires
 
 export async function GET() {
   await requireAdminSession()
-  try {
-    await runRecoverySweep()
-  } catch (error) {
-    console.error("[admin][recovery] pre-load sweep failed", error)
-  }
   const { dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin) {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
@@ -281,7 +275,7 @@ export async function GET() {
     })
     .filter((candidate) => !candidate.activated && candidate.references.length > 0)
 
-  let activationCandidates = (await Promise.all(
+  const activationCandidates = (await Promise.all(
     activationCandidateDrafts.map(async (candidate) => {
       const verificationState = await resolveRecoveryVerificationState(
         candidate.references,
@@ -303,7 +297,7 @@ export async function GET() {
       return (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || "")
     })
 
-  let walletCandidates = await Promise.all(
+  const walletCandidates = await Promise.all(
     pendingWalletSnap.docs.map(async (txDoc) => {
       const data = txDoc.data()
       const txReferences = normalizeReferences([
@@ -339,63 +333,13 @@ export async function GET() {
     })
   )
 
-  const autoRecoveredActivationIds = new Set<string>()
-  for (const candidate of activationCandidates) {
-    if (candidate.verificationState !== "paid") continue
-    try {
-      await runFullActivationFlow(
-        candidate.id,
-        candidate.references[0],
-        String(candidate.providerHint || "monnify"),
-        candidate.role,
-        candidate.references
-      )
-      autoRecoveredActivationIds.add(candidate.id)
-    } catch (error) {
-      console.error("[admin][recovery] failed automatic activation recovery", {
-        userId: candidate.id,
-        role: candidate.role,
-        references: candidate.references,
-        error,
-      })
-    }
-  }
-
-  const autoRecoveredWalletIds = new Set<string>()
-  for (const candidate of walletCandidates) {
-    if (!candidate || candidate.verificationState !== "paid") continue
-    try {
-      await processWalletFundingWithRetry(
-        candidate.userId,
-        candidate.reference,
-        candidate.amount,
-        candidate.provider,
-        "advertiser",
-        3,
-        [candidate.reference]
-      )
-      autoRecoveredWalletIds.add(candidate.id)
-    } catch (error) {
-      console.error("[admin][recovery] failed automatic wallet recovery", {
-        transactionId: candidate.id,
-        userId: candidate.userId,
-        reference: candidate.reference,
-        amount: candidate.amount,
-        error,
-      })
-    }
-  }
-
-  activationCandidates = activationCandidates.filter((candidate) => !autoRecoveredActivationIds.has(candidate.id))
-  walletCandidates = walletCandidates.filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate) && !autoRecoveredWalletIds.has(candidate.id))
-
   return NextResponse.json({
     success: true,
     activationCandidates,
     walletCandidates: walletCandidates.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
     autoRecovered: {
-      activations: autoRecoveredActivationIds.size,
-      walletFunding: autoRecoveredWalletIds.size,
+      activations: 0,
+      walletFunding: 0,
     },
   })
 }
