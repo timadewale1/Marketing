@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
+import { runRecoverySweep } from "@/lib/recovery-sweep"
 import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
@@ -203,6 +204,11 @@ async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Fires
 
 export async function GET() {
   await requireAdminSession()
+  try {
+    await runRecoverySweep()
+  } catch (error) {
+    console.error("[admin][recovery] pre-load sweep failed", error)
+  }
   const { dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin) {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
