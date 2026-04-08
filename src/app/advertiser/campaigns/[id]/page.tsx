@@ -11,8 +11,9 @@ import {
   query,
   where,
 } from "firebase/firestore"
+import { onAuthStateChanged } from "firebase/auth"
 import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
-import { db } from "@/lib/firebase"
+import { auth, db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -87,58 +88,73 @@ export default function CampaignDetailsPage() {
 
   useEffect(() => {
     if (!id) return
+    let unsubscribeSnapshot: (() => void) | null = null
 
-    const submissionsQuery = query(
-      collection(db, "earnerSubmissions"),
-      where("campaignId", "==", id as string)
-    )
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeSnapshot?.()
+      unsubscribeSnapshot = null
 
-    const unsubscribe = onSnapshot(submissionsQuery, (snap) => {
-      void (async () => {
-        const rawSubmissions = snap.docs.map((submissionDoc) => ({
-          id: submissionDoc.id,
-          userId: String(submissionDoc.data().userId || ""),
-          status: String(submissionDoc.data().status || ""),
-          proofUrl: String(submissionDoc.data().proofUrl || ""),
-          socialHandle: submissionDoc.data().socialHandle ? String(submissionDoc.data().socialHandle) : null,
-          note: submissionDoc.data().note ? String(submissionDoc.data().note) : null,
-          createdAt: submissionDoc.data().createdAt?.toDate
-            ? submissionDoc.data().createdAt.toDate().toISOString()
-            : null,
-        }))
+      if (!user?.uid) {
+        setSubmissions([])
+        return
+      }
 
-        const userIds = [...new Set(rawSubmissions.map((submission) => submission.userId).filter(Boolean))]
-        const userNames = new Map<string, string>()
+      const submissionsQuery = query(
+        collection(db, "earnerSubmissions"),
+        where("campaignId", "==", id as string),
+        where("advertiserId", "==", user.uid)
+      )
 
-        await Promise.all(
-          userIds.map(async (userId) => {
-            try {
-              const earnerSnap = await getDoc(doc(db, "earners", userId))
-              if (!earnerSnap.exists()) return
-
-              const earner = earnerSnap.data() as Record<string, unknown>
-              userNames.set(
-                userId,
-                String(earner.fullName || earner.name || earner.email || userId)
-              )
-            } catch (error) {
-              console.warn("Failed to load earner details", userId, error)
-            }
-          })
-        )
-
-        setSubmissions(
-          rawSubmissions.map((submission) => ({
-            ...submission,
-            userName: submission.userId
-              ? userNames.get(submission.userId) || submission.userId
-              : "Unknown earner",
+      unsubscribeSnapshot = onSnapshot(submissionsQuery, (snap) => {
+        void (async () => {
+          const rawSubmissions = snap.docs.map((submissionDoc) => ({
+            id: submissionDoc.id,
+            userId: String(submissionDoc.data().userId || ""),
+            status: String(submissionDoc.data().status || ""),
+            proofUrl: String(submissionDoc.data().proofUrl || ""),
+            socialHandle: submissionDoc.data().socialHandle ? String(submissionDoc.data().socialHandle) : null,
+            note: submissionDoc.data().note ? String(submissionDoc.data().note) : null,
+            createdAt: submissionDoc.data().createdAt?.toDate
+              ? submissionDoc.data().createdAt.toDate().toISOString()
+              : null,
           }))
-        )
-      })()
+
+          const userIds = [...new Set(rawSubmissions.map((submission) => submission.userId).filter(Boolean))]
+          const userNames = new Map<string, string>()
+
+          await Promise.all(
+            userIds.map(async (userId) => {
+              try {
+                const earnerSnap = await getDoc(doc(db, "earners", userId))
+                if (!earnerSnap.exists()) return
+
+                const earner = earnerSnap.data() as Record<string, unknown>
+                userNames.set(
+                  userId,
+                  String(earner.fullName || earner.name || earner.email || userId)
+                )
+              } catch (error) {
+                console.warn("Failed to load earner details", userId, error)
+              }
+            })
+          )
+
+          setSubmissions(
+            rawSubmissions.map((submission) => ({
+              ...submission,
+              userName: submission.userId
+                ? userNames.get(submission.userId) || submission.userId
+                : "Unknown earner",
+            }))
+          )
+        })()
+      })
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeSnapshot?.()
+      unsubscribeAuth()
+    }
   }, [id])
 
   if (loading) {
