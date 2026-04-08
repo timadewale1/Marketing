@@ -695,7 +695,7 @@ async function main() {
   }
 
   await backfillReferralBonuses()
-  await recoverStuckActivations()
+  console.log('[postbuild] automatic activation and wallet recovery on deploy is disabled')
 }
 
 main().catch((error) => {
