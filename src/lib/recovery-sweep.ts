@@ -1,6 +1,6 @@
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
-import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
+import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type PaymentProvider = "monnify" | "paystack"
 type VerificationState = "paid" | "manual_check" | "unverified"
@@ -83,11 +83,6 @@ async function resolveRecoveryVerificationState(
   providerHint: unknown,
   verificationCache: Map<string, Promise<VerificationState>>,
   successfulWebhookReferences?: Set<string>,
-  context?: {
-    email?: string | null
-    amount?: number | null
-    notBefore?: string | null
-  }
 ): Promise<VerificationState> {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return "unverified"
@@ -128,20 +123,6 @@ async function resolveRecoveryVerificationState(
   if (sawManualCheck) return "manual_check"
   if (monnifyLikeReferences.length > 0) return "manual_check"
 
-  if (providersToTry.includes("monnify") && context?.email && context?.amount != null) {
-    try {
-      const transaction = await findSuccessfulTransactionMatch({
-        references: uniqueReferences,
-        email: context.email,
-        amount: context.amount,
-        notBefore: context.notBefore || null,
-      })
-      if (transaction) return "paid"
-    } catch {
-      return "unverified"
-    }
-  }
-
   return "unverified"
 }
 
@@ -151,30 +132,13 @@ export async function runRecoverySweep() {
     throw new Error("Firebase not initialized")
   }
 
-  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
+  const [earnersSnap, advertisersSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
-    dbAdmin.collection("earnerTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
     dbAdmin.collection("processedWebhooks").where("eventType", "==", "TRANSACTION_COMPLETION").get(),
     dbAdmin.collection("activationAttempts").get(),
   ])
-
-  const activationTxByUser = new Map<string, { reference: string | null; createdAt: string | null }>()
-  const pushActivationTx = (snap: FirebaseFirestore.QuerySnapshot) => {
-    for (const doc of snap.docs) {
-      const data = doc.data()
-      const userId = String(data.userId || "")
-      if (!userId || activationTxByUser.has(userId)) continue
-      activationTxByUser.set(userId, {
-        reference: data.reference ? String(data.reference) : null,
-        createdAt: serializeDate(data.createdAt) as string | null,
-      })
-    }
-  }
-  pushActivationTx(earnerActivationTxSnap)
-  pushActivationTx(advertiserActivationTxSnap)
 
   const activationAttemptsByUser = new Map<string, {
     references: string[]
@@ -225,30 +189,21 @@ export async function runRecoverySweep() {
         const data = doc.data()
         if (data.activated) return null
         const attemptInfo = activationAttemptsByUser.get(`${role}:${doc.id}`)
-        const txInfo = activationTxByUser.get(doc.id)
         const references = normalizeReferences([
           data.pendingActivationReference,
           ...(Array.isArray(data.pendingActivationReferences) ? data.pendingActivationReferences : []),
           data.activationReference,
           ...(Array.isArray(data.activationReferences) ? data.activationReferences : []),
           ...(attemptInfo?.references || []),
-          txInfo?.reference,
         ])
         if (references.length === 0) return null
 
-        const verificationState = txInfo?.reference
-          ? "paid"
-          : await resolveRecoveryVerificationState(
-              references,
-              data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
-              verificationCache,
-              successfulWebhookReferences,
-              {
-                email: String(data.email || attemptInfo?.email || "").trim().toLowerCase(),
-                amount: 2000,
-                notBefore: (serializeDate(data.activationAttemptedAt) as string | null) || attemptInfo?.activationAttemptedAt || txInfo?.createdAt || null,
-              }
-            )
+        const verificationState = await resolveRecoveryVerificationState(
+          references,
+          data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
+          verificationCache,
+          successfulWebhookReferences,
+        )
 
         return {
           id: doc.id,
@@ -273,11 +228,6 @@ export async function runRecoverySweep() {
         data.provider || "monnify",
         verificationCache,
         successfulWebhookReferences,
-        {
-          email: String(advertiser?.email || ""),
-          amount: Number(data.amount || 0),
-          notBefore: serializeDate(data.createdAt) as string | null,
-        }
       )
 
       return {

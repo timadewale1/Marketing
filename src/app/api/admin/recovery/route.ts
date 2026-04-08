@@ -4,7 +4,7 @@ import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
 import { runRecoverySweep } from "@/lib/recovery-sweep"
-import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
+import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
 type PaymentProvider = "monnify" | "paystack"
@@ -111,11 +111,6 @@ async function resolveRecoveryVerificationState(
   providerHint: unknown,
   verificationCache: Map<string, Promise<VerificationState>>,
   successfulWebhookReferences?: Set<string>,
-  context?: {
-    email?: string | null
-    amount?: number | null
-    notBefore?: string | null
-  }
 ): Promise<VerificationState> {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return "unverified"
@@ -161,28 +156,6 @@ async function resolveRecoveryVerificationState(
     return "manual_check"
   }
 
-  if (providersToTry.includes("monnify") && context?.email && context?.amount != null) {
-    try {
-      const transaction = await findSuccessfulTransactionMatch({
-        references: uniqueReferences,
-        email: context.email,
-        amount: context.amount,
-        notBefore: context.notBefore || null,
-      })
-      if (transaction) {
-        return "paid"
-      }
-    } catch (error) {
-      console.warn("[admin][recovery] failed contextual monnify verification", {
-        references: uniqueReferences,
-        email: context.email,
-        amount: context.amount,
-        notBefore: context.notBefore,
-        error,
-      })
-    }
-  }
-
   return "unverified"
 }
 
@@ -214,26 +187,13 @@ export async function GET() {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
   }
 
-  const [earnersSnap, advertisersSnap, earnerActivationTxSnap, advertiserActivationTxSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
+  const [earnersSnap, advertisersSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
-    dbAdmin.collection("earnerTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "activation_fee").where("status", "==", "completed").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
     dbAdmin.collection("processedWebhooks").where("eventType", "==", "TRANSACTION_COMPLETION").get(),
     dbAdmin.collection("activationAttempts").get(),
   ])
-
-  const activationTxByUser = new Map<string, { reference: string | null; createdAt: string | null }>()
-  for (const doc of [...earnerActivationTxSnap.docs, ...advertiserActivationTxSnap.docs]) {
-    const data = doc.data()
-    const userId = String(data.userId || "")
-    if (!userId || activationTxByUser.has(userId)) continue
-    activationTxByUser.set(userId, {
-      reference: data.reference ? String(data.reference) : null,
-      createdAt: serializeDate(data.createdAt) as string | null,
-    })
-  }
 
   const verificationCache = new Map<string, Promise<VerificationState>>()
   const successfulWebhookReferences = new Set(
@@ -293,15 +253,12 @@ export async function GET() {
       const activationReferences = Array.isArray(data.activationReferences)
         ? data.activationReferences.map((value: unknown) => String(value)).filter(Boolean)
         : []
-      const txInfo = activationTxByUser.get(doc.id)
-
       const references = [...new Set([
         ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
         ...pendingReferences,
         ...(data.activationReference ? [String(data.activationReference)] : []),
         ...activationReferences,
         ...(attemptInfo?.references || []),
-        ...(txInfo?.reference ? [txInfo.reference] : []),
       ])]
 
       return {
@@ -316,8 +273,8 @@ export async function GET() {
         activatedAt: serializeDate(data.activatedAt) as string | null,
         providerHint: data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
         references,
-        lastActivationTxAt: txInfo?.createdAt || null,
-        hasCompletedActivationTx: Boolean(txInfo?.reference),
+        lastActivationTxAt: null,
+        hasCompletedActivationTx: false,
         paymentVerified: false,
         verificationState: "unverified" as VerificationState,
       }
@@ -326,24 +283,11 @@ export async function GET() {
 
   let activationCandidates = (await Promise.all(
     activationCandidateDrafts.map(async (candidate) => {
-      if (candidate.hasCompletedActivationTx) {
-        return {
-          ...candidate,
-          paymentVerified: true,
-          verificationState: "paid" as VerificationState,
-        }
-      }
-
       const verificationState = await resolveRecoveryVerificationState(
         candidate.references,
         candidate.providerHint,
         verificationCache,
         successfulWebhookReferences,
-        {
-          email: candidate.email || null,
-          amount: 2000,
-          notBefore: candidate.activationAttemptedAt || candidate.lastActivationTxAt || null,
-        }
       )
 
       return {
@@ -376,11 +320,6 @@ export async function GET() {
         provider,
         verificationCache,
         successfulWebhookReferences,
-        {
-          email: String(advertiser?.email || ""),
-          amount: Number(data.amount || 0),
-          notBefore: serializeDate(data.createdAt) as string | null,
-        }
       )
 
       return {
@@ -519,11 +458,6 @@ export async function POST(req: Request) {
           data.pendingActivationProvider || data.activationPaymentProvider || attemptData?.provider || null,
           verificationCache,
           successfulWebhookReferences,
-          {
-            email: String(data.email || attemptData?.email || "").trim().toLowerCase(),
-            amount: 2000,
-            notBefore: (serializeDate(data.activationAttemptedAt) as string | null) || (serializeDate(attemptData?.attemptedAt) as string | null),
-          }
         )
 
         if (verificationState !== "paid") {
@@ -586,11 +520,6 @@ export async function POST(req: Request) {
         tx.provider || "monnify",
         verificationCache,
         successfulWebhookReferences,
-        {
-          email: String((await dbAdmin.collection("advertisers").doc(String(tx.userId || "")).get()).data()?.email || ""),
-          amount: Number(tx.amount || 0),
-          notBefore: serializeDate(tx.createdAt) as string | null,
-        }
       )
 
       if (verificationState !== "paid") {
