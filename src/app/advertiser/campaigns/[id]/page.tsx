@@ -15,6 +15,13 @@ import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCir
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 
 type Campaign = {
@@ -61,6 +68,7 @@ export default function CampaignDetailsPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [proofFilter, setProofFilter] = useState("all")
 
   useEffect(() => {
     if (!id) return
@@ -173,6 +181,9 @@ export default function CampaignDetailsPage() {
   ]
     .filter(Boolean)
     .join(", ")
+  const filteredSubmissions = submissions.filter((submission) =>
+    proofFilter === "all" ? true : (submission.status || "").toLowerCase() === proofFilter
+  )
 
   return (
     <div className="min-h-screen space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 px-6 py-10">
@@ -383,57 +394,64 @@ export default function CampaignDetailsPage() {
               Proofs are view-only here. Verification and rejection stay on the admin side.
             </p>
           </div>
-          <div className="rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-stone-700">
-            {submissions.length} proof{submissions.length === 1 ? "" : "s"}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-stone-700">
+              {filteredSubmissions.length} proof{filteredSubmissions.length === 1 ? "" : "s"}
+            </div>
+            <Select value={proofFilter} onValueChange={setProofFilter}>
+              <SelectTrigger className="h-10 min-w-[160px] rounded-full border-stone-200 bg-white">
+                <SelectValue placeholder="Filter proofs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All proofs</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="verified">Verified</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {submissions.length === 0 ? (
+        {filteredSubmissions.length === 0 ? (
           <div className="rounded-2xl bg-white/70 p-6 text-sm text-stone-500">
-            No proofs have been submitted for this task yet.
+            No proofs matched the current filter.
           </div>
         ) : (
-          <div className="space-y-4">
-            {submissions.map((submission) => (
+          <div className="space-y-3">
+            {filteredSubmissions.map((submission) => (
               <div key={submission.id} className="rounded-2xl border border-stone-200 bg-white/80 p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div className="min-w-0 space-y-3">
-                    <div className="flex items-center gap-2 text-stone-900">
-                      <UserCircle2 size={18} />
-                      <p className="font-medium">{submission.userName || "Unknown earner"}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full bg-stone-100 px-3 py-1 font-medium text-stone-700">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2 text-stone-900">
+                        <UserCircle2 size={18} />
+                        <p className="font-medium">{submission.userName || "Unknown earner"}</p>
+                      </div>
+                      <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
                         {submission.status || "Pending"}
                       </span>
-                      {submission.createdAt && (
-                        <span className="rounded-full bg-amber-100 px-3 py-1 font-medium text-amber-800">
-                          {new Date(submission.createdAt).toLocaleString()}
-                        </span>
-                      )}
                     </div>
-                    {submission.socialHandle && (
+                    <p className="text-xs uppercase tracking-[0.24em] text-stone-400">
+                      {submission.createdAt ? new Date(submission.createdAt).toLocaleString() : "Unknown date"}
+                    </p>
+                    {submission.socialHandle ? (
                       <p className="text-sm text-stone-600">Handle: {submission.socialHandle}</p>
-                    )}
-                    {submission.note && (
-                      <p className="text-sm text-stone-600">Note: {submission.note}</p>
-                    )}
+                    ) : null}
+                    {submission.note ? (
+                      <p className="text-sm text-stone-600">{submission.note}</p>
+                    ) : null}
                   </div>
-
-                  <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+                  <div className="flex flex-wrap gap-2">
                     {submission.proofUrl ? (
-                      <a href={submission.proofUrl} target="_blank" rel="noreferrer" className="block">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={submission.proofUrl}
-                          alt={`Proof from ${submission.userName || "earner"}`}
-                          className="h-56 w-full object-cover"
-                        />
-                      </a>
+                      <Button asChild variant="outline" className="rounded-full border-stone-300 bg-white">
+                        <a href={submission.proofUrl} target="_blank" rel="noreferrer">
+                          View proof
+                        </a>
+                      </Button>
                     ) : (
-                      <div className="flex h-56 items-center justify-center text-sm text-stone-500">
-                        No proof file attached
-                      </div>
+                      <span className="rounded-full bg-stone-100 px-3 py-2 text-sm text-stone-500">
+                        No proof file
+                      </span>
                     )}
                   </div>
                 </div>
