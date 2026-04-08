@@ -40,8 +40,8 @@ export async function POST() {
     if (!admin || !dbAdmin) return NextResponse.json({ ok: false, message: 'no admin db' }, { status: 500 })
 
     const now = Date.now()
-    const fiveMinutes = 1000 * 60 * 5
-    const cutoff: FirestoreTimestamp = admin.firestore.Timestamp.fromMillis(now - fiveMinutes)
+    const twentyFourHours = 1000 * 60 * 60 * 24
+    const cutoff: FirestoreTimestamp = admin.firestore.Timestamp.fromMillis(now - twentyFourHours)
 
     const q = dbAdmin.collection('earnerSubmissions')
       .where('status', '==', 'Pending')

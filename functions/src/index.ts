@@ -4,17 +4,15 @@ import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
-// Guard feature detection: some firebase-functions versions/environments may not
-// expose `functions.scheduler.onSchedule` (older/newer incompatibilities). If the
-// function is not available, skip registering scheduled functions so the
-// deployment static analysis doesn't crash.
-const hasPubsubSchedule = Boolean((functions as any).scheduler && typeof (functions as any).scheduler.onSchedule === 'function');
+// Use the supported Pub/Sub scheduler API exposed by firebase-functions v1 compat.
+const hasPubsubSchedule = Boolean((functions as any).pubsub && typeof (functions as any).pubsub.schedule === 'function');
 
 // Export named functions so deploy-time analysis can find them deterministically.
 let processDueActivations: any;
 if (hasPubsubSchedule) {
-	processDueActivations = (functions as any).scheduler
-		.onSchedule('every 5 minutes', async (context: any) => {
+	processDueActivations = (functions as any).pubsub
+		.schedule('every 5 minutes')
+		.onRun(async () => {
 		const db = admin.firestore();
 		const now = admin.firestore.Timestamp.now();
 		const THREE_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 3; // approximate 3 months
@@ -91,8 +89,9 @@ exports.processDueActivations = processDueActivations;
 
 // Scheduled function to auto-verify submissions older than 24 hours
 if (hasPubsubSchedule) {
-	(exports as any).autoVerifySubmissions = (functions as any).scheduler
-		.onSchedule('every 24 hours', async () => {
+	(exports as any).autoVerifySubmissions = (functions as any).pubsub
+		.schedule('every 60 minutes')
+		.onRun(async () => {
 		const db = admin.firestore();
 		const now = Date.now();
 		const twentyFourHours = 1000 * 60 * 60 * 24;
