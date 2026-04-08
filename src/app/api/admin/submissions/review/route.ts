@@ -207,6 +207,31 @@ export async function POST(req: Request) {
         // If previously verified, reverse funds
         const wasVerified = prevStatus === 'Verified'
         const campaignId = submission.campaignId
+        const userId = submission.userId as string
+        if (!userId) throw new Error('Submission missing userId')
+
+        let campaignRef: FirebaseFirestore.DocumentReference | null = null
+        let campaignSnap: FirebaseFirestore.DocumentSnapshot | null = null
+        let campaign: Campaign | null = null
+        let advertiserId: string | undefined
+
+        if (campaignId) {
+          campaignRef = adminDb.collection('campaigns').doc(campaignId)
+          campaignSnap = await t.get(campaignRef)
+          campaign = campaignSnap.exists ? campaignSnap.data() as Campaign : null
+          advertiserId = String(submission.advertiserId || campaign?.ownerId || '') || undefined
+        } else {
+          advertiserId = submission.advertiserId ? String(submission.advertiserId) : undefined
+        }
+
+        // compute earnerAmount/fullAmount (prefer submission, fall back to campaign costPerLead)
+        let earnerAmount = Number(submission.earnerPrice || 0)
+        let fullAmount = earnerAmount * 2
+        if ((!earnerAmount || earnerAmount === 0) && campaign) {
+          const costPerLeadTmp = Number(campaign.costPerLead || 0)
+          if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
+          fullAmount = Number(submission.reservedAmount || earnerAmount * 2)
+        }
 
         // Update submission with rejection metadata
         t.update(subRef, {
@@ -216,38 +241,11 @@ export async function POST(req: Request) {
           rejectionReason: rejectionReason || null,
         })
 
-        // compute earnerAmount/fullAmount (prefer submission, fall back to campaign costPerLead)
-        let earnerAmount = Number(submission.earnerPrice || 0)
-        let fullAmount = earnerAmount * 2
-        if ((!earnerAmount || earnerAmount === 0) && campaignId) {
-          const cSnapTmp = await t.get(adminDb.collection('campaigns').doc(campaignId))
-          if (cSnapTmp.exists) {
-              const cDataTmp = cSnapTmp.data() as Campaign
-              const costPerLeadTmp = Number(cDataTmp.costPerLead || 0)
-            if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
-            fullAmount = Number(submission.reservedAmount || earnerAmount * 2)
-          }
-        }
-
         if (wasVerified && earnerAmount > 0) {
           if (!campaignId) throw new Error('Submission missing campaignId')
-          interface Campaign {
-            budget?: number | string
-            estimatedLeads?: number | string
-            generatedLeads?: number | string
-            ownerId?: string
-            status?: string
-          }
-
-          const campaignRef = adminDb.collection('campaigns').doc(campaignId)
-          const campaignSnap = await t.get(campaignRef)
-          const campaign = campaignSnap.exists ? campaignSnap.data() as Campaign : null
-
-          const advertiserId = submission.advertiserId || campaign?.ownerId
+          if (!campaignRef || !campaignSnap) throw new Error('Campaign not found for rejection reversal')
 
           // 1) Add reversal transaction for earner and decrement balance
-          const userId = submission.userId as string
-          if (!userId) throw new Error('Submission missing userId')
           const earnerRevRef = adminDb.collection('earnerTransactions').doc()
           t.set(earnerRevRef, {
             userId: userId,
@@ -327,13 +325,11 @@ export async function POST(req: Request) {
       }
       // If the submission was not previously verified, we must release reserved funds (reservation created at submission time)
       if (!wasVerified && campaignId) {
-        const campaignRef2 = adminDb.collection('campaigns').doc(campaignId)
-        const campaignSnap2 = await t.get(campaignRef2)
         const reservedAmt = Number(submission.reservedAmount || 0)
-        if (campaignSnap2.exists && reservedAmt > 0) {
-          const campaignData2 = campaignSnap2.data() as Campaign
+        if (campaignSnap?.exists && campaignRef && reservedAmt > 0) {
+          const campaignData2 = campaignSnap.data() as Campaign
           if (campaignData2?.status === 'Deleted') {
-            t.update(campaignRef2, {
+            t.update(campaignRef, {
               reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
             })
             const advertiserId = submission.advertiserId || campaignData2?.ownerId
@@ -343,7 +339,7 @@ export async function POST(req: Request) {
               })
             }
           } else {
-            t.update(campaignRef2, {
+            t.update(campaignRef, {
               reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
               budget: admin.firestore.FieldValue.increment(reservedAmt),
             })
