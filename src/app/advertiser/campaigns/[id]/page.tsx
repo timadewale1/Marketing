@@ -407,7 +407,7 @@ export default function CampaignDetailsPage() {
           <div>
             <h2 className="text-lg font-semibold text-stone-800">Submitted Proofs</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Proofs are view-only here. Verification and rejection stay on the admin side.
+              View submitted proofs of participation for your tasks.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
