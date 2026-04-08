@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  CheckCheck,
   CircleSlash,
   Coins,
   FileClock,
   Gift,
   Landmark,
   Wallet,
+  XCircle,
 } from "lucide-react";
 import {
   collection,
@@ -22,7 +24,7 @@ import {
   where,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   AdminPageHeader,
@@ -114,6 +116,7 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignStub[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -276,6 +279,48 @@ export default function ClientEarnerDetail({ id }: Props) {
       toast.error("Failed to update earner status");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const reviewSubmission = async (submission: Submission, action: "Verified" | "Rejected") => {
+    try {
+      setActionLoading(`${action}-${submission.id}`);
+      const user = auth.currentUser;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (user) {
+        headers.Authorization = `Bearer ${await user.getIdToken()}`;
+      }
+
+      const response = await fetch("/api/admin/submissions/review", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          submissionId: submission.id,
+          action,
+          userId: id,
+          campaignId: submission.campaignId,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Submission update failed");
+      }
+
+      setSubmissions((current) =>
+        current.map((item) =>
+          item.id === submission.id ? { ...item, status: action } : item
+        )
+      );
+      toast.success(`Submission marked ${action.toLowerCase()}`);
+    } catch (error) {
+      console.error("Submission review failed", error);
+      toast.error(error instanceof Error ? error.message : "Submission review failed");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -500,12 +545,33 @@ export default function ClientEarnerDetail({ id }: Props) {
                         : "Unknown date"}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {submission.proofUrl ? (
                       <Button asChild variant="outline" className="rounded-full">
                         <Link href={submission.proofUrl} target="_blank">
                           View proof
                         </Link>
+                      </Button>
+                    ) : null}
+                    {submission.status !== "Verified" ? (
+                      <Button
+                        className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                        disabled={Boolean(actionLoading)}
+                        onClick={() => reviewSubmission(submission, "Verified")}
+                      >
+                        <CheckCheck className="h-4 w-4" />
+                        Verify
+                      </Button>
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                        disabled={Boolean(actionLoading)}
+                        onClick={() => reviewSubmission(submission, "Rejected")}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Reject
                       </Button>
                     ) : null}
                     <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">

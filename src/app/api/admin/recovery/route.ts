@@ -7,6 +7,7 @@ import { findSuccessfulTransactionMatch, verifyTransaction as verifyMonnifyTrans
 
 type UserRole = "earner" | "advertiser"
 type PaymentProvider = "monnify" | "paystack"
+type VerificationState = "paid" | "manual_check" | "unverified"
 
 type ProcessedWebhookRecord = {
   reference?: unknown
@@ -71,68 +72,57 @@ async function verifyPaystackPayment(reference: string) {
   return Boolean(response.ok && payload?.status && payload.data?.status === "success")
 }
 
-async function verifyProviderPayment(reference: string, provider: PaymentProvider) {
-  if (!reference) return false
+function resolveMonnifyVerificationState(payload: unknown): VerificationState {
+  const responseBody = payload && typeof payload === "object"
+    ? (payload as { responseBody?: { paymentStatus?: unknown; status?: unknown } }).responseBody
+    : undefined
+  const paymentStatus = String(responseBody?.paymentStatus || responseBody?.status || "").toUpperCase()
+
+  if (paymentStatus === "PAID" || paymentStatus === "SUCCESS" || paymentStatus === "SUCCESSFUL") {
+    return "paid"
+  }
+
+  if (paymentStatus === "PENDING" || paymentStatus === "PROCESSING" || paymentStatus === "INITIATED" || paymentStatus === "IN_PROGRESS") {
+    return "manual_check"
+  }
+
+  return "unverified"
+}
+
+async function verifyProviderPaymentState(reference: string, provider: PaymentProvider): Promise<VerificationState> {
+  if (!reference) return "unverified"
 
   if (provider === "paystack") {
-    return verifyPaystackPayment(reference)
+    return (await verifyPaystackPayment(reference)) ? "paid" : "unverified"
   }
 
   try {
     const payload = await verifyMonnifyTransaction(reference)
-    const responseBody = payload?.responseBody as { paymentStatus?: string } | undefined
-    const paymentStatus = String(responseBody?.paymentStatus || "").toUpperCase()
-    return Boolean(payload?.requestSuccessful && (paymentStatus === "PAID" || paymentStatus === "SUCCESSFUL"))
+    return payload?.requestSuccessful ? resolveMonnifyVerificationState(payload) : "unverified"
   } catch (error) {
     console.warn("[admin][recovery] failed to verify monnify payment", { reference, error })
-    return false
+    return "unverified"
   }
 }
 
-async function verifyMonnifyPaymentContext(
-  references: string[],
-  email: string | null | undefined,
-  amount: number | null | undefined,
-  notBefore: string | null | undefined
-) {
-  try {
-    const transaction = await findSuccessfulTransactionMatch({
-      references,
-      email,
-      amount,
-      notBefore,
-    })
-    return Boolean(transaction)
-  } catch (error) {
-    console.warn("[admin][recovery] failed contextual monnify verification", {
-      references,
-      email,
-      amount,
-      notBefore,
-      error,
-    })
-    return false
-  }
-}
-
-async function hasVerifiedSuccessfulPayment(
+async function resolveRecoveryVerificationState(
   references: string[],
   providerHint: unknown,
-  verificationCache: Map<string, Promise<boolean>>,
+  verificationCache: Map<string, Promise<VerificationState>>,
   successfulWebhookReferences?: Set<string>,
   context?: {
     email?: string | null
     amount?: number | null
     notBefore?: string | null
   }
-) {
+): Promise<VerificationState> {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
-  if (uniqueReferences.length === 0) return false
+  if (uniqueReferences.length === 0) return "unverified"
 
   if (successfulWebhookReferences) {
     for (const reference of uniqueReferences) {
       if (successfulWebhookReferences.has(reference)) {
-        return true
+        return "paid"
       }
     }
   }
@@ -144,40 +134,71 @@ async function hasVerifiedSuccessfulPayment(
       : ["paystack", "monnify"]
     : ["monnify", "paystack"]
 
+  let sawManualCheck = false
+  const monnifyLikeReferences = uniqueReferences.filter((reference) => reference.toUpperCase().startsWith("TX_"))
+
   for (const reference of uniqueReferences) {
     for (const provider of providersToTry) {
       const cacheKey = `${provider}:${reference}`
       let verification = verificationCache.get(cacheKey)
       if (!verification) {
-        verification = verifyProviderPayment(reference, provider)
+        verification = verifyProviderPaymentState(reference, provider)
         verificationCache.set(cacheKey, verification)
       }
 
-      if (await verification) {
-        return true
-      }
+      const state = await verification
+      if (state === "paid") return "paid"
+      if (state === "manual_check") sawManualCheck = true
     }
+  }
+
+  if (sawManualCheck) {
+    return "manual_check"
+  }
+
+  if (monnifyLikeReferences.length > 0) {
+    return "manual_check"
   }
 
   if (providersToTry.includes("monnify") && context?.email && context?.amount != null) {
-    const cacheKey = `monnify-context:${uniqueReferences.join("|")}:${context.email}:${context.amount}:${context.notBefore || ""}`
-    let verification = verificationCache.get(cacheKey)
-    if (!verification) {
-      verification = verifyMonnifyPaymentContext(
-        uniqueReferences,
-        context.email,
-        context.amount,
-        context.notBefore || null
-      )
-      verificationCache.set(cacheKey, verification)
-    }
-
-    if (await verification) {
-      return true
+    try {
+      const transaction = await findSuccessfulTransactionMatch({
+        references: uniqueReferences,
+        email: context.email,
+        amount: context.amount,
+        notBefore: context.notBefore || null,
+      })
+      if (transaction) {
+        return "paid"
+      }
+    } catch (error) {
+      console.warn("[admin][recovery] failed contextual monnify verification", {
+        references: uniqueReferences,
+        email: context.email,
+        amount: context.amount,
+        notBefore: context.notBefore,
+        error,
+      })
     }
   }
 
-  return false
+  return "unverified"
+}
+
+async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Firestore) {
+  const processedWebhookSnap = await dbAdmin
+    .collection("processedWebhooks")
+    .where("eventType", "==", "TRANSACTION_COMPLETION")
+    .get()
+
+  return new Set(
+    processedWebhookSnap.docs
+      .filter((doc) => {
+        const status = String(doc.data().status || "").toUpperCase()
+        return status === "SUCCESS" || status === "SUCCESSFUL"
+      })
+      .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
+  )
 }
 
 export async function GET() {
@@ -208,7 +229,7 @@ export async function GET() {
     })
   }
 
-  const verificationCache = new Map<string, Promise<boolean>>()
+  const verificationCache = new Map<string, Promise<VerificationState>>()
   const successfulWebhookReferences = new Set(
     processedWebhookSnap.docs
       .filter((doc) => {
@@ -292,20 +313,22 @@ export async function GET() {
         lastActivationTxAt: txInfo?.createdAt || null,
         hasCompletedActivationTx: Boolean(txInfo?.reference),
         paymentVerified: false,
+        verificationState: "unverified" as VerificationState,
       }
     })
     .filter((candidate) => !candidate.activated && candidate.references.length > 0)
 
-  const activationCandidates = (await Promise.all(
+  let activationCandidates = (await Promise.all(
     activationCandidateDrafts.map(async (candidate) => {
       if (candidate.hasCompletedActivationTx) {
         return {
           ...candidate,
           paymentVerified: true,
+          verificationState: "paid" as VerificationState,
         }
       }
 
-      const isVerified = await hasVerifiedSuccessfulPayment(
+      const verificationState = await resolveRecoveryVerificationState(
         candidate.references,
         candidate.providerHint,
         verificationCache,
@@ -319,7 +342,8 @@ export async function GET() {
 
       return {
         ...candidate,
-        paymentVerified: isVerified,
+        paymentVerified: verificationState === "paid",
+        verificationState,
       }
     })
   ))
@@ -329,7 +353,7 @@ export async function GET() {
       return (b.activationAttemptedAt || b.lastActivationTxAt || "").localeCompare(a.activationAttemptedAt || a.lastActivationTxAt || "")
     })
 
-  const walletCandidates = await Promise.all(
+  let walletCandidates = await Promise.all(
     pendingWalletSnap.docs.map(async (txDoc) => {
       const data = txDoc.data()
       const txReferences = normalizeReferences([
@@ -341,7 +365,7 @@ export async function GET() {
       const advertiserId = String(data.userId || "")
       const advertiserSnap = advertiserId ? await dbAdmin.collection("advertisers").doc(advertiserId).get() : null
       const advertiser = advertiserSnap?.exists ? advertiserSnap.data() : null
-      const isVerified = await hasVerifiedSuccessfulPayment(
+      const verificationState = await resolveRecoveryVerificationState(
         txReferences,
         provider,
         verificationCache,
@@ -352,7 +376,6 @@ export async function GET() {
           notBefore: serializeDate(data.createdAt) as string | null,
         }
       )
-      if (!isVerified) return null
 
       return {
         id: txDoc.id,
@@ -363,18 +386,72 @@ export async function GET() {
         reference,
         provider,
         status: String(data.status || "pending"),
+        paymentVerified: verificationState === "paid",
+        verificationState,
         createdAt: serializeDate(data.createdAt) as string | null,
         currentBalance: Number(advertiser?.balance || 0),
       }
     })
   )
 
+  const autoRecoveredActivationIds = new Set<string>()
+  for (const candidate of activationCandidates) {
+    if (candidate.verificationState !== "paid") continue
+    try {
+      await runFullActivationFlow(
+        candidate.id,
+        candidate.references[0],
+        String(candidate.providerHint || "monnify"),
+        candidate.role,
+        candidate.references
+      )
+      autoRecoveredActivationIds.add(candidate.id)
+    } catch (error) {
+      console.error("[admin][recovery] failed automatic activation recovery", {
+        userId: candidate.id,
+        role: candidate.role,
+        references: candidate.references,
+        error,
+      })
+    }
+  }
+
+  const autoRecoveredWalletIds = new Set<string>()
+  for (const candidate of walletCandidates) {
+    if (!candidate || candidate.verificationState !== "paid") continue
+    try {
+      await processWalletFundingWithRetry(
+        candidate.userId,
+        candidate.reference,
+        candidate.amount,
+        candidate.provider,
+        "advertiser",
+        3,
+        [candidate.reference]
+      )
+      autoRecoveredWalletIds.add(candidate.id)
+    } catch (error) {
+      console.error("[admin][recovery] failed automatic wallet recovery", {
+        transactionId: candidate.id,
+        userId: candidate.userId,
+        reference: candidate.reference,
+        amount: candidate.amount,
+        error,
+      })
+    }
+  }
+
+  activationCandidates = activationCandidates.filter((candidate) => !autoRecoveredActivationIds.has(candidate.id))
+  walletCandidates = walletCandidates.filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate) && !autoRecoveredWalletIds.has(candidate.id))
+
   return NextResponse.json({
     success: true,
     activationCandidates,
-    walletCandidates: walletCandidates
-      .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
-      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    walletCandidates: walletCandidates.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    autoRecovered: {
+      activations: autoRecoveredActivationIds.size,
+      walletFunding: autoRecoveredWalletIds.size,
+    },
   })
 }
 
@@ -429,20 +506,9 @@ export async function POST(req: Request) {
         .get()
 
       if (completedActivationTxSnap.empty) {
-        const verificationCache = new Map<string, Promise<boolean>>()
-        const processedWebhookSnap = await dbAdmin
-          .collection("processedWebhooks")
-          .where("eventType", "==", "TRANSACTION_COMPLETION")
-          .get()
-        const successfulWebhookReferences = new Set(
-          processedWebhookSnap.docs
-            .filter((doc) => {
-              const status = String(doc.data().status || "").toUpperCase()
-              return status === "SUCCESS" || status === "SUCCESSFUL"
-            })
-            .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
-        )
-        const paymentVerified = await hasVerifiedSuccessfulPayment(
+        const verificationCache = new Map<string, Promise<VerificationState>>()
+        const successfulWebhookReferences = await buildSuccessfulWebhookReferences(dbAdmin)
+        const verificationState = await resolveRecoveryVerificationState(
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || attemptData?.provider || null,
           verificationCache,
@@ -454,11 +520,12 @@ export async function POST(req: Request) {
           }
         )
 
-        if (!paymentVerified) {
+        if (verificationState !== "paid") {
           console.warn("[admin][recovery] proceeding with manual activation despite unverified payment", {
             userId,
             role,
             references,
+            verificationState,
           })
         }
       }
@@ -502,24 +569,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "This record is not a wallet funding transaction" }, { status: 400 })
       }
 
-      const verificationCache = new Map<string, Promise<boolean>>()
-      const processedWebhookSnap = await dbAdmin
-        .collection("processedWebhooks")
-        .where("eventType", "==", "TRANSACTION_COMPLETION")
-        .get()
-      const successfulWebhookReferences = new Set(
-        processedWebhookSnap.docs
-          .filter((doc) => {
-            const status = String(doc.data().status || "").toUpperCase()
-            return status === "SUCCESS" || status === "SUCCESSFUL"
-          })
-          .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
-      )
+      const verificationCache = new Map<string, Promise<VerificationState>>()
+      const successfulWebhookReferences = await buildSuccessfulWebhookReferences(dbAdmin)
       const txReferences = normalizeReferences([
         tx.reference,
         ...(Array.isArray(tx.referenceCandidates) ? tx.referenceCandidates : []),
       ])
-      const paymentVerified = await hasVerifiedSuccessfulPayment(
+      const verificationState = await resolveRecoveryVerificationState(
         txReferences,
         tx.provider || "monnify",
         verificationCache,
@@ -531,9 +587,9 @@ export async function POST(req: Request) {
         }
       )
 
-      if (!paymentVerified) {
+      if (verificationState !== "paid") {
         return NextResponse.json(
-          { success: false, message: "Wallet funding payment has not been verified as successful" },
+          { success: false, message: verificationState === "manual_check" ? "Wallet funding payment is still pending and needs manual check" : "Wallet funding payment has not been verified as successful" },
           { status: 400 }
         )
       }
