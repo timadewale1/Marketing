@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { FirebaseError } from "firebase/app"
 import {
   applyActionCode,
@@ -36,7 +36,6 @@ function getActionErrorMessage(error: unknown) {
 
 export default function ClientAuthActionPage() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const mode = searchParams.get("mode")
   const oobCode = searchParams.get("oobCode")
   const continueUrl = searchParams.get("continueUrl")
@@ -202,20 +201,8 @@ export default function ClientAuthActionPage() {
 
             {(status === "success" || status === "error") && (
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  className="bg-stone-900 text-white hover:bg-stone-800"
-                  onClick={() => {
-                    if (destination.startsWith("http")) {
-                      window.location.href = destination
-                    } else {
-                      router.push(destination)
-                    }
-                  }}
-                >
-                  Continue
-                </Button>
                 <Button variant="outline" asChild>
-                  <Link href="/auth/sign-in">Go to sign in</Link>
+                  <Link href={destination.startsWith("http") ? destination : String(destination)}>Go to sign in</Link>
                 </Button>
               </div>
             )}
