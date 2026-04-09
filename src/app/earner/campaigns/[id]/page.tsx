@@ -65,7 +65,7 @@ export default function CampaignDetailPage() {
   // participation fields
   const [note, setNote] = useState("");
   const [socialHandle, setSocialHandle] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [proofSlots, setProofSlots] = useState<Array<File | null>>([null]);
   const [submitting, setSubmitting] = useState(false);
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
 
@@ -165,10 +165,18 @@ export default function CampaignDetailPage() {
     })();
   }, [id, router]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []).slice(0, 5);
-    if (!selectedFiles.length) return;
-    setFiles(selectedFiles);
+  const handleFileSelect = (index: number, selectedFile: File | null) => {
+    if (!selectedFile) return;
+    setProofSlots((current) =>
+      current.map((slot, slotIndex) => (slotIndex === index ? selectedFile : slot))
+    );
+  };
+
+  const addProofSlot = () => {
+    setProofSlots((current) => {
+      if (current.length >= 5) return current;
+      return [...current, null];
+    });
   };
 
   const uploadProofFile = async (file: File, uid: string) => {
@@ -219,6 +227,8 @@ export default function CampaignDetailPage() {
 
   // basic validation depending on task type
   // Always require a screenshot for proof
+    const files = proofSlots.filter((file): file is File => Boolean(file));
+
     if (files.length === 0) {
       return toast.error("Please attach at least one screenshot as proof of completion");
     }
@@ -668,35 +678,66 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             </div>
 
             {/* Always show upload field for proof (required for all tasks) */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
-                <div className="space-y-1 text-center">
-                  <div className="text-sm text-stone-600">
-                    <label htmlFor="proof-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
-                      <span>Upload screenshot</span>
-                      <input
-                        id="proof-screenshot-upload"
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileSelect}
-                        className="sr-only"
-                      />
-                    </label>
-                    <p className="pl-1 text-stone-600">or drag and drop</p>
-                  </div>
-                  <p className="text-xs text-stone-500">Upload up to 5 clear screenshots or images of completion</p>
-                  {files.length > 0 ? (
-                    <div className="space-y-1">
-                      {files.map((selectedFile, index) => (
-                        <p key={`${selectedFile.name}-${index}`} className="text-sm text-amber-600">
-                          {index + 1}. {selectedFile.name}
-                        </p>
-                      ))}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-stone-700">Upload proof files</label>
+              {proofSlots.map((selectedFile, index) => {
+                const inputId = `proof-upload-${index}`
+
+                return (
+                  <div key={inputId} className="mt-1 flex justify-center rounded-lg border-2 border-amber-300 border-dashed px-6 pb-6 pt-5">
+                    <div className="space-y-1 text-center">
+                      <div className="text-sm text-stone-600">
+                        <label htmlFor={inputId} className="relative cursor-pointer rounded-md bg-stone-50 px-3 py-1 font-medium text-amber-600 hover:text-amber-500">
+                          <span>{selectedFile ? `Replace proof ${index + 1}` : `Upload proof ${index + 1}`}</span>
+                          <input
+                            id={inputId}
+                            type="file"
+                            accept="image/*,video/*"
+                            onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="pl-1 text-stone-600">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-stone-500">
+                        {[
+                          "Instagram Follow",
+                          "Instagram Like",
+                          "Instagram Share",
+                          "Twitter Follow",
+                          "Twitter Retweet",
+                          "Facebook Like",
+                          "Facebook Share",
+                          "TikTok Follow",
+                          "TikTok Like",
+                          "TikTok Share",
+                          "YouTube Subscribe",
+                          "YouTube Like",
+                          "YouTube Comment",
+                        ].includes(campaign.category || "")
+                          ? "Screenshot showing your social handle and proof of task completion"
+                          : "Upload a clear screenshot, image, or video of completion"}
+                      </p>
+                      {selectedFile ? (
+                        <p className="text-sm text-amber-600">{selectedFile.name}</p>
+                      ) : (
+                        <p className="text-xs text-stone-400">No proof added yet</p>
+                      )}
                     </div>
-                  ) : null}
-                </div>
-              </div>
+                  </div>
+                )
+              })}
+              {proofSlots.length < 5 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addProofSlot}
+                  className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  Add more proof
+                </Button>
+              ) : null}
+              <p className="text-xs text-stone-500">You can add up to 5 separate proofs if needed.</p>
             </div>
 
             {[
@@ -725,86 +766,6 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 <p className="text-xs text-stone-500 mt-1">We may ask for a link or screenshot as proof.</p>
               </div>
             )}
-
-            {(campaign.category === "Video" || campaign.category === "Picture") && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-700">Upload proof files</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
-                  <div className="space-y-1 text-center">
-                    <div className="text-sm text-stone-600">
-                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500">
-                        <span>Upload files</span>
-                        <input
-                          id="file-upload"
-                          type="file"
-                          accept="image/*,video/*"
-                          multiple
-                          onChange={handleFileSelect}
-                          className="sr-only"
-                        />
-                      </label>
-                      <p className="pl-1 text-stone-600">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-stone-500">Image or video files, up to 5</p>
-                    {files.length > 0 ? (
-                      <div className="space-y-1">
-                        {files.map((selectedFile, index) => (
-                          <p key={`${selectedFile.name}-${index}`} className="text-sm text-amber-600">
-                            {index + 1}. {selectedFile.name}
-                          </p>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            )}
-
-              {[
-                "Instagram Follow",
-                "Instagram Like",
-                "Instagram Share",
-                "Twitter Follow",
-                "Twitter Retweet",
-                "Facebook Like",
-                "Facebook Share",
-                "TikTok Follow",
-                "TikTok Like",
-                "TikTok Share",
-                "YouTube Subscribe",
-                "YouTube Like",
-                "YouTube Comment",
-              ].includes(campaign.category || "") && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-stone-700">Upload proof screenshots</label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
-                    <div className="space-y-1 text-center">
-                      <div className="text-sm text-stone-600">
-                        <label htmlFor="social-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
-                          <span>Upload screenshots</span>
-                          <input
-                            id="social-screenshot-upload"
-                            type="file"
-                            accept="image/*,video/*"
-                            multiple
-                            onChange={handleFileSelect}
-                            className="sr-only"
-                          />
-                        </label>
-                        <p className="pl-1 text-stone-600">or drag and drop</p>
-                      </div>
-                      <p className="text-xs text-stone-500">Screenshot showing your social handle and proof of task completion</p>
-                      {files.length > 0 ? (
-                        <div className="space-y-1 text-sm text-amber-600">
-                          {files.map((selectedFile, index) => (
-                            <p key={`${selectedFile.name}-${selectedFile.size}-${index}`}>{selectedFile.name}</p>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              )}
 
             <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
               <p className="text-sm text-blue-900">
