@@ -16,6 +16,8 @@ import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCir
 import { auth, db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/select"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { getProofUrls } from "@/lib/proofs"
+import toast from "react-hot-toast"
 
 type Campaign = {
   id: string
@@ -72,13 +75,21 @@ export default function CampaignDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [proofFilter, setProofFilter] = useState("all")
+  const [topUpAmount, setTopUpAmount] = useState("")
+  const [savingBudget, setSavingBudget] = useState(false)
+  const [savingDetails, setSavingDetails] = useState(false)
+  const [draftTitle, setDraftTitle] = useState("")
+  const [draftDescription, setDraftDescription] = useState("")
 
   useEffect(() => {
     if (!id) return
 
     const unsubscribe = onSnapshot(doc(db, "campaigns", id as string), (snap) => {
       if (snap.exists()) {
-        setCampaign({ ...(snap.data() as Campaign), id: snap.id })
+        const nextCampaign = { ...(snap.data() as Campaign), id: snap.id }
+        setCampaign(nextCampaign)
+        setDraftTitle(nextCampaign.title || "")
+        setDraftDescription(nextCampaign.description || "")
       } else {
         setCampaign(null)
       }
@@ -204,6 +215,80 @@ export default function CampaignDetailsPage() {
     proofFilter === "all" ? true : (submission.status || "").toLowerCase() === proofFilter
   )
 
+  const handleTopUp = async () => {
+    if (!campaign) return
+    const user = auth.currentUser
+    if (!user) return toast.error("Please sign in again to continue")
+
+    const amount = Number(topUpAmount || 0)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return toast.error("Enter a valid amount to add")
+    }
+
+    setSavingBudget(true)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch("/api/advertiser/campaign/top-up", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ campaignId: campaign.id, amount }),
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Failed to add budget")
+      }
+
+      setTopUpAmount("")
+      toast.success("Task budget updated successfully")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add budget")
+    } finally {
+      setSavingBudget(false)
+    }
+  }
+
+  const handleSaveDetails = async () => {
+    if (!campaign) return
+    const user = auth.currentUser
+    if (!user) return toast.error("Please sign in again to continue")
+
+    if (!draftTitle.trim()) {
+      return toast.error("Task name is required")
+    }
+
+    setSavingDetails(true)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch("/api/advertiser/campaign/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          title: draftTitle.trim(),
+          description: draftDescription.trim(),
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Failed to update task")
+      }
+
+      toast.success("Task details updated successfully")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update task")
+    } finally {
+      setSavingDetails(false)
+    }
+  }
+
   return (
     <div className="min-h-screen space-y-8 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 px-6 py-10">
       <Button
@@ -280,11 +365,31 @@ export default function CampaignDetailsPage() {
         <Card className="space-y-4 bg-gradient-to-br from-stone-100 to-amber-50 p-6 shadow-md">
           <h2 className="text-lg font-semibold text-stone-800">Task Details</h2>
           <div className="rounded-2xl bg-white/70 p-4">
-            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Description</p>
-            <p className="mt-3 text-sm leading-6 text-stone-700">
-              {campaign.description?.trim() || "No description was added for this task."}
-            </p>
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Task Name</p>
+            <Input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              className="mt-3 bg-white"
+              placeholder="Enter task name"
+            />
           </div>
+          <div className="rounded-2xl bg-white/70 p-4">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Description</p>
+            <Textarea
+              value={draftDescription}
+              onChange={(e) => setDraftDescription(e.target.value)}
+              className="mt-3 min-h-[132px] bg-white"
+              placeholder="Add or update your task description"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={handleSaveDetails}
+            disabled={savingDetails}
+            className="w-full rounded-full bg-stone-800 text-white hover:bg-stone-900"
+          >
+            {savingDetails ? "Saving..." : "Save task details"}
+          </Button>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/70 p-4">
               <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Status</p>
@@ -303,9 +408,33 @@ export default function CampaignDetailsPage() {
           <h2 className="mb-4 text-lg font-semibold text-stone-800">Billing</h2>
           <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
             <p>Payment Ref: {campaign.paymentRef || "N/A"}</p>
-            <p>Total Budget: ₦{totalBudget.toLocaleString()}</p>
+            <p>Total Budget: NGN {totalBudget.toLocaleString()}</p>
             <p>Estimated Leads: {progress.target}</p>
-            <p>Cost per Lead: ₦{campaign.costPerLead}</p>
+            <p>Cost per Lead: NGN {campaign.costPerLead}</p>
+          </div>
+          <div className="mt-5 rounded-2xl bg-white/80 p-4">
+            <p className="text-sm font-medium text-stone-900">Add more budget to this task</p>
+            <p className="mt-1 text-sm text-stone-600">
+              Add extra funds from your wallet and the task will update its budget and estimated leads automatically.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Input
+                type="number"
+                min="1"
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value)}
+                placeholder="Enter amount in NGN"
+                className="bg-white"
+              />
+              <Button
+                type="button"
+                onClick={handleTopUp}
+                disabled={savingBudget}
+                className="rounded-full bg-amber-500 text-stone-900 hover:bg-amber-600"
+              >
+                {savingBudget ? "Adding..." : "Add more budget"}
+              </Button>
+            </div>
           </div>
         </Card>
 
