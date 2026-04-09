@@ -22,7 +22,6 @@ import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut } from "lucide-react"
 import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
-import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
@@ -70,8 +69,29 @@ export default function AdvertiserDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
+  const [showAdvertiserGroupPrompt, setShowAdvertiserGroupPrompt] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
+
+  useEffect(() => {
+    try {
+      const dismissed = window.sessionStorage.getItem("pamba-advertiser-whatsapp-dismissed")
+      if (!dismissed) {
+        setShowAdvertiserGroupPrompt(true)
+      }
+    } catch {
+      setShowAdvertiserGroupPrompt(true)
+    }
+  }, [])
+
+  const dismissAdvertiserGroupPrompt = () => {
+    setShowAdvertiserGroupPrompt(false)
+    try {
+      window.sessionStorage.setItem("pamba-advertiser-whatsapp-dismissed", "1")
+    } catch {
+      // ignore storage failures
+    }
+  }
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
@@ -612,10 +632,36 @@ export default function AdvertiserDashboard() {
           )}
         </div>
       </main>
-      <WhatsAppGroupButton
-        url={ADVERTISER_WHATSAPP_GROUP_URL}
-        ariaLabel="Join the advertiser WhatsApp group"
-      />
+      {showAdvertiserGroupPrompt && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-stone-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-amber-200/20 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-7 text-white shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300">Advertiser Updates</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">
+              Join the advertiser WhatsApp group for campaign updates.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-300">
+              Stay close to product updates, campaign tips, wallet notices, and important advertiser announcements without waiting to hear about them later.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={ADVERTISER_WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-stone-900 transition hover:bg-amber-300"
+              >
+                Join advertiser group
+              </a>
+              <button
+                type="button"
+                onClick={dismissAdvertiserGroupPrompt}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:border-amber-300 hover:text-amber-200"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <WhatsAppChatButton />
     </div>
   )
