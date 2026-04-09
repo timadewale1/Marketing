@@ -26,6 +26,7 @@ import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
+import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
 
 type Campaign = {
   id: string
@@ -88,7 +89,7 @@ export default function AdvertiserDashboard() {
       if (snap.exists()) {
         setName(snap.data().name || "Advertiser")
         setProfilePic(snap.data().profilePic || "")
-        setActivated(Boolean(snap.data().activated))
+        setActivated(ADVERTISER_ACTIVATION_REQUIRED ? Boolean(snap.data().activated) : true)
         setOnboarded(Boolean(snap.data().onboarded))
         // Use advertiser profile balance as the available balance displayed on dashboard
         const profBal = Number(snap.data().balance || 0)
@@ -303,6 +304,7 @@ export default function AdvertiserDashboard() {
 
   // If advertiser is not activated, show a quick action banner
   const ActivationBanner = () => {
+    if (!ADVERTISER_ACTIVATION_REQUIRED) return null
     if (activated) return null
     // If not onboarded, send them to onboarding. If onboarded but not activated, open payment selector
     const handleActivation = async () => {

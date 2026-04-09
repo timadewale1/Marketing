@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth } from "@/lib/firebase"
-import { sendEmailVerification } from "firebase/auth"
 import toast from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,29 +10,23 @@ import { Card, CardContent } from "@/components/ui/card"
 export default function VerifyEmailPage() {
   const router = useRouter()
   const [sending, setSending] = useState(false)
-  const [checking, setChecking] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
 
   useEffect(() => {
     let mounted = true
     const checkVerified = async () => {
-      try {
-        setChecking(true)
-        const user = auth.currentUser
-        if (!user) {
-          // If not logged in, direct to sign-in
-          router.push('/auth/sign-in')
-          return
-        }
-        // reload current user and check
-        try { await user.reload() } catch { /* ignore */ }
-        if (!mounted) return
-        if (user.emailVerified) {
-          toast.success('Email verified - redirecting to login')
-          router.push('/auth/sign-in')
-        }
-      } finally {
-        setChecking(false)
+      const user = auth.currentUser
+      if (!user) {
+        // If not logged in, direct to sign-in
+        router.push('/auth/sign-in')
+        return
+      }
+      // reload current user and check
+      try { await user.reload() } catch { /* ignore */ }
+      if (!mounted) return
+      if (user.emailVerified) {
+        toast.success('Email verified - redirecting to login')
+        router.push('/auth/sign-in')
       }
     }
 
@@ -53,7 +46,19 @@ export default function VerifyEmailPage() {
     if (resendCooldown > 0) return
     try {
       setSending(true)
-      await sendEmailVerification(user)
+      const token = await user.getIdToken()
+      const response = await fetch("/api/auth/send-verification-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: user.displayName || undefined }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to resend verification email")
+      }
       toast.success('Verification email sent - check your inbox or spam')
       // start 30s cooldown
       setResendCooldown(30)
