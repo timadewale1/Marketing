@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
@@ -58,6 +58,8 @@ export default function AvailableCampaignsPage() {
   const [activated, setActivated] = useState<boolean | null>(null);
   const [activatingLoading, setActivatingLoading] = useState(true);
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
+  const activationReloadedRef = useRef(false);
+  const previousActivatedRef = useRef<boolean | null>(null);
 
   const [participatedIds, setParticipatedIds] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("All");
@@ -67,7 +69,18 @@ export default function AvailableCampaignsPage() {
     if (u) {
       const earnerDoc = doc(db, "earners", u.uid)
       unsubProfile = onSnapshot(earnerDoc, (d) => {
-            setActivated(!!d.data()?.activated)
+        const nextActivated = !!d.data()?.activated
+        setActivated(nextActivated)
+        if (
+          previousActivatedRef.current === false &&
+          nextActivated &&
+          !activationReloadedRef.current
+        ) {
+          activationReloadedRef.current = true
+          toast.success("Your account is now activated. Refreshing this page...")
+          setTimeout(() => window.location.reload(), 700)
+        }
+        previousActivatedRef.current = nextActivated
         setActivatingLoading(false)
       })
     } else {

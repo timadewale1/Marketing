@@ -11,7 +11,6 @@ import {
   where,
   onSnapshot,
   doc,
-  getDoc,
 } from "firebase/firestore"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,6 +26,8 @@ import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
+
+const ADVERTISER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/F74HRQikOvnDHCIVChjZRw?mode=gi_t"
 
 type Campaign = {
   id: string
@@ -69,8 +70,11 @@ export default function AdvertiserDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
+  const activationReloadedRef = useRef(false)
+  const previousActivatedRef = useRef<boolean | null>(null)
 
   useEffect(() => {
+    let unsubProfile: (() => void) | null = null
     let unsubCampaigns: (() => void) | null = null
     let unsubWithdrawals: (() => void) | null = null
     let unsubReroutes: (() => void) | null = null
@@ -85,16 +89,31 @@ export default function AdvertiserDashboard() {
 
       // Profile
       const ref = doc(db, "advertisers", u.uid)
-      const snap = await getDoc(ref)
-      if (snap.exists()) {
-        setName(snap.data().name || "Advertiser")
-        setProfilePic(snap.data().profilePic || "")
-        setActivated(ADVERTISER_ACTIVATION_REQUIRED ? Boolean(snap.data().activated) : true)
-        setOnboarded(Boolean(snap.data().onboarded))
-        // Use advertiser profile balance as the available balance displayed on dashboard
-        const profBal = Number(snap.data().balance || 0)
+      unsubProfile = onSnapshot(ref, (snap) => {
+        if (!snap.exists()) return
+        const profileData = snap.data()
+        const nextActivated = ADVERTISER_ACTIVATION_REQUIRED ? Boolean(profileData.activated) : true
+
+        setName(profileData.name || "Advertiser")
+        setProfilePic(profileData.profilePic || "")
+        setActivated(nextActivated)
+        setOnboarded(Boolean(profileData.onboarded))
+        const profBal = Number(profileData.balance || 0)
         setStats((prev) => ({ ...prev, balance: profBal }))
-      }
+
+        if (
+          ADVERTISER_ACTIVATION_REQUIRED &&
+          previousActivatedRef.current === false &&
+          nextActivated &&
+          !activationReloadedRef.current
+        ) {
+          activationReloadedRef.current = true
+          toast.success("Your advertiser account is now activated. Refreshing your dashboard...")
+          setTimeout(() => window.location.reload(), 700)
+        }
+
+        previousActivatedRef.current = nextActivated
+      })
 
       // Campaigns
       const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid))
@@ -241,11 +260,14 @@ export default function AdvertiserDashboard() {
 
     return () => {
       unsubAuth()
+      previousActivatedRef.current = null
+      activationReloadedRef.current = false
       if (unsubCampaigns) unsubCampaigns()
       if (unsubWithdrawals) unsubWithdrawals()
       if (unsubReroutes) unsubReroutes()
       if (unsubResumed) unsubResumed()
       if (unsubSubmissions) unsubSubmissions()
+      if (unsubProfile) unsubProfile()
     }
   }, [router])
 
@@ -590,7 +612,10 @@ export default function AdvertiserDashboard() {
           )}
         </div>
       </main>
-      <WhatsAppGroupButton />
+      <WhatsAppGroupButton
+        url={ADVERTISER_WHATSAPP_GROUP_URL}
+        ariaLabel="Join the advertiser WhatsApp group"
+      />
       <WhatsAppChatButton />
     </div>
   )

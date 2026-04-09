@@ -4,9 +4,6 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { FirebaseError } from "firebase/app";
-import { auth } from "@/lib/firebase"
-import { sendPasswordResetEmail } from "firebase/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,23 +28,29 @@ export default function ForgotPasswordPage() {
   })
 
   const onSubmit = async (data: FormData) => {
-  setLoading(true);
-  try {
-    await sendPasswordResetEmail(auth, data.email);
-    toast.success("If this email exists, a reset link has been sent");
-  } catch (err) {
-    const error = err as FirebaseError; // type assertion
-    console.error(error);
+    setLoading(true)
+    try {
+      const response = await fetch("/api/auth/send-password-reset-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: data.email }),
+      })
 
-    let msg = "Failed to send reset link";
-    if (error.code === "auth/invalid-email") msg = "Invalid email address";
-    if (error.code === "auth/user-not-found") msg = "No account found with this email";
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to send reset link")
+      }
 
-    toast.error(msg);
-  } finally {
-    setLoading(false);
+      toast.success("If this email exists, a reset link has been sent")
+    } catch (error) {
+      console.error(error)
+      toast.error("Failed to send reset link")
+    } finally {
+      setLoading(false)
+    }
   }
-};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 p-6">

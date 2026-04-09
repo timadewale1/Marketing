@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase"
@@ -74,6 +74,8 @@ export default function EarnerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
+  const activationReloadedRef = useRef(false)
+  const previousActivatedRef = useRef<boolean | null>(null)
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
@@ -102,8 +104,21 @@ export default function EarnerDashboard() {
             leadsGenerated: d.leadsGenerated || 0,
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
-          setActivated(!!d.activated)
+          const nextActivated = !!d.activated
+          setActivated(nextActivated)
           setNeedsReactivation(!!d.needsReactivation)
+
+          if (
+            previousActivatedRef.current === false &&
+            nextActivated &&
+            !activationReloadedRef.current
+          ) {
+            activationReloadedRef.current = true
+            toast.success("Your account is now activated. Refreshing your dashboard...")
+            setTimeout(() => window.location.reload(), 700)
+          }
+
+          previousActivatedRef.current = nextActivated
         }
       })
 

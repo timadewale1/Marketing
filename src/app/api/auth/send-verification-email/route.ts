@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { buildCustomFirebaseActionLink } from "@/lib/firebase-action-links"
 import { sendVerificationEmail } from "@/lib/mailer"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
@@ -24,10 +25,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "No email found for this account" }, { status: 400 })
     }
 
-    const verificationUrl = await admin.auth().generateEmailVerificationLink(user.email, {
+    const firebaseLink = await admin.auth().generateEmailVerificationLink(user.email, {
       url: `${APP_URL}/auth/sign-in?verified=1`,
       handleCodeInApp: false,
     })
+    const verificationUrl = buildCustomFirebaseActionLink(
+      firebaseLink,
+      "verifyEmail",
+      "/auth/sign-in?verified=1"
+    )
 
     await sendVerificationEmail({
       email: user.email,
