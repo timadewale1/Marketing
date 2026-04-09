@@ -206,6 +206,31 @@ export async function sendVerificationEmail({
   })
 }
 
+export async function sendPasswordResetLinkEmail({
+  email,
+  name,
+  resetUrl,
+}: {
+  email: string
+  name?: string
+  resetUrl: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: "Reset your Pamba password",
+    html: wrapEmail(
+      "Reset your password",
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>We received a request to reset your Pamba password. Use the button below to choose a new password securely.</p>
+        <p>If you did not request this, you can safely ignore this email and your account will stay unchanged.</p>
+      `,
+      "Reset my password",
+      resetUrl
+    ),
+  })
+}
+
 export async function sendAdminUpdateEmail({
   email,
   name,

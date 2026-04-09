@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -46,6 +46,16 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("verified") === "1") {
+      toast.success("Email verified successfully. You can sign in now.")
+    }
+    if (params.get("reset") === "1") {
+      toast.success("Password updated successfully. Sign in with your new password.")
+    }
+  }, [])
 
   const {
     register,
