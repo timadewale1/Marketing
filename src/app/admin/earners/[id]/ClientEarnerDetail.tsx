@@ -34,6 +34,7 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { getProofUrls } from "@/lib/proofs";
 
 type Earner = {
   id: string;
@@ -80,6 +81,7 @@ type Submission = {
   campaignTitle: string;
   status: string;
   proofUrl: string;
+  proofUrls: string[];
   earnerPrice: number;
   createdAtMs: number;
 };
@@ -206,6 +208,7 @@ export default function ClientEarnerDetail({ id }: Props) {
             campaignTitle: String(data.campaignTitle || ""),
             status: String(data.status || ""),
             proofUrl: String(data.proofUrl || ""),
+            proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
           };
@@ -546,12 +549,14 @@ export default function ClientEarnerDetail({ id }: Props) {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {submission.proofUrl ? (
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link href={submission.proofUrl} target="_blank">
-                          View proof
-                        </Link>
-                      </Button>
+                    {submission.proofUrls.length > 0 ? (
+                      submission.proofUrls.map((proof, index) => (
+                        <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full">
+                          <Link href={proof} target="_blank">
+                            View proof {index + 1}
+                          </Link>
+                        </Button>
+                      ))
                     ) : null}
                     {submission.status !== "Verified" ? (
                       <Button

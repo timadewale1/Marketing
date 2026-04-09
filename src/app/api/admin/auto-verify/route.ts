@@ -40,8 +40,8 @@ export async function POST() {
     if (!admin || !dbAdmin) return NextResponse.json({ ok: false, message: 'no admin db' }, { status: 500 })
 
     const now = Date.now()
-    const twentyFourHours = 1000 * 60 * 60 * 24
-    const cutoff: FirestoreTimestamp = admin.firestore.Timestamp.fromMillis(now - twentyFourHours)
+    const twelveHours = 1000 * 60 * 60 * 12
+    const cutoff: FirestoreTimestamp = admin.firestore.Timestamp.fromMillis(now - twelveHours)
 
     const q = dbAdmin.collection('earnerSubmissions')
       .where('status', '==', 'Pending')
@@ -126,7 +126,7 @@ export async function POST() {
               type: 'credit',
               amount: earnerAmount,
               status: 'completed',
-              note: `Auto-verified campaign submission ${sDoc.id}`,
+              note: `Task approved after review ${sDoc.id}`,
               createdAt: nowTimestamp,
             })
             t.update(dbAdmin.collection('earners').doc(submission.userId), {

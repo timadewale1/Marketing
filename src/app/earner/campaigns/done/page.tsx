@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 import { ArrowLeft } from "lucide-react";
+import { getProofUrls } from "@/lib/proofs";
 
 type Submission = {
   id: string;
@@ -16,6 +17,7 @@ type Submission = {
   status?: string;
   earnerPrice?: number;
   proofUrl?: string;
+  proofUrls?: string[];
   note?: string;
 };
 
@@ -41,6 +43,7 @@ export default function DoneCampaignsPage() {
           status: data.status,
           earnerPrice: data.earnerPrice,
           proofUrl: data.proofUrl,
+          proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
           note: data.note,
         } as Submission;
       });
@@ -77,15 +80,20 @@ export default function DoneCampaignsPage() {
                       {s.note && (
                         <p className="mt-1 text-sm text-stone-600">{s.note}</p>
                       )}
-                      {s.proofUrl && (
-                        <a 
-                          href={s.proofUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="mt-2 inline-flex items-center text-sm text-amber-600 hover:text-amber-700"
-                        >
-                          View Proof →
-                        </a>
+                      {(s.proofUrls || []).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(s.proofUrls || []).map((proof, index) => (
+                            <a
+                              key={`${s.id}-proof-${index}`}
+                              href={proof}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center text-sm text-amber-600 hover:text-amber-700"
+                            >
+                              {`View Proof ${index + 1} ->`}
+                            </a>
+                          ))}
+                        </div>
                       )}
                       {s.createdAt && (
                         <p className="mt-2 text-xs text-stone-500">
@@ -104,14 +112,14 @@ export default function DoneCampaignsPage() {
                     <div className="flex flex-row sm:flex-col items-center sm:items-end gap-4 sm:gap-2">
                       <div className={`
                         px-3 py-1.5 rounded-full text-sm font-medium
-                        ${s.status === "Verified" ? "bg-green-100 text-green-700" : 
-                          s.status === "Rejected" ? "bg-red-100 text-red-700" : 
+                        ${s.status === "Verified" ? "bg-green-100 text-green-700" :
+                          s.status === "Rejected" ? "bg-red-100 text-red-700" :
                           "bg-amber-100 text-amber-700"}
                       `}>
                         {s.status || "Pending"}
                       </div>
                       <div className="text-lg font-bold text-amber-600">
-                        ₦{(s.earnerPrice || 0).toLocaleString()}
+                        â‚¦{(s.earnerPrice || 0).toLocaleString()}
                       </div>
                     </div>
                   </div>

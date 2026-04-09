@@ -65,7 +65,7 @@ export default function CampaignDetailPage() {
   // participation fields
   const [note, setNote] = useState("");
   const [socialHandle, setSocialHandle] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
 
@@ -166,9 +166,9 @@ export default function CampaignDetailPage() {
   }, [id, router]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
+    const selectedFiles = Array.from(e.target.files || []).slice(0, 5);
+    if (!selectedFiles.length) return;
+    setFiles(selectedFiles);
   };
 
   const uploadProofFile = async (file: File, uid: string) => {
@@ -219,8 +219,11 @@ export default function CampaignDetailPage() {
 
   // basic validation depending on task type
   // Always require a screenshot for proof
-    if (!file) {
-      return toast.error("Please attach a screenshot as proof of completion");
+    if (files.length === 0) {
+      return toast.error("Please attach at least one screenshot as proof of completion");
+    }
+    if (files.length > 5) {
+      return toast.error("You can upload up to 5 proof files only");
     }
 
   // For social tasks, also require the social handle
@@ -247,7 +250,7 @@ export default function CampaignDetailPage() {
     setSubmitting(true);
     try {
       // Log current state
-      console.log("Starting submission with file:", file?.name);
+      console.log("Starting submission with files:", files.map((proofFile) => proofFile.name));
       
       const isValid = await validateDataSync(user.uid, campaign.id);
       if (!isValid) {
@@ -256,15 +259,15 @@ export default function CampaignDetailPage() {
         return;
       }
 
-      let proofUrl = "";
-      if (file) {
-        console.log("Uploading proof file...");
+      let proofUrls: string[] = [];
+      if (files.length > 0) {
+        console.log("Uploading proof files...");
         try {
-          proofUrl = await uploadProofFile(file, user.uid);
-          console.log("File uploaded successfully:", proofUrl);
+          proofUrls = await Promise.all(files.map((proofFile) => uploadProofFile(proofFile, user.uid)));
+          console.log("Files uploaded successfully:", proofUrls);
         } catch (uploadErr) {
           console.error("File upload error:", uploadErr);
-          toast.error("Failed to upload proof file. Please try again.");
+          toast.error("Failed to upload one or more proof files. Please try again.");
           return;
         }
       }
@@ -328,7 +331,8 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
           },
           body: JSON.stringify({
             campaignId: campaign.id,
-            proofUrl,
+            proofUrl: proofUrls[0],
+            proofUrls,
             note: note || null,
             socialHandle: socialHandle || null,
           }),
@@ -681,8 +685,16 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                     </label>
                     <p className="pl-1 text-stone-600">or drag and drop</p>
                   </div>
-                  <p className="text-xs text-stone-500">A clear screenshot or image of completion</p>
-                  {file && <p className="text-sm text-amber-600">{file.name}</p>}
+                  <p className="text-xs text-stone-500">Upload up to 5 clear screenshots or images of completion</p>
+                  {files.length > 0 ? (
+                    <div className="space-y-1">
+                      {files.map((selectedFile, index) => (
+                        <p key={`${selectedFile.name}-${index}`} className="text-sm text-amber-600">
+                          {index + 1}. {selectedFile.name}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -716,24 +728,33 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
 
             {(campaign.category === "Video" || campaign.category === "Picture") && (
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-700">Upload proof file</label>
+                <label className="block text-sm font-medium text-stone-700">Upload proof files</label>
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
                   <div className="space-y-1 text-center">
                     <div className="text-sm text-stone-600">
                       <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500">
-                        <span>Upload a file</span>
+                        <span>Upload files</span>
                         <input
                           id="file-upload"
                           type="file"
                           accept="image/*,video/*"
+                          multiple
                           onChange={handleFileSelect}
                           className="sr-only"
                         />
                       </label>
                       <p className="pl-1 text-stone-600">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-stone-500">Image or video files</p>
-                    {file && <p className="text-sm text-amber-600">{file.name}</p>}
+                    <p className="text-xs text-stone-500">Image or video files, up to 5</p>
+                    {files.length > 0 ? (
+                      <div className="space-y-1">
+                        {files.map((selectedFile, index) => (
+                          <p key={`${selectedFile.name}-${index}`} className="text-sm text-amber-600">
+                            {index + 1}. {selectedFile.name}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -755,16 +776,17 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 "YouTube Comment",
               ].includes(campaign.category || "") && (
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-stone-700">Upload proof screenshot</label>
+                  <label className="block text-sm font-medium text-stone-700">Upload proof screenshots</label>
                   <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-amber-300 border-dashed rounded-lg">
                     <div className="space-y-1 text-center">
                       <div className="text-sm text-stone-600">
                         <label htmlFor="social-screenshot-upload" className="relative cursor-pointer bg-stone-50 rounded-md font-medium text-amber-600 hover:text-amber-500 px-3 py-1">
-                          <span>Upload screenshot</span>
+                          <span>Upload screenshots</span>
                           <input
                             id="social-screenshot-upload"
                             type="file"
                             accept="image/*,video/*"
+                            multiple
                             onChange={handleFileSelect}
                             className="sr-only"
                           />
@@ -772,7 +794,13 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                         <p className="pl-1 text-stone-600">or drag and drop</p>
                       </div>
                       <p className="text-xs text-stone-500">Screenshot showing your social handle and proof of task completion</p>
-                      {file && <p className="text-sm text-amber-600">{file.name}</p>}
+                      {files.length > 0 ? (
+                        <div className="space-y-1 text-sm text-amber-600">
+                          {files.map((selectedFile, index) => (
+                            <p key={`${selectedFile.name}-${selectedFile.size}-${index}`}>{selectedFile.name}</p>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -780,7 +808,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
 
             <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
               <p className="text-sm text-blue-900">
-                Submitted participations can take up to 24 hours to be reviewed and approved.
+                Submitted participations can take up to 12 hours to be reviewed and approved.
               </p>
             </div>
 

@@ -32,6 +32,7 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { getProofUrls } from "@/lib/proofs";
 
 type Advertiser = {
   id: string;
@@ -86,6 +87,7 @@ type Submission = {
   userId: string;
   status: string;
   proofUrl: string;
+  proofUrls: string[];
   createdAtMs: number;
 };
 
@@ -213,6 +215,7 @@ export default function AdvertiserAdminDetail({
                 userId: String(data.userId || ""),
                 status: String(data.status || ""),
                 proofUrl: String(data.proofUrl || ""),
+                proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
                 createdAtMs: toMillis(data.createdAt),
               };
             })
@@ -529,13 +532,15 @@ export default function AdvertiserAdminDetail({
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    {submission.proofUrl ? (
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link href={submission.proofUrl} target="_blank">
-                          Proof
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      </Button>
+                    {submission.proofUrls.length > 0 ? (
+                      submission.proofUrls.map((proof, index) => (
+                        <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full">
+                          <Link href={proof} target="_blank">
+                            Proof {index + 1}
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ))
                     ) : null}
                     <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
                       <Link href={`/admin/campaigns/${submission.campaignId}`}>

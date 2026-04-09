@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
+import { getProofUrls } from "@/lib/proofs"
 
 type Campaign = {
   id: string
@@ -58,6 +59,7 @@ type Submission = {
   userName?: string
   status?: string
   proofUrl?: string
+  proofUrls?: string[]
   socialHandle?: string | null
   note?: string | null
   createdAt?: string | null
@@ -112,6 +114,7 @@ export default function CampaignDetailsPage() {
             userId: String(submissionDoc.data().userId || ""),
             status: String(submissionDoc.data().status || ""),
             proofUrl: String(submissionDoc.data().proofUrl || ""),
+            proofUrls: getProofUrls(submissionDoc.data() as { proofUrl?: unknown; proofUrls?: unknown }),
             socialHandle: submissionDoc.data().socialHandle ? String(submissionDoc.data().socialHandle) : null,
             note: submissionDoc.data().note ? String(submissionDoc.data().note) : null,
             createdAt: submissionDoc.data().createdAt?.toDate
@@ -458,12 +461,14 @@ export default function CampaignDetailsPage() {
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {submission.proofUrl ? (
-                      <Button asChild variant="outline" className="rounded-full border-stone-300 bg-white">
-                        <a href={submission.proofUrl} target="_blank" rel="noreferrer">
-                          View proof
-                        </a>
-                      </Button>
+                    {(submission.proofUrls || []).length > 0 ? (
+                      (submission.proofUrls || []).map((proof, index) => (
+                        <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full border-stone-300 bg-white">
+                          <a href={proof} target="_blank" rel="noreferrer">
+                            View proof {index + 1}
+                          </a>
+                        </Button>
+                      ))
                     ) : (
                       <span className="rounded-full bg-stone-100 px-3 py-2 text-sm text-stone-500">
                         No proof file
