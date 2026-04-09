@@ -103,7 +103,11 @@ export default function AdvertiserDashboard() {
 
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
       if (!u) {
-        router.push("/auth/sign-in")
+        router.replace("/auth/sign-in")
+        return
+      }
+      if (!u.emailVerified) {
+        router.replace("/auth/verify-email")
         return
       }
 
@@ -113,6 +117,11 @@ export default function AdvertiserDashboard() {
         if (!snap.exists()) return
         const profileData = snap.data()
         const nextActivated = ADVERTISER_ACTIVATION_REQUIRED ? Boolean(profileData.activated) : true
+
+        if (!profileData.onboarded) {
+          router.replace("/advertiser/onboarding")
+          return
+        }
 
         setName(profileData.name || "Advertiser")
         setProfilePic(profileData.profilePic || "")

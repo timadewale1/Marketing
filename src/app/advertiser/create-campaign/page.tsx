@@ -83,7 +83,11 @@ export default function CreateCampaignPage() {
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       if (!user) {
-        router.push("/auth/sign-in")
+        router.replace("/auth/sign-in")
+        return
+      }
+      if (!user.emailVerified) {
+        router.replace("/auth/verify-email")
       }
     })
     return () => unsub()

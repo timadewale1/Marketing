@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { auth, db, storage } from "@/lib/firebase"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, getDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,12 +71,27 @@ export default function AdvertiserOnboarding() {
 
   // ✅ Fetch Nigerian banks list
   useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        router.replace("/auth/sign-in")
+        return
+      }
+      if (!user.emailVerified) {
+        router.replace("/auth/verify-email")
+        return
+      }
+      const advertiserSnap = await getDoc(doc(db, "advertisers", user.uid)).catch(() => null)
+      if (advertiserSnap?.exists() && advertiserSnap.data()?.onboarded) {
+        router.replace("/advertiser")
+      }
+    })
     try {
       setBanks(NIGERIAN_BANKS);
     } catch (err) {
       console.error("Failed to load banks", err);
     }
-  }, [])
+    return () => unsub()
+  }, [router])
 
   // verify bank account whenever inputs change
   const bankCode = watch("bankCode")
