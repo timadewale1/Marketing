@@ -81,6 +81,7 @@ export default function SignInPage() {
       // ✅ Email verification check
       if (!cred.user.emailVerified) {
         toast.error("Please verify your email before logging in")
+        router.push("/auth/verify-email")
         setLoading(false)
         return
       }

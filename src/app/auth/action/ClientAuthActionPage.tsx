@@ -139,10 +139,12 @@ export default function ClientAuthActionPage() {
         <div className="max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.34em] text-amber-300">Pamba Account Center</p>
           <h1 className="mt-4 text-4xl font-semibold leading-tight text-white">
-            {mode === "resetPassword" ? "Secure your account and get back in quickly." : "Your email confirmation should feel like part of Pamba."}
+            {mode === "resetPassword" ? "Reset your password and get back into your account." : "Confirm your email and continue with your Pamba account."}
           </h1>
           <p className="mt-4 text-sm leading-7 text-stone-300">
-            We handle your account actions right here in the app now, so you get a smoother, branded confirmation flow instead of a generic provider page.
+            {mode === "resetPassword"
+              ? "Choose a new password securely here and head straight back to sign in when you are done."
+              : "This page completes your email verification securely inside Pamba and gets you ready to sign in."}
           </p>
         </div>
 
