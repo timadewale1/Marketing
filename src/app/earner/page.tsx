@@ -84,11 +84,19 @@ export default function EarnerDashboard() {
         router.replace("/auth/sign-in")
         return
       }
+      if (!u.emailVerified) {
+        router.replace("/auth/verify-email")
+        return
+      }
       
       // Check if user exists in earners collection
       const earnerDoc = await getDoc(doc(db, "earners", u.uid))
       if (!earnerDoc.exists()) {
         router.replace("/auth/sign-in")
+        return
+      }
+      if (!earnerDoc.data()?.onboarded) {
+        router.replace("/earner/onboarding")
         return
       }
       // Profile and stats

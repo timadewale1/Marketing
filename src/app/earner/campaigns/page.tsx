@@ -67,8 +67,24 @@ export default function AvailableCampaignsPage() {
     const u = auth.currentUser
     let unsubProfile: (() => void) | null = null
     if (u) {
+      if (!u.emailVerified) {
+        router.replace("/auth/verify-email")
+        setActivated(false)
+        setActivatingLoading(false)
+        return
+      }
       const earnerDoc = doc(db, "earners", u.uid)
       unsubProfile = onSnapshot(earnerDoc, (d) => {
+        if (!d.exists()) {
+          router.replace("/auth/sign-in")
+          setActivatingLoading(false)
+          return
+        }
+        if (!d.data()?.onboarded) {
+          router.replace("/earner/onboarding")
+          setActivatingLoading(false)
+          return
+        }
         const nextActivated = !!d.data()?.activated
         setActivated(nextActivated)
         if (
