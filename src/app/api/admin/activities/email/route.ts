@@ -6,6 +6,7 @@ import {
   sendAdminUpdateEmail,
   sendEmailsInBatches,
 } from '@/lib/mailer'
+import { ADVERTISER_ACTIVATION_REQUIRED } from '@/lib/platform-config'
 
 type Role = 'earner' | 'advertiser'
 
@@ -52,9 +53,14 @@ export async function POST(req: Request) {
           ? ['advertiser']
           : ['earner', 'advertiser']
 
+    const effectiveRoles =
+      type === 'activation_reminder' && !ADVERTISER_ACTIVATION_REQUIRED
+        ? roles.filter((role) => role === 'earner')
+        : roles
+
     const recipients: UserRecord[] = []
 
-    for (const role of roles) {
+    for (const role of effectiveRoles) {
       const collectionName = role === 'earner' ? 'earners' : 'advertisers'
       const snap = await dbAdmin.collection(collectionName).get()
       snap.docs.forEach((doc) => {

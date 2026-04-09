@@ -7,7 +7,6 @@ import * as z from "zod"
 import { auth, db } from "@/lib/firebase"
 import {
   createUserWithEmailAndPassword,
-  sendEmailVerification,
 } from "firebase/auth"
 import {
   doc,
@@ -62,6 +61,22 @@ function getSignupErrorMessage(code?: string) {
       return "Too many signup attempts right now. Please wait a bit and retry."
     default:
       return "We could not create your account right now. Please try again."
+  }
+}
+
+async function sendVerificationEmailWithMailer(token: string, name?: string) {
+  const response = await fetch("/api/auth/send-verification-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name }),
+  })
+
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to send verification email")
   }
 }
 
@@ -141,7 +156,8 @@ export function SignUpForm() {
         }
       )
 
-      await sendEmailVerification(cred.user)
+      const idToken = await cred.user.getIdToken()
+      await sendVerificationEmailWithMailer(idToken, data.name)
 
       try {
         const refDoc = doc(db, data.action + "s", cred.user.uid)

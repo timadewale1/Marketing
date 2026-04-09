@@ -5,7 +5,7 @@ const SMTP_SERVICE = process.env.SMTP_SERVICE || 'gmail'
 const SMTP_USER = process.env.SMTP_USER
 const SMTP_PASS = process.env.SMTP_PASS
 const SMTP_FROM = process.env.SMTP_FROM
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pambaadverts.com'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.pambaadverts.com'
 const ADMIN_INBOX_EMAIL = process.env.ADMIN_INBOX_EMAIL || 'pambaadverts@gmail.com'
 
 let transporterPromise: Promise<nodemailer.Transporter | null> | null = null
@@ -177,6 +177,31 @@ export async function sendActivationReminderEmail({
       `,
       'Open my dashboard',
       destination
+    ),
+  })
+}
+
+export async function sendVerificationEmail({
+  email,
+  name,
+  verificationUrl,
+}: {
+  email: string
+  name?: string
+  verificationUrl: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: "Verify your email address for Pamba",
+    html: wrapEmail(
+      "Confirm your email",
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>Welcome to Pamba. Please confirm your email address to finish setting up your account and unlock your full dashboard experience.</p>
+        <p>If the button does not open properly in your mail app, copy and paste the link below into your browser.</p>
+      `,
+      "Verify my email",
+      verificationUrl
     ),
   })
 }

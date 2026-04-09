@@ -16,6 +16,7 @@ import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
 import { motion, AnimatePresence } from "framer-motion"
 import { registerActivationReference } from "@/lib/activation-client"
+import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
 import {
   FileText,
   ArrowRight,
@@ -326,7 +327,7 @@ const compressed = await imageCompression(file, options)
         return
       }
       // If onboarded but not activated, show an inline activation prompt instead of redirecting
-      if (!advertiserProfile['activated']) {
+      if (ADVERTISER_ACTIVATION_REQUIRED && !advertiserProfile['activated']) {
         // show a prompt to the user to activate now
         setShowActivatePrompt(true)
         // keep campaignData persisted in state so we can continue after activation

@@ -1,0 +1,1 @@
+export const ADVERTISER_ACTIVATION_REQUIRED = false
