@@ -154,7 +154,7 @@ export default function TransactionsPage() {
             </div>
             <Button
               onClick={() => setWithdrawOpen(true)}
-              disabled={availableBalance < 2000 || !bankDetails}
+              disabled={availableBalance < 1000 || !bankDetails}
               className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
             >
               Withdraw Funds

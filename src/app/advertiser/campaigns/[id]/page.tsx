@@ -78,6 +78,7 @@ export default function CampaignDetailsPage() {
   const [topUpAmount, setTopUpAmount] = useState("")
   const [savingBudget, setSavingBudget] = useState(false)
   const [savingDetails, setSavingDetails] = useState(false)
+  const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
 
@@ -282,6 +283,7 @@ export default function CampaignDetailsPage() {
       }
 
       toast.success("Task details updated successfully")
+      setIsEditingDetails(false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update task")
     } finally {
@@ -366,30 +368,67 @@ export default function CampaignDetailsPage() {
           <h2 className="text-lg font-semibold text-stone-800">Task Details</h2>
           <div className="rounded-2xl bg-white/70 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Task Name</p>
-            <Input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              className="mt-3 bg-white"
-              placeholder="Enter task name"
-            />
+            {isEditingDetails ? (
+              <Input
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                className="mt-3 bg-white"
+                placeholder="Enter task name"
+              />
+            ) : (
+              <p className="mt-3 text-sm font-medium text-stone-900">
+                {campaign.title?.trim() || "Untitled task"}
+              </p>
+            )}
           </div>
           <div className="rounded-2xl bg-white/70 p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Description</p>
-            <Textarea
-              value={draftDescription}
-              onChange={(e) => setDraftDescription(e.target.value)}
-              className="mt-3 min-h-[132px] bg-white"
-              placeholder="Add or update your task description"
-            />
+            {isEditingDetails ? (
+              <Textarea
+                value={draftDescription}
+                onChange={(e) => setDraftDescription(e.target.value)}
+                className="mt-3 min-h-[132px] bg-white"
+                placeholder="Add or update your task description"
+              />
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-stone-700">
+                {campaign.description?.trim() || "No description was added for this task."}
+              </p>
+            )}
           </div>
-          <Button
-            type="button"
-            onClick={handleSaveDetails}
-            disabled={savingDetails}
-            className="w-full rounded-full bg-stone-800 text-white hover:bg-stone-900"
-          >
-            {savingDetails ? "Saving..." : "Save task details"}
-          </Button>
+          {isEditingDetails ? (
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                onClick={handleSaveDetails}
+                disabled={savingDetails}
+                className="flex-1 rounded-full bg-stone-800 text-white hover:bg-stone-900"
+              >
+                {savingDetails ? "Saving..." : "Save task details"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDraftTitle(campaign.title || "")
+                  setDraftDescription(campaign.description || "")
+                  setIsEditingDetails(false)
+                }}
+                disabled={savingDetails}
+                className="rounded-full border-stone-300 bg-white"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => setIsEditingDetails(true)}
+              className="w-full rounded-full bg-stone-800 text-white hover:bg-stone-900"
+            >
+              Edit task details
+            </Button>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/70 p-4">
               <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Status</p>
