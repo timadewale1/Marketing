@@ -33,11 +33,18 @@ export async function POST(req: Request) {
     const {
       campaignId,
       proofUrl,
+      proofUrls,
       note,
       socialHandle,
     } = body || {}
 
-    if (!campaignId || !proofUrl) {
+    const normalizedProofUrls = Array.isArray(proofUrls)
+      ? proofUrls.map((value: unknown) => String(value || '').trim()).filter(Boolean).slice(0, 5)
+      : String(proofUrl || '').trim()
+        ? [String(proofUrl).trim()]
+        : []
+
+    if (!campaignId || normalizedProofUrls.length === 0) {
       return NextResponse.json({ success: false, message: 'Missing submission details' }, { status: 400 })
     }
 
@@ -141,7 +148,8 @@ export async function POST(req: Request) {
         category: freshCampaign.category || null,
         note: note || null,
         socialHandle: socialHandle || null,
-        proofUrl: String(proofUrl),
+        proofUrl: normalizedProofUrls[0],
+        proofUrls: normalizedProofUrls,
         status: 'Pending',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         earnerPrice,

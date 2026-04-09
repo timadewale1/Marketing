@@ -3,7 +3,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 
 admin.initializeApp();
 
-const TWENTY_FOUR_HOURS_MS = 1000 * 60 * 60 * 24;
+const TWELVE_HOURS_MS = 1000 * 60 * 60 * 12;
 
 export const processDueActivations = onSchedule("every 24 hours", async () => {
   console.log("processDueActivations is intentionally inactive for now.");
@@ -11,7 +11,7 @@ export const processDueActivations = onSchedule("every 24 hours", async () => {
 
 export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => {
   const db = admin.firestore();
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWENTY_FOUR_HOURS_MS);
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWELVE_HOURS_MS);
 
   const snap = await db
     .collection("earnerSubmissions")
@@ -104,7 +104,7 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
             type: "credit",
             amount: earnerAmount,
             status: "completed",
-            note: `Campaign submission auto-verified ${sDoc.id}`,
+            note: `Task approved after review ${sDoc.id}`,
             createdAt: nowTimestamp,
           });
           t.update(db.collection("earners").doc(userId), {

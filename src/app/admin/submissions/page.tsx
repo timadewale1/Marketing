@@ -23,6 +23,7 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { getProofUrls } from "@/lib/proofs";
 
 type Submission = {
   id: string;
@@ -32,6 +33,7 @@ type Submission = {
   category: string;
   note: string;
   proofUrl: string;
+  proofUrls: string[];
   status: string;
   earnerPrice: number;
   createdAtMs: number;
@@ -71,6 +73,7 @@ export default function SubmissionsPage() {
             category: String(data.category || ""),
             note: String(data.note || ""),
             proofUrl: String(data.proofUrl || ""),
+            proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
             status: String(data.status || ""),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
@@ -215,10 +218,12 @@ export default function SubmissionsPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {submission.proofUrl ? (
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link href={submission.proofUrl} target="_blank">Proof</Link>
-                      </Button>
+                    {submission.proofUrls.length > 0 ? (
+                      submission.proofUrls.map((proof, index) => (
+                        <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full">
+                          <Link href={proof} target="_blank">Proof {index + 1}</Link>
+                        </Button>
+                      ))
                     ) : null}
                     {submission.status !== "Verified" ? (
                       <Button className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Verified")}>

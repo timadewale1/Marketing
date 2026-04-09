@@ -27,6 +27,7 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { summarizeCampaignProgress } from "@/lib/campaign-progress";
+import { getProofUrls } from "@/lib/proofs";
 
 interface Props {
   id: string;
@@ -67,6 +68,7 @@ type SubmissionRecord = {
   category: string;
   note: string;
   proofUrl: string;
+  proofUrls: string[];
   status: string;
   earnerPrice: number;
   createdAtMs: number;
@@ -153,6 +155,7 @@ export default function ClientCampaignDetail({ id }: Props) {
             category: String(data.category || ""),
             note: String(data.note || ""),
             proofUrl: String(data.proofUrl || ""),
+            proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
             status: String(data.status || ""),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
@@ -603,13 +606,15 @@ export default function ClientCampaignDetail({ id }: Props) {
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {submission.proofUrl ? (
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link href={submission.proofUrl} target="_blank">
-                          View proof
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      </Button>
+                    {submission.proofUrls.length > 0 ? (
+                      submission.proofUrls.map((proof, index) => (
+                        <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full">
+                          <Link href={proof} target="_blank">
+                            View proof {index + 1}
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ))
                     ) : null}
                     {submission.status !== "Verified" ? (
                       <Button

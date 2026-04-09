@@ -173,6 +173,7 @@ export async function sendActivationReminderEmail({
       `
         <p>Hi ${name ? String(name) : 'there'},</p>
         <p>This is a reminder to ${actionText}.</p>
+        ${role === 'earner' ? '<p>There are multiple tasks already waiting for you on the platform, and once your account is activated you can jump in, complete them, and start earning money.</p>' : ''}
         <p>Once activation is complete, your dashboard will unlock the full workflow for your account.</p>
       `,
       'Open my dashboard',
