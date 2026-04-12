@@ -128,7 +128,8 @@ export default function AdvertiserAdminDetail({
         }
 
         const advertiserData = advertiserSnap.data();
-        const normalizedStatus = String(advertiserData.status || "pending").toLowerCase();
+        const rawStatus = String(advertiserData.status || "active").toLowerCase();
+        const normalizedStatus = rawStatus === "suspended" ? "suspended" : "active";
         setAdvertiser({
           id: advertiserSnap.id,
           name: String(advertiserData.name || advertiserData.companyName || "Unnamed advertiser"),
