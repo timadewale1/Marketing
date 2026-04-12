@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
 
 export async function POST(req: Request) {
   try {
@@ -56,6 +57,19 @@ export async function POST(req: Request) {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
     }
+
+    await logPaymentLifecycle({
+      scope: "wallet_funding",
+      status: "registered",
+      source: "wallet/register-funding-reference",
+      provider,
+      role: "advertiser",
+      userId,
+      email: String(advertiserSnap.data()?.email || ""),
+      reference,
+      references: [reference],
+      amount,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

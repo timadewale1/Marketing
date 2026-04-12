@@ -52,6 +52,8 @@ type CampaignData = Omit<Campaign, "id">;
 // Minimal shape of an earner document used in this file
 type EarnerData = {
   activated?: boolean;
+  status?: string;
+  strikeCount?: number;
 };
 
 export default function CampaignDetailPage() {
@@ -202,6 +204,10 @@ export default function CampaignDetailPage() {
     const earnerData = earnerDoc.data() as EarnerData;
     if (!earnerData?.activated) {
       handleActivation(); // Open Monnify modal for activation (Paystack disabled)
+      return;
+    }
+    if (String(earnerData.status || "").toLowerCase() === "suspended") {
+      toast.error("Your account is suspended. Please contact support for review.");
       return;
     }
 
@@ -811,11 +817,15 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
                 })
-                if (res.ok) {
-                  toast.success('Activation payment received. Your account will be activated within 1 hour. Please log out and log in again shortly.')
-                  await submitParticipation()
+                const data = await res.json().catch(() => ({}))
+                if (res.ok && data?.success) {
+                  if (data.pendingConfirmation) {
+                    toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                  } else {
+                    toast.success('Activation successful')
+                    await submitParticipation()
+                  }
                 } else {
-                  const data = await res.json().catch(() => ({}))
                   toast.error(data?.message || 'Activation verification failed')
                 }
               } catch (err) {

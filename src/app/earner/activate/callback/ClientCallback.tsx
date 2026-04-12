@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { auth } from "@/lib/firebase";
 
 // This component handles any lingering Paystack redirects by checking for reference/trxref in URL
 export default function ClientCallback() {
@@ -26,11 +27,15 @@ export default function ClientCallback() {
           const res = await fetch('/api/earner/activate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: refToUse }),
+            body: JSON.stringify({ reference: refToUse, userId: auth.currentUser?.uid }),
           });
           const data = await res.json();
           if (data.success) {
-            toast.success('Activation completed');
+            if (data.pendingConfirmation) {
+              toast.success('Payment received. Awaiting Monnify confirmation.');
+            } else {
+              toast.success('Activation completed');
+            }
             setTimeout(() => router.push('/earner'), 1200);
           } else {
             toast.error(data.message || 'Activation verification failed');

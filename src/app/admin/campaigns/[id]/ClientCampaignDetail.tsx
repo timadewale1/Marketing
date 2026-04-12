@@ -623,7 +623,7 @@ export default function ClientCampaignDetail({ id }: Props) {
                         onClick={() => reviewSubmission(submission, "Verified")}
                       >
                         <CheckCheck className="h-4 w-4" />
-                        Verify
+                        {submission.status === "Rejected" ? "Re-verify" : "Verify"}
                       </Button>
                     ) : null}
                     {submission.status !== "Rejected" ? (

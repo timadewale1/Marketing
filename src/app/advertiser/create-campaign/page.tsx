@@ -252,26 +252,41 @@ const compressed = await imageCompression(file, options)
     return false
   }
 
+  const minimumBudget = currentCPL
+
   // Verify payment server-side
-  const verifyPayment = async (reference: string, campaignData: Record<string, unknown>, provider: 'paystack' | 'monnify' = 'paystack') => {
+  const verifyPayment = async (
+    reference: string,
+    campaignData: Record<string, unknown>,
+    provider: 'paystack' | 'monnify' = 'paystack',
+    monnifyResponse?: Record<string, unknown>,
+  ) => {
     const t = toast.loading("Verifying payment...")
     try {
       const res = await fetch("/api/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference, campaignData, provider }),
+        body: JSON.stringify({ reference, campaignData, provider, monnifyResponse }),
       })
       const data = await res.json()
       toast.dismiss(t)
       if (res.ok && data.success) {
-        toast.success("Payment confirmed - task created")
-        router.push("/advertiser")
+        if (data.pendingConfirmation) {
+          toast.success("Payment received. Task will be created after Monnify confirms it.")
+          return false
+        } else {
+          toast.success("Payment confirmed - task created")
+          router.push("/advertiser")
+          return true
+        }
       } else {
         toast.error(data?.message || "Payment verification failed")
+        return false
       }
     } catch {
       toast.dismiss(t)
       toast.error("Error verifying payment")
+      return false
     }
   }
 
@@ -285,6 +300,11 @@ const compressed = await imageCompression(file, options)
 
     if (!isStepValid()) {
       toast.error("Please complete all required fields")
+      return
+    }
+
+    if (numericBudget < minimumBudget) {
+      toast.error(`Budget must be at least â‚¦${minimumBudget.toLocaleString()} for this task type`)
       return
     }
 
@@ -1015,10 +1035,12 @@ const getEmbeddedVideo = (url: string) => {
             setShowPaymentSelector(false)
             setPendingCampaignForPayment(null)
           }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify') => {
+          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
             setShowPaymentSelector(false)
-            await verifyPayment(reference, pendingCampaignForPayment, provider)
-            setPendingCampaignForPayment(null)
+            const completed = await verifyPayment(reference, pendingCampaignForPayment, provider, monnifyResponse)
+            if (completed) {
+              setPendingCampaignForPayment(null)
+            }
           }}
         />
       )}
@@ -1048,13 +1070,16 @@ const getEmbeddedVideo = (url: string) => {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Activation payment received. Your account will be activated within 1 hour. Please log out and log in again shortly.')
-                setShowActivatePrompt(false)
-                // If there was a pending campaign, proceed with payment after a short delay
-                if (pendingCampaign) {
-                  setTimeout(() => {
-                    void handlePay()
-                  }, 600)
+                if (data.pendingConfirmation) {
+                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                } else {
+                  toast.success('Activation successful')
+                  setShowActivatePrompt(false)
+                  if (pendingCampaign) {
+                    setTimeout(() => {
+                      void handlePay()
+                    }, 600)
+                  }
                 }
               } else {
                 toast.error(data?.message || 'Activation failed')

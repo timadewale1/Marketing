@@ -56,6 +56,8 @@ export default function AvailableCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [activated, setActivated] = useState<boolean | null>(null);
+  const [strikeCount, setStrikeCount] = useState<number>(0);
+  const [accountStatus, setAccountStatus] = useState<string>("active");
   const [activatingLoading, setActivatingLoading] = useState(true);
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
   const activationReloadedRef = useRef(false);
@@ -87,6 +89,8 @@ export default function AvailableCampaignsPage() {
         }
         const nextActivated = !!d.data()?.activated
         setActivated(nextActivated)
+        setStrikeCount(Number(d.data()?.strikeCount || 0))
+        setAccountStatus(String(d.data()?.status || "active"))
         if (
           previousActivatedRef.current === false &&
           nextActivated &&
@@ -171,6 +175,13 @@ export default function AvailableCampaignsPage() {
             <p className="text-base text-stone-500 text-center max-w-md">
               Once you complete activation, refresh this page and tasks will appear.
             </p>
+            {accountStatus === "suspended" ? (
+              <p className="mt-3 text-sm text-red-600">Your account is suspended. Please contact support for review.</p>
+            ) : strikeCount > 0 ? (
+              <p className="mt-3 text-sm text-amber-600">
+                You have {strikeCount} strike{strikeCount === 1 ? "" : "s"}. Repeated rejected submissions can lead to suspension.
+              </p>
+            ) : null}
             <Button size="sm" className="mt-4 bg-amber-500 text-stone-900" onClick={() => setShowActivationPaymentSelector(true)}>
               Activate Account (₦2,000)
             </Button>
@@ -187,7 +198,7 @@ export default function AvailableCampaignsPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCampaigns.length === 0 ? (
                 <div className="col-span-full">
                   <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -258,6 +269,10 @@ export default function AvailableCampaignsPage() {
                               router.push('/auth/sign-in')
                               return
                             }
+                            if (accountStatus === "suspended") {
+                              toast.error("Your account is suspended. Please contact support for review.")
+                              return
+                            }
                             router.push(`/earner/campaigns/${c.id}`)
                           }}
                           className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium"
@@ -295,8 +310,12 @@ export default function AvailableCampaignsPage() {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Activation payment received. Your account will be activated within 1 hour. Please log out and log in again shortly.')
-                setActivated(true)
+                if (data.pendingConfirmation) {
+                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                } else {
+                  toast.success('Activation successful')
+                  setActivated(true)
+                }
               } else {
                 toast.error(data?.message || 'Activation failed')
               }

@@ -1,5 +1,6 @@
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
+import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
 import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type PaymentProvider = "monnify" | "paystack"
@@ -132,6 +133,12 @@ export async function runRecoverySweep() {
     throw new Error("Firebase not initialized")
   }
 
+  await logPaymentLifecycle({
+    scope: "recovery",
+    status: "retry_started",
+    source: "recovery-sweep",
+  })
+
   const [earnersSnap, advertisersSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
@@ -192,8 +199,6 @@ export async function runRecoverySweep() {
         const references = normalizeReferences([
           data.pendingActivationReference,
           ...(Array.isArray(data.pendingActivationReferences) ? data.pendingActivationReferences : []),
-          data.activationReference,
-          ...(Array.isArray(data.activationReferences) ? data.activationReferences : []),
           ...(attemptInfo?.references || []),
         ])
         if (references.length === 0) return null
@@ -244,10 +249,41 @@ export async function runRecoverySweep() {
   for (const candidate of activationCandidates) {
     if (candidate.verificationState !== "paid") continue
     try {
+      await logPaymentLifecycle({
+        scope: "activation",
+        status: "retry_started",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: candidate.role,
+        userId: candidate.id,
+        reference: candidate.references[0] || null,
+        references: candidate.references,
+      })
       await runFullActivationFlow(candidate.id, candidate.references[0], candidate.provider, candidate.role, candidate.references)
       activationRecovered += 1
+      await logPaymentLifecycle({
+        scope: "activation",
+        status: "retry_completed",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: candidate.role,
+        userId: candidate.id,
+        reference: candidate.references[0] || null,
+        references: candidate.references,
+      })
     } catch (error) {
       console.error("[recovery-sweep] activation recovery failed", { candidate, error })
+      await logPaymentLifecycle({
+        scope: "activation",
+        status: "retry_failed",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: candidate.role,
+        userId: candidate.id,
+        reference: candidate.references[0] || null,
+        references: candidate.references,
+        details: { message: error instanceof Error ? error.message : String(error) },
+      })
     }
   }
 
@@ -255,12 +291,61 @@ export async function runRecoverySweep() {
   for (const candidate of walletCandidates) {
     if (candidate.verificationState !== "paid") continue
     try {
+      await logPaymentLifecycle({
+        scope: "wallet_funding",
+        status: "retry_started",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: "advertiser",
+        userId: candidate.advertiserId,
+        transactionId: candidate.id,
+        reference: candidate.reference,
+        references: candidate.references,
+        amount: candidate.amount,
+      })
       await processWalletFundingWithRetry(candidate.advertiserId, candidate.reference, candidate.amount, candidate.provider, "advertiser", 3, candidate.references)
       walletRecovered += 1
+      await logPaymentLifecycle({
+        scope: "wallet_funding",
+        status: "retry_completed",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: "advertiser",
+        userId: candidate.advertiserId,
+        transactionId: candidate.id,
+        reference: candidate.reference,
+        references: candidate.references,
+        amount: candidate.amount,
+      })
     } catch (error) {
       console.error("[recovery-sweep] wallet recovery failed", { candidate, error })
+      await logPaymentLifecycle({
+        scope: "wallet_funding",
+        status: "retry_failed",
+        source: "recovery-sweep",
+        provider: candidate.provider,
+        role: "advertiser",
+        userId: candidate.advertiserId,
+        transactionId: candidate.id,
+        reference: candidate.reference,
+        references: candidate.references,
+        amount: candidate.amount,
+        details: { message: error instanceof Error ? error.message : String(error) },
+      })
     }
   }
+
+  await logPaymentLifecycle({
+    scope: "recovery",
+    status: "retry_completed",
+    source: "recovery-sweep",
+    details: {
+      activationRecovered,
+      walletRecovered,
+      activationChecked: activationCandidates.length,
+      walletChecked: walletCandidates.length,
+    },
+  })
 
   return {
     activationRecovered,
