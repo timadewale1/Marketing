@@ -133,7 +133,8 @@ export default function ClientEarnerDetail({ id }: Props) {
         }
 
         const earnerData = earnerSnap.data();
-        const normalizedStatus = String(earnerData.status || "pending").toLowerCase();
+        const rawStatus = String(earnerData.status || "active").toLowerCase();
+        const normalizedStatus = rawStatus === "suspended" ? "suspended" : "active";
         setEarner({
           id: earnerSnap.id,
           name: String(earnerData.name || "Unnamed earner"),
