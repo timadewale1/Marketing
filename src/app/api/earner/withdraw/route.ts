@@ -87,6 +87,7 @@ export async function POST(req: Request) {
     // Create withdrawal request, decrement earner balance and attempt instant transfer
     const withdrawalRef = db.collection('earnerWithdrawals').doc()
     const txRef = db.collection('earnerTransactions').doc()
+    const earnerDisplayName = String(earner?.fullName || bank.accountName || 'Earner').trim()
 
     await db.runTransaction(async (t) => {
       const snap = await t.get(earnerRef)
@@ -127,7 +128,7 @@ export async function POST(req: Request) {
       t.set(noteRef, {
         type: 'earner_withdrawal',
         title: 'Earner withdrawal request',
-        body: `Earner ${userId} requested withdrawal of ₦${amount}`,
+        body: `${earnerDisplayName} requested withdrawal of ₦${amount.toLocaleString()}`,
         link: `/admin/earner-withdrawals`,
         userId,
         amount,
@@ -137,9 +138,9 @@ export async function POST(req: Request) {
     })
 
     sendAdminActionEmail({
-      subject: `Earner withdrawal request â€” â‚¦${amount}`,
+      subject: `Earner withdrawal request - ₦${amount.toLocaleString()}`,
       title: 'Earner withdrawal request',
-      message: `Earner ${userId} requested withdrawal of â‚¦${amount}.`,
+      message: `${earnerDisplayName} requested withdrawal of ₦${amount.toLocaleString()}.`,
       adminPath: `/admin/earners/${userId}`,
     }).catch((error) => {
       console.error('Failed to send admin withdrawal email', error)
@@ -227,4 +228,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: (err as Error).message || 'Server error' }, { status: 500 })
   }
 }
-    

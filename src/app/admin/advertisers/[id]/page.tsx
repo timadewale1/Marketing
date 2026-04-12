@@ -128,6 +128,7 @@ export default function AdvertiserAdminDetail({
         }
 
         const advertiserData = advertiserSnap.data();
+        const normalizedStatus = String(advertiserData.status || "pending").toLowerCase();
         setAdvertiser({
           id: advertiserSnap.id,
           name: String(advertiserData.name || advertiserData.companyName || "Unnamed advertiser"),
@@ -135,7 +136,7 @@ export default function AdvertiserAdminDetail({
           phone: String(advertiserData.phone || ""),
           companyName: String(advertiserData.companyName || ""),
           companyBio: String(advertiserData.companyBio || ""),
-          status: String(advertiserData.status || "pending"),
+          status: normalizedStatus,
           activated: Boolean(advertiserData.activated),
           verified: Boolean(advertiserData.verified),
           balance: Number(advertiserData.balance || advertiserData.walletBalance || 0),

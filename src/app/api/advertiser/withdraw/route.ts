@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const advertiserSnap = await advertiserRef.get()
     if (!advertiserSnap.exists) return NextResponse.json({ success: false, message: 'Advertiser not found' }, { status: 404 })
     type BankField = { accountNumber?: string; bankCode?: string; accountName?: string; bankName?: string }
-    type AdvertiserDoc = { balance?: number; bank?: BankField; fullName?: string }
+    type AdvertiserDoc = { balance?: number; bank?: BankField; fullName?: string; name?: string }
     const advertiser = advertiserSnap.data() as AdvertiserDoc | null
 
     const bank = advertiser?.bank
@@ -68,6 +68,7 @@ export async function POST(req: Request) {
     // Create a withdrawal request record and reserve funds immediately.
     const withdrawalRef = db.collection('advertiserWithdrawals').doc()
     const txRef = db.collection('advertiserTransactions').doc()
+    const advertiserDisplayName = String(advertiser?.fullName || advertiser?.name || bank.accountName || 'Advertiser').trim()
 
     await db.runTransaction(async (t) => {
       const snap = await t.get(advertiserRef)
@@ -111,7 +112,7 @@ export async function POST(req: Request) {
       t.set(noteRef, {
         type: 'advertiser_withdrawal',
         title: 'Advertiser withdrawal request',
-        body: `Advertiser ${userId} requested withdrawal of ₦${amount}`,
+        body: `${advertiserDisplayName} requested withdrawal of ₦${amount.toLocaleString()}`,
         link: `/admin/advertiser-withdrawals`,
         userId,
         amount,
@@ -121,9 +122,9 @@ export async function POST(req: Request) {
     })
 
     sendAdminActionEmail({
-      subject: `Advertiser withdrawal request â€” â‚¦${amount}`,
+      subject: `Advertiser withdrawal request - ₦${amount.toLocaleString()}`,
       title: 'Advertiser withdrawal request',
-      message: `Advertiser ${userId} requested withdrawal of â‚¦${amount}.`,
+      message: `${advertiserDisplayName} requested withdrawal of ₦${amount.toLocaleString()}.`,
       adminPath: `/admin/advertisers/${userId}`,
     }).catch((error) => {
       console.error('Failed to send admin withdrawal email', error)
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
 
     // After the DB transaction, attempt to create a recipient and initiate transfer via matched provider.
     try {
-      const recipientName = advertiser.fullName || bank.accountName || 'Pamba User'
+      const recipientName = advertiser?.fullName || bank.accountName || 'Pamba User'
       
       if (activationPaymentProvider === 'monnify') {
         // Handle Monnify withdrawal via Monnify disbursement API

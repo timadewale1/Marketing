@@ -301,8 +301,8 @@ export async function POST(req: NextRequest) {
               else if (earSnap.exists) txCollection = 'earnerTransactions'
               if (txCollection) {
                 try {
-                await dbAdminInstance.collection(txCollection).add({
-                  userId: uid,
+                  await dbAdminInstance.collection(txCollection).add({
+                    userId: uid,
                     type: 'vtpass_purchase',
                     amount: -Math.abs(paidAmount || 0),
                     status: 'completed',
@@ -333,14 +333,25 @@ export async function POST(req: NextRequest) {
       try {
         const { dbAdmin } = await initFirebaseAdmin()
         let adminProfilePath = `/admin/earners/${actorUserId}`
+        let actorName = 'User'
         if (dbAdmin) {
           const advSnap = await dbAdmin.collection('advertisers').doc(String(actorUserId)).get()
-          if (advSnap.exists) adminProfilePath = `/admin/advertisers/${actorUserId}`
+          if (advSnap.exists) {
+            const advData = advSnap.data() as { fullName?: string; name?: string; businessName?: string; companyName?: string }
+            actorName = String(advData.fullName || advData.name || advData.businessName || advData.companyName || 'Advertiser').trim()
+            adminProfilePath = `/admin/advertisers/${actorUserId}`
+          } else {
+            const earnerSnap = await dbAdmin.collection('earners').doc(String(actorUserId)).get()
+            if (earnerSnap.exists) {
+              const earnerData = earnerSnap.data() as { fullName?: string; name?: string }
+              actorName = String(earnerData.fullName || earnerData.name || 'Earner').trim()
+            }
+          }
         }
         sendAdminActionEmail({
-          subject: `Bills purchase â€” â‚¦${paidAmount}`,
+          subject: `Bills purchase - ₦${paidAmount.toLocaleString()}`,
           title: 'Bills purchase completed',
-          message: `User ${actorUserId} completed a bills purchase for service ${serviceID} (â‚¦${paidAmount}).`,
+          message: `${actorName} completed a bills purchase for service ${serviceID} (₦${paidAmount.toLocaleString()}).`,
           adminPath: adminProfilePath,
         }).catch((error) => {
           console.error('Failed to send admin bills email', error)
