@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { getActivationAttemptDocId } from '@/lib/activation-attempts'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { extractMonnifyReferenceCandidates, processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
+import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { runRecoverySweep } from '@/lib/recovery-sweep'
 
 /**
@@ -34,8 +35,7 @@ async function findActivationUserByReferences(
   collectionName: 'advertisers' | 'earners',
   references: string[]
 ) {
-  const fields: Array<'activationReference' | 'pendingActivationReference' | 'pendingActivationReferences'> = [
-    'activationReference',
+  const fields: Array<'pendingActivationReference' | 'pendingActivationReferences'> = [
     'pendingActivationReference',
     'pendingActivationReferences',
   ]
@@ -127,6 +127,33 @@ async function findActivationAttemptByReferences(
   return null
 }
 
+async function findPendingActivationUserByEmailAndAmount(
+  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
+  collectionName: 'advertisers' | 'earners',
+  email: string,
+  amount: number
+) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!normalizedEmail || amount < 2000) return null
+
+  const snap = await dbAdmin.collection(collectionName)
+    .where('email', '==', normalizedEmail)
+    .limit(5)
+    .get()
+
+  for (const doc of snap.docs) {
+    const data = doc.data()
+    const hasPendingReference = Boolean(
+      data.pendingActivationReference ||
+      (Array.isArray(data.pendingActivationReferences) && data.pendingActivationReferences.length > 0)
+    )
+    if (data.activated || !hasPendingReference) continue
+    return doc
+  }
+
+  return null
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()
@@ -171,6 +198,17 @@ export async function POST(req: NextRequest) {
         reference,
         status,
         amount,
+      })
+      await logPaymentLifecycle({
+        scope: Number(amount || 0) >= 2000 ? 'activation' : 'wallet_funding',
+        status: 'webhook_received',
+        source: 'webhooks/monnify/transaction',
+        provider: 'monnify',
+        email: customerEmail,
+        reference: String(reference || ''),
+        references: referenceCandidates,
+        amount: Number(amount || 0),
+        details: { webhookStatus: String(status || ''), eventType: String(eventType || '') },
       })
 
       // Handle transaction completion - process activation and wallet funding
@@ -229,6 +267,19 @@ export async function POST(req: NextRequest) {
                 3,
                 referenceCandidates
               )
+              await logPaymentLifecycle({
+                scope: 'wallet_funding',
+                status: 'webhook_processed',
+                source: 'webhooks/monnify/transaction',
+                provider: 'monnify',
+                role: 'advertiser',
+                userId: String(txData.userId || ''),
+                email: customerEmail,
+                reference: String(txData.reference || referenceCandidates[0] || reference || ''),
+                references: referenceCandidates,
+                amount: Number(txData.amount || 0),
+                transactionId: matchedAdvertiserWalletTxDoc.id,
+              })
               console.log('[webhook][monnify][transaction] wallet funding processed successfully')
             } catch (fundingError) {
               console.error('[webhook][monnify][transaction] wallet funding failed:', fundingError)
@@ -262,6 +313,19 @@ export async function POST(req: NextRequest) {
                   3,
                   referenceCandidates
                 )
+                await logPaymentLifecycle({
+                  scope: 'wallet_funding',
+                  status: 'webhook_processed',
+                  source: 'webhooks/monnify/transaction',
+                  provider: 'monnify',
+                  role: 'earner',
+                  userId: String(txData.userId || ''),
+                  email: customerEmail,
+                  reference: String(txData.reference || referenceCandidates[0] || reference || ''),
+                  references: referenceCandidates,
+                  amount: Number(txData.amount || 0),
+                  transactionId: matchedEarnerWalletTxDoc.id,
+                })
                 console.log('[webhook][monnify][transaction] earner wallet funding processed successfully')
               } catch (fundingError) {
                 console.error('[webhook][monnify][transaction] earner wallet funding failed:', fundingError)
@@ -269,24 +333,60 @@ export async function POST(req: NextRequest) {
             } else {
               // Check if this is an activation payment (advertiser first, then earner)
               const advertiserDoc = await findActivationUserByReferences(dbAdmin, 'advertisers', referenceCandidates)
+              const matchedAdvertiserDoc = advertiserDoc || await findPendingActivationUserByEmailAndAmount(
+                dbAdmin,
+                'advertisers',
+                customerEmail,
+                Number(amount || 0)
+              )
 
-              if (advertiserDoc) {
-                console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
+              if (matchedAdvertiserDoc) {
+                console.log('[webhook][monnify][transaction] processing activation for advertiser', matchedAdvertiserDoc.id)
 
                 try {
-                  await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
-                  console.log('[webhook][monnify][transaction] activation processed successfully')
+                    await processActivationWithRetry(matchedAdvertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await logPaymentLifecycle({
+                      scope: 'activation',
+                      status: 'webhook_processed',
+                      source: 'webhooks/monnify/transaction',
+                      provider: 'monnify',
+                      role: 'advertiser',
+                      userId: matchedAdvertiserDoc.id,
+                      email: customerEmail,
+                      reference: referenceCandidates[0] || String(reference || ''),
+                      references: referenceCandidates,
+                      amount: Number(amount || 0),
+                    })
+                    console.log('[webhook][monnify][transaction] activation processed successfully')
                 } catch (activationError) {
                   console.error('[webhook][monnify][transaction] activation failed:', activationError)
                 }
               } else {
                 const earnerDoc = await findActivationUserByReferences(dbAdmin, 'earners', referenceCandidates)
+                const matchedEarnerDoc = earnerDoc || await findPendingActivationUserByEmailAndAmount(
+                  dbAdmin,
+                  'earners',
+                  customerEmail,
+                  Number(amount || 0)
+                )
 
-                if (earnerDoc) {
-                  console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
+                if (matchedEarnerDoc) {
+                  console.log('[webhook][monnify][transaction] processing activation for earner', matchedEarnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await processActivationWithRetry(matchedEarnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await logPaymentLifecycle({
+                      scope: 'activation',
+                      status: 'webhook_processed',
+                      source: 'webhooks/monnify/transaction',
+                      provider: 'monnify',
+                      role: 'earner',
+                      userId: matchedEarnerDoc.id,
+                      email: customerEmail,
+                      reference: referenceCandidates[0] || String(reference || ''),
+                      references: referenceCandidates,
+                      amount: Number(amount || 0),
+                    })
                     console.log('[webhook][monnify][transaction] activation processed successfully')
                   } catch (activationError) {
                     console.error('[webhook][monnify][transaction] activation failed:', activationError)
@@ -323,6 +423,19 @@ export async function POST(req: NextRequest) {
                           completedAt: admin.firestore.FieldValue.serverTimestamp(),
                           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         }, { merge: true })
+                        await logPaymentLifecycle({
+                          scope: 'activation',
+                          status: 'matched',
+                          source: 'webhooks/monnify/transaction',
+                          provider: 'monnify',
+                          role: attemptedRole,
+                          userId: attemptedUserId,
+                          email: customerEmail,
+                          reference: referenceCandidates[0] || String(reference || ''),
+                          references: referenceCandidates,
+                          amount: Number(amount || 0),
+                          details: { attemptId: activationAttemptDoc.id },
+                        })
                         console.log('[webhook][monnify][transaction] activation processed successfully from attempt record')
                       } catch (activationError) {
                         console.error('[webhook][monnify][transaction] activation failed from attempt record:', activationError)

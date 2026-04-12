@@ -47,6 +47,32 @@ type WalletCandidate = {
   currentBalance: number;
 };
 
+type StaleActivationItem = {
+  id: string;
+  userId: string;
+  role: string;
+  email: string;
+  name: string;
+  provider: string;
+  status: string;
+  reference: string;
+  references: string[];
+  attemptedAt: string | null;
+  staleMinutes: number | null;
+};
+
+type StaleWalletItem = {
+  id: string;
+  userId: string;
+  amount: number;
+  provider: string;
+  reference: string;
+  references: string[];
+  verificationState: string;
+  createdAt: string | null;
+  staleMinutes: number | null;
+};
+
 function getVerificationBadge(state: VerificationState) {
   if (state === "paid") {
     return { label: "Payment verified", tone: "green" as const };
@@ -63,6 +89,8 @@ export default function AdminRecoveryPage() {
   const [recoveringIds, setRecoveringIds] = useState<string[]>([]);
   const [activationCandidates, setActivationCandidates] = useState<ActivationCandidate[]>([]);
   const [walletCandidates, setWalletCandidates] = useState<WalletCandidate[]>([]);
+  const [staleActivations, setStaleActivations] = useState<StaleActivationItem[]>([]);
+  const [staleWallets, setStaleWallets] = useState<StaleWalletItem[]>([]);
   const [query, setQuery] = useState("");
 
   const load = async (showToast = false) => {
@@ -77,6 +105,15 @@ export default function AdminRecoveryPage() {
       }
       setActivationCandidates(data.activationCandidates || []);
       setWalletCandidates(data.walletCandidates || []);
+
+      const reconciliationResponse = await fetch("/api/admin/reconciliation", {
+        credentials: "include",
+      });
+      const reconciliationData = await reconciliationResponse.json().catch(() => ({}));
+      if (reconciliationResponse.ok && reconciliationData.success) {
+        setStaleActivations(reconciliationData.staleActivations || []);
+        setStaleWallets(reconciliationData.staleWallets || []);
+      }
 
       if (showToast) {
         toast.success("Recovery data refreshed");
@@ -207,6 +244,47 @@ export default function AdminRecoveryPage() {
           />
         </div>
       </SectionCard>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionCard
+          title="Stale pending items"
+          description="Pending activation attempts and wallet funding records older than 15 minutes. These are the records most likely to need investigation."
+        >
+          {loading ? (
+            <div className="h-40 animate-pulse rounded-2xl bg-stone-100" />
+          ) : staleActivations.length === 0 && staleWallets.length === 0 ? (
+            <EmptyState
+              title="No stale pending items"
+              description="Nothing has been pending long enough to be considered stale right now."
+            />
+          ) : (
+            <div className="space-y-3">
+              {staleActivations.slice(0, 5).map((item) => (
+                <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge label="Activation" tone="amber" />
+                    <StatusBadge label={item.role || "unknown"} tone="blue" />
+                    <StatusBadge label={`${item.staleMinutes || 0} min old`} tone="red" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-stone-900">{item.name || item.email || item.userId}</p>
+                  <p className="mt-1 break-all text-xs text-stone-500">{item.reference || item.references[0] || "No reference"}</p>
+                </div>
+              ))}
+              {staleWallets.slice(0, 5).map((item) => (
+                <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge label="Wallet funding" tone="green" />
+                    <StatusBadge label={item.provider || "unknown"} tone="blue" />
+                    <StatusBadge label={`${item.staleMinutes || 0} min old`} tone="red" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-stone-900">â‚¦{item.amount.toLocaleString()}</p>
+                  <p className="mt-1 break-all text-xs text-stone-500">{item.reference || item.references[0] || "No reference"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <SectionCard

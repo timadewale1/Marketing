@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { getBankDetails } from '@/lib/bank-details'
 import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
 import monnify from '@/services/monnify'
+import { sendAdminActionEmail } from '@/lib/mailer'
 
 export async function POST(req: Request) {
   try {
@@ -133,6 +134,15 @@ export async function POST(req: Request) {
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+    })
+
+    sendAdminActionEmail({
+      subject: `Earner withdrawal request â€” â‚¦${amount}`,
+      title: 'Earner withdrawal request',
+      message: `Earner ${userId} requested withdrawal of â‚¦${amount}.`,
+      adminPath: `/admin/earners/${userId}`,
+    }).catch((error) => {
+      console.error('Failed to send admin withdrawal email', error)
     })
 
     // Attempt transfer via matched provider

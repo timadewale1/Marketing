@@ -453,3 +453,85 @@ export async function sendNewTaskNotificationToEarners({
     failed: failures.length,
   }
 }
+
+export async function sendEarnerStrikeEmail({
+  email,
+  name,
+  strikeCount,
+  reason,
+  suspended = false,
+}: {
+  email: string
+  name?: string
+  strikeCount: number
+  reason?: string | null
+  suspended?: boolean
+}) {
+  await sendEmail({
+    to: email,
+    subject: suspended ? "Your Pamba earner account has been suspended" : `Strike ${strikeCount} recorded on your Pamba account`,
+    html: wrapEmail(
+      suspended ? "Account suspended" : "Strike recorded",
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>Your earner account currently has <strong>${strikeCount} strike${strikeCount === 1 ? "" : "s"}</strong>.</p>
+        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+        ${
+          suspended
+            ? "<p>Your account has reached the strike limit and is now suspended. You will not be able to participate in tasks until an admin reviews and unsuspends the account.</p>"
+            : "<p>Please review future submissions carefully. Repeated rejected proofs can lead to suspension at 5 strikes.</p>"
+        }
+      `,
+      "Open my dashboard",
+      `${APP_URL}/earner`
+    ),
+  })
+}
+
+export async function sendEarnerStrikeRemovedEmail({
+  email,
+  name,
+  strikeCount,
+}: {
+  email: string
+  name?: string
+  strikeCount: number
+}) {
+  await sendEmail({
+    to: email,
+    subject: "A strike was removed from your Pamba account",
+    html: wrapEmail(
+      "Strike removed",
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>One of your previous rejected submissions has now been verified, so your strike count has been reduced.</p>
+        <p>Your current strike count is <strong>${strikeCount}</strong>.</p>
+      `,
+      "Open my dashboard",
+      `${APP_URL}/earner`
+    ),
+  })
+}
+
+export async function sendAdminActionEmail({
+  subject,
+  title,
+  message,
+  adminPath,
+}: {
+  subject: string
+  title: string
+  message: string
+  adminPath: string
+}) {
+  await sendEmail({
+    to: ADMIN_INBOX_EMAIL,
+    subject,
+    html: wrapEmail(
+      title,
+      `<div style="white-space: pre-wrap;">${message}</div>`,
+      "Open admin page",
+      `${APP_URL}${adminPath.startsWith("/") ? adminPath : `/${adminPath}`}`
+    ),
+  })
+}

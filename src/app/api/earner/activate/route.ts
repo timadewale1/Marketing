@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { extractMonnifyReferenceCandidates, runFullActivationFlow } from '@/lib/paymentProcessing'
+import { confirmMonnifyPaymentWithRetries } from '@/lib/monnify-confirmation'
+import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 
 export async function POST(req: Request) {
   try {
@@ -10,8 +13,22 @@ export async function POST(req: Request) {
   const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
   const userId = body?.userId as string | undefined
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
+  let referenceCandidates = provider === 'monnify'
+    ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
+    : [reference]
 
     if (provider === 'monnify') {
+      await logPaymentLifecycle({
+        scope: 'activation',
+        status: 'callback_received',
+        source: 'earner/activate',
+        provider,
+        role: 'earner',
+        userId: userId || null,
+        reference,
+        references: referenceCandidates,
+        amount: 2000,
+      })
       try {
         // For Monnify SDK payments, trust the onComplete callback
         // The SDK only fires onComplete after successful payment
@@ -30,28 +47,16 @@ export async function POST(req: Request) {
           }
         }
 
-        // CRITICAL: Add server-side verification as fallback
-        // This ensures payment actually succeeded even if SDK callback is trusted
         try {
-          const { verifyTransaction } = await import('@/services/monnify')
-          const verificationResult = await verifyTransaction(reference)
-
-          type MonnifyResponseBody = {
-            paymentStatus?: string
-            amount?: number | string
-          }
-
-          const responseBody = verificationResult?.responseBody as MonnifyResponseBody | undefined
-
-          const paymentStatus = String(responseBody?.paymentStatus || '').toUpperCase()
-          if (!verificationResult?.requestSuccessful || (paymentStatus !== 'PAID' && paymentStatus !== 'SUCCESSFUL')) {
-            console.warn('Monnify server verification not yet confirmed, proceeding with SDK trust:', verificationResult)
+          const confirmation = await confirmMonnifyPaymentWithRetries(reference, referenceCandidates)
+          referenceCandidates = confirmation.references
+          if (!confirmation.confirmed) {
+            console.warn('Monnify server verification not yet confirmed, keeping activation pending:', confirmation.paymentStatus)
           } else {
             console.log('Monnify server verification successful')
           }
         } catch (verifyError) {
-          console.warn('Monnify server verification failed, proceeding with SDK trust:', verifyError)
-          // Continue with SDK trust as fallback, but log the issue
+          console.warn('Monnify server verification failed, keeping activation pending:', verifyError)
         }
       } catch (e) {
         console.error('Monnify verification error', e)
@@ -77,23 +82,87 @@ export async function POST(req: Request) {
     }
     */
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
+    if (provider === 'monnify') {
+      const confirmation = await confirmMonnifyPaymentWithRetries(reference, referenceCandidates)
+      referenceCandidates = confirmation.references
 
-    const referenceCandidates = provider === 'monnify'
-      ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
-      : [reference]
+      const { admin, dbAdmin } = await initFirebaseAdmin()
+      if (!admin || !dbAdmin) {
+        return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
+      }
+
+      await dbAdmin.collection('earners').doc(userId).set({
+        pendingActivationReference: referenceCandidates[0] || reference,
+        pendingActivationReferences: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
+        pendingActivationProvider: 'monnify',
+        activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      await dbAdmin.collection('activationAttempts').doc(`earner_${userId}`).set({
+        reference: referenceCandidates[0] || reference,
+        references: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
+        status: 'pending',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      if (!confirmation.confirmed) {
+        await logPaymentLifecycle({
+          scope: 'activation',
+          status: 'pending_confirmation',
+          source: 'earner/activate',
+          provider,
+          role: 'earner',
+          userId,
+          reference,
+          references: referenceCandidates,
+          amount: 2000,
+          details: { paymentStatus: confirmation.paymentStatus || null },
+        })
+        return NextResponse.json({
+          success: true,
+          completed: false,
+          pendingConfirmation: true,
+          message: 'Payment received. Awaiting Monnify confirmation.',
+          references: referenceCandidates,
+        })
+      }
+    }
 
     // Process activation with retry mechanism
     try {
       const result = await runFullActivationFlow(userId, reference, provider, 'earner', referenceCandidates)
       
       if (result && result.success) {
+        await logPaymentLifecycle({
+          scope: 'activation',
+          status: result.alreadyActivated ? 'matched' : 'completed',
+          source: 'earner/activate',
+          provider,
+          role: 'earner',
+          userId,
+          reference,
+          references: referenceCandidates,
+          amount: 2000,
+        })
         if (result.alreadyActivated) {
-          return NextResponse.json({ success: true, message: 'Already activated' })
+          return NextResponse.json({ success: true, completed: true, message: 'Already activated' })
         }
-        return NextResponse.json({ success: true, message: 'Activation successful' })
+        return NextResponse.json({ success: true, completed: true, message: 'Activation successful' })
       }
     } catch (activationError) {
       console.error('Activation processing failed:', activationError)
+      await logPaymentLifecycle({
+        scope: 'activation',
+        status: 'failed',
+        source: 'earner/activate',
+        provider,
+        role: 'earner',
+        userId,
+        reference,
+        references: referenceCandidates,
+        amount: 2000,
+        details: { message: activationError instanceof Error ? activationError.message : String(activationError) },
+      })
       return NextResponse.json({ 
         success: false, 
         message: 'Activation processing failed - please contact support with reference: ' + reference 

@@ -119,6 +119,7 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [campaigns, setCampaigns] = useState<CampaignStub[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [strikeCount, setStrikeCount] = useState<number>(0);
 
   useEffect(() => {
     const load = async () => {
@@ -146,6 +147,7 @@ export default function ClientEarnerDetail({ id }: Props) {
           createdAtMs: toMillis(earnerData.createdAt),
           bank: earnerData.bank as Earner["bank"],
         });
+        setStrikeCount(Number(earnerData.strikeCount || 0));
 
         const [transactionsSnap, withdrawalsSnap, submissionsSnap] = await Promise.all([
           getDocs(
@@ -366,6 +368,16 @@ export default function ClientEarnerDetail({ id }: Props) {
               <CircleSlash className="h-4 w-4" />
               Suspend
             </Button>
+          ) : earner.status === "suspended" ? (
+            <Button
+              variant="outline"
+              className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              disabled={updatingStatus}
+              onClick={() => updateStatus("active")}
+            >
+              <CheckCheck className="h-4 w-4" />
+              Unsuspend
+            </Button>
           ) : (
             <p className="max-w-xs text-sm leading-6 text-stone-500">
               Activation stays self-service for earners. Admin can inspect or suspend only.
@@ -413,6 +425,13 @@ export default function ClientEarnerDetail({ id }: Props) {
           hint={`${summary.rejectedSubmissions} rejected submissions`}
           icon={Gift}
           tone="blue"
+        />
+        <MetricCard
+          label="Strike count"
+          value={strikeCount}
+          hint={strikeCount >= 5 ? "Account suspended" : "Auto-suspends at 5 strikes"}
+          icon={CircleSlash}
+          tone={strikeCount >= 5 ? "rose" : strikeCount > 0 ? "amber" : undefined}
         />
       </div>
 
@@ -565,7 +584,7 @@ export default function ClientEarnerDetail({ id }: Props) {
                         onClick={() => reviewSubmission(submission, "Verified")}
                       >
                         <CheckCheck className="h-4 w-4" />
-                        Verify
+                        {submission.status === "Rejected" ? "Re-verify" : "Verify"}
                       </Button>
                     ) : null}
                     {submission.status !== "Rejected" ? (

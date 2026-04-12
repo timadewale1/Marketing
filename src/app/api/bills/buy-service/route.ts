@@ -4,11 +4,13 @@ import * as paystack from '@/services/paystack'
 import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
+import { sendAdminActionEmail } from '@/lib/mailer'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
+    let actorUserId: string | undefined = userId
 
     if (!serviceID) return NextResponse.json({ ok: false, message: 'serviceID is required' }, { status: 400 })
 
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
       }
 
       const db = dbAdmin as import('firebase-admin').firestore.Firestore
+      actorUserId = verifiedUid
       const amountN = Number(payload.amount || 0)
       if (!amountN || amountN <= 0) return NextResponse.json({ ok: false, message: 'Invalid amount' }, { status: 400 })
 
@@ -241,15 +244,15 @@ export async function POST(req: NextRequest) {
             paystackReference: paystackReference || null,
             provider: provider || null,
             response: vtRes.data || null,
-            userId: userId || null,
+            userId: actorUserId || null,
             vtpassFailed: true,
             refundStatus: refundStatus,
             refundError: refundError,
             createdAt: new Date().toISOString(),
           })
         }
-      } catch (e) {
-        console.warn('Failed to save transaction', e)
+      } catch (error) {
+        console.warn('Failed to save transaction', error)
       }
       
       const errorMsg = refundStatus === 'initiated' 
@@ -298,8 +301,8 @@ export async function POST(req: NextRequest) {
               else if (earSnap.exists) txCollection = 'earnerTransactions'
               if (txCollection) {
                 try {
-                  await dbAdminInstance.collection(txCollection).add({
-                    userId: uid,
+                await dbAdminInstance.collection(txCollection).add({
+                  userId: uid,
                     type: 'vtpass_purchase',
                     amount: -Math.abs(paidAmount || 0),
                     status: 'completed',
@@ -314,7 +317,7 @@ export async function POST(req: NextRequest) {
                   console.warn('Failed to create user tx for vtpass purchase', e)
                 }
               }
-            } catch (e) {
+            } catch {
               // ignore token verification errors for non-authenticated requests
             }
           }
@@ -324,6 +327,27 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.warn('Failed to save transaction', e)
+    }
+
+    if (actorUserId) {
+      try {
+        const { dbAdmin } = await initFirebaseAdmin()
+        let adminProfilePath = `/admin/earners/${actorUserId}`
+        if (dbAdmin) {
+          const advSnap = await dbAdmin.collection('advertisers').doc(String(actorUserId)).get()
+          if (advSnap.exists) adminProfilePath = `/admin/advertisers/${actorUserId}`
+        }
+        sendAdminActionEmail({
+          subject: `Bills purchase â€” â‚¦${paidAmount}`,
+          title: 'Bills purchase completed',
+          message: `User ${actorUserId} completed a bills purchase for service ${serviceID} (â‚¦${paidAmount}).`,
+          adminPath: adminProfilePath,
+        }).catch((error) => {
+          console.error('Failed to send admin bills email', error)
+        })
+      } catch (error) {
+        console.warn('Failed to resolve bills purchase user type', error)
+      }
     }
 
     return NextResponse.json({ ok: true, result: vtRes.data })

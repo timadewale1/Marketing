@@ -139,3 +139,36 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
     }
   }
 });
+
+export const retryPendingMonnifyPayments = onSchedule("every 5 minutes", async () => {
+  const appBaseUrl =
+    process.env.APP_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://www.pambaadverts.com";
+  const cronSecret = process.env.CRON_SECRET;
+
+  const targetUrl = `${appBaseUrl.replace(/\/$/, "")}/api/internal/recovery-sweep`;
+
+  try {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (cronSecret) {
+      headers.Authorization = `Bearer ${cronSecret}`;
+    }
+
+    const response = await fetch(targetUrl, {
+      method: "GET",
+      headers,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    console.log("retryPendingMonnifyPayments completed", {
+      ok: response.ok,
+      status: response.status,
+      payload,
+    });
+  } catch (error) {
+    console.error("retryPendingMonnifyPayments failed", error);
+  }
+});

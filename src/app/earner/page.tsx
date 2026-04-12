@@ -29,6 +29,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  AlertTriangle,
   
   Menu,
   ChevronDown,
@@ -66,6 +67,8 @@ export default function EarnerDashboard() {
   })
   const [activated, setActivated] = useState<boolean>(false)
   const [needsReactivation, setNeedsReactivation] = useState<boolean>(false)
+  const [strikeCount, setStrikeCount] = useState<number>(0)
+  const [accountStatus, setAccountStatus] = useState<string>('active')
 
   const [totalEarned, setTotalEarned] = useState(0)
   const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
@@ -115,6 +118,8 @@ export default function EarnerDashboard() {
           const nextActivated = !!d.activated
           setActivated(nextActivated)
           setNeedsReactivation(!!d.needsReactivation)
+          setStrikeCount(Number(d.strikeCount || 0))
+          setAccountStatus(String(d.status || 'active'))
 
           if (
             previousActivatedRef.current === false &&
@@ -239,6 +244,14 @@ export default function EarnerDashboard() {
     setShowActivationPaymentSelector(true)
   }
 
+  const handleGoToTasks = () => {
+    if (accountStatus === 'suspended') {
+      toast.error('Your account is suspended. Please contact support for review.')
+      return
+    }
+    router.push("/earner/campaigns")
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
       {/* Header */}
@@ -295,13 +308,22 @@ export default function EarnerDashboard() {
                       Withdraw
                     </Button>
                     {activated ? (
-                      <Button size="sm" variant="outline" className="flex-none" onClick={() => router.push("/earner/campaigns")}>Perform Tasks</Button>
+                      <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
                     ) : needsReactivation ? (
                       <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
                     ) : (
                       <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
                     )}
                   </div>
+                  {accountStatus === 'suspended' ? (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      Your account is currently suspended. Please contact support for review.
+                    </div>
+                  ) : strikeCount > 0 ? (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      You have {strikeCount} strike{strikeCount === 1 ? '' : 's'}. Repeated rejected submissions can lead to suspension.
+                    </div>
+                  ) : null}
               </div>
             </CardContent>
           </Card>
@@ -406,6 +428,24 @@ export default function EarnerDashboard() {
                 </p>
                 <p className="text-xs text-stone-500 mt-1">
                   Paid leads: {stats.leadsPaidFor}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Strike Count */}
+          <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
+            <CardContent className="p-6 flex items-center gap-5">
+              <div className={`p-3 rounded-2xl ${accountStatus === 'suspended' ? 'bg-red-200' : strikeCount > 0 ? 'bg-amber-200' : 'bg-stone-200'}`}>
+                <AlertTriangle size={28} className={`${accountStatus === 'suspended' ? 'text-red-800' : strikeCount > 0 ? 'text-amber-800' : 'text-stone-700'}`} />
+              </div>
+              <div>
+                <h3 className="text-sm text-stone-600 font-medium">Strike Count</h3>
+                <p className="text-2xl font-bold text-stone-900">
+                  {strikeCount}
+                </p>
+                <p className={`text-xs mt-1 ${accountStatus === 'suspended' ? 'text-red-600' : strikeCount > 0 ? 'text-amber-600' : 'text-stone-500'}`}>
+                  {accountStatus === 'suspended' ? 'Account suspended' : 'Suspends at 5 strikes'}
                 </p>
               </div>
             </CardContent>
@@ -614,8 +654,12 @@ export default function EarnerDashboard() {
               })
               const data = await res.json()
               if (res.ok && data.success) {
-                toast.success('Activation payment received. Your account will be activated within 1 hour. Please log out and log in again shortly.')
-                setActivated(true)
+                if (data.pendingConfirmation) {
+                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                } else {
+                  toast.success('Activation successful')
+                  setActivated(true)
+                }
               } else {
                 toast.error(data?.message || 'Activation failed')
               }

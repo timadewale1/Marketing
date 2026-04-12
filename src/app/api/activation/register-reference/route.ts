@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { recordActivationAttempt } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +51,18 @@ export async function POST(req: Request) {
       provider,
       reference,
       references: [reference],
+    })
+    await logPaymentLifecycle({
+      scope: "activation",
+      status: "registered",
+      source: "activation/register-reference",
+      provider,
+      role,
+      userId,
+      email: String(userSnap.data()?.email || ""),
+      reference,
+      references: [reference],
+      amount: 2000,
     })
 
     return NextResponse.json({ success: true })

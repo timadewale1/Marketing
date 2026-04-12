@@ -529,8 +529,12 @@ export default function AdvertiserDashboard() {
                 })
                 const data = await res.json().catch(() => ({}))
                 if (res.ok && data?.success) {
-                  toast.success('Activation payment received. Your account will be activated within 1 hour. Please log out and log in again shortly.')
-                  setActivated(true)
+                  if (data.pendingConfirmation) {
+                    toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                  } else {
+                    toast.success('Activation successful')
+                    setActivated(true)
+                  }
                 } else {
                   toast.error(data?.message || 'Activation failed')
                 }

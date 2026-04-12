@@ -159,10 +159,14 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
                 let data: Record<string, unknown> = {}
                 try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
                 if (!res.ok) throw new Error(String(data?.message || `Status ${res.status}`))
-                toast.success('Wallet funded successfully')
+                if (data.pendingConfirmation) {
+                  toast.success('Payment received. Wallet balance will update after Monnify confirms it.')
+                } else {
+                  toast.success('Wallet funded successfully')
+                }
                 try { localStorage.removeItem('pamba_pending_payment') } catch {}
                 onClose()
-                if (onSuccess) onSuccess()
+                if (!data.pendingConfirmation && onSuccess) onSuccess()
               } catch (err) {
                 console.error('verify-payment failed', err)
                 toast.error('Wallet funding verification failed')
@@ -198,10 +202,14 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
                 let data: Record<string, unknown> = {}
                 try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
                 if (!res.ok) throw new Error(String(data?.message || `Status ${res.status}`))
-                toast.success('Wallet funded successfully')
+                if (data.pendingConfirmation) {
+                  toast.success('Payment received. Wallet balance will update after Monnify confirms it.')
+                } else {
+                  toast.success('Wallet funded successfully')
+                }
                 try { localStorage.removeItem('pamba_pending_payment') } catch {}
                 onClose()
-                if (onSuccess) onSuccess()
+                if (!data.pendingConfirmation && onSuccess) onSuccess()
               } catch (err) {
                 console.error('verify-payment failed', err)
                 toast.error('Wallet funding verification failed')

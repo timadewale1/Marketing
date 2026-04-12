@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
 import monnify from '@/services/monnify'
+import { sendAdminActionEmail } from '@/lib/mailer'
 
 export async function POST(req: Request) {
   try {
@@ -117,6 +118,15 @@ export async function POST(req: Request) {
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+    })
+
+    sendAdminActionEmail({
+      subject: `Advertiser withdrawal request â€” â‚¦${amount}`,
+      title: 'Advertiser withdrawal request',
+      message: `Advertiser ${userId} requested withdrawal of â‚¦${amount}.`,
+      adminPath: `/admin/advertisers/${userId}`,
+    }).catch((error) => {
+      console.error('Failed to send admin withdrawal email', error)
     })
 
     // After the DB transaction, attempt to create a recipient and initiate transfer via matched provider.

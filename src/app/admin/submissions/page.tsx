@@ -227,7 +227,7 @@ export default function SubmissionsPage() {
                     ) : null}
                     {submission.status !== "Verified" ? (
                       <Button className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Verified")}>
-                        Verify
+                        {submission.status === "Rejected" ? "Re-verify" : "Verify"}
                       </Button>
                     ) : null}
                     {submission.status !== "Rejected" ? (

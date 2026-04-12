@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireAdminSession } from '@/lib/admin-session'
+import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
 
 interface Submission {
   status?: string
@@ -24,8 +25,15 @@ interface Campaign {
   [key: string]: unknown
 }
 
-export async function POST(req: Request) {
-  await requireAdminSession()
+type StrikeEmailPayload =
+  | { type: 'added'; email: string; name?: string; strikeCount: number; reason?: string | null; suspended: boolean }
+  | { type: 'removed'; email: string; name?: string; strikeCount: number }
+
+export async function POST(req: Request): Promise<Response> {
+  const sessionResult = await requireAdminSession()
+  if ('errorResponse' in sessionResult) {
+    return sessionResult.errorResponse as Response
+  }
   const body = await req.json()
   const { action, rejectionReason, submissionId, userId: bodyUserId, campaignId: bodyCampaignId } = body
   const firebaseAdmin = await initFirebaseAdmin()
@@ -36,6 +44,7 @@ export async function POST(req: Request) {
   const admin = await import('firebase-admin')
   const now = new Date()
   const adminUid = req.headers.get('x-admin-uid') || 'system'
+  let strikeEmailPayload: StrikeEmailPayload | null = null
 
   try {
     // Try direct lookup in possible collections
@@ -65,6 +74,12 @@ export async function POST(req: Request) {
     }
     const submission = subSnap.data() as Submission
     const prevStatus = submission.status
+    const earnerRef = adminDb.collection('earners').doc(String(submission.userId || bodyUserId || ''))
+    const earnerSnap = await earnerRef.get()
+    const earnerData = earnerSnap.data() as { strikeCount?: number; email?: string; name?: string; fullName?: string; status?: string } | undefined
+    const currentStrikeCount = Number(earnerData?.strikeCount || 0)
+    const earnerEmail = String(earnerData?.email || '').trim()
+    const earnerName = String(earnerData?.fullName || earnerData?.name || '').trim() || undefined
 
     await adminDb.runTransaction(async (t) => {
       if (action === 'Verified') {
@@ -135,6 +150,22 @@ export async function POST(req: Request) {
           rejectionReason: null,
           updatedAt: now,
         })
+
+        if (prevStatus === 'Rejected') {
+          const nextStrikeCount = Math.max(0, currentStrikeCount - 1)
+          t.set(earnerRef, {
+            strikeCount: nextStrikeCount,
+            lastStrikeUpdatedAt: now,
+          }, { merge: true })
+          if (earnerEmail) {
+            strikeEmailPayload = {
+              type: 'removed',
+              email: earnerEmail,
+              name: earnerName,
+              strikeCount: nextStrikeCount,
+            }
+          }
+        }
 
         // 2) Update campaign stats and budget
         const estimated = Number(campaign.estimatedLeads || 0)
@@ -239,7 +270,31 @@ export async function POST(req: Request) {
           reviewedAt: now,
           reviewedBy: adminUid,
           rejectionReason: rejectionReason || null,
+          updatedAt: now,
         })
+
+        const nextStrikeCount = currentStrikeCount + 1
+        const shouldSuspend = nextStrikeCount >= 5
+        const earnerUpdates: Record<string, unknown> = {
+          strikeCount: nextStrikeCount,
+          lastStrikeUpdatedAt: now,
+        }
+        if (shouldSuspend) {
+          earnerUpdates.status = 'suspended'
+          earnerUpdates.suspensionReason = 'Reached 5 rejected submission strikes'
+          earnerUpdates.suspendedAt = now
+        }
+        t.set(earnerRef, earnerUpdates, { merge: true })
+        if (earnerEmail) {
+          strikeEmailPayload = {
+            type: 'added',
+            email: earnerEmail,
+            name: earnerName,
+            strikeCount: nextStrikeCount,
+            reason: rejectionReason || null,
+            suspended: shouldSuspend,
+          }
+        }
 
         if (wasVerified && earnerAmount > 0) {
           if (!campaignId) throw new Error('Submission missing campaignId')
@@ -350,6 +405,27 @@ export async function POST(req: Request) {
         throw new Error('Unknown action')
       }
     })
+
+    const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
+    if (emailPayload?.type === 'added') {
+      sendEarnerStrikeEmail({
+        email: emailPayload.email,
+        name: emailPayload.name,
+        strikeCount: emailPayload.strikeCount,
+        reason: emailPayload.reason,
+        suspended: emailPayload.suspended,
+      }).catch((error) => {
+        console.error('Failed to send earner strike email', error)
+      })
+    } else if (emailPayload?.type === 'removed') {
+      sendEarnerStrikeRemovedEmail({
+        email: emailPayload.email,
+        name: emailPayload.name,
+        strikeCount: emailPayload.strikeCount,
+      }).catch((error) => {
+        console.error('Failed to send earner strike removal email', error)
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

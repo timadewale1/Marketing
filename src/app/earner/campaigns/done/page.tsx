@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 import { ArrowLeft } from "lucide-react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import toast from "react-hot-toast";
 import { getProofUrls } from "@/lib/proofs";
 
 type Submission = {
@@ -24,6 +26,8 @@ type Submission = {
 export default function DoneCampaignsPage() {
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [proofFiles, setProofFiles] = useState<Record<string, File[]>>({});
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -52,6 +56,54 @@ export default function DoneCampaignsPage() {
     });
     return () => unsub();
   }, [router]);
+
+  const uploadProofs = async (submissionId: string, files: File[]) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("You must be signed in");
+
+    return Promise.all(
+      files.map(async (file) => {
+        const storageRef = ref(storage, `earnerSubmissions/${user.uid}/resubmits/${submissionId}/${Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        return getDownloadURL(storageRef);
+      })
+    );
+  };
+
+  const handleResubmit = async (submissionId: string) => {
+    const files = proofFiles[submissionId] || [];
+    if (files.length === 0) {
+      toast.error("Select at least one new proof file");
+      return;
+    }
+
+    try {
+      setUpdatingId(submissionId);
+      const user = auth.currentUser;
+      if (!user) throw new Error("You must be signed in");
+      const token = await user.getIdToken();
+      const uploadedProofs = await uploadProofs(submissionId, files);
+      const response = await fetch(`/api/earner/submissions/${submissionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ proofUrls: uploadedProofs }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to update proof");
+      }
+      setProofFiles((current) => ({ ...current, [submissionId]: [] }));
+      toast.success("Proof updated successfully");
+    } catch (error) {
+      console.error("Failed to resubmit proof", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update proof");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -123,6 +175,36 @@ export default function DoneCampaignsPage() {
                       </div>
                     </div>
                   </div>
+                  {s.status !== "Verified" && s.status !== "Rejected" ? (
+                    <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <p className="text-sm font-medium text-stone-800">Replace proof</p>
+                      <p className="mt-1 text-xs text-stone-500">You can upload new proof files while this submission is still pending review.</p>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        className="mt-3 block w-full text-sm"
+                        onChange={(event) =>
+                          setProofFiles((current) => ({
+                            ...current,
+                            [s.id]: Array.from(event.target.files || []).slice(0, 5),
+                          }))
+                        }
+                      />
+                      <div className="mt-3 flex items-center gap-3">
+                        <Button
+                          className="bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={updatingId === s.id}
+                          onClick={() => void handleResubmit(s.id)}
+                        >
+                          {updatingId === s.id ? "Updating..." : "Update proof"}
+                        </Button>
+                        <p className="text-xs text-stone-500">
+                          {(proofFiles[s.id] || []).length > 0 ? `${(proofFiles[s.id] || []).length} file(s) selected` : "No new files selected"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </Card>
             ))}

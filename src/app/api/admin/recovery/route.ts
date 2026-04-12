@@ -244,14 +244,9 @@ export async function GET() {
       const pendingReferences = Array.isArray(data.pendingActivationReferences)
         ? data.pendingActivationReferences.map((value: unknown) => String(value)).filter(Boolean)
         : []
-      const activationReferences = Array.isArray(data.activationReferences)
-        ? data.activationReferences.map((value: unknown) => String(value)).filter(Boolean)
-        : []
       const references = [...new Set([
         ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
         ...pendingReferences,
-        ...(data.activationReference ? [String(data.activationReference)] : []),
-        ...activationReferences,
         ...(attemptInfo?.references || []),
       ])]
 
@@ -373,8 +368,6 @@ export async function POST(req: Request) {
       const references = [...new Set([
         ...(data.pendingActivationReference ? [String(data.pendingActivationReference)] : []),
         ...((Array.isArray(data.pendingActivationReferences) ? data.pendingActivationReferences : []).map((value: unknown) => String(value))),
-        ...(data.activationReference ? [String(data.activationReference)] : []),
-        ...((Array.isArray(data.activationReferences) ? data.activationReferences : []).map((value: unknown) => String(value))),
         ...normalizeReferences([
           attemptData?.reference,
           ...(Array.isArray(attemptData?.references) ? attemptData?.references : []),

@@ -19,6 +19,8 @@ type SubmissionDoc = {
 
 type EarnerDoc = {
   activated?: boolean
+  status?: string
+  strikeCount?: number
 }
 
 export async function POST(req: Request) {
@@ -66,6 +68,9 @@ export async function POST(req: Request) {
     const earner = earnerSnap.data() as EarnerDoc
     if (!earner?.activated) {
       return NextResponse.json({ success: false, message: 'Account activation is required before submitting proof' }, { status: 403 })
+    }
+    if (String(earner?.status || '').toLowerCase() === 'suspended') {
+      return NextResponse.json({ success: false, message: 'Your account is suspended. Please contact admin for review.' }, { status: 403 })
     }
 
     const campaignRef = db.collection('campaigns').doc(String(campaignId))

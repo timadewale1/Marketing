@@ -37,6 +37,10 @@ export async function POST(req: Request) {
     if (!budget || budget <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid campaign budget' }, { status: 400 })
     }
+    const costPerLead = Number(campaignData.costPerLead || 0)
+    if (costPerLead > 0 && budget < costPerLead) {
+      return NextResponse.json({ success: false, message: 'Budget cannot be less than the task amount' }, { status: 400 })
+    }
 
     const advertiserRef = db.collection('advertisers').doc(verifiedUid)
     const advertiserSnap = await advertiserRef.get()
