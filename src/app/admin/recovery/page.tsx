@@ -259,61 +259,73 @@ export default function AdminRecoveryPage() {
             />
           ) : (
             <div className="space-y-3">
-              {staleActivations.slice(0, 5).map((item) => {
-                const busy = recoveringIds.includes(item.userId);
-                return (
-                  <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="font-medium text-stone-900">{item.name || item.email || item.userId}</p>
-                          <p className="mt-1 text-sm text-stone-500">{item.email || "No email"}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <StatusBadge label={item.role || "unknown"} tone="blue" />
-                          <StatusBadge label={`${item.staleMinutes || 0} min old`} tone="red" />
-                          <StatusBadge label="Manual check" tone="amber" />
+              {staleActivations.length > 0 ? (
+                <PaginatedCardList
+                  items={staleActivations}
+                  itemsPerPage={3}
+                  renderItem={(item) => {
+                    const busy = recoveringIds.includes(item.userId);
+                    return (
+                      <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="font-medium text-stone-900">{item.name || item.email || item.userId}</p>
+                              <p className="mt-1 text-sm text-stone-500">{item.email || "No email"}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <StatusBadge label={item.role || "unknown"} tone="blue" />
+                              <StatusBadge label={`${item.staleMinutes || 0} min old`} tone="red" />
+                              <StatusBadge label="Manual check" tone="amber" />
+                            </div>
+                          </div>
+                          <div className="grid gap-3 text-sm text-stone-600 md:grid-cols-2">
+                            <div className="rounded-2xl bg-stone-50 p-3">
+                              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Latest attempt</p>
+                              <p className="mt-2 break-all text-stone-800">{item.attemptedAt || "No timestamp"}</p>
+                            </div>
+                            <div className="rounded-2xl bg-stone-50 p-3">
+                              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Reference</p>
+                              <p className="mt-2 break-all text-stone-800">{item.reference || item.references[0] || "No reference"}</p>
+                            </div>
+                          </div>
+                          <Button
+                            className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                            disabled={busy || !item.userId}
+                            onClick={() =>
+                              void runRecovery(
+                                "activate_user",
+                                { userId: item.userId, role: item.role },
+                                "User activated successfully"
+                              )
+                            }
+                          >
+                            <ShieldCheck className="h-4 w-4" />
+                            {busy ? "Activating..." : "Activate user"}
+                          </Button>
                         </div>
                       </div>
-                      <div className="grid gap-3 text-sm text-stone-600 md:grid-cols-2">
-                        <div className="rounded-2xl bg-stone-50 p-3">
-                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Latest attempt</p>
-                          <p className="mt-2 break-all text-stone-800">{item.attemptedAt || "No timestamp"}</p>
-                        </div>
-                        <div className="rounded-2xl bg-stone-50 p-3">
-                          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Reference</p>
-                          <p className="mt-2 break-all text-stone-800">{item.reference || item.references[0] || "No reference"}</p>
-                        </div>
-                      </div>
-                      <Button
-                        className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                        disabled={busy || !item.userId}
-                        onClick={() =>
-                          void runRecovery(
-                            "activate_user",
-                            { userId: item.userId, role: item.role },
-                            "User activated successfully"
-                          )
-                        }
-                      >
-                        <ShieldCheck className="h-4 w-4" />
-                        {busy ? "Activating..." : "Activate user"}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              {staleWallets.slice(0, 5).map((item) => (
+                    );
+                  }}
+                />
+              ) : null}
+              {staleWallets.length > 0 ? (
+                <PaginatedCardList
+                  items={staleWallets}
+                  itemsPerPage={3}
+                  renderItem={(item) => (
                 <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge label="Wallet funding" tone="green" />
                     <StatusBadge label={item.provider || "unknown"} tone="blue" />
                     <StatusBadge label={`${item.staleMinutes || 0} min old`} tone="red" />
                   </div>
-                  <p className="mt-3 text-sm font-medium text-stone-900">â‚¦{item.amount.toLocaleString()}</p>
+                  <p className="mt-3 text-sm font-medium text-stone-900">₦{item.amount.toLocaleString()}</p>
                   <p className="mt-1 break-all text-xs text-stone-500">{item.reference || item.references[0] || "No reference"}</p>
                 </div>
-              ))}
+                  )}
+                />
+              ) : null}
             </div>
           )}
         </SectionCard>
