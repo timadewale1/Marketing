@@ -133,12 +133,13 @@ export default function ClientEarnerDetail({ id }: Props) {
         }
 
         const earnerData = earnerSnap.data();
+        const normalizedStatus = String(earnerData.status || "pending").toLowerCase();
         setEarner({
           id: earnerSnap.id,
           name: String(earnerData.name || "Unnamed earner"),
           email: String(earnerData.email || ""),
           phone: String(earnerData.phone || ""),
-          status: String(earnerData.status || "pending"),
+          status: normalizedStatus,
           activated: Boolean(earnerData.activated),
           verified: Boolean(earnerData.verified),
           balance: Number(earnerData.balance || 0),
