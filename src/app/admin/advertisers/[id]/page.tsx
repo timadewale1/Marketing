@@ -116,6 +116,7 @@ export default function AdvertiserAdminDetail({
   const [transactions, setTransactions] = useState<AdvertiserTransaction[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [activationBusy, setActivationBusy] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -273,6 +274,36 @@ export default function AdvertiserAdminDetail({
     }
   };
 
+  const handleActivationAction = async (action: "activate_user" | "deactivate_user") => {
+    if (!advertiser) return;
+    if (action === "deactivate_user") {
+      const confirmed = window.confirm("Deactivate this user and reverse all related activity?");
+      if (!confirmed) return;
+    }
+
+    try {
+      setActivationBusy(true);
+      const response = await fetch("/api/admin/users/activation", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success) {
+        throw new Error(data.message || "Failed to update activation");
+      }
+      const nextActivated = action === "activate_user";
+      setAdvertiser((current) => (current ? { ...current, activated: nextActivated } : current));
+      toast.success(nextActivated ? "User activated" : "User deactivated");
+    } catch (error) {
+      console.error("Failed to update activation", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update activation");
+    } finally {
+      setActivationBusy(false);
+    }
+  };
+
   if (loading) {
     return <div className="h-64 animate-pulse rounded-3xl bg-stone-100" />;
   }
@@ -302,21 +333,47 @@ export default function AdvertiserAdminDetail({
         title={advertiser.name}
         description={`Track wallet, campaigns, spend, and every submission flowing through ${advertiser.companyName || "this advertiser"} from one place.`}
         action={
-          advertiser.status === "active" ? (
-            <Button
-              variant="outline"
-              className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-              disabled={updatingStatus}
-              onClick={() => updateStatus("suspended")}
-            >
-              <PauseCircle className="h-4 w-4" />
-              Suspend
-            </Button>
-          ) : (
-            <p className="max-w-xs text-sm leading-6 text-stone-500">
-              Activation stays self-service for advertisers. Admin can inspect or suspend only.
-            </p>
-          )
+          <div className="flex flex-wrap gap-2">
+            {advertiser.status === "active" ? (
+              <Button
+                variant="outline"
+                className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                disabled={updatingStatus}
+                onClick={() => updateStatus("suspended")}
+              >
+                <PauseCircle className="h-4 w-4" />
+                Suspend
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                disabled={updatingStatus}
+                onClick={() => updateStatus("active")}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Unsuspend
+              </Button>
+            )}
+            {advertiser.activated ? (
+              <Button
+                variant="destructive"
+                className="rounded-full"
+                disabled={activationBusy}
+                onClick={() => handleActivationAction("deactivate_user")}
+              >
+                {activationBusy ? "Deactivating..." : "Deactivate user"}
+              </Button>
+            ) : (
+              <Button
+                className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                disabled={activationBusy}
+                onClick={() => handleActivationAction("activate_user")}
+              >
+                {activationBusy ? "Activating..." : "Activate user"}
+              </Button>
+            )}
+          </div>
         }
       />
 

@@ -120,6 +120,7 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [strikeCount, setStrikeCount] = useState<number>(0);
+  const [activationBusy, setActivationBusy] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -289,6 +290,36 @@ export default function ClientEarnerDetail({ id }: Props) {
     }
   };
 
+  const handleActivationAction = async (action: "activate_user" | "deactivate_user") => {
+    if (!earner) return;
+    if (action === "deactivate_user") {
+      const confirmed = window.confirm("Deactivate this user and reverse all related activity?");
+      if (!confirmed) return;
+    }
+
+    try {
+      setActivationBusy(true);
+      const response = await fetch("/api/admin/users/activation", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success) {
+        throw new Error(data.message || "Failed to update activation");
+      }
+      const nextActivated = action === "activate_user";
+      setEarner((current) => (current ? { ...current, activated: nextActivated } : current));
+      toast.success(nextActivated ? "User activated" : "User deactivated");
+    } catch (error) {
+      console.error("Failed to update activation", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update activation");
+    } finally {
+      setActivationBusy(false);
+    }
+  };
+
   const reviewSubmission = async (submission: Submission, action: "Verified" | "Rejected") => {
     try {
       setActionLoading(`${action}-${submission.id}`);
@@ -360,31 +391,47 @@ export default function ClientEarnerDetail({ id }: Props) {
         title={earner.name}
         description="Follow earnings, submissions, withdrawals, and campaign history for this earner in one connected admin view."
         action={
-          earner.status === "active" ? (
-            <Button
-              variant="outline"
-              className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-              disabled={updatingStatus}
-              onClick={() => updateStatus("suspended")}
-            >
-              <CircleSlash className="h-4 w-4" />
-              Suspend
-            </Button>
-          ) : earner.status === "suspended" ? (
-            <Button
-              variant="outline"
-              className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-              disabled={updatingStatus}
-              onClick={() => updateStatus("active")}
-            >
-              <CheckCheck className="h-4 w-4" />
-              Unsuspend
-            </Button>
-          ) : (
-            <p className="max-w-xs text-sm leading-6 text-stone-500">
-              Activation stays self-service for earners. Admin can inspect or suspend only.
-            </p>
-          )
+          <div className="flex flex-wrap gap-2">
+            {earner.status === "active" ? (
+              <Button
+                variant="outline"
+                className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                disabled={updatingStatus}
+                onClick={() => updateStatus("suspended")}
+              >
+                <CircleSlash className="h-4 w-4" />
+                Suspend
+              </Button>
+            ) : earner.status === "suspended" ? (
+              <Button
+                variant="outline"
+                className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                disabled={updatingStatus}
+                onClick={() => updateStatus("active")}
+              >
+                <CheckCheck className="h-4 w-4" />
+                Unsuspend
+              </Button>
+            ) : null}
+            {earner.activated ? (
+              <Button
+                variant="destructive"
+                className="rounded-full"
+                disabled={activationBusy}
+                onClick={() => handleActivationAction("deactivate_user")}
+              >
+                {activationBusy ? "Deactivating..." : "Deactivate user"}
+              </Button>
+            ) : (
+              <Button
+                className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                disabled={activationBusy}
+                onClick={() => handleActivationAction("activate_user")}
+              >
+                {activationBusy ? "Activating..." : "Activate user"}
+              </Button>
+            )}
+          </div>
         }
       />
 
