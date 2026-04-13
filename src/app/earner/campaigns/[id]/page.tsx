@@ -653,7 +653,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             ].includes(campaign.category || "") && (
               <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-100">
                 <p className="text-sm text-stone-700">
-                  for any task that is stated for you to share via whatsapp status or instagram status, ensure that you have up to 50 views before taking the proof screenshot and submitting; if not it will not be approved as completed
+                  for any task that is stated for you to share via whatsapp status or instagram status, ensure that you have up to 10 views before taking the proof screenshot and submitting; if not it will not be approved as completed
                 </p>
               </div>
             )}
@@ -664,7 +664,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 if (cat.includes('share') || cat.includes('product') || cat.includes('link')) {
                   return (
                     <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-100">
-                      <p className="text-sm text-stone-700">Any task that has to do with sharing links or product must have up to 50 views on wherever it is shared to before submission of proof or it will not be approved.</p>
+                      <p className="text-sm text-stone-700">Any task that has to do with sharing links or product must have up to 10 views on wherever it is shared to before submission of proof or it will not be approved.</p>
                     </div>
                   )
                 }

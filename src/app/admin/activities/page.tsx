@@ -114,6 +114,10 @@ export default function AdminActivitiesPage() {
         throw new Error(data.message || "Failed to send emails");
       }
 
+      if (!data.sent || data.sent === 0) {
+        throw new Error(data.message || "No emails were sent");
+      }
+
       toast.success(data.message || "Emails sent");
       if (type === "broadcast") {
         setSubject("");

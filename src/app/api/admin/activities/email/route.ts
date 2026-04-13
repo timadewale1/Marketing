@@ -125,13 +125,23 @@ export async function POST(req: Request) {
     )
 
     const failed = failures.length
+    const sent = filteredRecipients.length - failed
+    const resultMessage =
+      failed > 0
+        ? `Sent ${sent} emails, ${failed} failed`
+        : `Sent ${sent} emails successfully`
+
+    if (sent === 0) {
+      return NextResponse.json(
+        { success: false, message: resultMessage || "No emails were sent", sent, failed },
+        { status: 502 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
-      message:
-        failed > 0
-          ? `Sent ${filteredRecipients.length - failed} emails, ${failed} failed`
-          : `Sent ${filteredRecipients.length} emails successfully`,
-      sent: filteredRecipients.length - failed,
+      message: resultMessage,
+      sent,
       failed,
     })
   } catch (error) {
