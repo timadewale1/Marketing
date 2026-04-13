@@ -23,6 +23,7 @@ export default function ClientUserDetail({ id }: Props) {
   const [transactions, setTransactions] = useState<Tx[]>([]);
   const [withdrawals, setWithdrawals] = useState<Wd[]>([]);
   const [campaignsParticipated, setCampaignsParticipated] = useState<Camp[]>([]);
+  const [activationBusy, setActivationBusy] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +91,35 @@ export default function ClientUserDetail({ id }: Props) {
     }
   };
 
+  const handleActivationAction = async (action: "activate_user" | "deactivate_user") => {
+    if (!userType) return;
+    if (action === "deactivate_user") {
+      const confirmed = window.confirm("Deactivate this user and reverse all related activity?");
+      if (!confirmed) return;
+    }
+
+    try {
+      setActivationBusy(true);
+      const res = await fetch("/api/admin/users/activation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "Failed to update activation");
+      }
+      const nextActivated = action === "activate_user";
+      setUser((u) => (u ? { ...u, activated: nextActivated } : u));
+      toast.success(nextActivated ? "User activated" : "User deactivated");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update activation");
+    } finally {
+      setActivationBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -101,6 +131,7 @@ export default function ClientUserDetail({ id }: Props) {
   if (!user) {
     return <div className="p-8">User not found.</div>;
   }
+  const isActivated = Boolean((user as Record<string, unknown>).activated);
 
   return (
     <div className="space-y-6">
@@ -110,7 +141,16 @@ export default function ClientUserDetail({ id }: Props) {
           <Button onClick={() => handleUpdateStatus("suspended")} variant="outline">
             Suspend
           </Button>
-          <Button onClick={() => handleUpdateStatus("active")}>Activate</Button>
+          <Button onClick={() => handleUpdateStatus("active")}>Set Active</Button>
+          {isActivated ? (
+            <Button onClick={() => handleActivationAction("deactivate_user")} variant="destructive" disabled={activationBusy}>
+              {activationBusy ? "Deactivating..." : "Deactivate User"}
+            </Button>
+          ) : (
+            <Button onClick={() => handleActivationAction("activate_user")} disabled={activationBusy}>
+              {activationBusy ? "Activating..." : "Activate User"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -120,6 +160,7 @@ export default function ClientUserDetail({ id }: Props) {
           <div className="mt-3 text-sm">
             <div>Email: {String((user as Record<string, unknown>).email)}</div>
             <div>Status: {String((user as Record<string, unknown>).status)}</div>
+            <div>Activated: {isActivated ? "Yes" : "No"}</div>
             <div>Balance: ₦{Number((user as Record<string, unknown>)['balance'] || 0).toLocaleString()}</div>
           </div>
         </Card>
