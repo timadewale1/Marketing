@@ -207,7 +207,7 @@ export async function runRecoverySweep() {
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
           verificationCache,
-          successfulWebhookReferences,
+          undefined,
         )
 
         return {
