@@ -9,13 +9,29 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.pambaadverts.com
 const ADMIN_INBOX_EMAIL = process.env.ADMIN_INBOX_EMAIL || 'pambaadverts@gmail.com'
 
 let transporterPromise: Promise<nodemailer.Transporter | null> | null = null
+let lastVerifyError: string | null = null
+let lastVerifiedAt: number | null = null
+
+const MAILER_CONFIG_ERROR = 'Mailer not configured: SMTP_USER/SMTP_PASS/SMTP_FROM required'
+
+const resolveErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  try {
+    return JSON.stringify(error)
+  } catch (_error) {
+    return 'Unknown error'
+  }
+}
 
 async function getTransporter() {
   if (transporterPromise) return transporterPromise
 
   transporterPromise = (async () => {
     if (!SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
-      console.warn('Mailer not configured: SMTP_USER/SMTP_PASS/SMTP_FROM required')
+      lastVerifyError = MAILER_CONFIG_ERROR
+      lastVerifiedAt = Date.now()
+      console.warn(MAILER_CONFIG_ERROR)
       return null
     }
 
@@ -43,8 +59,12 @@ async function getTransporter() {
 
     try {
       await transporter.verify()
+      lastVerifyError = null
+      lastVerifiedAt = Date.now()
       console.log('SMTP transporter verified successfully')
     } catch (error) {
+      lastVerifyError = resolveErrorMessage(error)
+      lastVerifiedAt = Date.now()
       console.error('SMTP transporter verification failed:', error)
     }
 
@@ -52,6 +72,42 @@ async function getTransporter() {
   })()
 
   return transporterPromise
+}
+
+export async function getMailerDiagnostics() {
+  const configured = Boolean(SMTP_USER && SMTP_PASS && SMTP_FROM)
+  if (!configured) {
+    return {
+      configured: false,
+      message: MAILER_CONFIG_ERROR,
+      service: SMTP_SERVICE,
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+      lastVerifyError,
+      lastVerifiedAt: lastVerifiedAt ? new Date(lastVerifiedAt).toISOString() : null,
+    }
+  }
+
+  await getTransporter()
+
+  return {
+    configured: true,
+    service: SMTP_SERVICE,
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+    lastVerifyError,
+    lastVerifiedAt: lastVerifiedAt ? new Date(lastVerifiedAt).toISOString() : null,
+  }
+}
+
+export async function assertMailerReady() {
+  const diagnostics = await getMailerDiagnostics()
+  if (!diagnostics.configured) {
+    throw new Error(diagnostics.message || MAILER_CONFIG_ERROR)
+  }
+  if (diagnostics.lastVerifyError) {
+    throw new Error(`SMTP verification failed: ${diagnostics.lastVerifyError}`)
+  }
 }
 
 async function sendEmail({

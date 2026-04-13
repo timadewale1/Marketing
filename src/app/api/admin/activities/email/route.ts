@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireAdminSession } from '@/lib/admin-session'
 import {
+  assertMailerReady,
   sendActivationReminderEmail,
   sendAdminUpdateEmail,
   sendEmailsInBatches,
@@ -103,6 +104,8 @@ export async function POST(req: Request) {
       }
     }
 
+    await assertMailerReady()
+
     const failures = await sendEmailsInBatches(
       filteredRecipients,
       async (recipient) => {
@@ -126,6 +129,11 @@ export async function POST(req: Request) {
 
     const failed = failures.length
     const sent = filteredRecipients.length - failed
+    const failureDetails = failures.slice(0, 10).map((failure) => ({
+      id: (failure.item as UserRecord).id,
+      email: (failure.item as UserRecord).email,
+      error: failure.error instanceof Error ? failure.error.message : String(failure.error),
+    }))
     const resultMessage =
       failed > 0
         ? `Sent ${sent} emails, ${failed} failed`
@@ -133,7 +141,7 @@ export async function POST(req: Request) {
 
     if (sent === 0) {
       return NextResponse.json(
-        { success: false, message: resultMessage || "No emails were sent", sent, failed },
+        { success: false, message: resultMessage || "No emails were sent", sent, failed, failureDetails },
         { status: 502 }
       )
     }
@@ -143,9 +151,14 @@ export async function POST(req: Request) {
       message: resultMessage,
       sent,
       failed,
+      failureDetails,
     })
   } catch (error) {
     console.error('Admin email activity error:', error)
-    return NextResponse.json({ success: false, message: 'Failed to send admin email activity' }, { status: 500 })
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to send admin email activity'
+    return NextResponse.json({ success: false, message }, { status: 500 })
   }
 }
