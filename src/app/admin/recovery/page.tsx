@@ -83,6 +83,23 @@ function getVerificationBadge(state: VerificationState) {
   return { label: "Unverified", tone: "red" as const };
 }
 
+function getManualPaymentBadge(status: string | undefined) {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "PAID" || normalized === "SUCCESS" || normalized === "SUCCESSFUL") {
+    return { label: "Paid", tone: "green" as const };
+  }
+  if (normalized === "EXPIRED") {
+    return { label: "Expired", tone: "red" as const };
+  }
+  if (normalized === "PENDING" || normalized === "PROCESSING" || normalized === "INITIATED" || normalized === "IN_PROGRESS") {
+    return { label: "Pending", tone: "amber" as const };
+  }
+  if (normalized) {
+    return { label: normalized, tone: "stone" as const };
+  }
+  return { label: "Unknown", tone: "stone" as const };
+}
+
 export default function AdminRecoveryPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,6 +109,7 @@ export default function AdminRecoveryPage() {
   const [staleActivations, setStaleActivations] = useState<StaleActivationItem[]>([]);
   const [staleWallets, setStaleWallets] = useState<StaleWalletItem[]>([]);
   const [query, setQuery] = useState("");
+  const [manualStatuses, setManualStatuses] = useState<Record<string, string>>({});
 
   const load = async (showToast = false) => {
     try {
@@ -130,6 +148,7 @@ export default function AdminRecoveryPage() {
   useEffect(() => {
     void load();
   }, []);
+
 
   const metrics = useMemo(() => {
     const totalPendingWallet = walletCandidates.reduce((sum, item) => sum + item.amount, 0);
@@ -170,6 +189,38 @@ export default function AdminRecoveryPage() {
       manualWallets: walletFiltered.filter((candidate) => candidate.verificationState !== "paid"),
     };
   }, [activationCandidates, walletCandidates, query]);
+
+  useEffect(() => {
+    const manualRefs = filtered.manualActivations
+      .map((candidate) => candidate.references[0])
+      .filter((ref): ref is string => Boolean(ref));
+
+    const missingRefs = manualRefs.filter((ref) => !manualStatuses[ref]);
+    if (missingRefs.length === 0) return;
+
+    const fetchStatuses = async () => {
+      const chunkSize = 20;
+      for (let i = 0; i < missingRefs.length; i += chunkSize) {
+        const chunk = missingRefs.slice(i, i + chunkSize);
+        try {
+          const response = await fetch("/api/admin/recovery/status", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ references: chunk }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (response.ok && data.success) {
+            setManualStatuses((current) => ({ ...current, ...data.statuses }));
+          }
+        } catch (error) {
+          console.error("Failed to load manual payment statuses", error);
+        }
+      }
+    };
+
+    void fetchStatuses();
+  }, [filtered.manualActivations, manualStatuses]);
 
   const runRecovery = async (
     action: "activate_user" | "complete_wallet_funding",
@@ -350,6 +401,8 @@ export default function AdminRecoveryPage() {
               renderItem={(candidate) => {
                 const busy = recoveringIds.includes(candidate.id);
                 const verificationBadge = getVerificationBadge(candidate.verificationState);
+                const manualStatus = manualStatuses[candidate.references[0] || ""];
+                const manualBadge = getManualPaymentBadge(manualStatus);
                 return (
                   <div key={candidate.id} className="rounded-2xl border border-stone-200 bg-white p-4">
                     <div className="flex flex-col gap-4">
@@ -361,6 +414,7 @@ export default function AdminRecoveryPage() {
                         <div className="flex flex-wrap gap-2">
                           <StatusBadge label={candidate.role === "earner" ? "Earner" : "Advertiser"} tone={candidate.role === "earner" ? "amber" : "blue"} />
                           <StatusBadge label={verificationBadge.label} tone={verificationBadge.tone} />
+                          <StatusBadge label={manualBadge.label} tone={manualBadge.tone} />
                           <StatusBadge label="Not activated" tone="red" />
                         </div>
                       </div>
