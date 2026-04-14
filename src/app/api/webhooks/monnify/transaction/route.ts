@@ -76,36 +76,6 @@ async function findPendingWalletTransactionByReferences(
   return null
 }
 
-async function findPendingWalletTransactionByEmailAndAmount(
-  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
-  collectionName: 'advertiserTransactions' | 'earnerTransactions',
-  userCollectionName: 'advertisers' | 'earners',
-  email: string,
-  amount: number
-) {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  if (!normalizedEmail || !amount) return null
-
-  const txSnap = await dbAdmin.collection(collectionName)
-    .where('type', '==', 'wallet_funding')
-    .where('status', '==', 'pending')
-    .where('amount', '==', amount)
-    .get()
-
-  for (const txDoc of txSnap.docs) {
-    const txData = txDoc.data()
-    const userId = String(txData.userId || '')
-    if (!userId) continue
-    const userSnap = await dbAdmin.collection(userCollectionName).doc(userId).get()
-    const userEmail = String(userSnap.data()?.email || '').trim().toLowerCase()
-    if (userEmail && userEmail === normalizedEmail) {
-      return txDoc
-    }
-  }
-
-  return null
-}
-
 async function findActivationAttemptByReferences(
   dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
   references: string[]
@@ -122,33 +92,6 @@ async function findActivationAttemptByReferences(
         return doc
       }
     }
-  }
-
-  return null
-}
-
-async function findPendingActivationUserByEmailAndAmount(
-  dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
-  collectionName: 'advertisers' | 'earners',
-  email: string,
-  amount: number
-) {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  if (!normalizedEmail || amount < 2000) return null
-
-  const snap = await dbAdmin.collection(collectionName)
-    .where('email', '==', normalizedEmail)
-    .limit(5)
-    .get()
-
-  for (const doc of snap.docs) {
-    const data = doc.data()
-    const hasPendingReference = Boolean(
-      data.pendingActivationReference ||
-      (Array.isArray(data.pendingActivationReferences) && data.pendingActivationReferences.length > 0)
-    )
-    if (data.activated || !hasPendingReference) continue
-    return doc
   }
 
   return null
@@ -244,16 +187,9 @@ export async function POST(req: NextRequest) {
             'advertiserTransactions',
             referenceCandidates
           )
-          const matchedAdvertiserWalletTxDoc = walletTxDoc || await findPendingWalletTransactionByEmailAndAmount(
-            dbAdmin,
-            'advertiserTransactions',
-            'advertisers',
-            customerEmail,
-            Number(amount || 0)
-          )
 
-          if (matchedAdvertiserWalletTxDoc) {
-            const txData = matchedAdvertiserWalletTxDoc.data()
+          if (walletTxDoc) {
+            const txData = walletTxDoc.data()
 
             console.log('[webhook][monnify][transaction] processing wallet funding for', txData.userId)
 
@@ -276,11 +212,11 @@ export async function POST(req: NextRequest) {
                 userId: String(txData.userId || ''),
                 email: customerEmail,
                 reference: String(txData.reference || referenceCandidates[0] || reference || ''),
-                references: referenceCandidates,
-                amount: Number(txData.amount || 0),
-                transactionId: matchedAdvertiserWalletTxDoc.id,
-              })
-              console.log('[webhook][monnify][transaction] wallet funding processed successfully')
+                  references: referenceCandidates,
+                  amount: Number(txData.amount || 0),
+                  transactionId: walletTxDoc.id,
+                })
+                console.log('[webhook][monnify][transaction] wallet funding processed successfully')
             } catch (fundingError) {
               console.error('[webhook][monnify][transaction] wallet funding failed:', fundingError)
             }
@@ -290,16 +226,9 @@ export async function POST(req: NextRequest) {
               'earnerTransactions',
               referenceCandidates
             )
-            const matchedEarnerWalletTxDoc = earnerTxDoc || await findPendingWalletTransactionByEmailAndAmount(
-              dbAdmin,
-              'earnerTransactions',
-              'earners',
-              customerEmail,
-              Number(amount || 0)
-            )
 
-            if (matchedEarnerWalletTxDoc) {
-              const txData = matchedEarnerWalletTxDoc.data()
+            if (earnerTxDoc) {
+              const txData = earnerTxDoc.data()
 
               console.log('[webhook][monnify][transaction] processing earner wallet funding for', txData.userId)
 
@@ -324,7 +253,7 @@ export async function POST(req: NextRequest) {
                   reference: String(txData.reference || referenceCandidates[0] || reference || ''),
                   references: referenceCandidates,
                   amount: Number(txData.amount || 0),
-                  transactionId: matchedEarnerWalletTxDoc.id,
+                  transactionId: earnerTxDoc.id,
                 })
                 console.log('[webhook][monnify][transaction] earner wallet funding processed successfully')
               } catch (fundingError) {
@@ -333,25 +262,19 @@ export async function POST(req: NextRequest) {
             } else {
               // Check if this is an activation payment (advertiser first, then earner)
               const advertiserDoc = await findActivationUserByReferences(dbAdmin, 'advertisers', referenceCandidates)
-              const matchedAdvertiserDoc = advertiserDoc || await findPendingActivationUserByEmailAndAmount(
-                dbAdmin,
-                'advertisers',
-                customerEmail,
-                Number(amount || 0)
-              )
 
-              if (matchedAdvertiserDoc) {
-                console.log('[webhook][monnify][transaction] processing activation for advertiser', matchedAdvertiserDoc.id)
+              if (advertiserDoc) {
+                console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                    await processActivationWithRetry(matchedAdvertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
                       source: 'webhooks/monnify/transaction',
                       provider: 'monnify',
                       role: 'advertiser',
-                      userId: matchedAdvertiserDoc.id,
+                      userId: advertiserDoc.id,
                       email: customerEmail,
                       reference: referenceCandidates[0] || String(reference || ''),
                       references: referenceCandidates,
@@ -363,25 +286,19 @@ export async function POST(req: NextRequest) {
                 }
               } else {
                 const earnerDoc = await findActivationUserByReferences(dbAdmin, 'earners', referenceCandidates)
-                const matchedEarnerDoc = earnerDoc || await findPendingActivationUserByEmailAndAmount(
-                  dbAdmin,
-                  'earners',
-                  customerEmail,
-                  Number(amount || 0)
-                )
 
-                if (matchedEarnerDoc) {
-                  console.log('[webhook][monnify][transaction] processing activation for earner', matchedEarnerDoc.id)
+                if (earnerDoc) {
+                  console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(matchedEarnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
                       source: 'webhooks/monnify/transaction',
                       provider: 'monnify',
                       role: 'earner',
-                      userId: matchedEarnerDoc.id,
+                      userId: earnerDoc.id,
                       email: customerEmail,
                       reference: referenceCandidates[0] || String(reference || ''),
                       references: referenceCandidates,
