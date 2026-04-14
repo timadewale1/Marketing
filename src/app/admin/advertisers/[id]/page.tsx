@@ -94,6 +94,8 @@ type Submission = {
 type Referral = {
   id: string;
   referredId: string;
+  referredName: string;
+  referredEmail: string;
   amount: number;
   status: string;
   bonusPaid: boolean;
@@ -212,17 +214,52 @@ export default function AdvertiserAdminDetail({
           })
         );
 
+        const referralRows = referralsSnap.docs.map((referralDoc) => {
+          const data = referralDoc.data();
+          return {
+            id: referralDoc.id,
+            referredId: String(data.referredId || ""),
+            referredName: "",
+            referredEmail: "",
+            amount: Number(data.amount || 0),
+            status: String(data.status || "pending"),
+            bonusPaid: Boolean(data.bonusPaid),
+            createdAtMs: toMillis(data.createdAt),
+            completedAtMs: toMillis(data.completedAt || data.paidAt),
+          };
+        });
+
+        const uniqueReferredIds = Array.from(
+          new Set(referralRows.map((referral) => referral.referredId).filter(Boolean))
+        );
+
+        const referredUsers = await Promise.all(
+          uniqueReferredIds.map(async (referredId) => {
+            const [earnerRef, advertiserRef] = await Promise.all([
+              getDoc(doc(db, "earners", referredId)),
+              getDoc(doc(db, "advertisers", referredId)),
+            ]);
+
+            const source = earnerRef.exists() ? earnerRef.data() : advertiserRef.exists() ? advertiserRef.data() : null;
+            return [
+              referredId,
+              {
+                name: source ? String(source.fullName || source.name || source.companyName || "Unknown user") : "Unknown user",
+                email: source ? String(source.email || "") : "",
+              },
+            ] as const;
+          })
+        );
+
+        const referredUserMap = new Map(referredUsers);
+
         setReferrals(
-          referralsSnap.docs.map((referralDoc) => {
-            const data = referralDoc.data();
+          referralRows.map((referral) => {
+            const referredUser = referredUserMap.get(referral.referredId);
             return {
-              id: referralDoc.id,
-              referredId: String(data.referredId || ""),
-              amount: Number(data.amount || 0),
-              status: String(data.status || "pending"),
-              bonusPaid: Boolean(data.bonusPaid),
-              createdAtMs: toMillis(data.createdAt),
-              completedAtMs: toMillis(data.completedAt || data.paidAt),
+              ...referral,
+              referredName: referredUser?.name || "Unknown user",
+              referredEmail: referredUser?.email || "",
             };
           })
         );
@@ -680,7 +717,10 @@ export default function AdvertiserAdminDetail({
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-medium text-stone-900">{currency(referral.amount)}</p>
-                          <p className="mt-1 text-sm text-stone-500">Referred user: {referral.referredId || "Unknown"}</p>
+                          <p className="mt-1 text-sm text-stone-500">
+                            {referral.referredName || "Unknown user"}
+                            {referral.referredEmail ? ` • ${referral.referredEmail}` : ""}
+                          </p>
                           <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
                             {referral.createdAtMs ? new Date(referral.createdAtMs).toLocaleString() : "Unknown date"}
                           </p>
