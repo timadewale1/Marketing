@@ -263,7 +263,7 @@ export async function GET(): Promise<Response> {
 export async function POST(req: Request) {
   const adminSession = await requireAdminSession()
   const body = await req.json()
-  const action = body?.action as "activate_user" | "complete_wallet_funding" | undefined
+  const action = body?.action as "activate_user" | "complete_wallet_funding" | "dismiss_activation_item" | "dismiss_wallet_item" | undefined
   const { dbAdmin, admin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) {
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
@@ -365,7 +365,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "This record is not a wallet funding transaction" }, { status: 400 })
       }
 
-      const successfulWebhookReferences = await buildSuccessfulWebhookReferences(dbAdmin)
       const txReferences = normalizeReferences([
         tx.reference,
         ...(Array.isArray(tx.referenceCandidates) ? tx.referenceCandidates : []),
@@ -406,6 +405,89 @@ export async function POST(req: Request) {
       })
 
       return NextResponse.json({ success: true, message: "Wallet funded successfully" })
+    }
+
+    if (action === "dismiss_activation_item") {
+      const userId = String(body?.userId || "")
+      const role = body?.role as UserRole | undefined
+      if (!userId || !role) {
+        return NextResponse.json({ success: false, message: "Missing user details" }, { status: 400 })
+      }
+
+      const userRef = dbAdmin.collection(role === "earner" ? "earners" : "advertisers").doc(userId)
+      const userSnap = await userRef.get()
+      if (!userSnap.exists) {
+        return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
+      }
+
+      const userData = userSnap.data() || {}
+      await userRef.set({
+        pendingActivationReference: admin.firestore.FieldValue.delete(),
+        pendingActivationReferences: admin.firestore.FieldValue.delete(),
+        pendingActivationProvider: admin.firestore.FieldValue.delete(),
+        activationAttemptedAt: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      const attemptRef = dbAdmin.collection("activationAttempts").doc(getActivationAttemptDocId(role, userId))
+      await attemptRef.set({
+        userId,
+        role,
+        status: "dismissed",
+        dismissedAt: admin.firestore.FieldValue.serverTimestamp(),
+        dismissedBy: adminSession.email,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        pendingReference: admin.firestore.FieldValue.delete(),
+      }, { merge: true })
+
+      await dbAdmin.collection("adminNotifications").add({
+        type: "activation_recovery_dismissed",
+        title: "Activation recovery item dismissed",
+        body: `${String(userData.fullName || userData.businessName || userData.name || userData.companyName || userId)} was removed from recovery by admin`,
+        link: role === "earner" ? `/admin/earners/${userId}` : `/admin/advertisers/${userId}`,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        actor: adminSession.email,
+        userId,
+      })
+
+      return NextResponse.json({ success: true, message: "Activation recovery item removed" })
+    }
+
+    if (action === "dismiss_wallet_item") {
+      const transactionId = String(body?.transactionId || "")
+      if (!transactionId) {
+        return NextResponse.json({ success: false, message: "Missing transaction details" }, { status: 400 })
+      }
+
+      const txRef = dbAdmin.collection("advertiserTransactions").doc(transactionId)
+      const txSnap = await txRef.get()
+      if (!txSnap.exists) {
+        return NextResponse.json({ success: false, message: "Wallet funding record not found" }, { status: 404 })
+      }
+
+      const tx = txSnap.data() || {}
+      await txRef.set({
+        status: "dismissed",
+        dismissedAt: admin.firestore.FieldValue.serverTimestamp(),
+        dismissedBy: adminSession.email,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        note: `Recovery item dismissed by admin`,
+      }, { merge: true })
+
+      await dbAdmin.collection("adminNotifications").add({
+        type: "wallet_recovery_dismissed",
+        title: "Wallet recovery item dismissed",
+        body: `Wallet funding recovery item of â‚¦${Number(tx.amount || 0).toLocaleString()} was removed by admin`,
+        link: "/admin/recovery",
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        actor: adminSession.email,
+        userId: String(tx.userId || ""),
+        amount: Number(tx.amount || 0),
+      })
+
+      return NextResponse.json({ success: true, message: "Wallet recovery item removed" })
     }
 
     return NextResponse.json({ success: false, message: "Unknown recovery action" }, { status: 400 })

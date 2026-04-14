@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { LifeBuoy, RefreshCw, Search, ShieldAlert, ShieldCheck, Wallet } from "lucide-react";
+import { LifeBuoy, RefreshCw, Search, ShieldAlert, ShieldCheck, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -103,7 +103,7 @@ function getManualPaymentBadge(status: string | undefined) {
 export default function AdminRecoveryPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [recoveringIds, setRecoveringIds] = useState<string[]>([]);
+  const [processingIds, setProcessingIds] = useState<string[]>([]);
   const [activationCandidates, setActivationCandidates] = useState<ActivationCandidate[]>([]);
   const [walletCandidates, setWalletCandidates] = useState<WalletCandidate[]>([]);
   const [staleActivations, setStaleActivations] = useState<StaleActivationItem[]>([]);
@@ -223,13 +223,13 @@ export default function AdminRecoveryPage() {
   }, [filtered.manualActivations, manualStatuses]);
 
   const runRecovery = async (
-    action: "activate_user" | "complete_wallet_funding",
+    action: "activate_user" | "complete_wallet_funding" | "dismiss_activation_item" | "dismiss_wallet_item",
     payload: Record<string, unknown>,
     successMessage: string
   ) => {
     const key = String(payload.userId || payload.transactionId || Math.random());
     try {
-      setRecoveringIds((current) => [...current, key]);
+      setProcessingIds((current) => [...current, key]);
       const response = await fetch("/api/admin/recovery", {
         method: "POST",
         credentials: "include",
@@ -246,7 +246,7 @@ export default function AdminRecoveryPage() {
       console.error("Recovery action failed", error);
       toast.error(error instanceof Error ? error.message : "Recovery action failed");
     } finally {
-      setRecoveringIds((current) => current.filter((value) => value !== key));
+      setProcessingIds((current) => current.filter((value) => value !== key));
     }
   };
 
@@ -315,7 +315,7 @@ export default function AdminRecoveryPage() {
                   items={staleActivations}
                   itemsPerPage={3}
                   renderItem={(item) => {
-                    const busy = recoveringIds.includes(item.userId);
+                    const busy = processingIds.includes(item.userId);
                     return (
                       <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">
                         <div className="flex flex-col gap-4">
@@ -340,20 +340,37 @@ export default function AdminRecoveryPage() {
                               <p className="mt-2 break-all text-stone-800">{item.reference || item.references[0] || "No reference"}</p>
                             </div>
                           </div>
-                          <Button
-                            className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                            disabled={busy || !item.userId}
-                            onClick={() =>
-                              void runRecovery(
-                                "activate_user",
-                                { userId: item.userId, role: item.role },
-                                "User activated successfully"
-                              )
-                            }
-                          >
-                            <ShieldCheck className="h-4 w-4" />
-                            {busy ? "Activating..." : "Activate user"}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                              disabled={busy || !item.userId}
+                              onClick={() =>
+                                void runRecovery(
+                                  "activate_user",
+                                  { userId: item.userId, role: item.role },
+                                  "User activated successfully"
+                                )
+                              }
+                            >
+                              <ShieldCheck className="h-4 w-4" />
+                              {busy ? "Activating..." : "Activate user"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="rounded-full border-stone-300"
+                              disabled={busy || !item.userId}
+                              onClick={() =>
+                                void runRecovery(
+                                  "dismiss_activation_item",
+                                  { userId: item.userId, role: item.role },
+                                  "Activation recovery item removed"
+                                )
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -373,6 +390,37 @@ export default function AdminRecoveryPage() {
                   </div>
                   <p className="mt-3 text-sm font-medium text-stone-900">₦{item.amount.toLocaleString()}</p>
                   <p className="mt-1 break-all text-xs text-stone-500">{item.reference || item.references[0] || "No reference"}</p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button
+                      className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                      disabled={processingIds.includes(item.id)}
+                      onClick={() =>
+                        void runRecovery(
+                          "complete_wallet_funding",
+                          { transactionId: item.id },
+                          "Wallet funded successfully"
+                        )
+                      }
+                    >
+                      <Wallet className="h-4 w-4" />
+                      {processingIds.includes(item.id) ? "Funding..." : "Credit exact amount"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full border-stone-300"
+                      disabled={processingIds.includes(item.id)}
+                      onClick={() =>
+                        void runRecovery(
+                          "dismiss_wallet_item",
+                          { transactionId: item.id },
+                          "Wallet recovery item removed"
+                        )
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                   )}
                 />
@@ -399,7 +447,7 @@ export default function AdminRecoveryPage() {
               items={filtered.verifiedActivations}
               itemsPerPage={3}
               renderItem={(candidate) => {
-                const busy = recoveringIds.includes(candidate.id);
+                const busy = processingIds.includes(candidate.id);
                 const verificationBadge = getVerificationBadge(candidate.verificationState);
                 const manualStatus = manualStatuses[candidate.references[0] || ""];
                 const manualBadge = getManualPaymentBadge(manualStatus);
@@ -428,20 +476,37 @@ export default function AdminRecoveryPage() {
                           <p className="mt-2 break-all text-stone-800">{candidate.references[0] || "No reference"}</p>
                         </div>
                       </div>
-                      <Button
-                        className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                        disabled={busy}
-                        onClick={() =>
-                          void runRecovery(
-                            "activate_user",
-                            { userId: candidate.id, role: candidate.role },
-                            "User activated successfully"
-                          )
-                        }
-                      >
-                        <ShieldCheck className="h-4 w-4" />
-                        {busy ? "Activating..." : "Activate user"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "activate_user",
+                              { userId: candidate.id, role: candidate.role },
+                              "User activated successfully"
+                            )
+                          }
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          {busy ? "Activating..." : "Activate user"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-full border-stone-300"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "dismiss_activation_item",
+                              { userId: candidate.id, role: candidate.role },
+                              "Activation recovery item removed"
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -466,7 +531,7 @@ export default function AdminRecoveryPage() {
               items={filtered.manualActivations}
               itemsPerPage={3}
               renderItem={(candidate) => {
-                const busy = recoveringIds.includes(candidate.id);
+                const busy = processingIds.includes(candidate.id);
                 const verificationBadge = getVerificationBadge(candidate.verificationState);
                 return (
                   <div key={candidate.id} className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -492,20 +557,37 @@ export default function AdminRecoveryPage() {
                           <p className="mt-2 break-all text-stone-800">{candidate.references[0] || "No reference"}</p>
                         </div>
                       </div>
-                      <Button
-                        className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                        disabled={busy}
-                        onClick={() =>
-                          void runRecovery(
-                            "activate_user",
-                            { userId: candidate.id, role: candidate.role },
-                            "User activated successfully"
-                          )
-                        }
-                      >
-                        <ShieldCheck className="h-4 w-4" />
-                        {busy ? "Activating..." : "Activate user manually"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "activate_user",
+                              { userId: candidate.id, role: candidate.role },
+                              "User activated successfully"
+                            )
+                          }
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          {busy ? "Activating..." : "Activate user manually"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-full border-stone-300"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "dismiss_activation_item",
+                              { userId: candidate.id, role: candidate.role },
+                              "Activation recovery item removed"
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -530,7 +612,7 @@ export default function AdminRecoveryPage() {
               items={filtered.verifiedWallets}
               itemsPerPage={3}
               renderItem={(candidate) => {
-                const busy = recoveringIds.includes(candidate.id);
+                const busy = processingIds.includes(candidate.id);
                 const verificationBadge = getVerificationBadge(candidate.verificationState);
                 return (
                   <div key={candidate.id} className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -558,20 +640,37 @@ export default function AdminRecoveryPage() {
                           <p className="mt-1 text-xs text-stone-500">{candidate.createdAt || "No timestamp"}</p>
                         </div>
                       </div>
-                      <Button
-                        className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                        disabled={busy}
-                        onClick={() =>
-                          void runRecovery(
-                            "complete_wallet_funding",
-                            { transactionId: candidate.id },
-                            "Wallet funded successfully"
-                          )
-                        }
-                      >
-                        <Wallet className="h-4 w-4" />
-                        {busy ? "Funding..." : "Credit exact amount"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "complete_wallet_funding",
+                              { transactionId: candidate.id },
+                              "Wallet funded successfully"
+                            )
+                          }
+                        >
+                          <Wallet className="h-4 w-4" />
+                          {busy ? "Funding..." : "Credit exact amount"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-full border-stone-300"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "dismiss_wallet_item",
+                              { transactionId: candidate.id },
+                              "Wallet recovery item removed"
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -596,7 +695,7 @@ export default function AdminRecoveryPage() {
               items={filtered.manualWallets}
               itemsPerPage={3}
               renderItem={(candidate) => {
-                const busy = recoveringIds.includes(candidate.id);
+                const busy = processingIds.includes(candidate.id);
                 const verificationBadge = getVerificationBadge(candidate.verificationState);
                 return (
                   <div key={candidate.id} className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -624,20 +723,37 @@ export default function AdminRecoveryPage() {
                           <p className="mt-1 text-xs text-stone-500">{candidate.createdAt || "No timestamp"}</p>
                         </div>
                       </div>
-                      <Button
-                        className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
-                        disabled={busy}
-                        onClick={() =>
-                          void runRecovery(
-                            "complete_wallet_funding",
-                            { transactionId: candidate.id },
-                            "Wallet funded successfully"
-                          )
-                        }
-                      >
-                        <Wallet className="h-4 w-4" />
-                        {busy ? "Funding..." : "Credit exact amount"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "complete_wallet_funding",
+                              { transactionId: candidate.id },
+                              "Wallet funded successfully"
+                            )
+                          }
+                        >
+                          <Wallet className="h-4 w-4" />
+                          {busy ? "Funding..." : "Credit exact amount"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-full border-stone-300"
+                          disabled={busy}
+                          onClick={() =>
+                            void runRecovery(
+                              "dismiss_wallet_item",
+                              { transactionId: candidate.id },
+                              "Wallet recovery item removed"
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
