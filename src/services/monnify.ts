@@ -388,6 +388,10 @@ export async function verifyTransaction(reference: string) {
 
   const contractCode = process.env.MONNIFY_CONTRACT_CODE || process.env.NEXT_PUBLIC_MONNIFY_CONTRACT_CODE || undefined
 
+  function extractPayloadReferences(source: Record<string, unknown> | null | undefined, transactionReference?: string | null) {
+    return extractMonnifyReferenceCandidates('', source, transactionReference)
+  }
+
   async function queryUrl(url: string, method: string = 'GET') {
     console.log(`Monnify query: ${method} ${url}`)
     const res = await fetch(url, {
@@ -405,7 +409,7 @@ export async function verifyTransaction(reference: string) {
   function extractResponseReferences(payload: Record<string, unknown> | null | undefined) {
     const responseBody = payload?.responseBody
     if (!responseBody || typeof responseBody !== 'object') return []
-    return extractMonnifyReferenceCandidates(reference, responseBody as Record<string, unknown>)
+    return extractPayloadReferences(responseBody as Record<string, unknown>)
   }
 
   // Helper to retry with backoff in case of sync delay
@@ -441,20 +445,21 @@ export async function verifyTransaction(reference: string) {
     for (let pageNo = 0; pageNo < 5; pageNo++) {
       const url = `${BASE}/api/v1/transactions/search?page=${pageNo}&size=100`
       const attempt = await queryUrl(url)
-      if (attempt.res.ok && attempt.json?.requestSuccessful) {
-        const transactions = getTransactionSearchItems(attempt.json as Record<string, unknown>)
-        const found = transactions.find((transaction: Record<string, unknown>) => {
-          const candidates = extractMonnifyReferenceCandidates(reference, transaction)
-          return candidates.includes(reference)
-        })
-        if (found) {
-          return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
-        }
+      if (!attempt.res.ok || !attempt.json?.requestSuccessful) {
+        return attempt
       }
 
-      const transactionsCount = getTransactionSearchItems(attempt.json as Record<string, unknown>).length
-      if (!attempt.res.ok || !attempt.json?.requestSuccessful || transactionsCount < 100) {
-        return attempt
+      const transactions = getTransactionSearchItems(attempt.json as Record<string, unknown>)
+      const found = transactions.find((transaction: Record<string, unknown>) => {
+        const candidates = extractPayloadReferences(transaction)
+        return candidates.includes(reference)
+      })
+      if (found) {
+        return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
+      }
+
+      if (transactions.length < 100) {
+        break
       }
     }
 
@@ -468,24 +473,23 @@ export async function verifyTransaction(reference: string) {
     for (let pageNo = 0; pageNo < 5; pageNo++) {
       const url = `${BASE}/api/v1/merchant/transactions?pageSize=100&pageNo=${pageNo}`
       const attempt = await queryUrl(url)
-      if (attempt.res.ok && attempt.json?.requestSuccessful) {
-        const transactions = Array.isArray(attempt.json?.responseBody?.transactions)
-          ? (attempt.json.responseBody.transactions as Array<Record<string, unknown>>)
-          : []
-        const found = transactions.find((transaction: Record<string, unknown>) => {
-          const candidates = extractMonnifyReferenceCandidates(reference, transaction)
-          return candidates.includes(reference)
-        })
-        if (found) {
-          return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
-        }
+      if (!attempt.res.ok || !attempt.json?.requestSuccessful) {
+        return attempt
       }
 
-      const transactionsCount = Array.isArray(attempt.json?.responseBody?.transactions)
-        ? attempt.json.responseBody.transactions.length
-        : 0
-      if (!attempt.res.ok || !attempt.json?.requestSuccessful || transactionsCount < 100) {
-        return attempt
+      const transactions = Array.isArray(attempt.json?.responseBody?.transactions)
+        ? (attempt.json.responseBody.transactions as Array<Record<string, unknown>>)
+        : []
+      const found = transactions.find((transaction: Record<string, unknown>) => {
+        const candidates = extractPayloadReferences(transaction)
+        return candidates.includes(reference)
+      })
+      if (found) {
+        return { res: attempt.res, json: { requestSuccessful: true, responseBody: found } }
+      }
+
+      if (transactions.length < 100) {
+        break
       }
     }
 
