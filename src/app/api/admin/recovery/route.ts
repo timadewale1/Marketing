@@ -67,9 +67,9 @@ async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Fires
 function resolveLightVerificationState(
   references: string[],
   providerHint: unknown,
-  successfulWebhookReferences: Set<string>,
+  successfulWebhookReferences?: Set<string>,
 ): VerificationState {
-  if (references.some((reference) => successfulWebhookReferences.has(reference))) {
+  if (successfulWebhookReferences && references.some((reference) => successfulWebhookReferences.has(reference))) {
     return "paid"
   }
 
@@ -229,7 +229,7 @@ export async function GET(): Promise<Response> {
       const verificationState = resolveLightVerificationState(
         txReferences,
         provider,
-        successfulWebhookReferences,
+        undefined,
       )
 
       return {
@@ -373,7 +373,7 @@ export async function POST(req: Request) {
       const verificationState = resolveLightVerificationState(
         txReferences,
         tx.provider || "monnify",
-        successfulWebhookReferences,
+        undefined,
       )
 
       if (verificationState !== "paid") {

@@ -22,11 +22,6 @@ function normalizeReferences(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
 }
 
-function getProcessedWebhookReferences(data: { reference?: unknown; referenceCandidates?: unknown }) {
-  const arrayReferences = Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []
-  return normalizeReferences([data.reference, ...arrayReferences])
-}
-
 async function verifyPaystackPayment(reference: string) {
   const secret = process.env.PAYSTACK_SECRET_KEY
   if (!secret || !reference) return false
@@ -83,18 +78,9 @@ async function resolveRecoveryVerificationState(
   references: string[],
   providerHint: unknown,
   verificationCache: Map<string, Promise<VerificationState>>,
-  successfulWebhookReferences?: Set<string>,
 ): Promise<VerificationState> {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return "unverified"
-
-  if (successfulWebhookReferences) {
-    for (const reference of uniqueReferences) {
-      if (successfulWebhookReferences.has(reference)) {
-        return "paid"
-      }
-    }
-  }
 
   const hintedProvider = normalizeProvider(providerHint)
   const providersToTry: PaymentProvider[] = hintedProvider
@@ -139,11 +125,10 @@ export async function runRecoverySweep() {
     source: "recovery-sweep",
   })
 
-  const [earnersSnap, advertisersSnap, pendingWalletSnap, processedWebhookSnap, activationAttemptsSnap] = await Promise.all([
+  const [earnersSnap, advertisersSnap, pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("earners").get(),
     dbAdmin.collection("advertisers").get(),
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
-    dbAdmin.collection("processedWebhooks").where("eventType", "==", "TRANSACTION_COMPLETION").get(),
     dbAdmin.collection("activationAttempts").get(),
   ])
 
@@ -180,14 +165,6 @@ export async function runRecoverySweep() {
     })
   }
 
-  const successfulWebhookReferences = new Set(
-    processedWebhookSnap.docs
-      .filter((doc) => {
-        const status = String(doc.data().status || "").toUpperCase()
-        return status === "SUCCESS" || status === "SUCCESSFUL"
-      })
-      .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
-  )
   const verificationCache = new Map<string, Promise<VerificationState>>()
 
   const activationCandidates = (await Promise.all(
@@ -207,7 +184,6 @@ export async function runRecoverySweep() {
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
           verificationCache,
-          undefined,
         )
 
         return {
@@ -230,7 +206,6 @@ export async function runRecoverySweep() {
         references,
         data.provider || "monnify",
         verificationCache,
-        successfulWebhookReferences,
       )
 
       return {
