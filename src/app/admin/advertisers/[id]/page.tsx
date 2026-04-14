@@ -91,6 +91,16 @@ type Submission = {
   createdAtMs: number;
 };
 
+type Referral = {
+  id: string;
+  referredId: string;
+  amount: number;
+  status: string;
+  bonusPaid: boolean;
+  createdAtMs: number;
+  completedAtMs: number;
+};
+
 function toMillis(value: unknown) {
   if (!value) return 0;
   if (typeof value === "object" && value !== null && "seconds" in value) {
@@ -115,6 +125,7 @@ export default function AdvertiserAdminDetail({
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [transactions, setTransactions] = useState<AdvertiserTransaction[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activationBusy, setActivationBusy] = useState(false);
 
@@ -148,7 +159,7 @@ export default function AdvertiserAdminDetail({
           bank: advertiserData.bank as Advertiser["bank"],
         });
 
-        const [campaignsSnap, transactionsSnap] = await Promise.all([
+        const [campaignsSnap, transactionsSnap, referralsSnap] = await Promise.all([
           getDocs(
             query(collection(db, "campaigns"), where("ownerId", "==", id), orderBy("createdAt", "desc"))
           ),
@@ -156,6 +167,13 @@ export default function AdvertiserAdminDetail({
             query(
               collection(db, "advertiserTransactions"),
               where("userId", "==", id),
+              orderBy("createdAt", "desc")
+            )
+          ),
+          getDocs(
+            query(
+              collection(db, "referrals"),
+              where("referrerId", "==", id),
               orderBy("createdAt", "desc")
             )
           ),
@@ -190,6 +208,21 @@ export default function AdvertiserAdminDetail({
               status: String(data.status || "unknown"),
               createdAtMs: toMillis(data.createdAt),
               campaignId: data.campaignId ? String(data.campaignId) : undefined,
+            };
+          })
+        );
+
+        setReferrals(
+          referralsSnap.docs.map((referralDoc) => {
+            const data = referralDoc.data();
+            return {
+              id: referralDoc.id,
+              referredId: String(data.referredId || ""),
+              amount: Number(data.amount || 0),
+              status: String(data.status || "pending"),
+              bonusPaid: Boolean(data.bonusPaid),
+              createdAtMs: toMillis(data.createdAt),
+              completedAtMs: toMillis(data.completedAt || data.paidAt),
             };
           })
         );
@@ -251,14 +284,18 @@ export default function AdvertiserAdminDetail({
       (sum, campaign) => sum + campaign.budget + campaign.reservedBudget,
       0
     );
+    const pendingReferrals = referrals.filter((referral) => referral.status.toLowerCase() !== "completed").length;
+    const completedReferrals = referrals.filter((referral) => referral.status.toLowerCase() === "completed").length;
 
     return {
       activeCampaigns,
       pendingSubmissions,
       verifiedSubmissions,
       totalVisibleBudget,
+      pendingReferrals,
+      completedReferrals,
     };
-  }, [campaigns, submissions]);
+  }, [campaigns, submissions, referrals]);
 
   const updateStatus = async (status: string) => {
     try {
@@ -613,64 +650,112 @@ export default function AdvertiserAdminDetail({
           )}
         </SectionCard>
 
-        <SectionCard
-          title="Transaction timeline"
-          description="Advertiser payments, refunds, and spend events tied to campaigns."
-        >
-          {transactions.length === 0 ? (
-            <EmptyState
-              title="No transactions"
-              description="No advertiser transactions were found for this account."
-            />
-          ) : (
-            <PaginatedCardList
-              items={transactions}
-              itemsPerPage={3}
-              renderItem={(transaction) => (
-                <div
-                  key={transaction.id}
-                  className="rounded-2xl border border-stone-200 bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-medium capitalize text-stone-900">
-                        {transaction.type.replace(/_/g, " ")}
-                      </p>
-                      <p className="mt-1 text-sm text-stone-500">
-                        {transaction.note || "No note"}
-                      </p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
-                        {transaction.createdAtMs
-                          ? new Date(transaction.createdAtMs).toLocaleString()
-                          : "Unknown date"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-lg font-semibold ${
-                          transaction.amount >= 0 ? "text-emerald-700" : "text-rose-700"
-                        }`}
-                      >
-                        {currency(transaction.amount)}
-                      </p>
-                      <StatusBadge label={transaction.status} tone="stone" />
-                    </div>
+        <div className="space-y-6">
+          <SectionCard
+            title="Referrals"
+            description="Referral bonuses earned by this advertiser, split between pending and completed payouts."
+          >
+            {referrals.length === 0 ? (
+              <EmptyState
+                title="No referrals"
+                description="This advertiser has not referred any users yet."
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl bg-amber-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-700">Pending</p>
+                    <p className="mt-2 text-2xl font-semibold text-stone-900">{summary.pendingReferrals}</p>
                   </div>
-                  {transaction.campaignId ? (
-                    <div className="mt-3">
-                      <Link
-                        href={`/admin/campaigns/${transaction.campaignId}`}
-                        className="text-sm font-medium text-amber-700 hover:text-amber-800"
-                      >
-                        Open related campaign
-                      </Link>
-                    </div>
-                  ) : null}
+                  <div className="rounded-2xl bg-emerald-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-emerald-700">Completed</p>
+                    <p className="mt-2 text-2xl font-semibold text-stone-900">{summary.completedReferrals}</p>
+                  </div>
                 </div>
-              )}
-            />
-          )}
-        </SectionCard>
+                <PaginatedCardList
+                  items={referrals}
+                  itemsPerPage={3}
+                  renderItem={(referral) => (
+                    <div key={referral.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-stone-900">{currency(referral.amount)}</p>
+                          <p className="mt-1 text-sm text-stone-500">Referred user: {referral.referredId || "Unknown"}</p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
+                            {referral.createdAtMs ? new Date(referral.createdAtMs).toLocaleString() : "Unknown date"}
+                          </p>
+                        </div>
+                        <StatusBadge
+                          label={referral.status}
+                          tone={referral.status.toLowerCase() === "completed" ? "green" : "amber"}
+                        />
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Transaction timeline"
+            description="Advertiser payments, refunds, and spend events tied to campaigns."
+          >
+            {transactions.length === 0 ? (
+              <EmptyState
+                title="No transactions"
+                description="No advertiser transactions were found for this account."
+              />
+            ) : (
+              <PaginatedCardList
+                items={transactions}
+                itemsPerPage={3}
+                renderItem={(transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="rounded-2xl border border-stone-200 bg-white p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium capitalize text-stone-900">
+                          {transaction.type.replace(/_/g, " ")}
+                        </p>
+                        <p className="mt-1 text-sm text-stone-500">
+                          {transaction.note || "No note"}
+                        </p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
+                          {transaction.createdAtMs
+                            ? new Date(transaction.createdAtMs).toLocaleString()
+                            : "Unknown date"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-lg font-semibold ${
+                            transaction.amount >= 0 ? "text-emerald-700" : "text-rose-700"
+                          }`}
+                        >
+                          {currency(transaction.amount)}
+                        </p>
+                        <StatusBadge label={transaction.status} tone="stone" />
+                      </div>
+                    </div>
+                    {transaction.campaignId ? (
+                      <div className="mt-3">
+                        <Link
+                          href={`/admin/campaigns/${transaction.campaignId}`}
+                          className="text-sm font-medium text-amber-700 hover:text-amber-800"
+                        >
+                          Open related campaign
+                        </Link>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              />
+            )}
+          </SectionCard>
+        </div>
       </div>
     </div>
   );

@@ -86,6 +86,16 @@ type Submission = {
   createdAtMs: number;
 };
 
+type Referral = {
+  id: string;
+  referredId: string;
+  amount: number;
+  status: string;
+  bonusPaid: boolean;
+  createdAtMs: number;
+  completedAtMs: number;
+};
+
 type CampaignStub = {
   id: string;
   title: string;
@@ -116,6 +126,7 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [transactions, setTransactions] = useState<EarnerTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignStub[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -152,7 +163,7 @@ export default function ClientEarnerDetail({ id }: Props) {
         });
         setStrikeCount(Number(earnerData.strikeCount || 0));
 
-        const [transactionsSnap, withdrawalsSnap, submissionsSnap] = await Promise.all([
+        const [transactionsSnap, withdrawalsSnap, submissionsSnap, referralsSnap] = await Promise.all([
           getDocs(
             query(
               collection(db, "earnerTransactions"),
@@ -171,6 +182,13 @@ export default function ClientEarnerDetail({ id }: Props) {
             query(
               collection(db, "earnerSubmissions"),
               where("userId", "==", id),
+              orderBy("createdAt", "desc")
+            )
+          ),
+          getDocs(
+            query(
+              collection(db, "referrals"),
+              where("referrerId", "==", id),
               orderBy("createdAt", "desc")
             )
           ),
@@ -219,6 +237,20 @@ export default function ClientEarnerDetail({ id }: Props) {
           };
         });
         setSubmissions(submissionRows);
+        setReferrals(
+          referralsSnap.docs.map((referralDoc) => {
+            const data = referralDoc.data();
+            return {
+              id: referralDoc.id,
+              referredId: String(data.referredId || ""),
+              amount: Number(data.amount || 0),
+              status: String(data.status || "pending"),
+              bonusPaid: Boolean(data.bonusPaid),
+              createdAtMs: toMillis(data.createdAt),
+              completedAtMs: toMillis(data.completedAt || data.paidAt),
+            };
+          })
+        );
 
         const uniqueCampaignIds = Array.from(
           new Set(submissionRows.map((submission) => submission.campaignId).filter(Boolean))
@@ -273,8 +305,10 @@ export default function ClientEarnerDetail({ id }: Props) {
       pendingWithdrawals: withdrawals.filter((withdrawal) =>
         withdrawal.status.toLowerCase().includes("pending")
       ).length,
+      pendingReferrals: referrals.filter((referral) => referral.status.toLowerCase() !== "completed").length,
+      completedReferrals: referrals.filter((referral) => referral.status.toLowerCase() === "completed").length,
     };
-  }, [submissions, withdrawals]);
+  }, [submissions, withdrawals, referrals]);
 
   const updateStatus = async (status: string) => {
     try {
@@ -660,6 +694,52 @@ export default function ClientEarnerDetail({ id }: Props) {
         </SectionCard>
 
         <div className="space-y-6">
+          <SectionCard
+            title="Referrals"
+            description="Referral bonuses earned by this earner, split between pending and completed payouts."
+          >
+            {referrals.length === 0 ? (
+              <EmptyState
+                title="No referrals"
+                description="This earner has not referred any users yet."
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl bg-amber-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-700">Pending</p>
+                    <p className="mt-2 text-2xl font-semibold text-stone-900">{summary.pendingReferrals}</p>
+                  </div>
+                  <div className="rounded-2xl bg-emerald-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-emerald-700">Completed</p>
+                    <p className="mt-2 text-2xl font-semibold text-stone-900">{summary.completedReferrals}</p>
+                  </div>
+                </div>
+                <PaginatedCardList
+                  items={referrals}
+                  itemsPerPage={3}
+                  renderItem={(referral) => (
+                    <div key={referral.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-stone-900">{currency(referral.amount)}</p>
+                          <p className="mt-1 text-sm text-stone-500">Referred user: {referral.referredId || "Unknown"}</p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
+                            {referral.createdAtMs ? new Date(referral.createdAtMs).toLocaleString() : "Unknown date"}
+                          </p>
+                        </div>
+                        <StatusBadge
+                          label={referral.status}
+                          tone={referral.status.toLowerCase() === "completed" ? "green" : "amber"}
+                        />
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard
             title="Transactions"
             description="Credits, reversals, and earnings history."

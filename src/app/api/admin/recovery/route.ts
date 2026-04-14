@@ -114,7 +114,7 @@ export async function GET(): Promise<Response> {
     const userId = String(data.userId || "")
     const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
     if (!userId || !role) continue
-    if (String(data.status || "").toLowerCase() === "completed") continue
+    if (["completed", "dismissed"].includes(String(data.status || "").toLowerCase())) continue
 
     const key = `${role}:${userId}`
     const references = normalizeReferences([

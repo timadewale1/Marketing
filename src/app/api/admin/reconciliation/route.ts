@@ -51,7 +51,7 @@ export async function GET(): Promise<Response> {
         staleMinutes: Number.isFinite(attemptedAtMs) ? Math.floor((Date.now() - attemptedAtMs) / 60000) : null,
       }
     })
-    .filter((item) => item.userId && item.status.toLowerCase() !== "completed")
+    .filter((item) => item.userId && !["completed", "dismissed"].includes(item.status.toLowerCase()))
     .filter((item) => item.staleMinutes === null || item.staleMinutes >= 15)
     .sort((a, b) => (b.staleMinutes || 0) - (a.staleMinutes || 0))
     .slice(0, 30)
