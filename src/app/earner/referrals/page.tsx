@@ -107,14 +107,7 @@ export default function ReferralsPage() {
                     Paid when the referred earner completes activation.
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                  <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium w-fit">
-                    ₦500 per activated advertiser
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    Paid when the referred advertiser activates their account.
-                  </div>
-                </div>
+                {/* Advertiser activation referral bonus is temporarily hidden. */}
               </div>
             </div>
 
@@ -219,3 +212,4 @@ export default function ReferralsPage() {
     </div>
   );
 }
+

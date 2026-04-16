@@ -96,17 +96,30 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        await adminDb.collection('campaigns').add({
+        const campaignRef = adminDb.collection('campaigns').doc()
+        const campaignTitle = String(campaignData.title || 'Untitled')
+        const advertiserName = String(
+          campaignData.advertiserName ||
+          campaignData.businessName ||
+          campaignData.companyName ||
+          campaignData.name ||
+          userId ||
+          'Advertiser'
+        ).trim()
+
+        await campaignRef.set({
           ...campaignData,
           paymentRef: reference,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })
         await adminDb.collection('adminNotifications').add({
-          type: 'campaign_created',
-          title: 'New campaign (paid)',
-          body: `${String(campaignData.title || 'Untitled')} was created via payment`,
-          link: '/admin/campaigns',
-          campaignTitle: String(campaignData.title || ''),
+          type: 'task_created',
+          title: 'New task created',
+          body: `Advertiser ${advertiserName} created a new task: ${campaignTitle}`,
+          link: `/admin/campaigns/${campaignRef.id}`,
+          campaignId: campaignRef.id,
+          campaignTitle,
+          userId: String(userId || ''),
           read: false,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })

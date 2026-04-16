@@ -107,6 +107,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, message: 'User wallet not found' }, { status: 404 })
       }
 
+      if (userType === 'earner' && !earSnap.data()?.activated) {
+        return NextResponse.json(
+          {
+            ok: false,
+            message: 'Your first N2,000 earned will be used to activate your account automatically before wallet spending is allowed.',
+          },
+          { status: 400 }
+        )
+      }
+
       const txDocRef = db.collection(txCollection).doc()
       try {
         await db.runTransaction(async (t) => {

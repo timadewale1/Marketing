@@ -183,13 +183,18 @@ export async function sendNewTaskEmail({
   name,
   taskTitle,
   taskId,
+  availableSlots,
 }: {
   email: string
   name?: string
   taskTitle: string
   taskId: string
+  availableSlots?: number
 }) {
   const taskUrl = `${APP_URL}/earner/campaigns/${taskId}`
+  const slotsText = typeof availableSlots === 'number' && availableSlots > 0
+    ? `<p>There are currently <strong>${availableSlots}</strong> slot${availableSlots === 1 ? '' : 's'} available for this task.</p>`
+    : ''
   await sendEmail({
     to: email,
     subject: `New Task on Pamba: ${taskTitle}`,
@@ -198,7 +203,8 @@ export async function sendNewTaskEmail({
       `
         <p>Hi ${name ? String(name) : 'there'},</p>
         <p>A new task is now live on Pamba: <strong>${taskTitle}</strong>.</p>
-        <p>Jump in early so you do not miss the available slots.</p>
+        ${slotsText}
+        <p>Be fast in applying so you do not miss out before the slots fill up.</p>
       `,
       'Participate now',
       taskUrl
@@ -452,9 +458,11 @@ export async function sendContactAlertEmail({
 export async function sendNewTaskNotificationToEarners({
   campaignId,
   campaignTitle,
+  availableSlots,
 }: {
   campaignId: string
   campaignTitle: string
+  availableSlots?: number
 }) {
   const { dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin) {
@@ -490,6 +498,7 @@ export async function sendNewTaskNotificationToEarners({
       name: recipient.name,
       taskTitle: campaignTitle,
       taskId: campaignId,
+      availableSlots,
     })
   }, 20)
 

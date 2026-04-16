@@ -86,6 +86,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
         return NextResponse.json({ status: false, message: 'User wallet not found' }, { status: 404 });
       }
 
+      if (userType === 'earner' && !earSnap.data()?.activated) {
+        return NextResponse.json(
+          {
+            status: false,
+            message: 'Your first N2,000 earned will be used to activate your account automatically before wallet spending is allowed.',
+          },
+          { status: 400 }
+        );
+      }
+
       const txCollection = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions';
       txDocRef = db!.collection(txCollection).doc();
 

@@ -25,6 +25,8 @@ interface Campaign {
   [key: string]: unknown
 }
 
+const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
+
 type StrikeEmailPayload =
   | { type: 'added'; email: string; name?: string; strikeCount: number; reason?: string | null; suspended: boolean }
   | { type: 'removed'; email: string; name?: string; strikeCount: number }
@@ -193,6 +195,16 @@ export async function POST(req: Request): Promise<Response> {
         // 3) Earner transaction + balance
         const userId = submission.userId as string
         if (!userId) throw new Error('Submission missing userId')
+        const liveEarnerSnap = await t.get(earnerRef)
+        const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
+        const earnerCurrentBalance = Number(liveEarnerData?.balance || 0)
+        const earnerIsActivated = Boolean(liveEarnerData?.activated)
+        const shouldAutoActivate =
+          !earnerIsActivated &&
+          earnerCurrentBalance + earnerAmount >= EARNER_AUTO_ACTIVATION_THRESHOLD
+        const activationDeduction = shouldAutoActivate ? EARNER_AUTO_ACTIVATION_THRESHOLD : 0
+        const netEarning = earnerAmount - activationDeduction
+
         const earnerTxRef = adminDb.collection('earnerTransactions').doc()
         t.set(earnerTxRef, {
           userId: userId,
@@ -203,12 +215,34 @@ export async function POST(req: Request): Promise<Response> {
           note: `Payment for ${submission.campaignTitle}`,
           createdAt: now,
         })
-        t.update(adminDb.collection('earners').doc(userId), {
-          balance: admin.firestore.FieldValue.increment(earnerAmount),
+        if (shouldAutoActivate) {
+          const activationTxRef = adminDb.collection('earnerTransactions').doc()
+          t.set(activationTxRef, {
+            userId: userId,
+            campaignId: submission.campaignId,
+            type: 'activation_fee',
+            amount: -activationDeduction,
+            status: 'completed',
+            note: 'Automatic account activation from wallet earnings',
+            createdAt: now,
+          })
+        }
+
+        const earnerUpdates: Record<string, unknown> = {
+          balance: admin.firestore.FieldValue.increment(netEarning),
           leadsPaidFor: admin.firestore.FieldValue.increment(1),
           totalEarned: admin.firestore.FieldValue.increment(earnerAmount),
           lastEarnedAt: now,
-        })
+        }
+        if (shouldAutoActivate) {
+          earnerUpdates.activated = true
+          earnerUpdates.activatedAt = now
+          earnerUpdates.activationPaymentProvider = 'wallet_auto'
+          earnerUpdates.pendingActivationProvider = admin.firestore.FieldValue.delete()
+          earnerUpdates.pendingActivationReference = admin.firestore.FieldValue.delete()
+          earnerUpdates.needsReactivation = false
+        }
+        t.update(adminDb.collection('earners').doc(userId), earnerUpdates)
 
         // 4) Advertiser transaction + stats
         if (advertiserId) {

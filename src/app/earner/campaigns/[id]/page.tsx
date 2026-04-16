@@ -16,12 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PaymentSelector } from '@/components/payment-selector'
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
-import { registerActivationReference } from "@/lib/activation-client";
 
 type Campaign = {
   id: string;
@@ -51,7 +49,6 @@ type CampaignData = Omit<Campaign, "id">;
 
 // Minimal shape of an earner document used in this file
 type EarnerData = {
-  activated?: boolean;
   status?: string;
   strikeCount?: number;
 };
@@ -69,7 +66,6 @@ export default function CampaignDetailPage() {
   const [socialHandle, setSocialHandle] = useState("");
   const [proofSlots, setProofSlots] = useState<Array<File | null>>([null]);
   const [submitting, setSubmitting] = useState(false);
-  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
 
   // Helper function to validate data sync
   const validateDataSync = async (userId: string, campaignId: string) => {
@@ -85,13 +81,6 @@ export default function CampaignDetailPage() {
     }
 
     const campaignData = campaignSnap.data() as CampaignData;
-    const earner = earnerSnap.data() as EarnerData;
-
-    // Check if user is activated
-    if (!earner?.activated) {
-      return false;
-    }
-
     // Check if campaign is active and has budget
     if (campaignData?.status !== "Active" || (campaignData?.budget || 0) < (campaignData?.costPerLead || 0)) {
       return false;
@@ -188,24 +177,14 @@ export default function CampaignDetailPage() {
     return url;
   };
 
-  // Open payment selector with Monnify only (Paystack disabled)
-  const handleActivation = async () => {
-    setShowActivationPaymentSelector(true)
-  }
-
   const submitParticipation = async () => {
     const user = auth.currentUser;
     if (!user) return toast.error("You must be logged in to participate");
     if (!campaign) return;
 
-    // Check activation status
     const earnerDoc = await getDoc(doc(db, "earners", user.uid));
     if (!earnerDoc.exists()) return toast.error("Earner profile not found");
     const earnerData = earnerDoc.data() as EarnerData;
-    if (!earnerData?.activated) {
-      handleActivation(); // Open Monnify modal for activation (Paystack disabled)
-      return;
-    }
     if (String(earnerData.status || "").toLowerCase() === "suspended") {
       toast.error("Your account is suspended. Please contact support for review.");
       return;
@@ -778,6 +757,11 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 Submitted participations can take up to 12 hours to be reviewed and approved.
               </p>
             </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm text-amber-900">
+                Your first ₦2,000 earned will be used to activate your account automatically. Until then, you can complete tasks but cannot withdraw or use wallet funds for bills.
+              </p>
+            </div>
 
             <div className="flex gap-3 pt-4">
               <Button
@@ -798,43 +782,6 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
           </div>
         </Card>
       </div>
-        {showActivationPaymentSelector && (
-          <PaymentSelector
-            open={showActivationPaymentSelector}
-            amount={2000}
-            email={auth.currentUser?.email || undefined}
-            fullName={auth.currentUser?.displayName || 'Earner'}
-            description="Earner Account Activation"
-            onClose={() => setShowActivationPaymentSelector(false)}
-            onMonnifyReferenceCreated={async (reference: string) => {
-              await registerActivationReference({ role: 'earner', reference, provider: 'monnify' })
-            }}
-            onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
-              setShowActivationPaymentSelector(false)
-              try {
-                const res = await fetch('/api/earner/activate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
-                })
-                const data = await res.json().catch(() => ({}))
-                if (res.ok && data?.success) {
-                  if (data.pendingConfirmation) {
-                    toast.success('Payment received. Your account will activate after Monnify confirms it.')
-                  } else {
-                    toast.success('Activation successful')
-                    await submitParticipation()
-                  }
-                } else {
-                  toast.error(data?.message || 'Activation verification failed')
-                }
-              } catch (err) {
-                console.error('Activation error', err)
-                toast.error('Activation failed')
-              }
-            }}
-          />
-        )}
     </div>
   );
 }

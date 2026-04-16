@@ -33,6 +33,7 @@ export default function TransactionsPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
   const [availableBalance, setAvailableBalance] = useState(0);
+  const [activated, setActivated] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 5;
 
@@ -48,6 +49,7 @@ export default function TransactionsPage() {
       if (snap.exists()) {
         const data = snap.data();
         setAvailableBalance(Number(data.balance || 0));
+        setActivated(Boolean(data.activated));
         setBankDetails(getBankDetails(data));
       }
     });
@@ -105,6 +107,10 @@ export default function TransactionsPage() {
       toast.error("Please add bank details first");
       return;
     }
+    if (!activated) {
+      toast.error("Your first N2,000 earned will activate your account automatically before withdrawals are allowed");
+      return;
+    }
 
     try {
       // Call server API to process withdrawal immediately via Paystack
@@ -151,10 +157,13 @@ export default function TransactionsPage() {
               <p className="text-sm text-stone-600 mt-1">
                 Minimum withdrawal: ₦1,000
               </p>
+              <p className="text-sm text-stone-600 mt-1">
+                Your first ₦2,000 earned will be deducted automatically to activate your account. Until then, withdrawals and bill purchases from your wallet are disabled.
+              </p>
             </div>
             <Button
               onClick={() => setWithdrawOpen(true)}
-              disabled={availableBalance < 1000 || !bankDetails}
+              disabled={availableBalance < 1000 || !bankDetails || !activated}
               className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
             >
               Withdraw Funds

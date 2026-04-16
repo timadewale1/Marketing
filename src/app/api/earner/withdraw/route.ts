@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     if (!earnerSnap.exists) return NextResponse.json({ success: false, message: 'Earner not found' }, { status: 404 })
     type EarnerDoc = {
       balance?: number
+      activated?: boolean
       bank?: { accountNumber?: string; bankCode?: string; accountName?: string; bankName?: string }
       bankCode?: string
       bankName?: string
@@ -53,6 +54,16 @@ export async function POST(req: Request) {
       paystackRecipientCode?: string
     }
     const earner = earnerSnap.data() as EarnerDoc | null
+
+    if (!earner?.activated) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Your first N2,000 earned will be used to activate your account automatically before withdrawals are allowed.',
+        },
+        { status: 400 }
+      )
+    }
 
     const bank = getBankDetails(earner)
     if (!bank || !bank.accountNumber || !bank.bankCode) {

@@ -47,6 +47,17 @@ export async function POST(req: Request) {
     if (!advertiserSnap.exists) return NextResponse.json({ success: false, message: 'Advertiser not found' }, { status: 404 })
 
     let createdCampaignId = ''
+    const advertiserData = advertiserSnap.data() || {}
+    const advertiserName = String(
+      advertiserData.fullName ||
+      advertiserData.businessName ||
+      advertiserData.name ||
+      advertiserData.companyName ||
+      advertiserData.email ||
+      verifiedUid
+    ).trim()
+    const campaignTitle = String(campaignData.title || 'Untitled')
+    const availableSlots = Number(campaignData.estimatedLeads || campaignData.targetLeads || 0)
 
     // Run transaction: create campaign, deduct balance, record transaction
     await db.runTransaction(async (t) => {
@@ -91,12 +102,13 @@ export async function POST(req: Request) {
       // Notify admin of new campaign created
       const noteRef = db.collection('adminNotifications').doc()
       t.set(noteRef, {
-        type: 'campaign_created',
-        title: 'New campaign created',
-        body: `${String(campaignData.title || 'Untitled')} was created by advertiser ${verifiedUid}`,
+        type: 'task_created',
+        title: 'New task created',
+        body: `Advertiser ${advertiserName} created a new task: ${campaignTitle}`,
         link: `/admin/campaigns/${campaignRef.id}`,
         userId: verifiedUid,
         campaignId: campaignRef.id,
+        campaignTitle,
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
@@ -105,7 +117,8 @@ export async function POST(req: Request) {
     if (createdCampaignId) {
       sendNewTaskNotificationToEarners({
         campaignId: createdCampaignId,
-        campaignTitle: String(campaignData.title || 'Untitled'),
+        campaignTitle,
+        availableSlots,
       }).catch((mailerErr) => {
         console.error('New task notification failed:', mailerErr)
       })

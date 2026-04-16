@@ -10,8 +10,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
-import { PaymentSelector } from '@/components/payment-selector';
-import { registerActivationReference } from "@/lib/activation-client";
 
 type Campaign = {
   id: string;
@@ -56,10 +54,8 @@ export default function AvailableCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [activated, setActivated] = useState<boolean | null>(null);
-  const [strikeCount, setStrikeCount] = useState<number>(0);
   const [accountStatus, setAccountStatus] = useState<string>("active");
   const [activatingLoading, setActivatingLoading] = useState(true);
-  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
   const activationReloadedRef = useRef(false);
   const previousActivatedRef = useRef<boolean | null>(null);
 
@@ -89,7 +85,6 @@ export default function AvailableCampaignsPage() {
         }
         const nextActivated = !!d.data()?.activated
         setActivated(nextActivated)
-        setStrikeCount(Number(d.data()?.strikeCount || 0))
         setAccountStatus(String(d.data()?.status || "active"))
         if (
           previousActivatedRef.current === false &&
@@ -162,32 +157,13 @@ export default function AvailableCampaignsPage() {
 
         {activatingLoading || loading ? (
           <PageLoader />
-        ) : activated === false ? (
-          <div className="col-span-full text-center py-20 px-6">
-            <div className="mb-8 relative">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-red-300 to-pink-300 opacity-20 animate-spin"></div>
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="text-6xl animate-pulse">🔒</div>
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold text-stone-800 mb-3">Account Not Activated</h2>
-            <p className="text-lg text-stone-600 text-center max-w-md mb-2">Please activate your account to see available tasks.</p>
-            <p className="text-base text-stone-500 text-center max-w-md">
-              Once you complete activation, refresh this page and tasks will appear.
-            </p>
-            {accountStatus === "suspended" ? (
-              <p className="mt-3 text-sm text-red-600">Your account is suspended. Please contact support for review.</p>
-            ) : strikeCount > 0 ? (
-              <p className="mt-3 text-sm text-amber-600">
-                You have {strikeCount} strike{strikeCount === 1 ? "" : "s"}. Repeated rejected submissions can lead to suspension.
-              </p>
-            ) : null}
-            <Button size="sm" className="mt-4 bg-amber-500 text-stone-900" onClick={() => setShowActivationPaymentSelector(true)}>
-              Activate Account (₦2,000)
-            </Button>
-          </div>
         ) : (
           <div>
+            {activated === false ? (
+              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Your account will activate automatically once your earnings reach ₦2,000. Until then, you can do tasks normally, but withdrawals and bill purchases from your wallet are disabled.
+              </div>
+            ) : null}
             <div className="mb-6">
               <label className="block text-sm font-medium text-stone-700 mb-2">Filter by Task Type</label>
               <select className="w-full md:w-64 border border-stone-300 rounded-lg px-4 py-2 bg-white text-stone-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
@@ -287,45 +263,6 @@ export default function AvailableCampaignsPage() {
             </div>
           </div>
         )}
-      {showActivationPaymentSelector && (
-        <PaymentSelector
-          open={showActivationPaymentSelector}
-          amount={2000}
-          email={auth.currentUser?.email || undefined}
-          fullName={auth.currentUser?.displayName || 'Earner'}
-          description="Earner Account Activation"
-          onMonnifyReferenceCreated={async (reference: string) => {
-            await registerActivationReference({ role: 'earner', reference, provider: 'monnify' })
-          }}
-          onClose={() => {
-            setShowActivationPaymentSelector(false)
-          }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
-            setShowActivationPaymentSelector(false)
-            try {
-              const res = await fetch('/api/earner/activate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
-              })
-              const data = await res.json()
-              if (res.ok && data.success) {
-                if (data.pendingConfirmation) {
-                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
-                } else {
-                  toast.success('Activation successful')
-                  setActivated(true)
-                }
-              } else {
-                toast.error(data?.message || 'Activation failed')
-              }
-            } catch (err) {
-              console.error('Activation error', err)
-              toast.error('Activation request failed')
-            }
-          }}
-        />
-      )}
       </div>
     </div>
   );

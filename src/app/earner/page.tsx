@@ -19,7 +19,6 @@ import toast from 'react-hot-toast'
 import { Card, CardContent } from "@/components/ui/card"
 import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
-import { PaymentSelector } from '@/components/payment-selector'
 import {
   Wallet,
   TrendingUp,
@@ -39,7 +38,6 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
-import { registerActivationReference } from "@/lib/activation-client"
 import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
 
 type WithdrawRecord = {
@@ -65,8 +63,6 @@ export default function EarnerDashboard() {
     campaignRejected: 0,
     campaignApproved: 0,
   })
-  const [activated, setActivated] = useState<boolean>(false)
-  const [needsReactivation, setNeedsReactivation] = useState<boolean>(false)
   const [strikeCount, setStrikeCount] = useState<number>(0)
   const [accountStatus, setAccountStatus] = useState<string>('active')
 
@@ -76,7 +72,6 @@ export default function EarnerDashboard() {
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
 
@@ -116,8 +111,6 @@ export default function EarnerDashboard() {
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
           const nextActivated = !!d.activated
-          setActivated(nextActivated)
-          setNeedsReactivation(!!d.needsReactivation)
           setStrikeCount(Number(d.strikeCount || 0))
           setAccountStatus(String(d.status || 'active'))
 
@@ -239,11 +232,6 @@ export default function EarnerDashboard() {
     router.push("/auth/sign-in")
   }
 
-  // Use PaymentSelector with Monnify only (Paystack disabled)
-  const handleActivation = async () => {
-    setShowActivationPaymentSelector(true)
-  }
-
   const handleGoToTasks = () => {
     if (accountStatus === 'suspended') {
       toast.error('Your account is suspended. Please contact support for review.')
@@ -283,7 +271,7 @@ export default function EarnerDashboard() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
           <h2 className="mt-2 text-3xl font-semibold text-stone-900">{userName}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Keep the momentum going. Check fresh tasks, track your proof queue, and turn completed work into withdrawable earnings.
+            Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning. Your first ₦2,000 earned will activate your account automatically.
           </p>
         </div>
   {/* Top Cards */}
@@ -299,6 +287,9 @@ export default function EarnerDashboard() {
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
+                <p className="mt-2 text-xs leading-5 text-stone-600">
+                  Until your account activates automatically from your first ₦2,000 earned, you can do tasks normally but cannot withdraw or use wallet funds for bills.
+                </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       size="sm"
@@ -307,13 +298,7 @@ export default function EarnerDashboard() {
                     >
                       Withdraw
                     </Button>
-                    {activated ? (
-                      <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
-                    ) : needsReactivation ? (
-                      <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Reactivate Account (₦2,000)</Button>
-                    ) : (
-                      <Button size="sm" variant="outline" className="flex-none" onClick={() => handleActivation()}>Activate to Participate (₦2,000)</Button>
-                    )}
+                    <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
                   </div>
                   {accountStatus === 'suspended' ? (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -631,45 +616,6 @@ export default function EarnerDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
-      {showActivationPaymentSelector && (
-        <PaymentSelector
-          open={showActivationPaymentSelector}
-          amount={2000}
-          email={auth.currentUser?.email || undefined}
-          fullName={auth.currentUser?.displayName || 'Earner'}
-          description="Earner Account Activation"
-          onMonnifyReferenceCreated={async (reference: string) => {
-            await registerActivationReference({ role: 'earner', reference, provider: 'monnify' })
-          }}
-          onClose={() => {
-            setShowActivationPaymentSelector(false)
-          }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
-            setShowActivationPaymentSelector(false)
-            try {
-              const res = await fetch('/api/earner/activate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
-              })
-              const data = await res.json()
-              if (res.ok && data.success) {
-                if (data.pendingConfirmation) {
-                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
-                } else {
-                  toast.success('Activation successful')
-                  setActivated(true)
-                }
-              } else {
-                toast.error(data?.message || 'Activation failed')
-              }
-            } catch (err) {
-              console.error('Activation error', err)
-              toast.error('Activation request failed')
-            }
-          }}
-        />
-      )}
       <WhatsAppGroupButton />
       <WhatsAppChatButton />
     </div>
