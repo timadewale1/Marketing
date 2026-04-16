@@ -6,6 +6,47 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
 import { sendAdminActionEmail } from '@/lib/mailer'
 
+async function sendBillsPurchaseAdminAlert({
+  actorUserId,
+  paidAmount,
+  serviceID,
+}: {
+  actorUserId?: string
+  paidAmount: number
+  serviceID: unknown
+}) {
+  if (!actorUserId) return
+
+  try {
+    const { dbAdmin } = await initFirebaseAdmin()
+    let adminProfilePath = `/admin/earners/${actorUserId}`
+    let actorName = 'User'
+    if (dbAdmin) {
+      const advSnap = await dbAdmin.collection('advertisers').doc(String(actorUserId)).get()
+      if (advSnap.exists) {
+        const advData = advSnap.data() as { fullName?: string; name?: string; businessName?: string; companyName?: string }
+        actorName = String(advData.fullName || advData.name || advData.businessName || advData.companyName || 'Advertiser').trim()
+        adminProfilePath = `/admin/advertisers/${actorUserId}`
+      } else {
+        const earnerSnap = await dbAdmin.collection('earners').doc(String(actorUserId)).get()
+        if (earnerSnap.exists) {
+          const earnerData = earnerSnap.data() as { fullName?: string; name?: string }
+          actorName = String(earnerData.fullName || earnerData.name || 'Earner').trim()
+        }
+      }
+    }
+
+    await sendAdminActionEmail({
+      subject: `Bills purchase - N${paidAmount.toLocaleString()}`,
+      title: 'Bills purchase completed',
+      message: `${actorName} completed a bills purchase for service ${String(serviceID || 'unknown')} (N${paidAmount.toLocaleString()}).`,
+      adminPath: adminProfilePath,
+    })
+  } catch (error) {
+    console.warn('Failed to resolve bills purchase user type or send alert', error)
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -103,6 +144,11 @@ export async function POST(req: NextRequest) {
         }
 
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
+        await sendBillsPurchaseAdminAlert({
+          actorUserId: verifiedUid,
+          paidAmount: amountN,
+          serviceID,
+        })
 
         return NextResponse.json({ ok: true, result: vtData2 })
       } catch (e) {
@@ -329,7 +375,14 @@ export async function POST(req: NextRequest) {
       console.warn('Failed to save transaction', e)
     }
 
-    if (actorUserId) {
+    await sendBillsPurchaseAdminAlert({
+      actorUserId,
+      paidAmount,
+      serviceID,
+    })
+
+    /*
+    if (false && actorUserId) {
       try {
         const { dbAdmin } = await initFirebaseAdmin()
         let adminProfilePath = `/admin/earners/${actorUserId}`
@@ -360,6 +413,7 @@ export async function POST(req: NextRequest) {
         console.warn('Failed to resolve bills purchase user type', error)
       }
     }
+    */
 
     return NextResponse.json({ ok: true, result: vtRes.data })
   } catch (err: unknown) {
