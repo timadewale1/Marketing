@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireAdminSession } from '@/lib/admin-session'
 import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
+import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 
 interface Submission {
   status?: string
@@ -47,6 +48,7 @@ export async function POST(req: Request): Promise<Response> {
   const now = new Date()
   const adminUid = req.headers.get('x-admin-uid') || 'system'
   let strikeEmailPayload: StrikeEmailPayload | null = null
+  let autoActivatedUserId: string | null = null
 
   try {
     // Try direct lookup in possible collections
@@ -241,6 +243,7 @@ export async function POST(req: Request): Promise<Response> {
           earnerUpdates.pendingActivationProvider = admin.firestore.FieldValue.delete()
           earnerUpdates.pendingActivationReference = admin.firestore.FieldValue.delete()
           earnerUpdates.needsReactivation = false
+          autoActivatedUserId = userId
         }
         t.update(adminDb.collection('earners').doc(userId), earnerUpdates)
 
@@ -439,6 +442,10 @@ export async function POST(req: Request): Promise<Response> {
         throw new Error('Unknown action')
       }
     })
+
+    if (autoActivatedUserId) {
+      await processPendingActivationReferrals(adminDb, admin, autoActivatedUserId)
+    }
 
     const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
     if (emailPayload?.type === 'added') {

@@ -6,7 +6,7 @@ export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
 
-async function processPendingActivationReferrals(
+export async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
   admin: typeof import('firebase-admin'),
   userId: string
