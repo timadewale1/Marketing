@@ -107,9 +107,9 @@ export default function CreateCampaignPage() {
   const [bannerUrl, setBannerUrl] = useState("")
   const [mediaUrl, setMediaUrl] = useState("")
   const [externalLink, setExternalLink] = useState("")
-  const [videoLink, setVideoLink] = useState("") // ✅ new field
-  const [productLink, setProductLink] = useState("") // ✅ product link field
-  const [productImages, setProductImages] = useState<string[]>([]) // ✅ product images (up to 3)
+  const [videoLink, setVideoLink] = useState("") // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ new field
+  const [productLink, setProductLink] = useState("") // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ product link field
+  const [productImages, setProductImages] = useState<string[]>([]) // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ product images (up to 3)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
   // face verification + address (for product campaigns)
   const [faceImage, setFaceImage] = useState<string | null>(null)
@@ -126,7 +126,7 @@ export default function CreateCampaignPage() {
   const [stateRegion, setStateRegion] = useState("")
 
 
-  // targeting removed — only budget is required now
+  // targeting removed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only budget is required now
 
   const [budget, setBudget] = useState<number | "">("")
 
@@ -304,7 +304,7 @@ const compressed = await imageCompression(file, options)
     }
 
     if (numericBudget < minimumBudget) {
-      toast.error(`Budget must be at least â‚¦${minimumBudget.toLocaleString()} for this task type`)
+      toast.error(`Budget must be at least NGN ${minimumBudget.toLocaleString()} for this task type`)
       return
     }
 
@@ -414,7 +414,7 @@ const compressed = await imageCompression(file, options)
       setShowPaymentSelector(true)
     } catch (err) {
       console.error('Wallet create error', err)
-      toast.error('Failed to create campaign — try again')
+      toast.error('Failed to create campaign ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â try again')
     }
   }
 
@@ -559,7 +559,7 @@ const compressed = await imageCompression(file, options)
     </div>
   )
 
-  // ✅ helper to embed YouTube/Vimeo links
+  // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ helper to embed YouTube/Vimeo links
 const getEmbeddedVideo = (url: string) => {
   try {
     const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/)
@@ -615,7 +615,7 @@ const getEmbeddedVideo = (url: string) => {
                 ))}
               </select>
 
-              {/* Thumbnail removed from initial Details step — it's auto-generated at Review */}
+              {/* Thumbnail removed from initial Details step ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it's auto-generated at Review */}
             </CardContent>
           </Card>
         )
@@ -636,7 +636,7 @@ const getEmbeddedVideo = (url: string) => {
               }
 
               {category === "Share my Product" && faceUploading && (
-                <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` — ${uploadProgress}%` : '...'}</div>
+                <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${uploadProgress}%` : '...'}</div>
               )}
               {category === "Share my Product" && faceImageUrl && (
                 <div className="mt-2 text-sm text-stone-600">Face image uploaded and attached to campaign</div>
@@ -700,7 +700,7 @@ const getEmbeddedVideo = (url: string) => {
                       ))}
                     </div>
                     {productImagesUploading && (
-                      <div className="mt-2 text-sm text-amber-600">Uploading product images{uploadProgress ? ` — ${uploadProgress}%` : '...'}</div>
+                      <div className="mt-2 text-sm text-amber-600">Uploading product images{uploadProgress ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${uploadProgress}%` : '...'}</div>
                     )}
                     {productImages.length > 0 && (
                       <div className="mt-3 flex gap-2 flex-wrap">
@@ -761,7 +761,7 @@ const getEmbeddedVideo = (url: string) => {
           <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
             <CardContent className="space-y-5 p-6 md:p-8">
               <div>
-                <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
+                <label className="text-sm font-medium text-stone-700">Budget (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦)</label>
                 <Input
                   type="number"
                   placeholder="Enter budget in NGN"
@@ -769,7 +769,7 @@ const getEmbeddedVideo = (url: string) => {
                   onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Cost-per-lead for <b>{category || "selected type"}</b> is ₦{currentCPL}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
+                  Cost-per-lead for <b>{category || "selected type"}</b> is ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{currentCPL}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
                 </p>
               </div>
 
@@ -778,7 +778,7 @@ const getEmbeddedVideo = (url: string) => {
                   <FileText size={18} />
                   <div>
                     <div className="font-medium">Summary</div>
-                    <div className="text-sm text-stone-600">Budget: ₦{numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
+                    <div className="text-sm text-stone-600">Budget: ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{numericBudget.toLocaleString() || 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Estimated leads: {estimatedLeads}</div>
                   </div>
                 </div>
               </div>
@@ -796,11 +796,11 @@ const getEmbeddedVideo = (url: string) => {
                     {title}
                   </h3>
                   <p className="text-sm text-stone-600">
-                    {category} • ₦{numericBudget.toLocaleString() || 0}
+                    {category} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{numericBudget.toLocaleString() || 0}
                   </p>
                 </div>
                 <div className="text-right text-xs text-stone-500">
-                  <div>Cost per lead: ₦{currentCPL}</div>
+                  <div>Cost per lead: ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{currentCPL}</div>
                   <div>Estimated leads: {estimatedLeads}</div>
                 </div>
               </div>
@@ -808,7 +808,7 @@ const getEmbeddedVideo = (url: string) => {
               {bannerUrl && (
                 <div className="w-full max-h-56 overflow-hidden rounded">
                   {bannerUrl.endsWith('.svg') ? (
-                    // svg icons served from public/icons — use img for predictable rendering
+                    // svg icons served from public/icons ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use img for predictable rendering
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={bannerUrl} alt="banner" className="w-full object-cover" />
                   ) : (
@@ -936,7 +936,7 @@ const getEmbeddedVideo = (url: string) => {
                   <CreditCard size={16} />{" "}
                   {loading
                     ? "Processing..."
-                    : `Pay ₦${numericBudget.toLocaleString() || 0}`}
+                    : `Pay ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦${numericBudget.toLocaleString() || 0}`}
                 </Button>
               </div>
             </CardContent>
@@ -955,7 +955,7 @@ const getEmbeddedVideo = (url: string) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-stone-800">Account Not Activated</div>
-                <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+                <div className="text-sm text-stone-600">You must activate your advertiser account (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦2,000) before creating tasks.</div>
               </div>
               <div>
                 <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Activate Now</Button>
@@ -978,7 +978,7 @@ const getEmbeddedVideo = (url: string) => {
                     : "bg-stone-200 text-stone-600"
                 }`}
               >
-                {i < step ? "✓" : i + 1}
+                {i < step ? "ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“" : i + 1}
               </div>
               <div
                 className={`text-xs uppercase tracking-[0.18em] ${

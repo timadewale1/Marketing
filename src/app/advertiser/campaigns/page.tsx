@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Plus,
   Search,
   Sparkles,
@@ -47,6 +49,10 @@ type Submission = {
   status?: string
 }
 
+type CampaignFilter = "All" | "Active" | "Pending" | "Paused" | "Stopped" | "Completed"
+
+const PAGE_SIZE = 6
+
 const statusStyles: Record<Campaign["status"], string> = {
   Active: "bg-emerald-100 text-emerald-700",
   Paused: "bg-amber-100 text-amber-800",
@@ -59,6 +65,8 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [search, setSearch] = useState<string>("")
+  const [filter, setFilter] = useState<CampaignFilter>("All")
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     const user = auth.currentUser
@@ -104,10 +112,43 @@ export default function CampaignsPage() {
   }, [])
 
   const filtered = useMemo(() => {
-    return campaigns.filter((campaign) =>
-      campaign.title.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [campaigns, search])
+    return campaigns.filter((campaign) => {
+      const matchesSearch = campaign.title.toLowerCase().includes(search.toLowerCase())
+
+      if (!matchesSearch) return false
+
+      if (filter === "All") return true
+
+      const progress = summarizeCampaignProgress({
+        target: campaign.estimatedLeads,
+        generatedLeads: campaign.generatedLeads,
+        submissions: submissions.filter((submission) => submission.campaignId === campaign.id),
+      })
+
+      if (filter === "Completed") {
+        return progress.target > 0 && progress.verified >= progress.target
+      }
+
+      return campaign.status === filter
+    })
+  }, [campaigns, filter, search, submissions])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+
+  const paginatedCampaigns = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, page])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, filter])
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
 
   const summary = useMemo(() => {
     const totals = filtered.reduce(
@@ -180,6 +221,23 @@ export default function CampaignsPage() {
                   />
                 </div>
               </div>
+              <div className="flex flex-wrap gap-2">
+                {(["All", "Active", "Pending", "Paused", "Stopped", "Completed"] as CampaignFilter[]).map((option) => (
+                  <Button
+                    key={option}
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFilter(option)}
+                    className={
+                      filter === option
+                        ? "rounded-full border-amber-500 bg-amber-500 text-stone-900 hover:bg-amber-500"
+                        : "rounded-full border-stone-200 bg-white text-stone-700 hover:bg-stone-100"
+                    }
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -193,7 +251,7 @@ export default function CampaignsPage() {
               <Card className="rounded-3xl border-amber-200 bg-amber-50 shadow-none">
                 <CardContent className="p-5">
                   <p className="text-xs uppercase tracking-[0.24em] text-amber-700">Budget in play</p>
-                  <p className="mt-3 text-3xl font-semibold text-stone-900">₦{summary.budget.toLocaleString()}</p>
+                  <p className="mt-3 text-3xl font-semibold text-stone-900">NGN {summary.budget.toLocaleString()}</p>
                   <p className="mt-2 text-sm text-stone-600">Across the tasks in this view.</p>
                 </CardContent>
               </Card>
@@ -225,9 +283,9 @@ export default function CampaignsPage() {
           </div>
         </section>
 
-        {filtered.length > 0 ? (
+        {paginatedCampaigns.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((campaign) => {
+            {paginatedCampaigns.map((campaign) => {
               const progress = summarizeCampaignProgress({
                 target: campaign.estimatedLeads,
                 generatedLeads: campaign.generatedLeads,
@@ -274,7 +332,7 @@ export default function CampaignsPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-stone-100/80 p-4">
                           <p className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Budget</p>
-                          <p className="mt-2 text-lg font-semibold text-stone-900">₦{totalBudget.toLocaleString()}</p>
+                          <p className="mt-2 text-lg font-semibold text-stone-900">NGN {totalBudget.toLocaleString()}</p>
                         </div>
                         <div className="rounded-2xl bg-stone-100/80 p-4">
                           <p className="text-[11px] uppercase tracking-[0.24em] text-stone-500">Target leads</p>
@@ -333,6 +391,39 @@ export default function CampaignsPage() {
               </Link>
             </CardContent>
           </Card>
+        )}
+
+        {filtered.length > PAGE_SIZE && (
+          <div className="flex flex-col items-center justify-between gap-4 rounded-[28px] border border-white/70 bg-white/70 px-5 py-4 shadow-[0_16px_40px_rgba(120,53,15,0.05)] backdrop-blur sm:flex-row">
+            <p className="text-sm text-stone-600">
+              Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} tasks
+            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                className="gap-2 rounded-full"
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </Button>
+              <span className="text-sm font-medium text-stone-700">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page === totalPages}
+                className="gap-2 rounded-full"
+              >
+                Next
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>
