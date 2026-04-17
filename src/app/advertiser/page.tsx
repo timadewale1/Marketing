@@ -449,11 +449,11 @@ export default function AdvertiserDashboard() {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-0 left-0 z-50 h-full w-80 border-r border-amber-100 bg-[linear-gradient(180deg,_rgba(255,251,235,0.98),_rgba(255,255,255,0.96))] backdrop-blur-md shadow transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 z-50 flex h-full w-80 flex-col border-r border-amber-100 bg-[linear-gradient(180deg,_rgba(255,251,235,0.98),_rgba(255,255,255,0.96))] backdrop-blur-md shadow transform transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="p-4">
+        <div className="shrink-0 p-4">
           <div className="rounded-3xl border border-amber-200 bg-white/80 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -475,13 +475,13 @@ export default function AdvertiserDashboard() {
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between px-4 pb-2">
+        <div className="flex shrink-0 items-center justify-between px-4 pb-2">
           <h2 className="text-lg font-semibold text-stone-800">Navigation</h2>
           <button onClick={() => setSidebarOpen(false)} className="rounded-lg p-2 hover:bg-stone-100">
             <X size={18} />
           </button>
         </div>
-        <nav className="space-y-4 overflow-y-auto px-4 pb-4">
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
           {advertiserNavSections.map((section) => (
             <div key={section.title} className="rounded-2xl border border-stone-200 bg-white/70 p-3">
               <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{section.title}</p>
@@ -503,7 +503,7 @@ export default function AdvertiserDashboard() {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t">
+        <div className="shrink-0 border-t p-4">
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 rounded-xl bg-white/80 text-sm"

@@ -538,16 +538,24 @@ const compressed = await imageCompression(file, options)
   }
 
   const StepHeader = (
-    <div className="max-w-3xl mx-auto text-center space-y-2">
+    <div className="mx-auto max-w-4xl space-y-4 text-center">
       <Button
         onClick={() => router.back()}
-        className="flex gap-2 mb-4 bg-stone-700 hover:bg-stone-800 text-white"
+        className="gap-2 bg-stone-800 text-white hover:bg-stone-900"
         size="sm"
       >
         <ArrowLeft size={16} /> Back
       </Button>
-  <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Create a Task</h1>
-      <p className="text-sm text-stone-600">Fill in the details. You will only pay & submit after review.</p>
+      <div className="space-y-3">
+        <div className="inline-flex items-center rounded-full bg-amber-100 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-amber-800">
+          Advertiser task builder
+        </div>
+        <h1 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">Create a Task</h1>
+        <p className="mx-auto max-w-2xl text-sm leading-7 text-stone-600 md:text-base">
+          Add your task details, attach the right links, confirm your budget, and pay only after
+          everything looks right.
+        </p>
+      </div>
     </div>
   )
 
@@ -575,8 +583,8 @@ const getEmbeddedVideo = (url: string) => {
     switch (step) {
       case 0:
         return (
-          <Card>
-            <CardContent className="space-y-4 p-6">
+          <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
+            <CardContent className="space-y-5 p-6 md:p-8">
               <label className="text-sm font-medium text-stone-700">
                 Task title
               </label>
@@ -614,8 +622,8 @@ const getEmbeddedVideo = (url: string) => {
 
       case 1:
         return (
-          <Card>
-            <CardContent className="space-y-4 p-6">
+          <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
+            <CardContent className="space-y-5 p-6 md:p-8">
 {
                 // Video: keep the video link input
                 category === "Video" && (
@@ -750,8 +758,8 @@ const getEmbeddedVideo = (url: string) => {
 
       case 2:
         return (
-          <Card>
-            <CardContent className="space-y-4 p-6">
+          <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
+            <CardContent className="space-y-5 p-6 md:p-8">
               <div>
                 <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
                 <Input
@@ -765,7 +773,7 @@ const getEmbeddedVideo = (url: string) => {
                 </p>
               </div>
 
-              <div className="p-4 bg-amber-50 rounded">
+              <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center gap-3">
                   <FileText size={18} />
                   <div>
@@ -780,8 +788,8 @@ const getEmbeddedVideo = (url: string) => {
 
       case 3:
         return (
-          <Card>
-            <CardContent className="space-y-4 p-6">
+          <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
+            <CardContent className="space-y-5 p-6 md:p-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-stone-800">
@@ -858,7 +866,7 @@ const getEmbeddedVideo = (url: string) => {
 
               {/* Product-specific: face verification + address before payment */}
               {category === "Share my Product" && (
-                <div className="mt-4 p-4 bg-amber-50 rounded border border-amber-100 space-y-4">
+              <div className="mt-4 space-y-4 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
                   <h4 className="font-medium text-stone-800">Advertiser identity verification</h4>
                   <p className="text-sm text-stone-700">Before paying, capture your face using your device camera (upload not allowed) and provide your business address.</p>
 
@@ -916,9 +924,9 @@ const getEmbeddedVideo = (url: string) => {
                 </div>
               )}
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Button variant="outline" onClick={() => setStep(2)}>
-                  <ArrowLeft size={16} /> Back to targeting
+                  <ArrowLeft size={16} /> Back to budget
                 </Button>
                 <Button
                   className="bg-amber-600 text-white"
@@ -938,12 +946,12 @@ const getEmbeddedVideo = (url: string) => {
   }
 
   return (
-    <div className="px-6 py-10 bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 min-h-screen">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_28%),linear-gradient(180deg,_#fef3c7_0%,_#f5f5f4_48%,_#e7e5e4_100%)] px-4 py-8 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-5xl space-y-6">
         {StepHeader}
 
         {showActivatePrompt && (
-          <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
+          <div className="col-span-full rounded-[24px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-stone-800">Account Not Activated</div>
@@ -957,7 +965,8 @@ const getEmbeddedVideo = (url: string) => {
         )}
 
         {/* stepper */}
-        <div className="flex items-center justify-center gap-4">
+        <div className="rounded-[28px] border border-white/70 bg-white/70 p-4 shadow-[0_16px_40px_rgba(120,53,15,0.06)] backdrop-blur">
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6">
           {STEPS.map((label, i) => (
             <div key={label} className="flex items-center gap-3">
               <div
@@ -972,7 +981,7 @@ const getEmbeddedVideo = (url: string) => {
                 {i < step ? "✓" : i + 1}
               </div>
               <div
-                className={`text-xs ${
+                className={`text-xs uppercase tracking-[0.18em] ${
                   i === step ? "text-amber-700 font-medium" : "text-stone-500"
                 }`}
               >
@@ -980,6 +989,7 @@ const getEmbeddedVideo = (url: string) => {
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* animated step content */}
@@ -998,7 +1008,7 @@ const getEmbeddedVideo = (url: string) => {
         </div>
 
         {/* navigation */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-[28px] border border-white/70 bg-white/65 p-4 shadow-[0_16px_40px_rgba(120,53,15,0.05)] backdrop-blur">
           <div>
             {step > 0 && (
               <Button
@@ -1014,7 +1024,7 @@ const getEmbeddedVideo = (url: string) => {
               <Button
                 onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
                 disabled={!canGoNext}
-                className="bg-amber-600 text-white"
+                className="bg-amber-600 text-white hover:bg-amber-700"
               >
                 Next <ArrowRight size={14} />
               </Button>
