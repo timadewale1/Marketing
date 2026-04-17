@@ -67,14 +67,25 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState<string>("")
   const [filter, setFilter] = useState<CampaignFilter>("All")
   const [page, setPage] = useState(1)
+  const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
 
   useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
+    const unsub = auth.onAuthStateChanged((user) => {
+      setUserId(user?.uid ?? null)
+    })
+
+    return () => unsub()
+  }, [])
+
+  useEffect(() => {
+    if (!userId) {
+      setCampaigns([])
+      return
+    }
 
     const campaignsQuery = query(
       collection(db, "campaigns"),
-      where("ownerId", "==", user.uid),
+      where("ownerId", "==", userId),
       orderBy("createdAt", "desc")
     )
 
@@ -87,15 +98,17 @@ export default function CampaignsPage() {
     })
 
     return () => unsub()
-  }, [])
+  }, [userId])
 
   useEffect(() => {
-    const user = auth.currentUser
-    if (!user) return
+    if (!userId) {
+      setSubmissions([])
+      return
+    }
 
     const submissionsQuery = query(
       collection(db, "earnerSubmissions"),
-      where("advertiserId", "==", user.uid)
+      where("advertiserId", "==", userId)
     )
 
     const unsub = onSnapshot(submissionsQuery, (snap) => {
@@ -109,7 +122,7 @@ export default function CampaignsPage() {
     })
 
     return () => unsub()
-  }, [])
+  }, [userId])
 
   const filtered = useMemo(() => {
     return campaigns.filter((campaign) => {
