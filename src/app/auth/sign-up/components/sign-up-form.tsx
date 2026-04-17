@@ -4,14 +4,10 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { auth, db } from "@/lib/firebase"
+import { auth } from "@/lib/firebase"
 import {
-  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from "firebase/auth"
-import {
-  doc,
-  setDoc,
-} from "firebase/firestore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,22 +57,6 @@ function getSignupErrorMessage(code?: string) {
       return "Too many signup attempts right now. Please wait a bit and retry."
     default:
       return "We could not create your account right now. Please try again."
-  }
-}
-
-async function sendVerificationEmailWithMailer(token: string, name?: string) {
-  const response = await fetch("/api/auth/send-verification-email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ name }),
-  })
-
-  const result = await response.json().catch(() => ({}))
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "Failed to send verification email")
   }
 }
 
@@ -149,54 +129,36 @@ export function SignUpForm() {
         return
       }
 
-      const cred = await createUserWithEmailAndPassword(auth, data.email, data.password).catch(
-        (err) => {
-          toast.error(getSignupErrorMessage(err.code))
-          throw err
-        }
-      )
+      const signupResponse = await fetch("/api/auth/sign-up", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          referralId,
+        }),
+      })
 
-      const idToken = await cred.user.getIdToken()
-      await sendVerificationEmailWithMailer(idToken, data.name)
+      const signupResult = await signupResponse.json().catch(() => ({}))
+      if (!signupResponse.ok || !signupResult.success) {
+        toast.error(signupResult.message || "We could not create your account right now. Please try again.")
+        return
+      }
 
       try {
-        const refDoc = doc(db, data.action + "s", cred.user.uid)
-        await setDoc(refDoc, {
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          createdAt: new Date(),
-          verified: false,
-          onboarded: false,
-          referredBy: referralId || null,
-        })
-
-        if (referralId) {
-          await setDoc(doc(db, "referrals", `${referralId}-${cred.user.uid}`), {
-            referrerId: referralId,
-            referredId: cred.user.uid,
-            userType: data.action,
-            email: data.email,
-            name: data.name,
-            amount: 500,
-            status: "pending",
-            bonusPaid: false,
-            condition: "activation",
-            createdAt: new Date(),
-          })
-        }
-
-        toast.success("Signup successful! Please verify your email.")
-        // Redirect user to the verify-email page so they can resend/check verification
-        setTimeout(() => router.push("/auth/verify-email"), 800)
-      } catch (firestoreErr) {
-        console.error("Firestore error:", firestoreErr)
-        await cred.user.delete()
-        toast.error("Signup failed while saving data. Please try again.")
+        await signInWithEmailAndPassword(auth, data.email, data.password)
+      } catch (signInError) {
+        console.error("Post-signup sign-in error:", signInError)
       }
+
+      toast.success("Signup successful! Please verify your email.")
+      setTimeout(() => router.push("/auth/verify-email"), 800)
     } catch (err) {
       console.error("Signup error:", err)
-      if (!(typeof err === "object" && err && "code" in err)) {
+      if (typeof err === "object" && err && "code" in err) {
+        toast.error(getSignupErrorMessage(String((err as { code?: string }).code)))
+      } else {
         toast.error("We could not create your account right now. Please try again.")
       }
     } finally {

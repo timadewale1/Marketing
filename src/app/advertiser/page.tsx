@@ -18,7 +18,7 @@ import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import { PaymentSelector } from '@/components/payment-selector'
 import Image from "next/image"
-import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut } from "lucide-react"
+import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, LayoutDashboard, WalletCards, Landmark, Gift, ListChecks, UserCircle } from "lucide-react"
 import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
@@ -392,6 +392,33 @@ export default function AdvertiserDashboard() {
     (c) => c.status.toLowerCase() === "active"
   )
 
+  const advertiserNavSections = [
+    {
+      title: "Overview",
+      items: [
+        { label: "Dashboard", path: "/advertiser", icon: LayoutDashboard },
+        { label: "Tasks", path: "/advertiser/campaigns", icon: ListChecks },
+        { label: "Create Task", path: "/advertiser/create-campaign", icon: Plus },
+      ],
+    },
+    {
+      title: "Wallet",
+      items: [
+        { label: "Wallet", path: "/advertiser/wallet", icon: WalletCards },
+        { label: "Bank", path: "/advertiser/bank", icon: Landmark },
+        { label: "Transactions", path: "/advertiser/transactions", icon: Wallet },
+      ],
+    },
+    {
+      title: "Account",
+      items: [
+        { label: "Referrals", path: "/advertiser/referrals", icon: Gift },
+        { label: "Task Price List", path: "/advertiser/pricelist", icon: TrendingUp },
+        { label: "Profile", path: "/advertiser/profile", icon: UserCircle },
+      ],
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
       <Toaster />
@@ -422,44 +449,64 @@ export default function AdvertiserDashboard() {
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-white/90 backdrop-blur-md shadow transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 z-50 h-full w-80 border-r border-amber-100 bg-[linear-gradient(180deg,_rgba(255,251,235,0.98),_rgba(255,255,255,0.96))] backdrop-blur-md shadow transform transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-stone-800">Menu</h2>
-          <button onClick={() => setSidebarOpen(false)}>
+        <div className="p-4">
+          <div className="rounded-3xl border border-amber-200 bg-white/80 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Advertiser menu</p>
+                <h2 className="mt-2 text-lg font-semibold text-stone-800">{name}</h2>
+                <p className="mt-1 text-xs text-stone-500">
+                  {activated ? "Ready to launch campaigns" : "Activation needed before task creation"}
+                </p>
+              </div>
+              <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
+                {profilePic ? (
+                  <Image src={profilePic} alt="profile" width={48} height={48} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center font-bold text-stone-900">
+                    {name.charAt(0)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-4 pb-2">
+          <h2 className="text-lg font-semibold text-stone-800">Navigation</h2>
+          <button onClick={() => setSidebarOpen(false)} className="rounded-lg p-2 hover:bg-stone-100">
             <X size={18} />
           </button>
         </div>
-        <nav className="p-4 space-y-2">
-          {/* ...existing code for nav items... */}
-          {[
-            { label: "Dashboard", path: "/advertiser" },
-            { label: "Tasks", path: "/advertiser/campaigns" },
-            { label: "Wallet", path: "/advertiser/wallet" },
-            { label: "Bank", path: "/advertiser/bank" },
-            { label: "Transactions", path: "/advertiser/transactions" },
-            { label: "Referrals", path: "/advertiser/referrals" },
-            { label: "Task Price List", path: "/advertiser/pricelist" },
-            { label: "Profile", path: "/advertiser/profile" },
-          ].map((item) => (
-            <button
-              key={item.path}
-              className="block w-full text-left text-sm p-2 rounded hover:bg-stone-100"
-              onClick={() => {
-                setSidebarOpen(false)
-                router.push(item.path)
-              }}
-            >
-              {item.label}
-            </button>
+        <nav className="space-y-4 overflow-y-auto px-4 pb-4">
+          {advertiserNavSections.map((section) => (
+            <div key={section.title} className="rounded-2xl border border-stone-200 bg-white/70 p-3">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{section.title}</p>
+              <div className="mt-2 space-y-1">
+                {section.items.map((item) => (
+                  <button
+                    key={item.path}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-stone-700 transition hover:bg-amber-50 hover:text-stone-900"
+                    onClick={() => {
+                      setSidebarOpen(false)
+                      router.push(item.path)
+                    }}
+                  >
+                    <item.icon size={16} className="text-amber-700" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="p-4 border-t">
           <Button
             variant="ghost"
-            className="w-full justify-start text-sm"
+            className="w-full justify-start gap-2 rounded-xl bg-white/80 text-sm"
             onClick={handleLogout}
           >
             <LogOut size={16} className="mr-2" /> Logout

@@ -29,12 +29,14 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
-  
   Menu,
-  ChevronDown,
-  ChevronUp,
+  X,
   LogOut,
   User,
+  ListChecks,
+  Landmark,
+  Gift,
+  LayoutDashboard,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
@@ -72,7 +74,6 @@ export default function EarnerDashboard() {
   const [referralStats, setReferralStats] = useState({ totalReferrals: 0, completedReferrals: 0, pendingBonuses: 0, totalReferralEarnings: 0 })
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
 
@@ -241,6 +242,32 @@ export default function EarnerDashboard() {
     }
     router.push("/earner/campaigns")
   }
+
+  const earnerNavSections = [
+    {
+      title: "Overview",
+      items: [
+        { label: "Dashboard", path: "/earner", icon: LayoutDashboard },
+        { label: "Available Tasks", path: "/earner/campaigns", icon: Grid },
+        { label: "Done Tasks", path: "/earner/campaigns/done", icon: ListChecks },
+      ],
+    },
+    {
+      title: "Wallet",
+      items: [
+        { label: "Transactions", path: "/earner/transactions", icon: Wallet },
+        { label: "Bank Accounts", path: "/earner/bank", icon: Landmark },
+        { label: "Task Price List", path: "/earner/pricelist", icon: ArrowDownCircle },
+      ],
+    },
+    {
+      title: "Account",
+      items: [
+        { label: "Referrals", path: "/earner/referrals", icon: Gift },
+        { label: "Profile", path: "/earner/profile", icon: User },
+      ],
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
@@ -485,7 +512,7 @@ export default function EarnerDashboard() {
         </motion.section>
       </main>
 
-      {/* Sidebar with dropdowns */}
+      {/* Sidebar */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -495,121 +522,62 @@ export default function EarnerDashboard() {
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-50 flex"
           >
-            <div className="bg-white w-72 p-6 shadow-2xl flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-lg text-stone-800">Menu</h3>
+            <div className="w-80 border-r border-amber-100 bg-[linear-gradient(180deg,_rgba(255,251,235,0.98),_rgba(255,255,255,0.96))] p-6 shadow-2xl flex flex-col">
+              <div className="mb-6 rounded-3xl border border-amber-200 bg-white/80 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Earner menu</p>
+                    <h3 className="mt-2 text-lg font-bold text-stone-800">{userName}</h3>
+                    <p className="mt-1 text-xs text-stone-500">{activated ? "Account active" : "Auto-activation in progress"}</p>
+                  </div>
+                  <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
+                    {profilePic ? (
+                      <Image src={profilePic} alt="profile" width={48} height={48} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center font-bold text-stone-900">
+                        {userName.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-bold text-lg text-stone-800">Navigation</h3>
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="p-2 rounded hover:bg-stone-100"
                 >
-                  ✕
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Participate Dropdown */}
-              <div>
-                <button
-                  className="flex justify-between w-full text-left p-2 rounded-lg hover:bg-stone-100 font-medium text-stone-800"
-                  onClick={() =>
-                    setOpenDropdown(openDropdown === "campaigns" ? null : "campaigns")
-                  }
-                >
-                  Participate in Tasks
-                  {openDropdown === "campaigns" ? <ChevronUp /> : <ChevronDown />}
-                </button>
-                <AnimatePresence>
-                  {openDropdown === "campaigns" && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="ml-4 mt-2 space-y-2 text-sm"
-                    >
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => router.push("/earner/campaigns")}
-                      >
-                        Available Tasks
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => router.push("/earner/campaigns/done")}
-                      >
-                        Done Tasks
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <div className="space-y-4 overflow-y-auto pr-1">
+                {earnerNavSections.map((section) => (
+                  <div key={section.title} className="rounded-2xl border border-stone-200 bg-white/70 p-3">
+                    <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{section.title}</p>
+                    <div className="mt-2 space-y-1">
+                      {section.items.map((item) => (
+                        <button
+                          key={item.path}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-stone-700 transition hover:bg-amber-50 hover:text-stone-900"
+                          onClick={() => {
+                            setSidebarOpen(false)
+                            router.push(item.path)
+                          }}
+                        >
+                          <item.icon size={16} className="text-amber-700" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              {/* Referral */}
-              <Button
-                variant="ghost"
-                className="mt-3 justify-start"
-                onClick={() => router.push("/earner/referrals")}
-              >
-                Referrals
-              </Button>
-
-              {/* Wallet Dropdown */}
-              <div className="mt-3">
-                <button
-                  className="flex justify-between w-full text-left p-2 rounded-lg hover:bg-stone-100 font-medium text-stone-800"
-                  onClick={() =>
-                    setOpenDropdown(openDropdown === "wallet" ? null : "wallet")
-                  }
-                >
-                  Wallet
-                  {openDropdown === "wallet" ? <ChevronUp /> : <ChevronDown />}
-                </button>
-                <AnimatePresence>
-                  {openDropdown === "wallet" && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="ml-4 mt-2 space-y-2 text-sm"
-                    >
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => router.push("/earner/transactions")}
-                      >
-                        Transactions
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => router.push("/earner/bank")}
-                      >
-                        Bank Accounts
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => router.push("/earner/pricelist")}
-                      >
-                        Task Price List
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Profile */}
-              <Button
-                variant="ghost"
-                className="mt-3 justify-start"
-                onClick={() => router.push("/earner/profile")}
-              >
-                <User size={16} className="mr-2" /> Profile
-              </Button>
 
               <Button
                 variant="outline"
-                className="mt-auto flex items-center justify-center gap-2"
+                className="mt-auto flex items-center justify-center gap-2 rounded-xl border-stone-300 bg-white/80"
                 onClick={handleLogout}
               >
                 <LogOut size={16} /> Logout
