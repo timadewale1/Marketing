@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
+import { PaymentSelector } from "@/components/payment-selector";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { registerActivationReference } from "@/lib/activation-client";
 
 interface Transaction {
   id: string;
@@ -31,6 +33,7 @@ export default function TransactionsPage() {
   const [withdrawalStatusMap, setWithdrawalStatusMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [activated, setActivated] = useState(false);
@@ -157,17 +160,30 @@ export default function TransactionsPage() {
               <p className="text-sm text-stone-600 mt-1">
                 Minimum withdrawal: ₦1,000
               </p>
-              <p className="text-sm text-stone-600 mt-1">
-                Your first ₦2,000 earned will be deducted automatically to activate your account. Until then, withdrawals and bill purchases from your wallet are disabled.
-              </p>
+              {!activated ? (
+                <p className="text-sm text-stone-600 mt-1">
+                  Your first ₦2,000 earned will be deducted automatically to activate your account. Until then, withdrawals and bill purchases from your wallet are disabled.
+                </p>
+              ) : null}
             </div>
-            <Button
-              onClick={() => setWithdrawOpen(true)}
-              disabled={availableBalance < 1000 || !bankDetails || !activated}
-              className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
-            >
-              Withdraw Funds
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => setWithdrawOpen(true)}
+                disabled={availableBalance < 1000 || !bankDetails || !activated}
+                className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium min-w-[150px]"
+              >
+                Withdraw Funds
+              </Button>
+              {!activated ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowActivationPaymentSelector(true)}
+                  className="min-w-[150px]"
+                >
+                  Activate Account
+                </Button>
+              ) : null}
+            </div>
           </div>
         </Card>
 
@@ -306,6 +322,43 @@ export default function TransactionsPage() {
           maxAmount={availableBalance}
           bankDetails={bankDetails}
         />
+        {showActivationPaymentSelector ? (
+          <PaymentSelector
+            open={showActivationPaymentSelector}
+            amount={2000}
+            email={auth.currentUser?.email || undefined}
+            fullName={auth.currentUser?.displayName || "Earner"}
+            description="Earner Account Activation"
+            onMonnifyReferenceCreated={async (reference: string) => {
+              await registerActivationReference({ role: "earner", reference, provider: "monnify" });
+            }}
+            onClose={() => setShowActivationPaymentSelector(false)}
+            onPaymentSuccess={async (reference: string, provider: "paystack" | "monnify", monnifyResponse?: Record<string, unknown>) => {
+              setShowActivationPaymentSelector(false);
+              try {
+                const res = await fetch("/api/earner/activate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data?.success) {
+                  if (data.pendingConfirmation) {
+                    toast.success("Payment received. Your account will activate after Monnify confirms it.");
+                  } else {
+                    toast.success("Activation successful");
+                    setActivated(true);
+                  }
+                } else {
+                  toast.error(data?.message || "Activation failed");
+                }
+              } catch (err) {
+                console.error("Activation error", err);
+                toast.error("Activation request failed");
+              }
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

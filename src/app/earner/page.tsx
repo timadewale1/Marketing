@@ -63,6 +63,7 @@ export default function EarnerDashboard() {
     campaignRejected: 0,
     campaignApproved: 0,
   })
+  const [activated, setActivated] = useState<boolean>(false)
   const [strikeCount, setStrikeCount] = useState<number>(0)
   const [accountStatus, setAccountStatus] = useState<string>('active')
 
@@ -111,6 +112,7 @@ export default function EarnerDashboard() {
             leadsPaidFor: d.leadsPaidFor || 0,
           }))
           const nextActivated = !!d.activated
+          setActivated(nextActivated)
           setStrikeCount(Number(d.strikeCount || 0))
           setAccountStatus(String(d.status || 'active'))
 
@@ -271,7 +273,9 @@ export default function EarnerDashboard() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
           <h2 className="mt-2 text-3xl font-semibold text-stone-900">{userName}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning. Your first ₦2,000 earned will activate your account automatically.
+            {activated
+              ? "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning."
+              : "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning. Your first ₦2,000 earned will activate your account automatically."}
           </p>
         </div>
   {/* Top Cards */}
@@ -287,9 +291,11 @@ export default function EarnerDashboard() {
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
-                <p className="mt-2 text-xs leading-5 text-stone-600">
-                  Until your account activates automatically from your first ₦2,000 earned, you can do tasks normally but cannot withdraw or use wallet funds for bills.
-                </p>
+                {!activated ? (
+                  <p className="mt-2 text-xs leading-5 text-stone-600">
+                    Until your account activates automatically from your first ₦2,000 earned, you can do tasks normally but cannot withdraw or use wallet funds for bills.
+                  </p>
+                ) : null}
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       size="sm"
