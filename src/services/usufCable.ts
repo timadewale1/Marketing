@@ -74,7 +74,13 @@ export async function buyUsufCable(
   cableName: UsufCableId,
   cablePlan: UsufCablePlanId,
   smartCardNumber: string,
-  options?: { idToken?: string; sellAmount?: number }
+  options?: {
+    idToken?: string
+    sellAmount?: number
+    payFromWallet?: boolean
+    paymentReference?: string
+    paymentProvider?: 'paystack' | 'monnify'
+  }
 ): Promise<UsufCableResponse> {
   try {
     const payload: Record<string, unknown> = {
@@ -82,10 +88,12 @@ export async function buyUsufCable(
       cableplan: cablePlan,
       smart_card_number: smartCardNumber,
     }
-    if (options?.idToken) {
-      payload.payFromWallet = true;
-      payload.sellAmount = options.sellAmount;
+    if (options?.payFromWallet) {
+      payload.payFromWallet = true
+      payload.sellAmount = options.sellAmount
     }
+    if (options?.paymentReference) payload.paymentReference = options.paymentReference
+    if (options?.paymentProvider) payload.provider = options.paymentProvider
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

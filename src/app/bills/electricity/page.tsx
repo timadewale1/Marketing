@@ -93,7 +93,7 @@ export default function ElectricityPage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken, sellAmount: Number(amount) })
+      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken, sellAmount: Number(amount), payFromWallet: true })
       if (!res.status) return toast.error(res.message)
       
       const transactionData = {
@@ -118,7 +118,12 @@ export default function ElectricityPage() {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType)
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, {
+        idToken,
+        paymentReference: reference,
+        paymentProvider: provider,
+      })
       if (!res.status) {
         toast.error(res.message)
         return

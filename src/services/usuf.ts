@@ -20,7 +20,13 @@ export async function buyUsufData(
   network: UsufNetwork,
   planId: number,
   portedNumber: boolean = true,
-  options?: { idToken?: string; sellAmount?: number }
+  options?: {
+    idToken?: string
+    sellAmount?: number
+    payFromWallet?: boolean
+    paymentReference?: string
+    paymentProvider?: 'paystack' | 'monnify'
+  }
 ): Promise<UsufBuyDataResponse> {
   try {
     const payload = {
@@ -28,7 +34,9 @@ export async function buyUsufData(
       mobile_number: mobileNumber,
       plan: planId,
       Ported_number: portedNumber,
-      ...(options?.idToken && { payFromWallet: true, sellAmount: options.sellAmount }),
+      ...(options?.payFromWallet && { payFromWallet: true, sellAmount: options.sellAmount }),
+      ...(options?.paymentReference && { paymentReference: options.paymentReference }),
+      ...(options?.paymentProvider && { provider: options.paymentProvider }),
     };
 
     const headers: Record<string, string> = {

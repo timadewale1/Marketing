@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import * as admin from 'firebase-admin';
+import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts';
+import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment';
 
 interface UsufCableResponse {
   status: boolean;
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
     }
 
     const body = await request.json();
-    const { cablename, cableplan, smart_card_number, payFromWallet, amount, sellAmount } = body;
+    const { cablename, cableplan, smart_card_number, payFromWallet, amount, sellAmount, paymentReference, provider } = body;
 
     if (!cablename || !cableplan || !smart_card_number) {
       return NextResponse.json(
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
       );
     }
 
-    let verifiedUid: string | null = null;
+    let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
     let userType: 'advertiser' | 'earner' | null = null;
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
@@ -113,6 +115,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
         const msg = (e instanceof Error && e.message) || 'Insufficient funds';
         const status = msg.includes('Insufficient') ? 402 : 500;
         return NextResponse.json({ status: false, message: msg }, { status });
+      }
+    }
+
+    if (!payFromWallet) {
+      try {
+        await verifyExternalBillsPayment({
+          provider,
+          reference: paymentReference,
+          expectedAmount: amountN,
+        });
+      } catch (error) {
+        console.error('Direct cable payment verification failed', error);
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : 'Payment verification failed' }, { status: 400 });
       }
     }
 
@@ -234,6 +249,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
         console.error('Post-success wallet debit failed for cable purchase', e);
       }
     }
+
+    await notifyAdminOfBillsPurchase({
+      actorUserId: verifiedUid || undefined,
+      paidAmount: amountN,
+      serviceID: `cable_${cablename}`,
+      paymentChannel: payFromWallet ? 'wallet' : String(provider || 'direct'),
+      reference: String(paymentReference || returnData?.reference || returnData?.id || ''),
+    });
 
     return NextResponse.json({
       status: true,

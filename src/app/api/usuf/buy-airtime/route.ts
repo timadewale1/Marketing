@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import * as admin from 'firebase-admin';
+import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts';
+import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment';
 
 interface UsufAirtimeRequest {
   network: number;
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
     }
 
     const body = await request.json();
-    const { network, amount, mobile_number, Ported_number, payFromWallet, sellAmount } = body;
+    const { network, amount, mobile_number, Ported_number, payFromWallet, sellAmount, paymentReference, provider } = body;
 
     if (!network || !amount || !mobile_number) {
       return NextResponse.json(
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
       );
     }
 
-    let verifiedUid: string | null = null;
+    let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
     let userType: 'advertiser' | 'earner' | null = null;
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
@@ -121,6 +123,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
         const msg = (e instanceof Error && e.message) || 'Insufficient funds';
         const status = msg.includes('Insufficient') ? 402 : 500;
         return NextResponse.json({ status: false, message: msg }, { status });
+      }
+    }
+
+    if (!payFromWallet) {
+      try {
+        await verifyExternalBillsPayment({
+          provider,
+          reference: paymentReference,
+          expectedAmount: amountN,
+        });
+      } catch (error) {
+        console.error('Direct airtime payment verification failed', error);
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : 'Payment verification failed' }, { status: 400 });
       }
     }
 
@@ -244,6 +259,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufAirti
         console.error('Post-success wallet debit failed for airtime purchase', e);
       }
     }
+
+    await notifyAdminOfBillsPurchase({
+      actorUserId: verifiedUid || undefined,
+      paidAmount: amountN,
+      serviceID: `airtime_${network}`,
+      paymentChannel: payFromWallet ? 'wallet' : String(provider || 'direct'),
+      reference: String(paymentReference || returnData?.reference || returnData?.id || ''),
+    });
 
     return NextResponse.json({
       status: true,

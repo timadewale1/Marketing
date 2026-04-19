@@ -1,0 +1,218 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Search, Sparkles } from "lucide-react";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
+import { getProofUrls } from "@/lib/proofs";
+
+type Submission = {
+  id: string;
+  userId: string;
+  campaignId: string;
+  campaignTitle: string;
+  category: string;
+  note: string;
+  proofUrls: string[];
+  status: string;
+  earnerPrice: number;
+  createdAtMs: number;
+};
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  return value instanceof Date ? value.getTime() : 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
+}
+
+export default function SubmissionManagementSubmissionsPage() {
+  const [loading, setLoading] = useState(true);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const snap = await getDocs(query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc")));
+      setSubmissions(
+        snap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: String(data.userId || ""),
+            campaignId: String(data.campaignId || ""),
+            campaignTitle: String(data.campaignTitle || ""),
+            category: String(data.category || ""),
+            note: String(data.note || ""),
+            proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
+            status: String(data.status || ""),
+            earnerPrice: Number(data.earnerPrice || 0),
+            createdAtMs: toMillis(data.createdAt),
+          };
+        })
+      );
+      setLoading(false);
+    };
+
+    load().catch((error) => {
+      console.error("Failed to load submissions", error);
+      toast.error("Failed to load submissions");
+      setLoading(false);
+    });
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return submissions.filter((submission) => {
+      const matchesStatus = statusFilter === "all" || submission.status === statusFilter;
+      const matchesSearch =
+        !term ||
+        submission.campaignTitle.toLowerCase().includes(term) ||
+        submission.category.toLowerCase().includes(term) ||
+        submission.note.toLowerCase().includes(term);
+      return matchesStatus && matchesSearch;
+    });
+  }, [search, statusFilter, submissions]);
+
+  const stats = {
+    pending: submissions.filter((submission) => submission.status === "Pending").length,
+    verified: submissions.filter((submission) => submission.status === "Verified").length,
+    rejected: submissions.filter((submission) => submission.status === "Rejected").length,
+  };
+
+  const markProofStatus = async (submission: Submission, status: "Verified" | "Rejected") => {
+    try {
+      setProcessingId(submission.id);
+      const response = await fetch("/api/submissionmanagement/submissions/review", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId: submission.id,
+          action: status,
+          userId: submission.userId,
+          campaignId: submission.campaignId,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to update submission");
+      }
+      setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, status } : item));
+      toast.success(`Submission marked ${status.toLowerCase()}`);
+    } catch (error) {
+      console.error("Failed to update submission", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update submission");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <AdminPageHeader
+        eyebrow="Submission management"
+        title="Proof moderation"
+        description="Review proof, jump to the linked campaign, and verify or reject from a focused moderation queue."
+        action={
+          <Button variant="outline" className="rounded-full border-stone-300 bg-white/80" onClick={() => window.location.reload()}>
+            <Sparkles className="h-4 w-4" />
+            Refresh
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard label="Pending" value={stats.pending} hint="Awaiting review" icon={Sparkles} tone="amber" />
+        <MetricCard label="Verified" value={stats.verified} hint="Approved proofs" icon={Sparkles} tone="emerald" />
+        <MetricCard label="Rejected" value={stats.rejected} hint="Declined proofs" icon={Sparkles} tone="rose" />
+      </div>
+
+      <SectionCard title="Filters" description="Search by campaign, category, or note.">
+        <div className="grid gap-3 lg:grid-cols-[1.4fr_0.7fr]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search submissions" className="h-11 rounded-2xl border-stone-200 bg-white pl-10" />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="Verified">Verified</SelectItem>
+              <SelectItem value="Rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Submission cards" description={`${filtered.length} submission${filtered.length === 1 ? "" : "s"} matched the current filters.`}>
+        {loading ? (
+          <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+        ) : filtered.length === 0 ? (
+          <EmptyState title="No submissions" description="No submissions matched the selected filters." />
+        ) : (
+          <PaginatedCardList
+            items={filtered}
+            itemsPerPage={3}
+            renderItem={(submission) => (
+              <div key={submission.id} className="rounded-3xl border border-stone-200 bg-white p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/submissionmanagement/campaigns/${submission.campaignId}`} className="text-lg font-semibold text-stone-900 hover:text-amber-700">
+                        {submission.campaignTitle || submission.campaignId}
+                      </Link>
+                      <StatusBadge label={submission.status} tone={submission.status === "Verified" ? "green" : submission.status === "Rejected" ? "red" : "amber"} />
+                    </div>
+                    <p className="text-sm text-stone-500">{submission.category} • {currency(submission.earnerPrice)} • Earner {submission.userId}</p>
+                    {submission.note ? <p className="text-sm leading-6 text-stone-600">{submission.note}</p> : null}
+                    <p className="text-xs uppercase tracking-[0.24em] text-stone-400">{submission.createdAtMs ? new Date(submission.createdAtMs).toLocaleString() : "Unknown date"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {submission.proofUrls.map((proof, index) => (
+                      <Button key={`${submission.id}-proof-${index}`} asChild variant="outline" className="rounded-full">
+                        <Link href={proof} target="_blank">Proof {index + 1}</Link>
+                      </Button>
+                    ))}
+                    {submission.status !== "Verified" ? (
+                      <Button className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Verified")}>
+                        {submission.status === "Rejected" ? "Re-verify" : "Verify"}
+                      </Button>
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" disabled={processingId === submission.id} onClick={() => markProofStatus(submission, "Rejected")}>
+                        Reject
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+          />
+        )}
+      </SectionCard>
+    </div>
+  );
+}

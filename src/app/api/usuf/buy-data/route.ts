@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { UsufNetwork } from '@/services/usufPlans';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import * as admin from 'firebase-admin';
+import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts';
+import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment';
 
 export interface UsufBuyDataRequest {
   network: UsufNetwork;
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
     }
 
     const body = await request.json();
-    const { network, mobile_number, plan, Ported_number, payFromWallet, sellAmount, amount } = body;
+    const { network, mobile_number, plan, Ported_number, payFromWallet, sellAmount, amount, paymentReference, provider } = body;
 
     // Validate required fields
     if (!network || !mobile_number || !plan) {
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
     }
 
     // Handle wallet payment: verify user, check balance, and reserve funds
-    let verifiedUid: string | null = null;
+    let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
     let userType: 'advertiser' | 'earner' | null = null;
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
@@ -130,6 +132,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
         const msg = (e instanceof Error && e.message) || 'Insufficient funds';
         const status = msg.includes('Insufficient') ? 402 : 500;
         return NextResponse.json({ status: false, message: msg }, { status });
+      }
+    }
+
+    if (!payFromWallet) {
+      try {
+        await verifyExternalBillsPayment({
+          provider,
+          reference: paymentReference,
+          expectedAmount: amountN,
+        });
+      } catch (error) {
+        console.error('Direct data payment verification failed', error);
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : 'Payment verification failed' }, { status: 400 });
       }
     }
 
@@ -242,6 +257,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufBuyDa
         console.error('Post-success wallet debit failed for data purchase', e);
       }
     }
+
+    await notifyAdminOfBillsPurchase({
+      actorUserId: verifiedUid || undefined,
+      paidAmount: amountN,
+      serviceID: `data_${network}`,
+      paymentChannel: payFromWallet ? 'wallet' : String(provider || 'direct'),
+      reference: String(paymentReference || returnData?.reference || returnData?.id || ''),
+    });
 
     return NextResponse.json({
       status: true,

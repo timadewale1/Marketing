@@ -4,54 +4,14 @@ import * as paystack from '@/services/paystack'
 import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
-import { sendAdminActionEmail } from '@/lib/mailer'
-
-async function sendBillsPurchaseAdminAlert({
-  actorUserId,
-  paidAmount,
-  serviceID,
-}: {
-  actorUserId?: string
-  paidAmount: number
-  serviceID: unknown
-}) {
-  if (!actorUserId) return
-
-  try {
-    const { dbAdmin } = await initFirebaseAdmin()
-    let adminProfilePath = `/admin/earners/${actorUserId}`
-    let actorName = 'User'
-    if (dbAdmin) {
-      const advSnap = await dbAdmin.collection('advertisers').doc(String(actorUserId)).get()
-      if (advSnap.exists) {
-        const advData = advSnap.data() as { fullName?: string; name?: string; businessName?: string; companyName?: string }
-        actorName = String(advData.fullName || advData.name || advData.businessName || advData.companyName || 'Advertiser').trim()
-        adminProfilePath = `/admin/advertisers/${actorUserId}`
-      } else {
-        const earnerSnap = await dbAdmin.collection('earners').doc(String(actorUserId)).get()
-        if (earnerSnap.exists) {
-          const earnerData = earnerSnap.data() as { fullName?: string; name?: string }
-          actorName = String(earnerData.fullName || earnerData.name || 'Earner').trim()
-        }
-      }
-    }
-
-    await sendAdminActionEmail({
-      subject: `Bills purchase - N${paidAmount.toLocaleString()}`,
-      title: 'Bills purchase completed',
-      message: `${actorName} completed a bills purchase for service ${String(serviceID || 'unknown')} (N${paidAmount.toLocaleString()}).`,
-      adminPath: adminProfilePath,
-    })
-  } catch (error) {
-    console.warn('Failed to resolve bills purchase user type or send alert', error)
-  }
-}
+import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts'
+import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
-    let actorUserId: string | undefined = userId
+    let actorUserId: string | undefined = userId || await resolveActorUserIdFromRequest(req)
 
     if (!serviceID) return NextResponse.json({ ok: false, message: 'serviceID is required' }, { status: 400 })
 
@@ -154,10 +114,12 @@ export async function POST(req: NextRequest) {
         }
 
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
-        await sendBillsPurchaseAdminAlert({
+        await notifyAdminOfBillsPurchase({
           actorUserId: verifiedUid,
           paidAmount: amountN,
           serviceID,
+          paymentChannel: 'wallet',
+          reference: reqId,
         })
 
         return NextResponse.json({ ok: true, result: vtData2 })
@@ -172,30 +134,12 @@ export async function POST(req: NextRequest) {
     if (process.env.PAYSTACK_SECRET_KEY && provider === 'paystack') {
       if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Paystack first.' }, { status: 400 })
       try {
-        const enc = encodeURIComponent(String(paystackReference))
-        const res = await fetch(`https://api.paystack.co/transaction/verify/${enc}`, {
-          headers: {
-            Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-            Accept: 'application/json',
-          },
+        const verification = await verifyExternalBillsPayment({
+          provider,
+          reference: paystackReference,
+          expectedAmount: Number(amount || payload.amount || 0),
         })
-        if (!res.ok) {
-          const text = await res.text().catch(() => '')
-          console.error('Paystack verify failed', res.status, text)
-          return NextResponse.json({ ok: false, message: 'Failed to verify payment with provider' }, { status: 502 })
-        }
-        const vd = await res.json()
-        if (!vd.status || vd.data?.status !== 'success') {
-          return NextResponse.json({ ok: false, message: 'Payment not successful' }, { status: 400 })
-        }
-        // Ensure paid amount matches expected (Paystack amounts in kobo)
-        const paidN = Number(vd.data?.amount || 0) / 100
-        const expected = Number(amount || payload.amount || 0)
-        if (expected > 0 && paidN < expected) {
-          return NextResponse.json({ ok: false, message: 'Paid amount does not match expected amount' }, { status: 400 })
-        }
-        // Store Paystack verification data for potential refund
-        payload.paystackVerificationData = vd.data
+        payload.paystackVerificationData = verification.verificationData
       } catch (e) {
         console.error('Paystack verification error', e)
         return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
@@ -206,23 +150,12 @@ export async function POST(req: NextRequest) {
     if (process.env.MONNIFY_API_KEY && provider === 'monnify') {
       if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Monnify first.' }, { status: 400 })
       try {
-        const verifyData = await monnify.verifyTransaction(paystackReference)
-        if (!verifyData?.requestSuccessful) {
-          return NextResponse.json({ ok: false, message: 'Payment verification failed' }, { status: 400 })
-        }
-        const monnifyData = (verifyData.responseBody || {}) as Record<string, unknown>
-        if (monnifyData?.paymentStatus !== 'PAID' && monnifyData?.paymentStatus !== 'SUCCESSFUL') {
-          return NextResponse.json({ ok: false, message: 'Payment not successful' }, { status: 400 })
-        }
-        // Extract amount (could be in kobo or Naira depending on endpoint)
-        const amountReceived = Number(monnifyData?.amountPaid || monnifyData?.amount || 0)
-        const amountInNaira = amountReceived > 100000 ? amountReceived / 100 : amountReceived
-        const expected = Number(amount || payload.amount || 0)
-        if (expected > 0 && amountInNaira < expected) {
-          return NextResponse.json({ ok: false, message: 'Paid amount does not match expected amount' }, { status: 400 })
-        }
-        // Store Monnify verification data for potential refund
-        payload.monnifyVerificationData = monnifyData
+        const verification = await verifyExternalBillsPayment({
+          provider,
+          reference: paystackReference,
+          expectedAmount: Number(amount || payload.amount || 0),
+        })
+        payload.monnifyVerificationData = verification.verificationData
       } catch (e) {
         console.error('Monnify verification error', e)
         return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
@@ -385,10 +318,12 @@ export async function POST(req: NextRequest) {
       console.warn('Failed to save transaction', e)
     }
 
-    await sendBillsPurchaseAdminAlert({
+    await notifyAdminOfBillsPurchase({
       actorUserId,
       paidAmount,
       serviceID,
+      paymentChannel: provider === 'monnify' || provider === 'paystack' ? provider : 'direct',
+      reference: String(paystackReference || reqId),
     })
 
     /*

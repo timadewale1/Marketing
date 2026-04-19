@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
 import * as admin from 'firebase-admin';
+import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts';
+import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment';
 
 interface UsufElectricityResponse {
   status: boolean;
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     }
 
     const body = await request.json();
-    const { disco_name, amount, meter_number: rawMeter, MeterType, payFromWallet, sellAmount } = body;
+    const { disco_name, amount, meter_number: rawMeter, MeterType, payFromWallet, sellAmount, paymentReference, provider } = body;
     let meter_number = rawMeter;
 
     // stricter check: allow zero amounts if vendor permits, only undefined causes failure
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const meterTypeN = Number(MeterType);
     meter_number = String(meter_number).trim();
 
-    let verifiedUid: string | null = null;
+    let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
     let userType: 'advertiser' | 'earner' | null = null;
     let txDocRef: admin.firestore.DocumentReference | null = null;
     let db: admin.firestore.Firestore | null = null;
@@ -121,6 +123,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
         const msg = (e instanceof Error && e.message) || 'Insufficient funds';
         const status = msg.includes('Insufficient') ? 402 : 500;
         return NextResponse.json({ status: false, message: msg }, { status });
+      }
+    }
+
+    if (!payFromWallet) {
+      try {
+        await verifyExternalBillsPayment({
+          provider,
+          reference: paymentReference,
+          expectedAmount: amountN,
+        });
+      } catch (error) {
+        console.error('Direct electricity payment verification failed', error);
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : 'Payment verification failed' }, { status: 400 });
       }
     }
 
@@ -250,6 +265,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
         console.error('Post-success wallet debit failed for electricity purchase', e);
       }
     }
+
+    await notifyAdminOfBillsPurchase({
+      actorUserId: verifiedUid || undefined,
+      paidAmount: amountN,
+      serviceID: 'electricity',
+      paymentChannel: payFromWallet ? 'wallet' : String(provider || 'direct'),
+      reference: String(paymentReference || returnData?.reference || returnData?.id || ''),
+    });
 
     return NextResponse.json({
       status: true,

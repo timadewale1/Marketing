@@ -41,7 +41,13 @@ export async function buyUsufElectricity(
   amount: number,
   meterNumber: string,
   meterType: MeterType,
-  options?: { idToken?: string; sellAmount?: number }
+  options?: {
+    idToken?: string
+    sellAmount?: number
+    payFromWallet?: boolean
+    paymentReference?: string
+    paymentProvider?: "paystack" | "monnify"
+  }
 ): Promise<UsufElectricityResponse> {
   try {
     // send numeric MeterType id as integer
@@ -52,10 +58,12 @@ export async function buyUsufElectricity(
       MeterType: meterType,
     }
 
-    if (options?.idToken) {
+    if (options?.payFromWallet) {
       payload.payFromWallet = true
       payload.sellAmount = options.sellAmount
     }
+    if (options?.paymentReference) payload.paymentReference = options.paymentReference
+    if (options?.paymentProvider) payload.provider = options.paymentProvider
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

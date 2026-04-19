@@ -106,7 +106,7 @@ export default function TVPage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufCable(cable, plan, smartcard, { idToken, sellAmount: Number(amount) })
+      const res = await buyUsufCable(cable, plan, smartcard, { idToken, sellAmount: Number(amount), payFromWallet: true })
       if (!res.status) return toast.error(res.message)
       
       const selectedPlan = availablePlans.find(p => p.id === plan)
@@ -129,11 +129,16 @@ export default function TVPage() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const onPaymentSuccess = async (_reference: string, _provider: 'paystack' | 'monnify') => {
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const res = await buyUsufCable(cable, plan, smartcard)
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await buyUsufCable(cable, plan, smartcard, {
+        idToken,
+        paymentReference: reference,
+        paymentProvider: provider,
+      })
       if (!res.status) {
         toast.error(res.message)
         return

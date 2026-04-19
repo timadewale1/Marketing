@@ -98,7 +98,7 @@ export default function DataPage() {
     setAmount(String(plan.sellAmount))
   }
 
-  const handleUsufPurchase = async (paymentProvider?: 'usuf_wallet' | 'monnify') => {
+  const handleUsufPurchase = async (paymentProvider?: 'usuf_wallet') => {
     if (!selectedUsufPlan) return toast.error('Please select a plan')
     if (!phone) return toast.error('Please enter a phone number')
     if (!auth.currentUser) return toast.error('Please sign in to make a purchase')
@@ -115,7 +115,7 @@ export default function DataPage() {
         selectedUsufPlan.network,
         selectedUsufPlan.id,
         true, // ported number
-        isWallet ? { idToken, sellAmount: selectedUsufPlan.sellAmount } : undefined
+        isWallet ? { idToken, sellAmount: selectedUsufPlan.sellAmount, payFromWallet: true } : undefined
       )
 
       console.log('Usuf purchase response:', response)
@@ -196,6 +196,10 @@ export default function DataPage() {
   }, [service])
 
   const handlePurchase = async () => {
+    if (provider === 'usuf') {
+      if (!selectedUsufPlan) return toast.error('Please select a plan')
+      if (!phone) return toast.error('Please enter a phone number')
+    }
     setShowPaymentSelector(true)
   }
 
@@ -232,6 +236,45 @@ export default function DataPage() {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
+      if (provider === 'monnify' || provider === 'paystack') {
+        if (selectedUsufPlan) {
+          const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+          const response = await buyUsufData(
+            phone,
+            selectedUsufPlan.network,
+            selectedUsufPlan.id,
+            true,
+            {
+              idToken,
+              paymentReference: reference,
+              paymentProvider: provider,
+            }
+          )
+
+          if (!response.status) {
+            toast.error(response.message || 'Purchase failed')
+            return
+          }
+
+          const transactionData = {
+            provider: 'usuf',
+            amount: selectedUsufPlan.sellAmount,
+            network: selectedUsufPlan.networkName,
+            planId: selectedUsufPlan.id,
+            planSize: selectedUsufPlan.size,
+            phone,
+            timestamp: new Date().toISOString(),
+            transactionId: response.data?.reference || undefined,
+            response_description: response.message || response.apiResponse?.api_response || response.apiResponse?.api_response_message || undefined,
+          }
+
+          sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+          toast.success('Purchase successful')
+          window.location.href = '/bills/confirmation'
+          return
+        }
+      }
+
       const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference, provider }
       const matched = plans.find(p => p.code === plan)
       if (matched) payload.amount = String(matched.amount)
@@ -465,13 +508,21 @@ export default function DataPage() {
                       {isLoggedIn ? (
                         <>
                           <Button onClick={() => handleUsufPurchase('usuf_wallet')} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance) || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
-                          <Button onClick={() => handleUsufPurchase('monnify')} disabled={processing || processingWallet || !selectedUsufPlan} variant="outline" className="w-full">Pay with Card</Button>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet || !selectedUsufPlan} variant="outline" className="w-full">Pay with Card</Button>
                         </>
                       ) : (
                         <>
-                          <Button onClick={() => handleUsufPurchase()} disabled={processing || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processing ? 'Processing...' : 'Proceed to Payment'}</Button>
                         </>
                       )}
+                      <PaymentSelector
+                        open={showPaymentSelector}
+                        amount={displayPrice()}
+                        email={auth.currentUser?.email || ''}
+                        description="Bill Payment"
+                        onClose={() => setShowPaymentSelector(false)}
+                        onPaymentSuccess={onPaymentSuccess}
+                      />
                     </>
                   )}
                 </div>

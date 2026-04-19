@@ -95,7 +95,7 @@ export default function AirtimePage() {
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufAirtime(network, Number(amount), phone, true, { idToken, sellAmount: Number(amount) })
+      const res = await buyUsufAirtime(network, Number(amount), phone, true, { idToken, sellAmount: Number(amount), payFromWallet: true })
       if (!res.status) return toast.error(res.message)
       
       const transactionData = {
@@ -120,7 +120,12 @@ export default function AirtimePage() {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      const res = await buyUsufAirtime(network, Number(amount), phone, true)
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+      const res = await buyUsufAirtime(network, Number(amount), phone, true, {
+        idToken,
+        paymentReference: reference,
+        paymentProvider: provider,
+      })
       if (!res.status) {
         toast.error(res.message)
         return
