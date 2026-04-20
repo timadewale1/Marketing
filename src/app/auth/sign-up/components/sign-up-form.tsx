@@ -60,6 +60,21 @@ function getSignupErrorMessage(code?: string) {
   }
 }
 
+function getFriendlySignupMessage(message?: string) {
+  const raw = String(message || "").trim()
+  const normalized = raw.toLowerCase()
+
+  if (
+    normalized.includes("daily user sending limit exceeded") ||
+    normalized.includes("sending limit exceeded") ||
+    normalized.includes("550-5.4.5")
+  ) {
+    return "We could not send your verification email right now because our email limit has been reached. Please try again in 24 hours."
+  }
+
+  return raw || "We could not create your account right now. Please try again."
+}
+
 export function SignUpForm() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -142,7 +157,7 @@ export function SignUpForm() {
 
       const signupResult = await signupResponse.json().catch(() => ({}))
       if (!signupResponse.ok || !signupResult.success) {
-        toast.error(signupResult.message || "We could not create your account right now. Please try again.")
+        toast.error(getFriendlySignupMessage(signupResult.message))
         return
       }
 

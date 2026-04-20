@@ -5,6 +5,27 @@ import { sendVerificationEmail } from "@/lib/mailer"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
 
+function mapSignupErrorMessage(error: unknown) {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "We could not create your account right now. Please try again."
+
+  const normalized = rawMessage.toLowerCase()
+
+  if (
+    normalized.includes("daily user sending limit exceeded") ||
+    normalized.includes("sending limit exceeded") ||
+    normalized.includes("550-5.4.5")
+  ) {
+    return "We could not send your verification email right now because our email limit has been reached. Please try again in 24 hours."
+  }
+
+  return rawMessage
+}
+
 export async function POST(req: Request) {
   let createdUid: string | null = null
 
@@ -137,8 +158,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const message =
-      error instanceof Error ? error.message : "We could not create your account right now. Please try again."
+    const message = mapSignupErrorMessage(error)
 
     return NextResponse.json({ success: false, message }, { status: 500 })
   }
