@@ -12,6 +12,12 @@ interface UsufElectricityResponse {
 
 const USUF_API_URL = 'https://www.usufdataservice.com/api/billpayment/';
 
+function toVendorMeterType(value: unknown) {
+  const normalized = String(value || '').trim().toUpperCase()
+  if (normalized === 'PREPAID' || normalized === 'POSTPAID') return normalized
+  return Number(value) === 2 ? 'POSTPAID' : 'PREPAID'
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse<UsufElectricityResponse>> {
   try {
     const authToken = process.env.USUF_AUTH_TOKEN;
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     // normalize types to numbers / trimmed strings before sending downstream
     const discoN = Number(disco_name);
     const amountVendor = Number(amount);
-    const meterTypeN = Number(MeterType);
+    const meterTypeValue = toVendorMeterType(MeterType);
     meter_number = String(meter_number).trim();
 
     let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
@@ -143,7 +149,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
   disco_name: String(discoN),
   amount: String(amountVendor),
   meter_number,
-  MeterType: String(meterTypeN),
+  MeterType: meterTypeValue,
 });
     
     // console.log("Electricity payload types:", {
