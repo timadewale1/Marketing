@@ -13,9 +13,9 @@ interface UsufElectricityResponse {
 const USUF_API_URL = 'https://www.usufdataservice.com/api/billpayment/';
 
 function toVendorMeterType(value: unknown) {
-  const normalized = String(value || '').trim().toUpperCase()
-  if (normalized === 'PREPAID' || normalized === 'POSTPAID') return normalized
-  return Number(value) === 2 ? 'POSTPAID' : 'PREPAID'
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'prepaid' || normalized === 'postpaid') return normalized
+  return Number(value) === 2 ? 'postpaid' : 'prepaid'
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<UsufElectricityResponse>> {

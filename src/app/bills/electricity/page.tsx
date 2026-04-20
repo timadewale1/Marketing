@@ -161,7 +161,7 @@ export default function ElectricityPage() {
         return
       }
       
-      toast.success('Meter verified successfully')
+      toast.success(result.data?.name ? `Meter verified for ${result.data.name}` : 'Meter verified successfully')
     } catch (err) {
       console.error('verify error', err)
       toast.error('Verification error')
@@ -270,15 +270,24 @@ export default function ElectricityPage() {
                         ? 'text-red-600'
                         : 'text-green-600'
                     }`} />
-                    <p className={`text-sm font-semibold ${
+                    <div className={`text-sm ${
                       verifyResult?.invalid === true || verifyResult?.invalid === 'true'
                         ? 'text-red-900'
                         : 'text-green-900'
                     }`}>
-                      {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                        ? 'Invalid Meter'
-                        : 'Meter Verified'}
-                    </p>
+                      <p className="font-semibold">
+                        {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                          ? 'Invalid Meter'
+                          : verifyResult?.name
+                            ? `Meter Verified: ${verifyResult.name}`
+                            : 'Meter Verified'}
+                      </p>
+                      {!(
+                        verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                      ) && verifyResult?.address ? (
+                        <p className="mt-1 text-xs leading-5 text-green-800">{verifyResult.address}</p>
+                      ) : null}
+                    </div>
                   </div>
                   <div className={`space-y-2 text-sm ${
                     verifyResult?.invalid === true || verifyResult?.invalid === 'true'
