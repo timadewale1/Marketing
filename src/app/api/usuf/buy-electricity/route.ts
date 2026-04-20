@@ -18,6 +18,15 @@ function toVendorMeterType(value: unknown) {
   return Number(value) === 2 ? 'postpaid' : 'prepaid'
 }
 
+function getMeterTypeCandidates(value: unknown) {
+  const isPostpaid = Number(value) === 2 || String(value || '').trim().toLowerCase() === 'postpaid'
+  const base = isPostpaid
+    ? ['postpaid', 'Postpaid', 'POSTPAID', '2']
+    : ['prepaid', 'Prepaid', 'PREPAID', '1']
+
+  return Array.from(new Set(base))
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse<UsufElectricityResponse>> {
   try {
     const authToken = process.env.USUF_AUTH_TOKEN;
@@ -45,6 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const discoN = Number(disco_name);
     const amountVendor = Number(amount);
     const meterTypeValue = toVendorMeterType(MeterType);
+    const meterTypeCandidates = getMeterTypeCandidates(MeterType);
     meter_number = String(meter_number).trim();
 
     let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
@@ -145,45 +155,58 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       }
     }
 
-   const formBody = new URLSearchParams({
-  disco_name: String(discoN),
-  amount: String(amountVendor),
-  meter_number,
-  MeterType: meterTypeValue,
-});
-    
-    // console.log("Electricity payload types:", {
-    //   disco_name: [payload.disco_name, typeof payload.disco_name],
-    //   amount: [payload.amount, typeof payload.amount],
-    //   MeterType: [payload.MeterType, typeof payload.MeterType],
-    // });
+    const sendVendorRequest = async (candidateMeterType: string) => {
+      const formBody = new URLSearchParams({
+        disco_name: String(discoN),
+        amount: String(amountVendor),
+        meter_number,
+        MeterType: candidateMeterType,
+      })
 
-    // Create abort controller with 30 second timeout
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 30000);
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), 30000)
 
-    let response;
-    try {
-     response = await fetch(USUF_API_URL, {
-  method: 'POST',
-  headers: {
-    'Authorization': `Token ${authToken}`,
-    'Content-Type': 'application/x-www-form-urlencoded',
-  },
-  body: formBody.toString(),
-  signal: abortController.signal,
-});
-    } finally {
-      clearTimeout(timeoutId);
+      try {
+        const response = await fetch(USUF_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${authToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: formBody.toString(),
+          signal: abortController.signal,
+        })
+
+        const data = await response.json()
+        return { response, data, formBody: formBody.toString(), meterType: candidateMeterType }
+      } finally {
+        clearTimeout(timeoutId)
+      }
     }
 
-    const data = await response.json();
+    const attempt = await sendVendorRequest(meterTypeValue)
+    let response = attempt.response
+    let data = attempt.data
+    let debugFormBody = attempt.formBody
+
+    if (data?.MeterType && Array.isArray(data.MeterType)) {
+      for (const candidate of meterTypeCandidates) {
+        if (candidate === attempt.meterType) continue
+        const retryAttempt = await sendVendorRequest(candidate)
+        response = retryAttempt.response
+        data = retryAttempt.data
+        debugFormBody = retryAttempt.formBody
+        if (!(data?.MeterType && Array.isArray(data.MeterType))) {
+          break
+        }
+      }
+    }
 
     console.log('Usuf Electricity API Response:', {
   status: response.status,
   statusText: response.statusText,
   data,
-  formBody: formBody.toString(),
+  formBody: debugFormBody,
 });
 
     const vendorSuccess = Boolean(response.ok) || String(data?.Status || data?.status || '').toLowerCase() === 'successful' || String(data?.status || '').toLowerCase() === 'success';
