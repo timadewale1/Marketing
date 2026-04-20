@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       recipientIds,
     } = body as {
       type?: 'activation_reminder' | 'broadcast'
-      audience?: 'earners' | 'advertisers' | 'all'
+      audience?: 'earners' | 'advertisers' | 'all' | 'unactivated_earners' | 'unactivated_advertisers'
       subject?: string
       message?: string
       recipientIds?: string[]
@@ -48,9 +48,9 @@ export async function POST(req: Request) {
     }
 
     const roles: Role[] =
-      audience === 'earners'
+      audience === 'earners' || audience === 'unactivated_earners'
         ? ['earner']
-        : audience === 'advertisers'
+        : audience === 'advertisers' || audience === 'unactivated_advertisers'
           ? ['advertiser']
           : ['earner', 'advertiser']
 
@@ -86,10 +86,18 @@ export async function POST(req: Request) {
       })
     }
 
-    const filteredRecipients =
-      type === 'activation_reminder'
-        ? recipients.filter((recipient) => !recipient.activated)
-        : recipients
+    const filteredRecipients = recipients.filter((recipient) => {
+      if (type === 'activation_reminder' && recipient.activated) {
+        return false
+      }
+      if (audience === 'unactivated_earners') {
+        return recipient.role === 'earner' && !recipient.activated
+      }
+      if (audience === 'unactivated_advertisers') {
+        return recipient.role === 'advertiser' && !recipient.activated
+      }
+      return true
+    })
 
     if (filteredRecipients.length === 0) {
       return NextResponse.json({ success: false, message: 'No matching recipients found' }, { status: 404 })

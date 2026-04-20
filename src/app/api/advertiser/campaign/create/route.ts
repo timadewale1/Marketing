@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
+import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 
 export async function POST(req: Request) {
   try {
@@ -99,23 +100,19 @@ export async function POST(req: Request) {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      // Notify admin of new campaign created
-      const noteRef = db.collection('adminNotifications').doc()
-      t.set(noteRef, {
-        type: 'task_created',
-        title: 'New task created',
-        body: `Advertiser ${advertiserName} created a new task: ${campaignTitle}`,
-        link: `/admin/campaigns/${campaignRef.id}`,
-        userId: verifiedUid,
-        campaignId: campaignRef.id,
-        campaignTitle,
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
     })
 
     if (createdCampaignId) {
-      sendNewTaskNotificationToEarners({
+      await notifyAdminOfTaskCreated({
+        advertiserId: verifiedUid,
+        advertiserName,
+        campaignId: createdCampaignId,
+        campaignTitle,
+      }).catch((error) => {
+        console.error('Task creation admin alert failed:', error)
+      })
+
+      await sendNewTaskNotificationToEarners({
         campaignId: createdCampaignId,
         campaignTitle,
         availableSlots,

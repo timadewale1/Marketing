@@ -31,11 +31,18 @@ type Recipient = {
   activated: boolean;
 };
 
+type Audience =
+  | "all"
+  | "earners"
+  | "advertisers"
+  | "unactivated_earners"
+  | "unactivated_advertisers";
+
 export default function AdminActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [audience, setAudience] = useState<"all" | "earners" | "advertisers">("all");
+  const [audience, setAudience] = useState<Audience>("all");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
 
@@ -86,9 +93,11 @@ export default function AdminActivitiesPage() {
   const filteredRecipients = useMemo(() => {
     return recipients.filter((recipient) => {
       if (audience === "all") return true;
-      return audience === "earners"
-        ? recipient.role === "earner"
-        : recipient.role === "advertiser";
+      if (audience === "earners") return recipient.role === "earner";
+      if (audience === "advertisers") return recipient.role === "advertiser";
+      if (audience === "unactivated_earners") return recipient.role === "earner" && !recipient.activated;
+      if (audience === "unactivated_advertisers") return recipient.role === "advertiser" && !recipient.activated;
+      return true;
     });
   }, [audience, recipients]);
 
@@ -154,7 +163,7 @@ export default function AdminActivitiesPage() {
         description="Pick who should receive reminders or updates before sending."
       >
         <div className="grid gap-4 md:grid-cols-[0.8fr_1fr_1fr]">
-          <Select value={audience} onValueChange={(value) => setAudience(value as typeof audience)}>
+          <Select value={audience} onValueChange={(value) => setAudience(value as Audience)}>
             <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
               <SelectValue placeholder="Choose audience" />
             </SelectTrigger>
@@ -162,6 +171,8 @@ export default function AdminActivitiesPage() {
               <SelectItem value="all">All users</SelectItem>
               <SelectItem value="earners">Earners only</SelectItem>
               <SelectItem value="advertisers">Advertisers only</SelectItem>
+              <SelectItem value="unactivated_earners">Unactivated earners</SelectItem>
+              <SelectItem value="unactivated_advertisers">Unactivated advertisers</SelectItem>
             </SelectContent>
           </Select>
           <div className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-700">
@@ -257,7 +268,7 @@ export default function AdminActivitiesPage() {
               />
             </div>
             <p className="text-sm text-stone-500">
-              This sends to {filteredRecipients.length} {audience === "all" ? "users" : audience}.
+              This sends to {filteredRecipients.length} {audience === "all" ? "users" : audience.replace(/_/g, " ")}.
             </p>
           </div>
         </SectionCard>

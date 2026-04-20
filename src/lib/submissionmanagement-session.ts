@@ -3,9 +3,18 @@ import { cookies } from "next/headers"
 
 const COOKIE_NAME = "submissionManagementSession"
 const SESSION_EXPIRES_MS = 5 * 24 * 60 * 60 * 1000
-const LOGIN_EMAIL = process.env.SUBMISSION_MANAGEMENT_EMAIL || ""
-const LOGIN_PASSWORD = process.env.SUBMISSION_MANAGEMENT_PASSWORD || ""
-const SESSION_SECRET = process.env.SUBMISSION_MANAGEMENT_SESSION_SECRET || ""
+
+function getSubmissionManagementSessionSecret() {
+  return String(process.env.SUBMISSION_MANAGEMENT_SESSION_SECRET || "")
+}
+
+function getSubmissionManagementEmail() {
+  return String(process.env.SUBMISSION_MANAGEMENT_EMAIL || "").trim().toLowerCase()
+}
+
+function getSubmissionManagementPassword() {
+  return String(process.env.SUBMISSION_MANAGEMENT_PASSWORD || "")
+}
 
 type SessionPayload = {
   scope: "submissionmanagement"
@@ -14,16 +23,22 @@ type SessionPayload = {
 }
 
 function encodePayload(payload: SessionPayload) {
+  const sessionSecret = getSubmissionManagementSessionSecret()
+  if (!sessionSecret) {
+    throw new Error("Submission management session secret is not configured")
+  }
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url")
-  const signature = crypto.createHmac("sha256", SESSION_SECRET).update(body).digest("hex")
+  const signature = crypto.createHmac("sha256", sessionSecret).update(body).digest("hex")
   return `${body}.${signature}`
 }
 
 function decodePayload(token: string): SessionPayload | null {
+  const sessionSecret = getSubmissionManagementSessionSecret()
+  if (!sessionSecret) return null
   const [body, signature] = token.split(".")
   if (!body || !signature) return null
 
-  const expected = crypto.createHmac("sha256", SESSION_SECRET).update(body).digest("hex")
+  const expected = crypto.createHmac("sha256", sessionSecret).update(body).digest("hex")
   if (expected !== signature) return null
 
   try {
@@ -37,14 +52,27 @@ function decodePayload(token: string): SessionPayload | null {
 }
 
 export function validateSubmissionManagementCredentials(email: string, password: string) {
-  return email.trim().toLowerCase() === LOGIN_EMAIL && password === LOGIN_PASSWORD
+  const configuredEmail = getSubmissionManagementEmail()
+  const configuredPassword = getSubmissionManagementPassword()
+  if (!configuredEmail || !configuredPassword) return false
+  return email.trim().toLowerCase() === configuredEmail && password === configuredPassword
+}
+
+export function getSubmissionManagementConfig() {
+  const email = getSubmissionManagementEmail()
+  const password = getSubmissionManagementPassword()
+  return {
+    email,
+    configured: Boolean(email && password && getSubmissionManagementSessionSecret()),
+  }
 }
 
 export async function setSubmissionManagementSessionCookie() {
   const cookieStore = await cookies()
+  const { email } = getSubmissionManagementConfig()
   const payload: SessionPayload = {
     scope: "submissionmanagement",
-    email: LOGIN_EMAIL,
+    email,
     exp: Date.now() + SESSION_EXPIRES_MS,
   }
 
@@ -86,6 +114,4 @@ export async function requireSubmissionManagementSession() {
 
   return payload
 }
-
-export const SUBMISSION_MANAGEMENT_EMAIL = LOGIN_EMAIL
 

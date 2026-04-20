@@ -470,10 +470,7 @@ export async function sendNewTaskNotificationToEarners({
     return { attempted: 0, sent: 0, failed: 0 }
   }
 
-  const snapshot = await dbAdmin
-    .collection('earners')
-    .where('activated', '==', true)
-    .get()
+  const snapshot = await dbAdmin.collection('earners').get()
 
   const recipients = snapshot.docs
     .map((doc) => {
@@ -488,7 +485,7 @@ export async function sendNewTaskNotificationToEarners({
     .filter((recipient) => recipient.email && recipient.status !== 'suspended')
 
   if (recipients.length === 0) {
-    console.log('No activated earner emails found for new task notification')
+    console.log('No earner emails found for new task notification')
     return { attempted: 0, sent: 0, failed: 0 }
   }
 

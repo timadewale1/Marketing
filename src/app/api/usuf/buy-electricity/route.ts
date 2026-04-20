@@ -10,19 +10,13 @@ interface UsufElectricityResponse {
   data?: Record<string, unknown>;
 }
 
-const USUF_API_URL = 'https://www.usufdataservice.com/api/billpayment/';
+const USUF_API_URL =
+  process.env.BSPLUG_BILLPAYMENT_URL ||
+  process.env.USUF_BILLPAYMENT_URL ||
+  'https://www.usufdataservice.com/api/billpayment/';
 
 function toVendorMeterType(value: unknown) {
   return Number(value) === 2 ? 2 : 1
-}
-
-function getMeterTypeCandidates(value: unknown) {
-  const isPostpaid = Number(value) === 2 || String(value || '').trim().toLowerCase() === 'postpaid'
-  const base = isPostpaid
-    ? [2, '2', 'POSTPAID', 'postpaid']
-    : [1, '1', 'PREPAID', 'prepaid']
-
-  return Array.from(new Set(base))
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<UsufElectricityResponse>> {
@@ -52,7 +46,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const discoN = Number(disco_name);
     const amountVendor = Number(amount);
     const meterTypeValue = toVendorMeterType(MeterType);
-    const meterTypeCandidates = getMeterTypeCandidates(MeterType);
     meter_number = String(meter_number).trim();
 
     let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
@@ -190,29 +183,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     }
 
     const attempt = await sendVendorRequest(meterTypeValue)
-    let response = attempt.response
-    let data = attempt.data
-    let debugRequestBody = attempt.requestBody
-
-    if (data?.MeterType && Array.isArray(data.MeterType)) {
-      for (const candidate of meterTypeCandidates) {
-        if (candidate === attempt.meterType) continue
-        const retryAttempt = await sendVendorRequest(candidate)
-        response = retryAttempt.response
-        data = retryAttempt.data
-        debugRequestBody = retryAttempt.requestBody
-        if (!(data?.MeterType && Array.isArray(data.MeterType))) {
-          break
-        }
-      }
-    }
+    const response = attempt.response
+    const data = attempt.data
+    const debugRequestBody = attempt.requestBody
 
     console.log('Usuf Electricity API Response:', {
-  status: response.status,
-  statusText: response.statusText,
-  data,
-  requestBody: debugRequestBody,
-});
+      status: response.status,
+      statusText: response.statusText,
+      data,
+      requestBody: debugRequestBody,
+      providerUrl: USUF_API_URL,
+    });
 
     const vendorSuccess = Boolean(response.ok) || String(data?.Status || data?.status || '').toLowerCase() === 'successful' || String(data?.status || '').toLowerCase() === 'success';
 

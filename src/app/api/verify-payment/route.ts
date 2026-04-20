@@ -5,6 +5,8 @@ import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from
 import { confirmMonnifyPaymentWithRetries } from '@/lib/monnify-confirmation'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { runRecoverySweep } from '@/lib/recovery-sweep'
+import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
+import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 
 export async function POST(req: NextRequest) {
   try {
@@ -112,16 +114,16 @@ export async function POST(req: NextRequest) {
           paymentRef: reference,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })
-        await adminDb.collection('adminNotifications').add({
-          type: 'task_created',
-          title: 'New task created',
-          body: `Advertiser ${advertiserName} created a new task: ${campaignTitle}`,
-          link: `/admin/campaigns/${campaignRef.id}`,
+        await notifyAdminOfTaskCreated({
+          advertiserId: String(userId || ''),
+          advertiserName,
           campaignId: campaignRef.id,
           campaignTitle,
-          userId: String(userId || ''),
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+        await sendNewTaskNotificationToEarners({
+          campaignId: campaignRef.id,
+          campaignTitle,
+          availableSlots: Number(campaignData?.estimatedLeads || campaignData?.targetLeads || 0),
         })
         await logPaymentLifecycle({
           scope: 'campaign_payment',

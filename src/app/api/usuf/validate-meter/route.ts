@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 interface ValidationResponse {
   status: boolean;
   message: string;
-  data?: Record<string, unknown>;
+  data?: {
+    invalid?: boolean | string;
+    name?: string;
+    address?: string;
+    [key: string]: unknown;
+  };
 }
 
 const USUF_API_URL = 'https://www.usufdataservice.com/api/validatemeter';
@@ -62,12 +67,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<Validation
       clearTimeout(timeoutId);
     }
 
-    const data = await response.json();
+    const rawData = await response.json();
+    const normalizedData = {
+      ...(rawData || {}),
+      invalid: rawData?.invalid,
+      name: rawData?.data?.name || rawData?.name,
+      address: rawData?.data?.address || rawData?.address,
+    };
 
     console.log('📊 Usuf Meter Validation Response:', {
       status: response.status,
       statusText: response.statusText,
-      data,
+      data: rawData,
       url,
     });
 
@@ -75,28 +86,28 @@ export async function GET(request: NextRequest): Promise<NextResponse<Validation
       return NextResponse.json(
         {
           status: false,
-          message: data?.message || data?.error || `Validation failed`,
-          data,
+          message: normalizedData?.message || normalizedData?.error || `Validation failed`,
+          data: normalizedData,
         },
         { status: response.status }
       );
     }
 
     // Check if Usuf API returned an invalid meter
-    const isInvalid = data?.invalid === true || data?.invalid === 'true';
+    const isInvalid = normalizedData?.invalid === true || normalizedData?.invalid === 'true';
 
     if (isInvalid) {
       return NextResponse.json({
         status: false,
-        message: data?.name || 'Invalid meter number',
-        data,
+        message: normalizedData?.name || 'Invalid meter number',
+        data: normalizedData,
       });
     }
 
     return NextResponse.json({
       status: true,
-      message: data?.name || 'Meter validated successfully',
-      data,
+      message: normalizedData?.name || 'Meter validated successfully',
+      data: normalizedData,
     });
   } catch (error) {
     console.error('Meter validation error:', error);

@@ -28,6 +28,8 @@ export default function ElectricityPage() {
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const verifiedName = typeof verifyResult?.name === 'string' ? verifyResult.name : ''
+  const verifiedAddress = typeof verifyResult?.address === 'string' ? verifyResult.address : ''
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
@@ -279,13 +281,13 @@ export default function ElectricityPage() {
                         {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
                           ? 'Invalid Meter'
                           : verifyResult?.name
-                            ? `Meter Verified: ${verifyResult.name}`
+                            ? `Meter Verified: ${verifiedName}`
                             : 'Meter Verified'}
                       </p>
                       {!(
                         verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                      ) && verifyResult?.address ? (
-                        <p className="mt-1 text-xs leading-5 text-green-800">{verifyResult.address}</p>
+                      ) && verifiedAddress ? (
+                        <p className="mt-1 text-xs leading-5 text-green-800">{verifiedAddress}</p>
                       ) : null}
                     </div>
                   </div>
@@ -294,16 +296,16 @@ export default function ElectricityPage() {
                       ? 'text-red-800'
                       : 'text-green-800'
                   }`}>
-                    {verifyResult?.name && (
+                    {verifiedName && (
                       <div className="flex justify-between items-start">
                         <span>Name:</span>
-                        <span className="font-medium text-right ml-4">{verifyResult.name}</span>
+                        <span className="font-medium text-right ml-4">{verifiedName}</span>
                       </div>
                     )}
-                    {verifyResult?.address && (
+                    {verifiedAddress && (
                       <div className="flex justify-between items-start">
                         <span>Address:</span>
-                        <span className="font-medium text-right ml-4">{verifyResult.address}</span>
+                        <span className="font-medium text-right ml-4">{verifiedAddress}</span>
                       </div>
                     )}
                   </div>

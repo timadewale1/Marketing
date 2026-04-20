@@ -62,11 +62,11 @@ export default function SubmissionManagementLoginPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-stone-700">Email</label>
-                  <Input value={email} onChange={(event) => setEmail(event.target.value)} className="h-12 rounded-2xl border-stone-200" />
+                  <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your submission management email" className="h-12 rounded-2xl border-stone-200" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-stone-700">Password</label>
-                  <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="h-12 rounded-2xl border-stone-200" />
+                  <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" className="h-12 rounded-2xl border-stone-200" />
                 </div>
               </div>
               <Button onClick={handleSubmit} disabled={loading} className="h-12 w-full rounded-2xl bg-stone-900 text-white hover:bg-stone-800">

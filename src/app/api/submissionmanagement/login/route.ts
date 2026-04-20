@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import {
+  getSubmissionManagementConfig,
   setSubmissionManagementSessionCookie,
   validateSubmissionManagementCredentials,
-  SUBMISSION_MANAGEMENT_EMAIL,
 } from "@/lib/submissionmanagement-session"
 
 const SUBMISSION_MANAGER_UID = "submissionmanagement-admin"
 
 export async function POST(req: Request) {
   try {
+    const { configured, email: configuredEmail } = getSubmissionManagementConfig()
+    if (!configured) {
+      return NextResponse.json({ message: "Submission management credentials are not configured" }, { status: 500 })
+    }
+
     const body = await req.json()
     const email = String(body?.email || "")
     const password = String(body?.password || "")
@@ -25,8 +30,8 @@ export async function POST(req: Request) {
 
     await dbAdmin.collection("admins").doc(SUBMISSION_MANAGER_UID).set(
       {
-        email: SUBMISSION_MANAGEMENT_EMAIL,
-        loginEmail: SUBMISSION_MANAGEMENT_EMAIL,
+        email: configuredEmail,
+        loginEmail: configuredEmail,
         role: "submissionmanagement",
         limitedScopes: ["campaigns", "submissions"],
         updatedAt: new Date().toISOString(),
@@ -42,7 +47,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       authenticated: true,
-      email: SUBMISSION_MANAGEMENT_EMAIL,
+      email: configuredEmail,
       customToken,
     })
   } catch (error) {
