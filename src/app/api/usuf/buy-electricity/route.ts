@@ -13,16 +13,14 @@ interface UsufElectricityResponse {
 const USUF_API_URL = 'https://www.usufdataservice.com/api/billpayment/';
 
 function toVendorMeterType(value: unknown) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (normalized === 'prepaid' || normalized === 'postpaid') return normalized
-  return Number(value) === 2 ? 'postpaid' : 'prepaid'
+  return Number(value) === 2 ? 2 : 1
 }
 
 function getMeterTypeCandidates(value: unknown) {
   const isPostpaid = Number(value) === 2 || String(value || '').trim().toLowerCase() === 'postpaid'
   const base = isPostpaid
-    ? ['postpaid', 'Postpaid', 'POSTPAID', '2']
-    : ['prepaid', 'Prepaid', 'PREPAID', '1']
+    ? [2, '2', 'POSTPAID', 'postpaid']
+    : [1, '1', 'PREPAID', 'prepaid']
 
   return Array.from(new Set(base))
 }
@@ -155,13 +153,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       }
     }
 
-    const sendVendorRequest = async (candidateMeterType: string) => {
-      const formBody = new URLSearchParams({
-        disco_name: String(discoN),
-        amount: String(amountVendor),
+    const sendVendorRequest = async (candidateMeterType: string | number) => {
+      const payload = {
+        disco_name: discoN,
+        amount: amountVendor,
         meter_number,
         MeterType: candidateMeterType,
-      })
+      }
 
       const abortController = new AbortController()
       const timeoutId = setTimeout(() => abortController.abort(), 30000)
@@ -171,14 +169,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
           method: 'POST',
           headers: {
             'Authorization': `Token ${authToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
           },
-          body: formBody.toString(),
+          body: JSON.stringify(payload),
           signal: abortController.signal,
         })
 
-        const data = await response.json()
-        return { response, data, formBody: formBody.toString(), meterType: candidateMeterType }
+        const text = await response.text()
+        let data: Record<string, unknown> = {}
+        try {
+          data = text ? JSON.parse(text) as Record<string, unknown> : {}
+        } catch {
+          data = { raw: text }
+        }
+
+        return { response, data, requestBody: JSON.stringify(payload), meterType: candidateMeterType }
       } finally {
         clearTimeout(timeoutId)
       }
@@ -187,7 +192,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
     const attempt = await sendVendorRequest(meterTypeValue)
     let response = attempt.response
     let data = attempt.data
-    let debugFormBody = attempt.formBody
+    let debugRequestBody = attempt.requestBody
 
     if (data?.MeterType && Array.isArray(data.MeterType)) {
       for (const candidate of meterTypeCandidates) {
@@ -195,7 +200,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
         const retryAttempt = await sendVendorRequest(candidate)
         response = retryAttempt.response
         data = retryAttempt.data
-        debugFormBody = retryAttempt.formBody
+        debugRequestBody = retryAttempt.requestBody
         if (!(data?.MeterType && Array.isArray(data.MeterType))) {
           break
         }
@@ -206,7 +211,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
   status: response.status,
   statusText: response.statusText,
   data,
-  formBody: debugFormBody,
+  requestBody: debugRequestBody,
 });
 
     const vendorSuccess = Boolean(response.ok) || String(data?.Status || data?.status || '').toLowerCase() === 'successful' || String(data?.status || '').toLowerCase() === 'success';
@@ -240,8 +245,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufElect
       );
     }
 
-    const returnData = data?.data ?? data;
-    const message = data?.message || data?.api_response || data?.apiResponse || (returnData && (returnData.api_response || returnData.api_response_message)) || 'Electricity payment successful';
+    const responseData = data as Record<string, unknown>
+    const returnData = ((responseData.data as Record<string, unknown> | undefined) ?? responseData) as Record<string, unknown>
+    const message =
+      String(
+        responseData.message ||
+        responseData.api_response ||
+        responseData.apiResponse ||
+        returnData.api_response ||
+        returnData.api_response_message ||
+        'Electricity payment successful'
+      )
 
     const completeWithRetry = async (ref: import('firebase-admin').firestore.DocumentReference, data: Record<string, unknown>) => {
       try {
