@@ -13,7 +13,7 @@ function getSubmissionManagementEmail() {
 }
 
 function getSubmissionManagementPassword() {
-  return String(process.env.SUBMISSION_MANAGEMENT_PASSWORD || "")
+  return String(process.env.SUBMISSION_MANAGEMENT_PASSWORD || "").trim()
 }
 
 type SessionPayload = {
@@ -55,7 +55,7 @@ export function validateSubmissionManagementCredentials(email: string, password:
   const configuredEmail = getSubmissionManagementEmail()
   const configuredPassword = getSubmissionManagementPassword()
   if (!configuredEmail || !configuredPassword) return false
-  return email.trim().toLowerCase() === configuredEmail && password === configuredPassword
+  return email.trim().toLowerCase() === configuredEmail && password.trim() === configuredPassword
 }
 
 export function getSubmissionManagementConfig() {
