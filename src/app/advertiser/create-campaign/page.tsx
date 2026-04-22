@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useEffect, useState, useRef } from "react"
 import Image from "next/image"
@@ -99,6 +99,7 @@ export default function CreateCampaignPage() {
   // loading / progress states
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const payInFlightRef = useRef(false)
 
   // form fields
   const [title, setTitle] = useState("")
@@ -107,9 +108,9 @@ export default function CreateCampaignPage() {
   const [bannerUrl, setBannerUrl] = useState("")
   const [mediaUrl, setMediaUrl] = useState("")
   const [externalLink, setExternalLink] = useState("")
-  const [videoLink, setVideoLink] = useState("") // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ new field
-  const [productLink, setProductLink] = useState("") // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ product link field
-  const [productImages, setProductImages] = useState<string[]>([]) // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ product images (up to 3)
+  const [videoLink, setVideoLink] = useState("") // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ new field
+  const [productLink, setProductLink] = useState("") // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ product link field
+  const [productImages, setProductImages] = useState<string[]>([]) // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ product images (up to 3)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
   // face verification + address (for product campaigns)
   const [faceImage, setFaceImage] = useState<string | null>(null)
@@ -126,7 +127,7 @@ export default function CreateCampaignPage() {
   const [stateRegion, setStateRegion] = useState("")
 
 
-  // targeting removed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only budget is required now
+  // targeting removed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only budget is required now
 
   const [budget, setBudget] = useState<number | "">("")
 
@@ -292,19 +293,32 @@ const compressed = await imageCompression(file, options)
 
   // Paystack payment
   const handlePay = async () => {
+    if (payInFlightRef.current) {
+      return
+    }
+
+    payInFlightRef.current = true
+    setLoading(true)
+
     const user = auth.currentUser
     if (!user || !user.email) {
       toast.error("You must be logged in to pay")
+      setLoading(false)
+      payInFlightRef.current = false
       return
     }
 
     if (!isStepValid()) {
       toast.error("Please complete all required fields")
+      setLoading(false)
+      payInFlightRef.current = false
       return
     }
 
     if (numericBudget < minimumBudget) {
       toast.error(`Budget must be at least NGN ${minimumBudget.toLocaleString()} for this task type`)
+      setLoading(false)
+      payInFlightRef.current = false
       return
     }
 
@@ -341,12 +355,16 @@ const compressed = await imageCompression(file, options)
 
       if (!advertiserProfile) {
         toast.error('Advertiser profile not found - please complete onboarding')
+        setLoading(false)
+        payInFlightRef.current = false
         router.push('/advertiser/onboarding')
         return
       }
       // If not onboarded, send to onboarding
       if (!advertiserProfile['onboarded']) {
         toast.error('Please complete advertiser onboarding before creating tasks')
+        setLoading(false)
+        payInFlightRef.current = false
         router.push('/advertiser/onboarding')
         return
       }
@@ -356,6 +374,8 @@ const compressed = await imageCompression(file, options)
         setShowActivatePrompt(true)
         // keep campaignData persisted in state so we can continue after activation
         setPendingCampaign(tempCampaignData)
+        setLoading(false)
+        payInFlightRef.current = false
         return
       }
     } catch (e) {
@@ -373,6 +393,8 @@ const compressed = await imageCompression(file, options)
     if (category === "Share my Product") {
       if (!faceImageUrl) {
         toast.error("Wait for the captured face image to finish uploading")
+        setLoading(false)
+        payInFlightRef.current = false
         return
       }
       campaignData['advertiserFaceImage'] = faceImageUrl
@@ -405,6 +427,8 @@ const compressed = await imageCompression(file, options)
       const data = await res.json().catch(() => ({}))
       if (res.status === 402 || /insufficient/i.test(String(data?.message || ''))) {
         toast.error('Insufficient wallet balance - please fund wallet to continue')
+        setLoading(false)
+        payInFlightRef.current = false
         setTimeout(() => router.push('/advertiser/wallet'), 700)
         return
       }
@@ -412,9 +436,13 @@ const compressed = await imageCompression(file, options)
       // Show payment selector for payment via card
       setPendingCampaignForPayment(campaignData)
       setShowPaymentSelector(true)
+      setLoading(false)
+      payInFlightRef.current = false
     } catch (err) {
       console.error('Wallet create error', err)
-      toast.error('Failed to create campaign ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â try again')
+      setLoading(false)
+      payInFlightRef.current = false
+      toast.error('Failed to create campaign. Please try again.')
     }
   }
 
@@ -559,7 +587,7 @@ const compressed = await imageCompression(file, options)
     </div>
   )
 
-  // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ helper to embed YouTube/Vimeo links
+  // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ helper to embed YouTube/Vimeo links
 const getEmbeddedVideo = (url: string) => {
   try {
     const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/)
@@ -615,7 +643,7 @@ const getEmbeddedVideo = (url: string) => {
                 ))}
               </select>
 
-              {/* Thumbnail removed from initial Details step ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it's auto-generated at Review */}
+              {/* Thumbnail removed from initial Details step ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â it's auto-generated at Review */}
             </CardContent>
           </Card>
         )
@@ -636,7 +664,7 @@ const getEmbeddedVideo = (url: string) => {
               }
 
               {category === "Share my Product" && faceUploading && (
-                <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${uploadProgress}%` : '...'}</div>
+                <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` - ${uploadProgress}%` : '...'}</div>
               )}
               {category === "Share my Product" && faceImageUrl && (
                 <div className="mt-2 text-sm text-stone-600">Face image uploaded and attached to campaign</div>
@@ -700,7 +728,7 @@ const getEmbeddedVideo = (url: string) => {
                       ))}
                     </div>
                     {productImagesUploading && (
-                      <div className="mt-2 text-sm text-amber-600">Uploading product images{uploadProgress ? ` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${uploadProgress}%` : '...'}</div>
+                      <div className="mt-2 text-sm text-amber-600">Uploading product images{uploadProgress ? ` - ${uploadProgress}%` : '...'}</div>
                     )}
                     {productImages.length > 0 && (
                       <div className="mt-3 flex gap-2 flex-wrap">
@@ -761,7 +789,7 @@ const getEmbeddedVideo = (url: string) => {
           <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
             <CardContent className="space-y-5 p-6 md:p-8">
               <div>
-                <label className="text-sm font-medium text-stone-700">Budget (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦)</label>
+                <label className="text-sm font-medium text-stone-700">Budget (NGN)</label>
                 <Input
                   type="number"
                   placeholder="Enter budget in NGN"
@@ -769,7 +797,7 @@ const getEmbeddedVideo = (url: string) => {
                   onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Cost-per-lead for <b>{category || "selected type"}</b> is ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{currentCPL}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
+                  Cost-per-lead for <b>{category || "selected type"}</b> is NGN {currentCPL.toLocaleString()}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
                 </p>
               </div>
 
@@ -778,7 +806,7 @@ const getEmbeddedVideo = (url: string) => {
                   <FileText size={18} />
                   <div>
                     <div className="font-medium">Summary</div>
-                    <div className="text-sm text-stone-600">Budget: ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{numericBudget.toLocaleString() || 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Estimated leads: {estimatedLeads}</div>
+                    <div className="text-sm text-stone-600">Budget: NGN {numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
                   </div>
                 </div>
               </div>
@@ -796,11 +824,11 @@ const getEmbeddedVideo = (url: string) => {
                     {title}
                   </h3>
                   <p className="text-sm text-stone-600">
-                    {category} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{numericBudget.toLocaleString() || 0}
+                    {category} • NGN {numericBudget.toLocaleString() || 0}
                   </p>
                 </div>
                 <div className="text-right text-xs text-stone-500">
-                  <div>Cost per lead: ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦{currentCPL}</div>
+                  <div>Cost per lead: NGN {currentCPL.toLocaleString()}</div>
                   <div>Estimated leads: {estimatedLeads}</div>
                 </div>
               </div>
@@ -808,7 +836,7 @@ const getEmbeddedVideo = (url: string) => {
               {bannerUrl && (
                 <div className="w-full max-h-56 overflow-hidden rounded">
                   {bannerUrl.endsWith('.svg') ? (
-                    // svg icons served from public/icons ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use img for predictable rendering
+                    // svg icons served from public/icons ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â use img for predictable rendering
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={bannerUrl} alt="banner" className="w-full object-cover" />
                   ) : (
@@ -931,12 +959,12 @@ const getEmbeddedVideo = (url: string) => {
                 <Button
                   className="bg-amber-600 text-white"
                   onClick={handlePay}
-                  disabled={loading || (category === "Share my Product" && faceUploading)}
+                  disabled={loading || showPaymentSelector || (category === "Share my Product" && faceUploading)}
                 >
                   <CreditCard size={16} />{" "}
                   {loading
-                    ? "Processing..."
-                    : `Pay ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦${numericBudget.toLocaleString() || 0}`}
+                    ? "Creating task..."
+                    : `Pay NGN ${numericBudget.toLocaleString() || 0}`}
                 </Button>
               </div>
             </CardContent>
@@ -955,7 +983,7 @@ const getEmbeddedVideo = (url: string) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-stone-800">Account Not Activated</div>
-                <div className="text-sm text-stone-600">You must activate your advertiser account (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¦2,000) before creating tasks.</div>
+                <div className="text-sm text-stone-600">You must activate your advertiser account (NGN 2,000) before creating tasks.</div>
               </div>
               <div>
                 <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Activate Now</Button>
@@ -978,7 +1006,7 @@ const getEmbeddedVideo = (url: string) => {
                     : "bg-stone-200 text-stone-600"
                 }`}
               >
-                {i < step ? "ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“" : i + 1}
+                {i < step ? "OK" : i + 1}
               </div>
               <div
                 className={`text-xs uppercase tracking-[0.18em] ${
@@ -1105,4 +1133,8 @@ const getEmbeddedVideo = (url: string) => {
   )
 }
 // removed stray helper
+
+
+
+
 
