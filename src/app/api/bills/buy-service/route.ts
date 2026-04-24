@@ -4,8 +4,31 @@ import * as paystack from '@/services/paystack'
 import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
+import { getVariations } from '@/services/vtpass/serviceApi'
 import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts'
 import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment'
+
+const FRIENDLY_PROVIDER_ERROR_MESSAGE = 'This service is temporarily unavailable right now. Please try again later.'
+const FRIENDLY_REFUND_PENDING_MESSAGE = 'We could not complete this payment. If you were charged, your refund will be processed shortly.'
+
+function normalizeVariation(value: unknown) {
+  return String(value || '').trim().toLowerCase()
+}
+
+async function validateSelectedVariation(serviceID: string, variationCode?: string | null) {
+  if (!variationCode) return
+
+  const variations = await getVariations(serviceID)
+  const wanted = normalizeVariation(variationCode)
+  const matched = Array.isArray(variations) && variations.some((item) => {
+    const record = item as Record<string, unknown>
+    return normalizeVariation(record.variation_code) === wanted || normalizeVariation(record.code) === wanted
+  })
+
+  if (!matched) {
+    throw new Error('Selected variation unavailable')
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,6 +48,12 @@ export async function POST(req: NextRequest) {
     if (phone) payload.phone = phone
     if (amount) payload.amount = String(amount)
     if (metadata) payload.metadata = metadata
+    try {
+      await validateSelectedVariation(String(serviceID), variation_code ? String(variation_code) : null)
+    } catch (error) {
+      console.error('Bills variation validation failed', error)
+      return NextResponse.json({ ok: false, message: 'This plan is currently unavailable. Please refresh and try again.' }, { status: 400 })
+    }
 
     // Wallet payment flow: if `payFromWallet` is set in the body, reserve funds
     // from the user's wallet (advertiser or earner) and then call VTpass. If
@@ -110,7 +139,7 @@ export async function POST(req: NextRequest) {
         if (vtCode2 && String(vtCode2) !== '000') {
           try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
           try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (e) { console.error('Failed to restore balance', e) }
-          return NextResponse.json({ ok: false, message: vtData2?.response_description || 'VTpass purchase failed', details: vtData2 }, { status: 400 })
+          return NextResponse.json({ ok: false, message: FRIENDLY_PROVIDER_ERROR_MESSAGE }, { status: 400 })
         }
 
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
@@ -127,7 +156,7 @@ export async function POST(req: NextRequest) {
         console.error('VTpass call after wallet reserve failed', e)
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', error: String(e), updatedAt: new Date().toISOString() }) } catch {}
         try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (err) { console.error('Failed to restore balance', err) }
-        return NextResponse.json({ ok: false, message: 'Failed to process purchase' }, { status: 500 })
+        return NextResponse.json({ ok: false, message: FRIENDLY_PROVIDER_ERROR_MESSAGE }, { status: 500 })
       }
     }
 
@@ -173,7 +202,7 @@ export async function POST(req: NextRequest) {
     // If VTpass returns a non-success code, surface as failure to client
     const vtCode = vtData?.code
     if (vtCode && String(vtCode) !== '000') {
-      const message = vtData?.response_description || vtData?.content || 'Service currently unavailable'
+      const providerMessage = vtData?.response_description || vtData?.content || 'Service currently unavailable'
       
       // Attempt automatic refund if payment was made
       let refundStatus = 'none'
@@ -187,7 +216,7 @@ export async function POST(req: NextRequest) {
           await paystack.refundTransaction({
             transactionRef: paystackReference,
             amountKobo: amountKobo,
-            reason: `Bill payment failed for ${serviceID}: ${message}. Automatic refund.`
+            reason: `Bill payment failed for ${serviceID}: ${providerMessage}. Automatic refund.`
           })
           refundStatus = 'initiated'
           console.log(`[REFUND] Paystack refund successfully initiated`)
@@ -203,11 +232,13 @@ export async function POST(req: NextRequest) {
           console.log(`[REFUND] Initiating Monnify refund for reference: ${paystackReference}`)
           const monnifyVerifyData = (payload as Record<string, unknown>).monnifyVerificationData as Record<string, unknown> | undefined
           const amountPaid = typeof monnifyVerifyData === 'object' && monnifyVerifyData !== null && 'amountPaid' in monnifyVerifyData ? Number(monnifyVerifyData.amountPaid) : 0
-          const amountKobo = amountPaid > 0 ? amountPaid * 100 : (Number(amount) * 100)
+          const refundAmount = amountPaid > 0 ? amountPaid : Number(amount)
           await monnify.refundTransaction({
             transactionRef: paystackReference,
-            amountKobo: amountKobo,
-            reason: `Bill payment failed for ${serviceID}: ${message}. Automatic refund.`
+            amount: refundAmount,
+            refundReference: `bill-refund-${reqId}`,
+            customerNote: 'Bill refund',
+            reason: `Bill payment failed for ${serviceID}: ${providerMessage}. Automatic refund.`
           })
           refundStatus = 'initiated'
           console.log(`[REFUND] Monnify refund successfully initiated`)
@@ -235,6 +266,7 @@ export async function POST(req: NextRequest) {
             response: vtRes.data || null,
             userId: actorUserId || null,
             vtpassFailed: true,
+            providerMessage: providerMessage,
             refundStatus: refundStatus,
             refundError: refundError,
             createdAt: new Date().toISOString(),
@@ -244,11 +276,11 @@ export async function POST(req: NextRequest) {
         console.warn('Failed to save transaction', error)
       }
       
-      const errorMsg = refundStatus === 'initiated' 
-        ? `${message}. Your payment of ₦${paidAmount} has been refunded. Please wait for your refund and try again.`
+      const errorMsg = refundStatus === 'initiated'
+        ? FRIENDLY_REFUND_PENDING_MESSAGE
         : refundStatus === 'failed'
-        ? `${message}. Refund processing failed (${refundError}). Please contact support(support@pambaadverts.com).`
-        : message
+          ? 'We could not complete this payment. Please contact support if you were charged.'
+          : FRIENDLY_PROVIDER_ERROR_MESSAGE
       
       return NextResponse.json({ ok: false, message: errorMsg, refundStatus }, { status: 400 })
     }
@@ -363,7 +395,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, result: vtRes.data })
   } catch (err: unknown) {
     console.error('bills buy-service error', err)
-    const message = err instanceof Error ? err.message : 'Internal server error'
+    const message = 'Unable to process this bill payment right now. Please try again later.'
     return NextResponse.json({ ok: false, message }, { status: 500 })
   }
 }

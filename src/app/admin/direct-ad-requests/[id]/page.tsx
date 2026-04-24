@@ -27,7 +27,8 @@ type DirectAdRequest = {
 };
 
 export default function DirectAdRequestDetail() {
-  const { id } = useParams();
+  const params = useParams<{ id: string | string[] }>();
+  const id = params?.id;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<DirectAdRequest | null>(null);

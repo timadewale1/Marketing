@@ -10,16 +10,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, result: variations })
   } catch (err: unknown) {
     console.error('bills variations error', err)
-    const anyErr = err as { response?: { status?: number; data?: string }; code?: string; message?: string }
-    if (anyErr?.response) {
-      const status = anyErr.response.status || 500
-      const message = anyErr.response.data || anyErr.message || 'VTpass error'
-      return NextResponse.json({ ok: false, message }, { status })
-    }
-    // network errors (ECONNRESET) -> return 502 with helpful message
+    const anyErr = err as { response?: { status?: number }; code?: string; message?: string }
     if (anyErr?.code === 'ECONNRESET' || anyErr?.message?.includes('socket hang up')) {
-      return NextResponse.json({ ok: false, message: 'Upstream service connection error' }, { status: 502 })
+      return NextResponse.json(
+        { ok: false, message: 'Unable to load available plans right now. Please try again shortly.' },
+        { status: 502 }
+      )
     }
-    return NextResponse.json({ ok: false, message: 'Internal error' }, { status: 500 })
+    const status = anyErr?.response?.status && anyErr.response.status >= 400 ? 502 : 500
+    return NextResponse.json(
+      { ok: false, message: 'Unable to load available plans right now. Please try again shortly.' },
+      { status }
+    )
   }
 }

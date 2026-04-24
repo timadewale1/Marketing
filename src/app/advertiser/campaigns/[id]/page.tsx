@@ -69,7 +69,8 @@ type Submission = {
 }
 
 export default function CampaignDetailsPage() {
-  const { id } = useParams()
+  const params = useParams<{ id: string | string[] }>()
+  const id = params?.id
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)

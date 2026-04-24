@@ -31,7 +31,12 @@ export default function BillsIndex() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {categories.map((c, idx) => {
             const Icon = c.icon
-            const enabled = c.id === 'airtime' || c.id === 'data';
+            const enabled =
+              c.id === 'airtime' ||
+              c.id === 'data' ||
+              c.id === 'electricity' ||
+              c.id === 'education' ||
+              c.id === 'tv'
             return (
               <motion.div
                 key={c.id}

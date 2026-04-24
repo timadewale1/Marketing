@@ -10,6 +10,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, result: services })
   } catch (err: unknown) {
     console.error('bills services error', err)
-    return NextResponse.json({ ok: false, message: 'Internal error' }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, message: 'Unable to load available networks right now. Please try again shortly.' },
+      { status: 502 }
+    )
   }
 }

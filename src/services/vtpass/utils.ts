@@ -55,6 +55,9 @@ const VERIFY_LABELS: Record<string, string> = {
   // location / district
   Customer_District: 'District',
   Customer_District_Reference: 'District',
+  Address: 'Address',
+  address: 'Address',
+  Customer_Address: 'Address',
 
   // generic
   Due_Date: 'Due Date',
@@ -73,11 +76,18 @@ export function formatVerifyResult(result: Record<string, unknown> | null | unde
   const out: Array<{ label: string; value: string }> = []
 
   const seen = new Set<string>()
+  const seenLabels = new Set<string>()
   for (const k of preferredKeys) {
     if (k in result) {
       const v = result[k]
-      out.push({ label: VERIFY_LABELS[k] || humanizeKey(k), value: String(v ?? '') })
+      const label = VERIFY_LABELS[k] || humanizeKey(k)
+      if (seenLabels.has(label)) {
+        seen.add(k)
+        continue
+      }
+      out.push({ label, value: String(v ?? '') })
       seen.add(k)
+      seenLabels.add(label)
     }
   }
 
@@ -90,10 +100,40 @@ export function formatVerifyResult(result: Record<string, unknown> | null | unde
     const str = stringifyVerifyValue(v)
     if (str === '') continue
     const label = VERIFY_LABELS[k] || humanizeKey(k)
+    if (seenLabels.has(label)) continue
     out.push({ label, value: str })
+    seenLabels.add(label)
   }
 
   return out
+}
+
+export function getVerifyPrimaryDetails(result: Record<string, unknown> | null | undefined) {
+  if (!result) return { name: '', address: '' }
+
+  const name =
+    typeof result.Customer_Name === 'string'
+      ? result.Customer_Name
+      : typeof result.name === 'string'
+        ? result.name
+        : typeof result.customerName === 'string'
+          ? result.customerName
+          : typeof result.fullName === 'string'
+            ? result.fullName
+            : typeof result.Full_Name === 'string'
+              ? result.Full_Name
+              : ''
+
+  const address =
+    typeof result.Address === 'string'
+      ? result.Address
+      : typeof result.address === 'string'
+        ? result.address
+        : typeof result.Customer_Address === 'string'
+          ? result.Customer_Address
+          : ''
+
+  return { name, address }
 }
 
 /**

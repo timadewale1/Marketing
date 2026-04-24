@@ -21,7 +21,7 @@ type DataPlan = { code: string; name: string; amount: number }
 type Provider = 'vtpass' | 'usuf'
 
 export default function DataPage() {
-  const [provider, setProvider] = useState<Provider>('usuf')
+  const [provider, setProvider] = useState<Provider>('vtpass')
   const [amount, setAmount] = useState('')
   const [service, setService] = useState('')
   const [services, setServices] = useState<Array<{ id: string; name: string }>>([])
@@ -200,12 +200,19 @@ export default function DataPage() {
       if (!selectedUsufPlan) return toast.error('Please select a plan')
       if (!phone) return toast.error('Please enter a phone number')
     }
+    if (provider === 'vtpass') {
+      if (!service) return toast.error('Please select a network')
+      if (!plan) return toast.error('Please select a data plan')
+      if (!phone) return toast.error('Please enter a phone number')
+    }
     setShowPaymentSelector(true)
   }
 
   const handleWalletPurchase = async () => {
     if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
     if (!phone) return toast.error('Please enter phone number')
+    if (!service) return toast.error('Please select a network')
+    if (!plan) return toast.error('Please select a data plan')
     setProcessingWallet(true)
     try {
       const idToken = await auth.currentUser.getIdToken()
@@ -232,12 +239,11 @@ export default function DataPage() {
     } finally { setProcessingWallet(false) }
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify'): Promise<void> => {
+  const onPaymentSuccess = async (reference: string, paymentProvider: 'paystack' | 'monnify'): Promise<void> => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
-      if (provider === 'monnify' || provider === 'paystack') {
-        if (selectedUsufPlan) {
+      if (provider === 'usuf' && selectedUsufPlan) {
           const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
           const response = await buyUsufData(
             phone,
@@ -247,7 +253,7 @@ export default function DataPage() {
             {
               idToken,
               paymentReference: reference,
-              paymentProvider: provider,
+              paymentProvider,
             }
           )
 
@@ -272,10 +278,18 @@ export default function DataPage() {
           toast.success('Purchase successful')
           window.location.href = '/bills/confirmation'
           return
-        }
       }
 
-      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference, provider }
+      if (!service) {
+        toast.error('Please select a network')
+        return
+      }
+      if (!plan) {
+        toast.error('Please select a data plan')
+        return
+      }
+
+      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference, provider: paymentProvider }
       const matched = plans.find(p => p.code === plan)
       if (matched) payload.amount = String(matched.amount)
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
@@ -323,8 +337,6 @@ export default function DataPage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          {/* Provider Tabs - Hidden for now */}
-          {false && (
           <div className="flex gap-2 mb-6 border-b border-stone-200">
             <button
               onClick={() => setProvider('vtpass')}
@@ -347,7 +359,6 @@ export default function DataPage() {
               Other Data Plans
             </button>
           </div>
-          )}
 
           <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
             <CardContent className="p-6 sm:p-8 space-y-6">
@@ -365,8 +376,7 @@ export default function DataPage() {
                 </div>
               </div>
 
-              {/* VTpass Plans - Hidden for now */}
-              {false && provider === 'vtpass' && (
+              {provider === 'vtpass' && (
                 <>
                   {loading ? (
                     <div className="flex items-center justify-center py-8">

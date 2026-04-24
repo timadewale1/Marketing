@@ -1,185 +1,371 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
-import { PaymentSelector } from '@/components/payment-selector'
-import { buyUsufElectricity, validateElectricityMeter, USUF_DISCOS, type MeterType } from '@/services/usufElectricity'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Hash, ArrowLeft, Zap, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Button } from '@/components/ui/button'
-import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { ArrowLeft, CheckCircle2, Hash, Lightbulb, Loader2 } from 'lucide-react'
+import { PaymentSelector } from '@/components/payment-selector'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { auth, db } from '@/lib/firebase'
+import { postBuyService } from '@/lib/postBuyService'
+import { getVerifyPrimaryDetails } from '@/services/vtpass/utils'
 
-/* VTPASS IMPORTS - COMMENTED OUT FOR FUTURE RE-INTEGRATION */
-// import { postBuyService } from '@/lib/postBuyService'
-// import { formatVerifyResult, extractPhoneFromVerifyResult, filterVerifyResultByService } from '@/services/vtpass/utils'
+type ElectricityService = {
+  id: string
+  name: string
+}
+
+type Variation = {
+  code: string
+  name: string
+}
+
+type VerifyResult = Record<string, unknown> | null
+
+const METER_TYPES = [
+  { id: 'prepaid', label: 'Prepaid' },
+  { id: 'postpaid', label: 'Postpaid' },
+] as const
+
+const normalizeText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+const findVariationForMeterType = (variations: Variation[], meterType: 'prepaid' | 'postpaid') => {
+  const matcher = normalizeText(meterType)
+  return (
+    variations.find((item) => normalizeText(item.code) === matcher) ||
+    variations.find((item) => normalizeText(item.name).includes(matcher)) ||
+    null
+  )
+}
 
 export default function ElectricityPage() {
+  const [services, setServices] = useState<ElectricityService[]>([])
+  const [serviceID, setServiceID] = useState('')
+  const [variations, setVariations] = useState<Variation[]>([])
+  const [meterType, setMeterType] = useState<'prepaid' | 'postpaid'>('prepaid')
   const [meter, setMeter] = useState('')
-  const [disco, setDisco] = useState(1 as 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 | 13)
-  const [meterType, setMeterType] = useState<MeterType>(1)
   const [amount, setAmount] = useState('')
-  const [verifyResult, setVerifyResult] = useState<{ name?: string; address?: string; invalid?: boolean | string } | null>(null)
+  const [verifyResult, setVerifyResult] = useState<VerifyResult>(null)
   const [verifying, setVerifying] = useState(false)
+  const [loadingServices, setLoadingServices] = useState(true)
+  const [loadingVariations, setLoadingVariations] = useState(false)
   const [showPaymentSelector, setShowPaymentSelector] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [processingWallet, setProcessingWallet] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
-  const verifiedName = typeof verifyResult?.name === 'string' ? verifyResult.name : ''
-  const verifiedAddress = typeof verifyResult?.address === 'string' ? verifyResult.address : ''
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setIsLoggedIn(!!u))
+    const unsub = onAuthStateChanged(auth, (user) => setIsLoggedIn(!!user))
     return () => unsub()
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      setLoadingServices(true)
+      try {
+        const response = await fetch('/api/bills/services?identifier=electricity-bill')
+        const data = await response.json()
+        if (!response.ok || !data?.ok || !Array.isArray(data.result)) {
+          throw new Error(data?.message || 'Failed to load electricity providers')
+        }
+
+        const mapped = (data.result as Array<Record<string, unknown>>)
+          .map((item) => ({
+            id: String(item.serviceID || item.code || item.id || '').trim(),
+            name: String(item.name || item.title || '').trim(),
+          }))
+          .filter((item) => item.id && item.name)
+
+        if (!cancelled) {
+          setServices(mapped)
+          setServiceID((current) => current || mapped[0]?.id || '')
+        }
+      } catch (error) {
+        console.error('Failed to load electricity providers', error)
+        toast.error('Failed to load electricity providers')
+      } finally {
+        if (!cancelled) setLoadingServices(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!serviceID) return
+
+    ;(async () => {
+      setLoadingVariations(true)
+      try {
+        const response = await fetch(`/api/bills/variations?serviceID=${encodeURIComponent(serviceID)}`)
+        const data = await response.json()
+        if (!response.ok || !data?.ok || !Array.isArray(data.result)) {
+          throw new Error(data?.message || 'Failed to load meter types')
+        }
+
+        const mapped = (data.result as Array<Record<string, unknown>>)
+          .map((item) => ({
+            code: String(item.variation_code || item.code || '').trim(),
+            name: String(item.name || '').trim(),
+          }))
+          .filter((item) => item.code)
+
+        if (!cancelled) {
+          setVariations(mapped)
+          setVerifyResult(null)
+        }
+      } catch (error) {
+        console.error('Failed to load electricity variations', error)
+        if (!cancelled) setVariations([])
+      } finally {
+        if (!cancelled) setLoadingVariations(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [serviceID])
+
+  useEffect(() => {
     let unsubBalance: (() => void) | null = null
+
     const setup = async (uid: string) => {
       try {
-        const advRef = doc(db, 'advertisers', uid)
-        const advSnap = await getDoc(advRef)
-        if (advSnap.exists()) {
-          setWalletBalance(Number(advSnap.data()?.balance || 0))
-          unsubBalance = onSnapshot(advRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+        const advertiserRef = doc(db, 'advertisers', uid)
+        const advertiserSnap = await getDoc(advertiserRef)
+        if (advertiserSnap.exists()) {
+          setWalletBalance(Number(advertiserSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(advertiserRef, (snapshot) => {
+            setWalletBalance(Number(snapshot.data()?.balance || 0))
+          })
           return
         }
-        const earRef = doc(db, 'earners', uid)
-        const earSnap = await getDoc(earRef)
-        if (earSnap.exists()) {
-          setWalletBalance(Number(earSnap.data()?.balance || 0))
-          unsubBalance = onSnapshot(earRef, (s) => setWalletBalance(Number(s.data()?.balance || 0)))
+
+        const earnerRef = doc(db, 'earners', uid)
+        const earnerSnap = await getDoc(earnerRef)
+        if (earnerSnap.exists()) {
+          setWalletBalance(Number(earnerSnap.data()?.balance || 0))
+          unsubBalance = onSnapshot(earnerRef, (snapshot) => {
+            setWalletBalance(Number(snapshot.data()?.balance || 0))
+          })
           return
         }
+
         setWalletBalance(null)
-      } catch (e) {
-        console.warn('wallet balance fetch error', e)
+      } catch (error) {
+        console.warn('wallet balance fetch error', error)
       }
     }
 
-    const authUnsub = onAuthStateChanged(auth, (u) => {
-      if (!u) {
+    const authUnsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
         setWalletBalance(null)
         return
       }
-      setup(u.uid)
+      setup(user.uid)
     })
 
     return () => {
       authUnsub()
-      if (unsubBalance) try { unsubBalance() } catch {}
+      if (unsubBalance) {
+        try {
+          unsubBalance()
+        } catch {}
+      }
     }
   }, [])
 
-  const displayPrice = () => Number(amount || 0)
+  const displayPrice = useMemo(() => Number(amount || 0), [amount])
+  const selectedServiceName = services.find((item) => item.id === serviceID)?.name || 'Electricity'
+  const matchedVariation = useMemo(
+    () => findVariationForMeterType(variations, meterType),
+    [meterType, variations]
+  )
 
-  const handlePurchase = async () => {
-    if (!meter) {
+  const isInvalidMeter = verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+  const { name: verifiedName, address: verifiedAddress } = getVerifyPrimaryDetails(verifyResult || undefined)
+
+  const validateForm = (requireVerifiedMeter = false) => {
+    if (!serviceID) {
+      toast.error('Please select a distribution company')
+      return false
+    }
+    if (!meter.trim()) {
       toast.error('Please enter meter number')
-      return
+      return false
+    }
+    if (!matchedVariation) {
+      toast.error('Meter type is not available for this provider yet')
+      return false
+    }
+    if (requireVerifiedMeter && !verifyResult) {
+      toast.error('Please verify the meter first')
+      return false
+    }
+    if (requireVerifiedMeter && isInvalidMeter) {
+      toast.error('Please confirm the meter details before proceeding')
+      return false
     }
     if (!amount || Number(amount) <= 0) {
       toast.error('Please enter amount')
-      return
+      return false
     }
-    setShowPaymentSelector(true)
-  }
-
-  const handleWalletPurchase = async () => {
-    if (!auth.currentUser) return toast.error('Please sign in to pay from wallet')
-    if (!meter) return toast.error('Please enter meter number')
-    if (!amount || Number(amount) <= 0) return toast.error('Please enter amount')
-    setProcessingWallet(true)
-    try {
-      const idToken = await auth.currentUser.getIdToken()
-      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, { idToken, sellAmount: Number(amount), payFromWallet: true })
-      if (!res.status) return toast.error(res.message)
-      
-      const transactionData = {
-        serviceID: 'electricity',
-        amount: Number(amount),
-        response_description: res.message,
-        transactionId: res.transactionId,
-      }
-      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Electricity payment successful')
-      window.location.href = '/bills/confirmation'
-    } catch (e) {
-      console.error(e)
-      toast.error('Purchase failed')
-    } finally {
-      setProcessingWallet(false)
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
-    setShowPaymentSelector(false)
-    setProcessing(true)
-    try {
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
-      const res = await buyUsufElectricity(disco, Number(amount), meter, meterType, {
-        idToken,
-        paymentReference: reference,
-        paymentProvider: provider,
-      })
-      if (!res.status) {
-        toast.error(res.message)
-        return
-      }
-      
-      const transactionData = {
-        serviceID: 'electricity',
-        amount: Number(amount),
-        response_description: res.message,
-        transactionId: res.transactionId,
-      }
-      sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
-      toast.success('Electricity payment successful')
-      window.location.href = '/bills/confirmation'
-    } catch (e) {
-      console.error(e)
-      toast.error('Purchase failed')
-    } finally {
-      setProcessing(false)
-    }
+    return true
   }
 
   const handleVerify = async () => {
-    if (!meter) {
+    if (!serviceID) {
+      toast.error('Please select a distribution company')
+      return
+    }
+    if (!meter.trim()) {
       toast.error('Please enter meter number')
       return
     }
+
     setVerifying(true)
     try {
-      const result = await validateElectricityMeter(disco, meter, meterType)
-      setVerifyResult(result.data || null)
-      
-      if (!result.status) {
-        toast.error(result.message || 'Meter validation failed')
+      const response = await fetch('/api/bills/merchant-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceID,
+          billersCode: meter,
+          type: matchedVariation?.code || meterType,
+          variation_code: matchedVariation?.code || meterType,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.message || 'Meter validation failed')
+      }
+
+      const result = (data.result?.content || data.result || null) as VerifyResult
+      setVerifyResult(result)
+      if (result?.invalid === true || result?.invalid === 'true') {
+        toast.error('Invalid meter details')
         return
       }
-      
-      toast.success(result.data?.name ? `Meter verified for ${result.data.name}` : 'Meter verified successfully')
-    } catch (err) {
-      console.error('verify error', err)
-      toast.error('Verification error')
+      toast.success(
+        result?.Customer_Name || result?.name
+          ? `Meter verified for ${result.Customer_Name || result.name}`
+          : 'Meter verified successfully'
+      )
+    } catch (error) {
+      console.error('electricity verify error', error)
+      setVerifyResult(null)
+      toast.error(error instanceof Error ? error.message : 'Verification error')
     } finally {
       setVerifying(false)
     }
   }
 
+  const completePurchase = async (payload: Record<string, unknown>, mode: 'wallet' | 'paystack' | 'monnify') => {
+    const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
+    const response = await postBuyService(payload, { idToken })
+    if (!response.ok) {
+      throw new Error(response.body?.message || 'Purchase failed')
+    }
+
+    const result = response.body?.result || {}
+    const transactionData: Record<string, unknown> = {
+      serviceID,
+      amount: displayPrice,
+      disco: selectedServiceName,
+      meter,
+      meterType,
+      response_description: result?.response_description || 'SUCCESS',
+      paymentChannel: mode,
+    }
+
+    const transactionId =
+      result?.content?.transactions?.transactionId ||
+      result?.transactionId ||
+      result?.content?.transactionId
+
+    if (transactionId) transactionData.transactionId = transactionId
+    if (result?.purchased_code) transactionData.token = result.purchased_code
+    if (result?.token) transactionData.token = result.token
+
+    sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
+    toast.success('Electricity payment successful')
+    window.location.href = '/bills/confirmation'
+  }
+
+  const handleWalletPurchase = async () => {
+    if (!auth.currentUser) {
+      toast.error('Please sign in to pay from wallet')
+      return
+    }
+    if (!validateForm(true)) return
+
+    setProcessingWallet(true)
+    try {
+      await completePurchase(
+        {
+          serviceID,
+          billersCode: meter,
+          variation_code: matchedVariation?.code,
+          amount: String(displayPrice),
+          phone: auth.currentUser.phoneNumber || auth.currentUser.email || meter,
+          payFromWallet: true,
+        },
+        'wallet'
+      )
+    } catch (error) {
+      console.error(error)
+      toast.error(error instanceof Error ? error.message : 'Purchase failed')
+    } finally {
+      setProcessingWallet(false)
+    }
+  }
+
+  const handleCardPurchase = () => {
+    if (!validateForm(true)) return
+    setShowPaymentSelector(true)
+  }
+
+  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+    setShowPaymentSelector(false)
+    setProcessing(true)
+    try {
+      await completePurchase(
+        {
+          serviceID,
+          billersCode: meter,
+          variation_code: matchedVariation?.code,
+          amount: String(displayPrice),
+          phone: auth.currentUser?.phoneNumber || auth.currentUser?.email || meter,
+          paystackReference: reference,
+          provider,
+        },
+        provider
+      )
+    } catch (error) {
+      console.error(error)
+      toast.error(error instanceof Error ? error.message : 'Purchase failed')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-stone-100">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-stone-200">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 border-b border-stone-200 bg-white/80 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
           <Link href="/bills">
             <Button variant="ghost" size="sm" className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
           </Link>
@@ -188,179 +374,162 @@ export default function ElectricityPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <Card className="border border-stone-200 shadow-lg bg-white rounded-xl">
-            <CardContent className="p-6 sm:p-8 space-y-6">
-              {/* Meter Type Selection */}
+        <div className="mx-auto max-w-2xl">
+          <Card className="rounded-xl border border-stone-200 bg-white shadow-lg">
+            <CardContent className="space-y-6 p-6 sm:p-8">
               <div>
-                <label className="block text-sm font-semibold text-stone-900 mb-3">Meter Type</label>
+                <label className="mb-3 block text-sm font-semibold text-stone-900">Meter Type</label>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => setMeterType(1)}
-                    className={`flex-1 py-2 px-3 rounded border-2 transition-all font-medium ${
-                      meterType === 1
-                        ? 'border-amber-500 bg-amber-50 text-amber-700'
-                        : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
-                    }`}
-                  >
-                    Prepaid
-                  </button>
-                  <button
-                    onClick={() => setMeterType(2)}
-                    className={`flex-1 py-2 px-3 rounded border-2 transition-all font-medium ${
-                      meterType === 2
-                        ? 'border-amber-500 bg-amber-50 text-amber-700'
-                        : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
-                    }`}
-                  >
-                    Postpaid
-                  </button>
+                  {METER_TYPES.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setMeterType(item.id)
+                        setVerifyResult(null)
+                      }}
+                      className={`flex-1 rounded border-2 px-3 py-2 font-medium transition-all ${
+                        meterType === item.id
+                          ? 'border-amber-500 bg-amber-50 text-amber-700'
+                          : 'border-stone-200 bg-white text-stone-900 hover:border-amber-300'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Disco Selection */}
               <div>
-                <label className="block text-sm font-semibold text-stone-900 mb-2">Select Distribution Company</label>
-                <select
-                  value={disco}
-                  onChange={(e) => setDisco(Number(e.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 11 | 12 | 13)}
-                  className="w-full px-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                >
-                  {USUF_DISCOS.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="mb-2 block text-sm font-semibold text-stone-900">Distribution Company</label>
+                {loadingServices ? (
+                  <div className="h-11 animate-pulse rounded-lg bg-stone-100" />
+                ) : (
+                  <select
+                    value={serviceID}
+                    onChange={(event) => {
+                      setServiceID(event.target.value)
+                      setVerifyResult(null)
+                    }}
+                    className="w-full rounded-lg border border-stone-200 px-4 py-2.5 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    {services.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              {/* Meter Number Input */}
               <div>
-                <label className="block text-sm font-semibold text-stone-900 mb-2">Meter Number</label>
+                <label className="mb-2 block text-sm font-semibold text-stone-900">Meter Number</label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-3 w-5 h-5 text-stone-400" />
+                  <Hash className="absolute left-3 top-3 h-5 w-5 text-stone-400" />
                   <input
                     placeholder="1234567890"
                     value={meter}
-                    onChange={(e) => setMeter(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    onChange={(event) => {
+                      setMeter(event.target.value)
+                      setVerifyResult(null)
+                    }}
+                    className="w-full rounded-lg border border-stone-200 py-2.5 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
-              {/* Verify Button */}
               <Button
                 onClick={handleVerify}
-                disabled={!meter || verifying}
-                className="w-full bg-stone-900 hover:bg-stone-800 text-white rounded-lg h-10"
+                disabled={!meter || !serviceID || verifying || loadingVariations}
+                className="h-10 w-full rounded-lg bg-stone-900 text-white hover:bg-stone-800"
               >
-                {verifying ? 'Verifying...' : 'Verify Meter'}
+                {verifying || loadingVariations ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {loadingVariations ? 'Loading meter type...' : 'Verifying...'}
+                  </span>
+                ) : (
+                  'Verify Meter'
+                )}
               </Button>
 
-              {/* Verification Result */}
               {verifyResult && (
-                <div className={`rounded-lg p-4 space-y-3 border ${
-                  verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-green-50 border-green-200'
-                }`}>
+                <div
+                  className={`space-y-3 rounded-lg border p-4 ${
+                    isInvalidMeter ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
+                  }`}
+                >
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className={`w-5 h-5 ${
-                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                        ? 'text-red-600'
-                        : 'text-green-600'
-                    }`} />
-                    <div className={`text-sm ${
-                      verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                        ? 'text-red-900'
-                        : 'text-green-900'
-                    }`}>
+                    <CheckCircle2 className={`h-5 w-5 ${isInvalidMeter ? 'text-red-600' : 'text-green-600'}`} />
+                    <div className={`${isInvalidMeter ? 'text-red-900' : 'text-green-900'} text-sm`}>
                       <p className="font-semibold">
-                        {verifyResult?.invalid === true || verifyResult?.invalid === 'true'
+                        {isInvalidMeter
                           ? 'Invalid Meter'
-                          : verifyResult?.name
+                          : verifiedName
                             ? `Meter Verified: ${verifiedName}`
                             : 'Meter Verified'}
                       </p>
-                      {!(
-                        verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                      ) && verifiedAddress ? (
+                      {!isInvalidMeter && verifiedAddress ? (
                         <p className="mt-1 text-xs leading-5 text-green-800">{verifiedAddress}</p>
                       ) : null}
                     </div>
                   </div>
-                  <div className={`space-y-2 text-sm ${
-                    verifyResult?.invalid === true || verifyResult?.invalid === 'true'
-                      ? 'text-red-800'
-                      : 'text-green-800'
-                  }`}>
-                    {verifiedName && (
-                      <div className="flex justify-between items-start">
-                        <span>Name:</span>
-                        <span className="font-medium text-right ml-4">{verifiedName}</span>
-                      </div>
-                    )}
-                    {verifiedAddress && (
-                      <div className="flex justify-between items-start">
-                        <span>Address:</span>
-                        <span className="font-medium text-right ml-4">{verifiedAddress}</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
 
-              {/* Amount Input */}
-              {verifyResult && (verifyResult?.invalid !== true && verifyResult?.invalid !== 'true') && (
+              {verifyResult && !isInvalidMeter && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-stone-900 mb-2">Amount (₦)</label>
+                    <label className="mb-2 block text-sm font-semibold text-stone-900">Amount (N)</label>
                     <div className="relative">
-                      <Zap className="absolute left-3 top-3 w-5 h-5 text-stone-400" />
+                      <Lightbulb className="absolute left-3 top-3 h-5 w-5 text-stone-400" />
                       <input
                         type="number"
                         placeholder="5000"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        onChange={(event) => setAmount(event.target.value)}
+                        className="w-full rounded-lg border border-stone-200 py-2.5 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
-                    <p className="text-xs text-stone-600 mt-2">Minimum purchase: ₦1,000</p>
                   </div>
 
-                  {/* Price Summary */}
                   {amount && (
-                    <div className="bg-gradient-to-r from-amber-50 to-stone-50 p-4 rounded-lg border border-amber-200">
+                    <div className="rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-stone-50 p-4">
                       <div className="space-y-2">
-                        <div className="border-t border-amber-200 pt-2 flex justify-between">
+                        <div className="flex justify-between border-t border-amber-200 pt-2">
                           <span className="font-semibold text-stone-900">Total:</span>
-                          <span className="text-lg font-bold text-amber-600">₦{displayPrice().toLocaleString()}</span>
+                          <span className="text-lg font-bold text-amber-600">N{displayPrice.toLocaleString()}</span>
                         </div>
                         {isLoggedIn && walletBalance !== null && (
                           <div className="flex justify-between text-sm text-stone-600">
                             <span>Wallet balance:</span>
-                            <span className="font-medium">₦{Number(walletBalance).toLocaleString()}</span>
+                            <span className="font-medium">N{Number(walletBalance).toLocaleString()}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  {/* Action Buttons */}
                   <div className="space-y-2">
                     {isLoggedIn ? (
                       <>
                         <Button
                           onClick={handleWalletPurchase}
-                          disabled={processingWallet || (walletBalance !== null && Number(amount) > walletBalance)}
-                          className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
+                          disabled={
+                            processingWallet ||
+                            processing ||
+                            (walletBalance !== null && displayPrice > walletBalance)
+                          }
+                          className="h-12 w-full rounded-lg bg-amber-500 font-semibold text-stone-900 transition-all hover:bg-amber-600"
                         >
-                          {processingWallet ? 'Processing...' : (walletBalance !== null && Number(amount) > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}
+                          {processingWallet
+                            ? 'Processing...'
+                            : walletBalance !== null && displayPrice > walletBalance
+                              ? 'Insufficient funds'
+                              : 'Pay from wallet'}
                         </Button>
                         <Button
-                          onClick={handlePurchase}
+                          onClick={handleCardPurchase}
                           disabled={processing || processingWallet}
                           variant="outline"
                           className="w-full"
@@ -370,21 +539,20 @@ export default function ElectricityPage() {
                       </>
                     ) : (
                       <Button
-                        onClick={handlePurchase}
+                        onClick={handleCardPurchase}
                         disabled={processing}
-                        className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all"
+                        className="h-12 w-full rounded-lg bg-amber-500 font-semibold text-stone-900 transition-all hover:bg-amber-600"
                       >
                         {processing ? 'Processing...' : 'Proceed to Payment'}
                       </Button>
                     )}
                   </div>
 
-                  {/* Payment Selector Modal */}
                   <PaymentSelector
                     open={showPaymentSelector}
-                    amount={displayPrice()}
+                    amount={displayPrice}
                     email={auth.currentUser?.email || ''}
-                    description={`Electricity Bill - ${displayPrice().toLocaleString()}`}
+                    description={`${selectedServiceName} Electricity - N${displayPrice.toLocaleString()}`}
                     onClose={() => setShowPaymentSelector(false)}
                     onPaymentSuccess={onPaymentSuccess}
                   />

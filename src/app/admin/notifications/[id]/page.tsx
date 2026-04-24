@@ -23,7 +23,8 @@ type Notification = {
 };
 
 export default function NotificationDetail() {
-  const { id } = useParams();
+  const params = useParams<{ id: string | string[] }>();
+  const id = params?.id;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
