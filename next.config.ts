@@ -5,6 +5,7 @@ import path from "path";
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname), // forces Next.js to use this folder as root
   images: {
+    unoptimized: true,
     domains: ["firebasestorage.googleapis.com", "i.ytimg.com", "img.youtube.com"],
     remotePatterns: [
       {

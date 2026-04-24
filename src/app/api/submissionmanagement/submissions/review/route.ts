@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireSubmissionManagementSession } from '@/lib/submissionmanagement-session'
 import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
+import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 
 interface Submission {
   status?: string
@@ -48,6 +49,7 @@ export async function POST(req: Request): Promise<Response> {
   const adminDb = firebaseAdmin.dbAdmin
   const admin = await import('firebase-admin')
   const now = new Date()
+  const cleanupEligibleAt = getProofCleanupEligibleAt(now)
   const adminUid = 'submissionmanagement-admin'
   let strikeEmailPayload: StrikeEmailPayload | null = null
   let autoActivatedUserId: string | null = null
@@ -156,6 +158,9 @@ export async function POST(req: Request): Promise<Response> {
           reviewedAt: now,
           reviewedBy: adminUid,
           rejectionReason: null,
+          proofCleanupEligibleAt: cleanupEligibleAt,
+          proofCleanupStatus: 'scheduled',
+          proofsDeletedAt: null,
           updatedAt: now,
         })
 
@@ -289,6 +294,9 @@ export async function POST(req: Request): Promise<Response> {
           reviewedAt: now,
           reviewedBy: adminUid,
           rejectionReason: rejectionReason || null,
+          proofCleanupEligibleAt: cleanupEligibleAt,
+          proofCleanupStatus: 'scheduled',
+          proofsDeletedAt: null,
           updatedAt: now,
         })
 
@@ -424,6 +432,8 @@ export async function POST(req: Request): Promise<Response> {
     if (autoActivatedUserId) {
       await processPendingActivationReferrals(adminDb, admin, autoActivatedUserId)
     }
+
+    await runSubmissionProofCleanupIfDue(admin, adminDb)
 
     const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
     if (emailPayload?.type === 'added') {

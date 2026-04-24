@@ -4,6 +4,8 @@ import PwaInstaller from "@/components/PwaInstaller"
 import { Analytics } from "@vercel/analytics/next"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const analyticsEnabled = process.env.NEXT_PUBLIC_VERCEL_ANALYTICS_ENABLED === "true"
+
   return (
     <html lang="en">
       <head>
@@ -28,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PwaInstaller />
         {children}
-        <Analytics />
+        {analyticsEnabled ? <Analytics /> : null}
         <Toaster
           position="top-right"
           toastOptions={{
