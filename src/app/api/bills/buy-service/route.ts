@@ -4,7 +4,7 @@ import * as paystack from '@/services/paystack'
 import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
-import { getVariations } from '@/services/vtpass/serviceApi'
+import { getVariations, requery as requeryVtpass } from '@/services/vtpass/serviceApi'
 import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts'
 import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment'
 
@@ -28,6 +28,83 @@ async function validateSelectedVariation(serviceID: string, variationCode?: stri
   if (!matched) {
     throw new Error('Selected variation unavailable')
   }
+}
+
+function getVtpassTransactionStatus(data: Record<string, unknown> | null | undefined) {
+  const transactions =
+    data?.content && typeof data.content === 'object'
+      ? (data.content as Record<string, unknown>).transactions
+      : null
+
+  if (transactions && typeof transactions === 'object') {
+    return String((transactions as Record<string, unknown>).status || '').trim().toLowerCase()
+  }
+
+  return String(data?.status || '').trim().toLowerCase()
+}
+
+function isSuccessfulVtpassResponse(data: Record<string, unknown> | null | undefined) {
+  if (!data) return false
+  const code = String(data.code || '')
+  const status = getVtpassTransactionStatus(data)
+  if (status === 'delivered' || status === 'completed' || status === 'successful' || status === 'success') return true
+  if (!status && code === '000' && (data.purchased_code || data.token || (data.content && typeof data.content === 'object' && 'token' in (data.content as Record<string, unknown>)))) {
+    return true
+  }
+  return false
+}
+
+function isPendingVtpassResponse(data: Record<string, unknown> | null | undefined) {
+  if (!data) return false
+  const code = String(data.code || '')
+  const status = getVtpassTransactionStatus(data)
+  return code === '099' || status === 'pending' || status === 'initiated' || status === 'processing'
+}
+
+function isTimeoutLikeError(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: string; message?: string }
+  return candidate.code === 'ECONNABORTED' || String(candidate.message || '').toLowerCase().includes('timeout')
+}
+
+async function settleVtpassPurchase(payload: Record<string, unknown>, reqId: string) {
+  let lastData: Record<string, unknown> | null = null
+
+  try {
+    const vtRes = await vtpassClient.post('/pay', payload)
+    lastData = (vtRes?.data || null) as Record<string, unknown> | null
+    if (isSuccessfulVtpassResponse(lastData)) {
+      return { state: 'success' as const, data: lastData }
+    }
+    if (!isPendingVtpassResponse(lastData)) {
+      return { state: 'failed' as const, data: lastData }
+    }
+  } catch (error) {
+    console.warn('VTpass pay call needs requery recovery', error)
+    if (!isTimeoutLikeError(error)) {
+      throw error
+    }
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const delayMs = 2000 * (attempt + 1)
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    try {
+      const requeryData = (await requeryVtpass(reqId)) as Record<string, unknown> | null
+      if (!requeryData) continue
+      lastData = requeryData
+      if (isSuccessfulVtpassResponse(requeryData)) {
+        return { state: 'success' as const, data: requeryData }
+      }
+      if (!isPendingVtpassResponse(requeryData)) {
+        return { state: 'failed' as const, data: requeryData }
+      }
+    } catch (error) {
+      console.warn(`VTpass requery attempt ${attempt + 1} failed`, error)
+    }
+  }
+
+  return { state: 'pending' as const, data: lastData }
 }
 
 export async function POST(req: NextRequest) {
@@ -133,25 +210,29 @@ export async function POST(req: NextRequest) {
 
       // Call VTpass now that funds are reserved
       try {
-        const vtRes2 = await vtpassClient.post('/pay', payload)
-        const vtData2 = vtRes2?.data
-        const vtCode2 = vtData2?.code
-        if (vtCode2 && String(vtCode2) !== '000') {
+        const settlement = await settleVtpassPurchase(payload, reqId)
+        const vtData2 = settlement.data
+        if (settlement.state === 'success') {
+          try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
+          await notifyAdminOfBillsPurchase({
+            actorUserId: verifiedUid,
+            paidAmount: amountN,
+            serviceID,
+            paymentChannel: 'wallet',
+            reference: reqId,
+          })
+
+          return NextResponse.json({ ok: true, result: vtData2 })
+        }
+
+        if (settlement.state === 'failed') {
           try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
           try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (e) { console.error('Failed to restore balance', e) }
           return NextResponse.json({ ok: false, message: FRIENDLY_PROVIDER_ERROR_MESSAGE }, { status: 400 })
         }
 
-        try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
-        await notifyAdminOfBillsPurchase({
-          actorUserId: verifiedUid,
-          paidAmount: amountN,
-          serviceID,
-          paymentChannel: 'wallet',
-          reference: reqId,
-        })
-
-        return NextResponse.json({ ok: true, result: vtData2 })
+        try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'pending', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
+        return NextResponse.json({ ok: false, message: 'Your payment is still being processed. Please wait a moment and check again shortly.' }, { status: 202 })
       } catch (e) {
         console.error('VTpass call after wallet reserve failed', e)
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', error: String(e), updatedAt: new Date().toISOString() }) } catch {}
@@ -191,17 +272,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const vtRes = await vtpassClient.post('/pay', payload)
-    const vtData = vtRes?.data
+    const settlement = await settleVtpassPurchase(payload, reqId)
+    const vtData = (settlement.data || null) as Record<string, unknown> | null
     // Determine amounts from request or VTpass response
     // Use the service price only (no service charge markup)
-    const recordedAmount = Number(amount ?? (vtData?.amount ?? vtData?.content?.amount ?? 0))
+    const vtContent = vtData?.content && typeof vtData.content === 'object'
+      ? (vtData.content as Record<string, unknown>)
+      : null
+    const recordedAmount = Number(amount ?? (vtData?.amount ?? vtContent?.amount ?? 0))
     const paidAmount = Number(recordedAmount || 0)
     const markup = 0
 
+    if (settlement.state === 'pending') {
+      return NextResponse.json({ ok: false, message: 'Your payment is still being processed. Please wait a moment and check again shortly.' }, { status: 202 })
+    }
+
     // If VTpass returns a non-success code, surface as failure to client
-    const vtCode = vtData?.code
-    if (vtCode && String(vtCode) !== '000') {
+    if (settlement.state === 'failed') {
       const providerMessage = vtData?.response_description || vtData?.content || 'Service currently unavailable'
       
       // Attempt automatic refund if payment was made
@@ -263,7 +350,7 @@ export async function POST(req: NextRequest) {
             phone: phone || null,
             paystackReference: paystackReference || null,
             provider: provider || null,
-            response: vtRes.data || null,
+            response: vtData || null,
             userId: actorUserId || null,
             vtpassFailed: true,
             providerMessage: providerMessage,
@@ -298,7 +385,7 @@ export async function POST(req: NextRequest) {
           markup,
           phone: phone || null,
           paystackReference: paystackReference || null,
-          response: vtRes.data || null,
+          response: vtData || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),
         })
@@ -332,7 +419,7 @@ export async function POST(req: NextRequest) {
                     phone: phone || null,
                     paystackReference: paystackReference || null,
                     createdAt: new Date().toISOString(),
-                    response: vtRes.data || null,
+                    response: vtData || null,
                   })
                 } catch (e) {
                   console.warn('Failed to create user tx for vtpass purchase', e)
@@ -392,7 +479,7 @@ export async function POST(req: NextRequest) {
     }
     */
 
-    return NextResponse.json({ ok: true, result: vtRes.data })
+    return NextResponse.json({ ok: true, result: vtData })
   } catch (err: unknown) {
     console.error('bills buy-service error', err)
     const message = 'Unable to process this bill payment right now. Please try again later.'

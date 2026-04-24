@@ -75,7 +75,7 @@ const describeAuthMode = (mode: AuthMode) => {
 }
 
 export const createVtpassClient = () => {
-  const instance = axios.create({ baseURL, timeout: 20_000 })
+  const instance = axios.create({ baseURL, timeout: 45_000 })
 
   instance.interceptors.request.use((config) => {
     const typedConfig = config as VtpassRequestConfig

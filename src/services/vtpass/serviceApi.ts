@@ -44,6 +44,19 @@ export async function getOptions(serviceID: string, name: string) {
   return res?.data?.content || []
 }
 
+export async function getInsuranceOptions(
+  option:
+    | 'engine-capacity'
+    | 'color'
+    | 'state'
+    | 'brand'
+    | `model/${string}`
+    | `lga/${string}`
+) {
+  const res = await vtpassClient.get(`/universal-insurance/options/${option}`)
+  return res?.data?.content || res?.data || []
+}
+
 export async function merchantVerify(payload: Record<string, unknown>) {
   // Retry a few times for transient network errors (sandbox can be flaky)
   const maxAttempts = 3
@@ -84,6 +97,7 @@ export default {
   getServicesForCategory,
   getVariations,
   getOptions,
+  getInsuranceOptions,
   merchantVerify,
   pay,
   requery,

@@ -28,6 +28,7 @@ export default function EducationPage() {
   const [jambProfile, setJambProfile] = useState('')
   const [jambPhone, setJambPhone] = useState('')
   const [jambVerifyResult, setJambVerifyResult] = useState<Record<string, unknown> | null>(null)
+  const [verifyingJamb, setVerifyingJamb] = useState(false)
 
   const [pendingPurchase, setPendingPurchase] = useState<Record<string, unknown> | null>(null)
   const [showPaymentSelector, setShowPaymentSelector] = useState(false)
@@ -155,6 +156,94 @@ export default function EducationPage() {
 
   const { name: jambVerifyName, address: jambVerifyAddress } = getVerifyPrimaryDetails(jambVerifyResult || undefined)
 
+  const buildTransactionData = (
+    result: Record<string, unknown> | null | undefined,
+    fallback: Record<string, unknown>
+  ) => {
+    const resultContent = result?.content && typeof result.content === 'object'
+      ? (result.content as Record<string, unknown>)
+      : null
+    const transactionData: Record<string, unknown> = {
+      ...fallback,
+      amount: result?.amount ?? resultContent?.amount ?? fallback.amount,
+      response_description: result?.response_description || 'SUCCESS',
+    }
+
+    const txId =
+      resultContent
+        ? resultContent.transactions && typeof resultContent.transactions === 'object'
+          ? (resultContent.transactions as Record<string, unknown>).transactionId
+          : undefined
+        : undefined
+    const fallbackTxId =
+      (result as Record<string, unknown> | null)?.transactionId ||
+      resultContent?.transactionId
+    if (txId || fallbackTxId) transactionData.transactionId = txId || fallbackTxId
+
+    const requestReference =
+      result?.requestId ||
+      result?.request_id ||
+      resultContent?.requestId ||
+      resultContent?.request_id
+    if (requestReference) transactionData.requestId = requestReference
+
+    const cards =
+      (resultContent ? resultContent.transactions && typeof resultContent.transactions === 'object'
+        ? (resultContent.transactions as Record<string, unknown>).cards
+        : undefined : undefined) ||
+      resultContent?.cards ||
+      result?.cards ||
+      resultContent?.tokens ||
+      result?.tokens
+
+    if (Array.isArray(cards) && cards.length) {
+      const normalizedCards: Array<Record<string, string>> = []
+      for (const c of cards) {
+        if (!c) continue
+        if (typeof c === 'string') {
+          normalizedCards.push({ Serial: c, Pin: c })
+        } else if (typeof c === 'object') {
+          const obj = c as Record<string, unknown>
+          const Serial = String(obj['Serial'] ?? obj['serial'] ?? obj['unique_element'] ?? obj['unique'] ?? '')
+          const Pin = String(obj['Pin'] ?? obj['pin'] ?? obj['PinNumber'] ?? obj['pin_number'] ?? obj['PinCode'] ?? '')
+          normalizedCards.push({ Serial, Pin })
+        }
+      }
+      if (normalizedCards.length) transactionData.cards = normalizedCards
+    }
+
+    if (Array.isArray(result?.tokens)) transactionData.tokens = result.tokens
+    if (result?.purchased_code) transactionData.purchased_code = result.purchased_code
+    if (result?.cards && Array.isArray(result.cards)) transactionData.cards = result.cards
+
+    if (result?.purchased_code) {
+      const rawCode = String(result.purchased_code)
+      if (rawCode.includes('Serial') || /pin[:\s]/i.test(rawCode) || /Pin\s*:/i.test(rawCode)) {
+        try {
+          const parts = rawCode.split('||').map((p) => p.trim()).filter(Boolean)
+          const parsed: Array<Record<string, string>> = []
+          for (const p of parts) {
+            const mSerial = p.match(/Serial\s*No[:\s]*([^,|]+)/i)
+            const mPin = p.match(/pin[:\s]*([0-9A-Za-z]+)/i) || p.match(/Pin\s*[:\s]*([0-9A-Za-z]+)/i)
+            if (mSerial || mPin) {
+              parsed.push({ Serial: mSerial ? mSerial[1].trim() : '', Pin: mPin ? mPin[1].trim() : '' })
+            }
+          }
+          if (parsed.length) transactionData.cards = parsed
+        } catch {}
+      }
+    }
+
+    const rawPin = result?.Pin || result?.pin || result?.purchased_code
+    if (rawPin) {
+      const raw = String(rawPin)
+      const match = raw.match(/([0-9]{4,})/) || raw.match(/([0-9A-Za-z]{6,})/)
+      if (match) transactionData.pin = match[1]
+    }
+
+    return transactionData
+  }
+
   const handleCompletePurchase = async () => {
     try {
       if (!pendingPurchase) return toast.error('No pending purchase')
@@ -164,75 +253,10 @@ export default function EducationPage() {
       const j = res.body
       if (!res.ok) return toast.error('Purchase failed')
 
-      const transactionData: Record<string, unknown> = {
+      const transactionData = buildTransactionData(j.result || null, {
         serviceID: pendingPurchase.serviceID,
-        amount: j.amount ?? j.result?.amount ?? pendingPurchase.amount,
-        response_description: j.result?.response_description || 'SUCCESS',
-      }
-
-      const txId =
-        j.result?.content?.transactions?.transactionId ||
-        j.result?.transactionId ||
-        j.result?.content?.transactionId
-
-      if (txId) transactionData.transactionId = txId
-
-      const cards =
-        j.result?.content?.transactions?.cards ||
-        j.result?.content?.cards ||
-        j.result?.cards ||
-        j.result?.content?.transactions?.tokens ||
-        j.result?.tokens
-
-      if (Array.isArray(cards) && cards.length) {
-        const normalizedCards: Array<Record<string, string>> = []
-        for (const c of cards) {
-          if (!c) continue
-          if (typeof c === 'string') {
-            normalizedCards.push({ Serial: c, Pin: c })
-          } else if (typeof c === 'object') {
-            const obj = c as Record<string, unknown>
-            const Serial = String(obj['Serial'] ?? obj['serial'] ?? obj['unique_element'] ?? obj['unique'] ?? '')
-            const Pin = String(
-              obj['Pin'] ?? obj['pin'] ?? obj['PinNumber'] ?? obj['pin_number'] ?? obj['PinCode'] ?? ''
-            )
-            normalizedCards.push({ Serial, Pin })
-          }
-        }
-        if (normalizedCards.length) transactionData.cards = normalizedCards
-      }
-
-      if (j.result?.tokens && Array.isArray(j.result.tokens)) {
-        transactionData.tokens = j.result.tokens
-      }
-
-      if (j.result?.purchased_code) {
-        transactionData.purchased_code = j.result.purchased_code
-        const s = String(j.result.purchased_code)
-        if (s.includes('Serial') || /pin[:\s]/i.test(s) || /Pin\s*:/i.test(s)) {
-          try {
-            const parts = s.split('||').map((p) => p.trim()).filter(Boolean)
-            const parsed: Array<Record<string, string>> = []
-            for (const p of parts) {
-              const mSerial = p.match(/Serial\s*No[:\s]*([^,|]+)/i)
-              const mPin = p.match(/pin[:\s]*([0-9A-Za-z]+)/i) || p.match(/Pin\s*[:\s]*([0-9A-Za-z]+)/i)
-              if (mSerial || mPin) {
-                parsed.push({
-                  Serial: mSerial ? mSerial[1].trim() : '',
-                  Pin: mPin ? mPin[1].trim() : '',
-                })
-              }
-            }
-            if (parsed.length) transactionData.cards = parsed
-          } catch {}
-        }
-      }
-
-      if (j.result?.Pin) {
-        const raw = String(j.result.Pin)
-        const m = raw.match(/([0-9]{4,})/) || raw.match(/([0-9A-Za-z]{6,})/)
-        transactionData.pin = m ? m[1] : raw
-      }
+        amount: pendingPurchase.amount,
+      })
 
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Purchase successful')
@@ -250,21 +274,13 @@ export default function EducationPage() {
       const idToken = await auth.currentUser.getIdToken()
       payload.payFromWallet = true
       const res = await postBuyService(payload, { idToken })
-      if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
+      if (!res.ok) return toast.error(res.body?.message || 'Purchase failed')
 
       const j = res.body
-      const transactionData: Record<string, unknown> = {
+      const transactionData = buildTransactionData(j.result || null, {
         serviceID: payload.serviceID,
-        amount: j.amount ?? j.result?.amount ?? payload.amount,
-        response_description: j.result?.response_description || 'SUCCESS',
-      }
-
-      const txId =
-        j.result?.content?.transactions?.transactionId ||
-        j.result?.transactionId ||
-        j.result?.content?.transactionId
-
-      if (txId) transactionData.transactionId = txId
+        amount: payload.amount,
+      })
       sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
       toast.success('Purchase successful')
       window.location.href = '/bills/confirmation'
@@ -348,6 +364,7 @@ export default function EducationPage() {
   const verifyJamb = async () => {
     if (!jambProfile) return toast.error('Enter JAMB profile/registration')
 
+    setVerifyingJamb(true)
     try {
       const res = await fetch('/api/bills/merchant-verify', {
         method: 'POST',
@@ -364,6 +381,8 @@ export default function EducationPage() {
       toast.success('Verified')
     } catch {
       toast.error('Verification error')
+    } finally {
+      setVerifyingJamb(false)
     }
   }
 
@@ -416,13 +435,16 @@ export default function EducationPage() {
                   <input type="number" min={1} value={waecQty} onChange={(e) => setWaecQty(Number(e.target.value))} className="w-full p-2 border rounded" />
                   <input placeholder="Phone" value={waecPhone} onChange={(e) => setWaecPhone(e.target.value)} className="w-full p-2 border rounded" />
                   <div className="text-sm">You will be charged: N{waecDisplayPrice().toLocaleString()}</div>
+                  {isLoggedIn && walletBalance !== null ? (
+                    <div className="text-sm text-stone-600">Wallet balance: N{Number(walletBalance).toLocaleString()}</div>
+                  ) : null}
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecPurchase(true)}>
-                      Pay with Card
+                    <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startWaecPurchase(true)}>
+                      {processing ? 'Processing...' : 'Pay with Card'}
                     </button>
                     {isLoggedIn && (
                       <button
-                        disabled={walletBalance !== null && waecDisplayPrice() > walletBalance}
+                        disabled={processing || processingWallet || (walletBalance !== null && waecDisplayPrice() > walletBalance)}
                         className="bg-amber-600 text-white px-4 py-2 rounded"
                         onClick={() => {
                           const found = waecPlans.find((p) => p.code === waecPlan)
@@ -437,7 +459,7 @@ export default function EducationPage() {
                           payNowWithWallet(payload)
                         }}
                       >
-                        {walletBalance !== null && waecDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
+                        {processingWallet ? 'Processing...' : walletBalance !== null && waecDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
                       </button>
                     )}
                   </div>
@@ -456,13 +478,16 @@ export default function EducationPage() {
                   <input type="number" min={1} value={waecRegQty} onChange={(e) => setWaecRegQty(Number(e.target.value))} className="w-full p-2 border rounded" />
                   <input placeholder="Phone" value={waecRegPhone} onChange={(e) => setWaecRegPhone(e.target.value)} className="w-full p-2 border rounded" />
                   <div className="text-sm">You will be charged: N{waecRegDisplayPrice().toLocaleString()}</div>
+                  {isLoggedIn && walletBalance !== null ? (
+                    <div className="text-sm text-stone-600">Wallet balance: N{Number(walletBalance).toLocaleString()}</div>
+                  ) : null}
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startWaecRegPurchase(true)}>
-                      Pay with Card
+                    <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startWaecRegPurchase(true)}>
+                      {processing ? 'Processing...' : 'Pay with Card'}
                     </button>
                     {isLoggedIn && (
                       <button
-                        disabled={walletBalance !== null && waecRegDisplayPrice() > walletBalance}
+                        disabled={processing || processingWallet || (walletBalance !== null && waecRegDisplayPrice() > walletBalance)}
                         className="bg-amber-600 text-white px-4 py-2 rounded"
                         onClick={() => {
                           const found = waecRegPlans.find((p) => p.code === waecRegPlan)
@@ -477,7 +502,7 @@ export default function EducationPage() {
                           payNowWithWallet(payload)
                         }}
                       >
-                        {walletBalance !== null && waecRegDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
+                        {processingWallet ? 'Processing...' : walletBalance !== null && waecRegDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
                       </button>
                     )}
                   </div>
@@ -507,11 +532,14 @@ export default function EducationPage() {
                     required
                   />
                   <div className="flex items-center gap-2">
-                    <button className="px-3 py-1 rounded bg-stone-100" onClick={verifyJamb}>
-                      Verify
+                    <button disabled={verifyingJamb} className="px-3 py-1 rounded bg-stone-100 disabled:opacity-60" onClick={verifyJamb}>
+                      {verifyingJamb ? 'Verifying...' : 'Verify'}
                     </button>
                     <div className="text-sm">You will be charged: N{jambDisplayPrice().toLocaleString()}</div>
                   </div>
+                  {isLoggedIn && walletBalance !== null ? (
+                    <div className="text-sm text-stone-600">Wallet balance: N{Number(walletBalance).toLocaleString()}</div>
+                  ) : null}
 
                   {jambVerifyResult && (
                     <div className="border p-3 rounded bg-green-50">
@@ -530,12 +558,12 @@ export default function EducationPage() {
                   )}
 
                   <div className="flex gap-2">
-                    <button className="bg-amber-500 text-stone-900 px-4 py-2 rounded" onClick={() => startJambPurchase(true)}>
-                      Pay with Card
+                    <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startJambPurchase(true)}>
+                      {processing ? 'Processing...' : 'Pay with Card'}
                     </button>
                     {isLoggedIn && (
                       <button
-                        disabled={walletBalance !== null && jambDisplayPrice() > walletBalance}
+                        disabled={processing || processingWallet || (walletBalance !== null && jambDisplayPrice() > walletBalance)}
                         className="bg-amber-600 text-white px-4 py-2 rounded"
                         onClick={() => {
                           const found = jambPlans.find((p) => p.code === jambPlan)
@@ -552,7 +580,7 @@ export default function EducationPage() {
                           payNowWithWallet(payload)
                         }}
                       >
-                        {walletBalance !== null && jambDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
+                        {processingWallet ? 'Processing...' : walletBalance !== null && jambDisplayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
                       </button>
                     )}
                   </div>

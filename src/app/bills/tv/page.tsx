@@ -277,6 +277,15 @@ export default function TVPage() {
       result?.content?.transactionId
 
     if (transactionId) transactionData.transactionId = transactionId
+    const requestReference = result?.requestId || result?.request_id || result?.content?.requestId || result?.content?.request_id
+    if (requestReference) transactionData.requestId = requestReference
+    const purchasedCode =
+      result?.purchased_code ||
+      result?.token ||
+      result?.content?.token ||
+      result?.content?.transactions?.token ||
+      result?.content?.transactions?.purchased_code
+    if (purchasedCode) transactionData.purchased_code = purchasedCode
     sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
     toast.success('TV subscription successful')
     window.location.href = '/bills/confirmation'

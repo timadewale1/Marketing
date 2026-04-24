@@ -294,8 +294,18 @@ export default function ElectricityPage() {
       result?.content?.transactionId
 
     if (transactionId) transactionData.transactionId = transactionId
-    if (result?.purchased_code) transactionData.token = result.purchased_code
-    if (result?.token) transactionData.token = result.token
+    const token =
+      result?.purchased_code ||
+      result?.token ||
+      result?.content?.token ||
+      result?.content?.transactions?.token ||
+      result?.content?.transactions?.purchased_code
+    if (token) {
+      transactionData.token = token
+      transactionData.purchased_code = token
+    }
+    const requestReference = result?.requestId || result?.request_id || result?.content?.requestId || result?.content?.request_id
+    if (requestReference) transactionData.requestId = requestReference
 
     sessionStorage.setItem('lastTransaction', JSON.stringify(transactionData))
     toast.success('Electricity payment successful')

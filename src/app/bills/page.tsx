@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Smartphone, Zap, Lightbulb, Tv, BookOpen } from 'lucide-react'
+import { Smartphone, Zap, Lightbulb, Tv, BookOpen, Shield } from 'lucide-react'
 
 const categories = [
   { id: 'airtime', name: 'Airtime', icon: Smartphone, color: 'bg-blue-50 text-blue-600' },
@@ -13,6 +13,7 @@ const categories = [
   { id: 'electricity', name: 'Electricity', icon: Lightbulb, color: 'bg-orange-50 text-orange-600' },
   { id: 'tv', name: 'TV', icon: Tv, color: 'bg-purple-50 text-purple-600' },
   { id: 'education', name: 'Education', icon: BookOpen, color: 'bg-green-50 text-green-600' },
+  { id: 'insurance', name: 'Insurance', icon: Shield, color: 'bg-emerald-50 text-emerald-600' },
 ]
 
 export default function BillsIndex() {
