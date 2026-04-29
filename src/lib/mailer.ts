@@ -464,6 +464,17 @@ export async function sendNewTaskNotificationToEarners({
   campaignTitle: string
   availableSlots?: number
 }) {
+  const notificationsDisabled = true
+  if (notificationsDisabled) {
+    console.log('New task email alerts to earners are temporarily disabled', {
+      campaignId,
+      campaignTitle,
+      availableSlots,
+    })
+
+    return { attempted: 0, sent: 0, failed: 0, disabled: true }
+  }
+
   const { dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin) {
     console.warn('sendNewTaskNotificationToEarners: dbAdmin unavailable')
