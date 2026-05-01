@@ -20,6 +20,7 @@ import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
+import { getCampaignProofSampleUrls } from "@/lib/proofs";
 
 type Campaign = {
   id: string;
@@ -35,6 +36,8 @@ type Campaign = {
   mediaUrl?: string; // Single media URL
   mediaUrls?: string[]; // Legacy: multiple media URLs
   productImages?: string[]; // Product images for "Share my Product" category
+  participationProofSampleUrl?: string;
+  participationProofSampleUrls?: string[];
   status?: string;
   dailyLimit?: number;
   locationRequirements?: string;
@@ -371,6 +374,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
   );
 
   const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
+  const participationProofSamples = getCampaignProofSampleUrls(campaign);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -412,7 +416,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
           <h3 className="text-xl font-semibold mb-4 text-stone-800">How to participate</h3>
           <div className="space-y-3 text-stone-700">
             {/* Campaign Resources */}
-            {(campaign.videoUrl || campaign.externalLink || campaign.mediaUrl || (campaign.mediaUrls?.length ?? 0) > 0) && (
+            {(campaign.videoUrl || campaign.externalLink || campaign.mediaUrl || (campaign.mediaUrls?.length ?? 0) > 0 || participationProofSamples.length > 0) && (
               <div className="mb-4 p-3 bg-amber-50 rounded border border-amber-100">
                 <h4 className="text-lg font-medium mb-2">Task Resources:</h4>
                 
@@ -582,6 +586,52 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                             className="block text-xs text-center text-amber-600 hover:text-amber-700 font-medium"
                           >
                             Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {participationProofSamples.length > 0 && (
+                  <div className="mt-6 rounded-lg border border-amber-100 bg-white/80 p-4">
+                    <h5 className="text-sm font-medium mb-3 text-stone-800">Required Participation Proof Sample</h5>
+                    <p className="mb-4 text-xs text-stone-500">
+                      Use these samples as a guide for the kind of proof the advertiser expects you to submit.
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {participationProofSamples.map((sampleUrl, idx) => (
+                        <div key={`${sampleUrl}-${idx}`} className="space-y-2">
+                          {/\.(mp4|mov|webm|ogg)$/i.test(sampleUrl) ? (
+                            <video
+                              src={sampleUrl}
+                              controls
+                              className="w-full rounded-lg border border-stone-200 bg-stone-950"
+                            />
+                          ) : (
+                            <a
+                              href={sampleUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block overflow-hidden rounded-lg border border-stone-200 bg-stone-100"
+                            >
+                              <div className="relative h-56 w-full">
+                                <Image
+                                  src={sampleUrl}
+                                  alt={`Participation proof sample ${idx + 1}`}
+                                  fill
+                                  className="object-contain"
+                                />
+                              </div>
+                            </a>
+                          )}
+                          <a
+                            href={sampleUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-xs text-center text-amber-600 hover:text-amber-700 font-medium"
+                          >
+                            Open sample {idx + 1}
                           </a>
                         </div>
                       ))}

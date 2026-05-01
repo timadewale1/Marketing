@@ -27,7 +27,7 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { summarizeCampaignProgress } from "@/lib/campaign-progress";
-import { getProofUrls } from "@/lib/proofs";
+import { getCampaignProofSampleUrls, getProofUrls } from "@/lib/proofs";
 
 type Props = { id: string };
 
@@ -36,6 +36,8 @@ type CampaignRecord = {
   title: string;
   description: string;
   proofInstructions: string;
+  participationProofSampleUrl?: string;
+  participationProofSampleUrls?: string[];
   category: string;
   status: string;
   ownerId?: string;
@@ -90,6 +92,10 @@ function mapCampaign(id: string, data: Record<string, unknown>): CampaignRecord 
     title: String(data.title || data.name || "Untitled campaign"),
     description: String(data.description || ""),
     proofInstructions: String(data.proofInstructions || ""),
+    participationProofSampleUrl: data.participationProofSampleUrl ? String(data.participationProofSampleUrl) : undefined,
+    participationProofSampleUrls: getCampaignProofSampleUrls(
+      data as { participationProofSampleUrl?: unknown; participationProofSampleUrls?: unknown }
+    ),
     category: String(data.category || "Unknown"),
     status: String(data.status || "Unknown"),
     ownerId: data.ownerId ? String(data.ownerId) : undefined,
@@ -190,6 +196,7 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
     generatedLeads: campaign?.generatedLeads || 0,
     submissions,
   }), [campaign?.estimatedLeads, campaign?.generatedLeads, submissions]);
+  const participationProofSamples = getCampaignProofSampleUrls(campaign);
 
   const sendCampaignAction = async (action: "activate" | "pause" | "stop" | "delete") => {
     try {
@@ -300,6 +307,20 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
           <div className="rounded-2xl bg-stone-50 p-4 md:col-span-2">
             <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Proof instructions</p>
             <p className="mt-3 text-sm leading-6 text-stone-700">{campaign.proofInstructions || "No proof instructions recorded."}</p>
+          </div>
+          <div className="rounded-2xl bg-stone-50 p-4 md:col-span-2">
+            <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Participation proof samples</p>
+            {participationProofSamples.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {participationProofSamples.map((sampleUrl, index) => (
+                  <Button key={`${sampleUrl}-${index}`} asChild variant="outline" className="rounded-full">
+                    <Link href={sampleUrl} target="_blank">Open sample {index + 1}<ExternalLink className="h-4 w-4" /></Link>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-stone-700">No participation proof samples recorded.</p>
+            )}
           </div>
         </div>
       </SectionCard>

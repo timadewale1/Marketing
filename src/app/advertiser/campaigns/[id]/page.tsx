@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
-import { getProofUrls } from "@/lib/proofs"
+import { getCampaignProofSampleUrls, getProofUrls } from "@/lib/proofs"
 import toast from "react-hot-toast"
 
 type Campaign = {
@@ -47,6 +47,8 @@ type Campaign = {
   mediaUrl?: string
   externalLink?: string
   productImages?: string[]
+  participationProofSampleUrl?: string
+  participationProofSampleUrls?: string[]
   advertiserFaceImage?: string
   businessAddress?: {
     addressLine?: string
@@ -205,6 +207,7 @@ export default function CampaignDetailsPage() {
   const totalBudget = Number(
     campaign.originalBudget || (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0))
   )
+  const participationProofSamples = getCampaignProofSampleUrls(campaign)
   const businessAddress = [
     campaign.businessAddress?.addressLine,
     campaign.businessAddress?.city,
@@ -541,6 +544,42 @@ export default function CampaignDetailsPage() {
                       className="h-32 w-full object-cover"
                     />
                   </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {participationProofSamples.length > 0 && (
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2 text-stone-800">
+                <ImageIcon size={16} />
+                <p className="text-sm font-medium">Participation Proof Samples</p>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {participationProofSamples.map((sampleUrl, index) => (
+                  /\.(mp4|mov|webm|ogg)$/i.test(sampleUrl) ? (
+                    <video
+                      key={`${sampleUrl}-${index}`}
+                      src={sampleUrl}
+                      controls
+                      className="h-32 w-full rounded-2xl border border-stone-200 bg-stone-950 object-cover"
+                    />
+                  ) : (
+                    <a
+                      key={`${sampleUrl}-${index}`}
+                      href={sampleUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={sampleUrl}
+                        alt={`Participation proof sample ${index + 1}`}
+                        className="h-32 w-full object-cover"
+                      />
+                    </a>
+                  )
                 ))}
               </div>
             </div>

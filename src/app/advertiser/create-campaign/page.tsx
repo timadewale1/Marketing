@@ -112,6 +112,10 @@ export default function CreateCampaignPage() {
   const [productLink, setProductLink] = useState("") // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ product link field
   const [productImages, setProductImages] = useState<string[]>([]) // ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ product images (up to 3)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
+  const [participationProofSampleSlots, setParticipationProofSampleSlots] = useState<
+    Array<{ url: string | null; fileName: string | null }>
+  >([{ url: null, fileName: null }])
+  const [participationProofSampleUploading, setParticipationProofSampleUploading] = useState(false)
   // face verification + address (for product campaigns)
   const [faceImage, setFaceImage] = useState<string | null>(null)
   const [faceImageUrl, setFaceImageUrl] = useState<string | null>(null)
@@ -337,6 +341,9 @@ const compressed = await imageCompression(file, options)
       budget: numericBudget,
       estimatedLeads,
       costPerLead: currentCPL,
+      participationProofSampleUrls: participationProofSampleSlots
+        .map((slot) => slot.url)
+        .filter(Boolean),
       status: "Active",
       createdAt: serverTimestamp(),
     }
@@ -383,6 +390,9 @@ const compressed = await imageCompression(file, options)
     }
 
     const campaignData: Record<string, unknown> = { ...tempCampaignData }
+    campaignData.participationProofSampleUrl = Array.isArray(campaignData.participationProofSampleUrls)
+      ? campaignData.participationProofSampleUrls[0] || null
+      : null
 
     // Attach advertiser display name for admin/reporting convenience
     if (advertiserProfile) {
@@ -490,6 +500,37 @@ const compressed = await imageCompression(file, options)
     } finally {
       setCameraActive(false)
     }
+  }
+
+  const uploadParticipationProofSample = async (index: number, file: File) => {
+    setParticipationProofSampleUploading(true)
+    try {
+      const compressed = await compressImage(file)
+      const filename = `proof-sample-${Date.now()}-${index}-${file.name.replace(/\s+/g, "-")}`
+      const path = `campaignProofSamples/${auth.currentUser?.uid}/${filename}`
+      uploadFile(compressed, path, (url) => {
+        setParticipationProofSampleSlots((current) =>
+          current.map((slot, slotIndex) =>
+            slotIndex === index
+              ? { url, fileName: file.name }
+              : slot
+          )
+        )
+        setParticipationProofSampleUploading(false)
+        toast.success(`Proof sample ${index + 1} uploaded`)
+      })
+    } catch (error) {
+      console.error('Participation proof sample upload error', error)
+      toast.error('Failed to upload participation proof sample')
+      setParticipationProofSampleUploading(false)
+    }
+  }
+
+  const addParticipationProofSampleSlot = () => {
+    setParticipationProofSampleSlots((current) => {
+      if (current.length >= 5) return current
+      return [...current, { url: null, fileName: null }]
+    })
   }
 
   const captureFace = async () => {
@@ -891,6 +932,93 @@ const getEmbeddedVideo = (url: string) => {
                   View Product
                 </a>
               )}
+
+              <div className="mt-4 space-y-3 rounded-[24px] border border-stone-200 bg-stone-50/80 p-5">
+                <div>
+                  <h4 className="font-medium text-stone-800">Upload required participation proof sample</h4>
+                  <p className="mt-1 text-sm text-stone-600">
+                    Add sample screenshots or videos showing the kind of proof you expect earners to submit.
+                  </p>
+                </div>
+
+                {participationProofSampleSlots.map((slot, index) => {
+                  const inputId = `participation-proof-sample-${index}`
+
+                  return (
+                    <div
+                      key={inputId}
+                      className="rounded-2xl border-2 border-dashed border-amber-300 bg-white px-5 py-5"
+                    >
+                      <div className="space-y-2 text-center">
+                        <label
+                          htmlFor={inputId}
+                          className="inline-flex cursor-pointer items-center justify-center rounded-full bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
+                        >
+                          {slot.url ? `Replace sample ${index + 1}` : `Upload sample ${index + 1}`}
+                        </label>
+                        <input
+                          id={inputId}
+                          type="file"
+                          accept="image/*,video/*"
+                          className="sr-only"
+                          disabled={participationProofSampleUploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            await uploadParticipationProofSample(index, file)
+                          }}
+                        />
+                        <p className="text-xs text-stone-500">
+                          Upload a sample proof earners can use as a guide.
+                        </p>
+                        {slot.fileName ? (
+                          <p className="text-sm font-medium text-amber-700">{slot.fileName}</p>
+                        ) : (
+                          <p className="text-xs text-stone-400">No sample added yet.</p>
+                        )}
+                      </div>
+
+                      {slot.url ? (
+                        <div className="mt-4">
+                          {/\.(mp4|mov|webm|ogg)$/i.test(slot.url) ? (
+                            <video
+                              src={slot.url}
+                              controls
+                              className="mx-auto max-h-56 w-full rounded-2xl border border-stone-200 bg-stone-950"
+                            />
+                          ) : (
+                            <div className="relative mx-auto h-48 w-full overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+                              <Image
+                                src={slot.url}
+                                alt={`Participation proof sample ${index + 1}`}
+                                fill
+                                className="object-contain"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+
+                {participationProofSampleSlots.length < 5 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addParticipationProofSampleSlot}
+                    className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                  >
+                    Add more proof samples
+                  </Button>
+                ) : null}
+
+                {participationProofSampleUploading ? (
+                  <div className="text-sm text-amber-600">
+                    Uploading proof sample{uploadProgress ? ` - ${uploadProgress}%` : '...'}
+                  </div>
+                ) : null}
+              </div>
 
               {/* Product-specific: face verification + address before payment */}
               {category === "Share my Product" && (
