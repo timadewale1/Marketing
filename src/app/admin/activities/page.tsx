@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { Mail, Send, Sparkles } from "lucide-react";
 import { db } from "@/lib/firebase";
@@ -38,6 +38,8 @@ type Audience =
   | "unactivated_earners"
   | "unactivated_advertisers";
 
+const ADMIN_ACTIVITY_RECIPIENT_PREVIEW_LIMIT = 200;
+
 export default function AdminActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -51,8 +53,8 @@ export default function AdminActivitiesPage() {
       setLoading(true);
       try {
         const [earnersSnap, advertisersSnap] = await Promise.all([
-          getDocs(collection(db, "earners")),
-          getDocs(collection(db, "advertisers")),
+          getDocs(query(collection(db, "earners"), limit(ADMIN_ACTIVITY_RECIPIENT_PREVIEW_LIMIT))),
+          getDocs(query(collection(db, "advertisers"), limit(ADMIN_ACTIVITY_RECIPIENT_PREVIEW_LIMIT))),
         ]);
 
         const nextRecipients: Recipient[] = [

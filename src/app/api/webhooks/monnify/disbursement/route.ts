@@ -69,8 +69,8 @@ export async function POST(req: NextRequest) {
       const db = adminSdk.firestore()
       
       // Search both earner and advertiser withdrawals
-      const earnerSnapshot = await db.collection('earnerWithdrawals').where('monnifyReference', '==', reference).get()
-      const advertiserSnapshot = await db.collection('advertiserWithdrawals').where('monnifyReference', '==', reference).get()
+      const earnerSnapshot = await db.collection('earnerWithdrawals').where('monnifyReference', '==', reference).limit(5).get()
+      const advertiserSnapshot = await db.collection('advertiserWithdrawals').where('monnifyReference', '==', reference).limit(5).get()
       const allDocs = [...earnerSnapshot.docs, ...advertiserSnapshot.docs]
 
       if (allDocs.length === 0) {

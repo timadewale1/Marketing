@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 // Dropzone removed: banner upload disabled, thumbnails auto-generated per task type
 import { auth, storage, db } from "@/lib/firebase"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { serverTimestamp, getDoc, getDocs, query, where, collection, updateDoc, doc } from "firebase/firestore"
+import { serverTimestamp, getDoc, getDocs, query, where, collection, updateDoc, doc, limit } from "firebase/firestore"
 import { PaymentSelector } from "@/components/payment-selector"
 import toast from "react-hot-toast"
 import imageCompression from "browser-image-compression"
@@ -354,7 +354,7 @@ const compressed = await imageCompression(file, options)
       if (advertiserSnap.exists()) {
         advertiserProfile = advertiserSnap.data() as Record<string, unknown>
       } else {
-        const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email)))
+        const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email), limit(1)))
         if (!docs.empty) {
           advertiserProfile = docs.docs[0].data() as Record<string, unknown>
         }

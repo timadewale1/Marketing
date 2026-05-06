@@ -10,6 +10,7 @@ import {
   getDoc,
   getDocs,
   increment,
+  limit,
   orderBy,
   query,
   serverTimestamp,
@@ -35,6 +36,8 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+
+const ADMIN_WITHDRAWAL_PAGE_LIMIT = 200;
 
 type Withdrawal = {
   id: string;
@@ -73,8 +76,8 @@ export default function WithdrawalsPage() {
     const load = async () => {
       setLoading(true);
       const [earnerSnap, advertiserSnap] = await Promise.all([
-        getDocs(query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"))),
-        getDocs(query(collection(db, "advertiserWithdrawals"), orderBy("createdAt", "desc"))),
+        getDocs(query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
+        getDocs(query(collection(db, "advertiserWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
       ]);
 
       const rows: Withdrawal[] = [

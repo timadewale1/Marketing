@@ -15,6 +15,7 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
   orderBy,
   query,
   updateDoc,
@@ -38,6 +39,8 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+
+const ADMIN_USER_PAGE_LIMIT = 250;
 
 type AdminUser = {
   id: string;
@@ -109,32 +112,13 @@ export default function UsersPage() {
       setLoading(true);
 
       try {
-        const [earnersSnap, advertisersSnap, campaignsSnap, submissionsSnap] =
+        const [earnersSnap, advertisersSnap] =
           await Promise.all([
-            getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"))),
+            getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_LIMIT))),
             getDocs(
-              query(collection(db, "advertisers"), orderBy("createdAt", "desc"))
+              query(collection(db, "advertisers"), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_LIMIT))
             ),
-            getDocs(collection(db, "campaigns")),
-            getDocs(collection(db, "earnerSubmissions")),
           ]);
-
-        const campaignCountByOwner = new Map<string, number>();
-        campaignsSnap.docs.forEach((campaignDoc) => {
-          const ownerId = String(campaignDoc.data().ownerId || "");
-          if (!ownerId) return;
-          campaignCountByOwner.set(ownerId, (campaignCountByOwner.get(ownerId) || 0) + 1);
-        });
-
-        const submissionCountByUser = new Map<string, number>();
-        submissionsSnap.docs.forEach((submissionDoc) => {
-          const userId = String(submissionDoc.data().userId || "");
-          if (!userId) return;
-          submissionCountByUser.set(
-            userId,
-            (submissionCountByUser.get(userId) || 0) + 1
-          );
-        });
 
         const earners = earnersSnap.docs.map((userDoc) => {
           const data = userDoc.data();
@@ -151,7 +135,7 @@ export default function UsersPage() {
             totalSpent: 0,
             totalEarned: Number(data.totalEarned || 0),
             campaignsCreated: 0,
-            submissionsCount: submissionCountByUser.get(userDoc.id) || 0,
+            submissionsCount: Number(data.submissionsCount || data.leadsPaidFor || 0),
           };
         });
 
@@ -169,7 +153,7 @@ export default function UsersPage() {
             balance: Number(data.balance || data.walletBalance || 0),
             totalSpent: Number(data.totalSpent || 0),
             totalEarned: 0,
-            campaignsCreated: campaignCountByOwner.get(userDoc.id) || 0,
+            campaignsCreated: Number(data.campaignsCreated || 0),
             submissionsCount: 0,
           };
         });

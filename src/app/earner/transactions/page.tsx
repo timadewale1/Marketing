@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { getBankDetails, type BankDetails } from "@/lib/bank-details";
-import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
+import { collection, limit, onSnapshot, query, where, doc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -61,7 +61,8 @@ export default function TransactionsPage() {
     const q = query(
       collection(db, "earnerTransactions"),
       where("userId", "==", u.uid),
-      where("status", "!=", "failed")
+      where("status", "!=", "failed"),
+      limit(250)
     );
     const unsubTx = onSnapshot(q, (snap) => {
       const txs = snap.docs.map((d) => {
@@ -81,7 +82,7 @@ export default function TransactionsPage() {
     });
 
     // also subscribe to withdrawals to keep statuses updated
-    const qW = query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid));
+    const qW = query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150));
     const unsubW = onSnapshot(qW, (snap) => {
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => {

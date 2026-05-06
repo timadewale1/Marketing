@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck, Search } from "lucide-react";
-import { collection, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, limit, orderBy, query, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export default function AdminNotificationsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const snap = await getDocs(query(collection(db, "adminNotifications"), orderBy("createdAt", "desc")));
+      const snap = await getDocs(query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"), limit(200)));
       setNotifications(
         snap.docs.map((doc) => {
           const data = doc.data();

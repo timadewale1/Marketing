@@ -7,6 +7,7 @@ import { auth, db } from "@/lib/firebase"
 import toast, { Toaster } from "react-hot-toast"
 import {
   collection,
+  limit,
   query,
   where,
   onSnapshot,
@@ -151,39 +152,9 @@ export default function AdvertiserDashboard() {
       })
 
       // Campaigns
-      const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid))
-        unsubCampaigns = onSnapshot(q, (snapshot) => {
-        const data: Campaign[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<Campaign, "id">),
-        }))
-        setCampaigns(data)
-        setStats((prev) => ({
-          ...prev,
-          activeCampaigns: data.filter((c) => c.status === "Active").length,
-          leadsPaidFor: data.reduce((sum, c) => sum + (c.estimatedLeads || 0), 0),
-          leadsGenerated: data.reduce((sum, c) => sum + (c.generatedLeads || 0), 0),
-        }))
-
-        // submissions summary
-        data.forEach((c) => {
-          const subsQ = query(collection(db, "earnerSubmissions"), where("campaignId", "==", c.id))
-          onSnapshot(subsQ, (ssnap) => {
-            type Sub = { status?: string }
-            const subs = ssnap.docs.map((d) => d.data() as Sub)
-            setStats((prev) => ({
-              ...prev,
-              campaignSubmitted: subs.length,
-              campaignPending: subs.filter((s) => s.status === "Pending" || s.status === "In Review").length,
-              campaignRejected: subs.filter((s) => s.status === "Rejected").length,
-              campaignApproved: subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length,
-            }))
-          })
-        })
-      })
-
+      const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid), limit(200))
       unsubSubmissions = onSnapshot(
-        query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid)),
+        query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), limit(500)),
         (snapshot) => {
           const data: Submission[] = snapshot.docs.map((submissionDoc) => ({
             id: submissionDoc.id,
@@ -203,19 +174,19 @@ export default function AdvertiserDashboard() {
       )
 
       // Withdrawals
-      const wq = query(collection(db, "withdrawals"), where("userId", "==", u.uid))
+      const wq = query(collection(db, "withdrawals"), where("userId", "==", u.uid), limit(100))
       unsubWithdrawals = onSnapshot(wq, () => {
         // compute balance after we have reroutes/resumed
       })
 
       // Reroutes
-      const rq = query(collection(db, "reroutes"), where("userId", "==", u.uid))
+      const rq = query(collection(db, "reroutes"), where("userId", "==", u.uid), limit(100))
       unsubReroutes = onSnapshot(rq, () => {
         // compute balance after we have withdrawals/resumed
       })
 
       // Resumed campaigns
-      const rsq = query(collection(db, "resumedCampaigns"), where("userId", "==", u.uid))
+      const rsq = query(collection(db, "resumedCampaigns"), where("userId", "==", u.uid), limit(100))
       unsubResumed = onSnapshot(rsq, () => {
         // compute balance after we have campaigns/withdrawals/reroutes
       })

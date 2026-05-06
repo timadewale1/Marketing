@@ -7,6 +7,7 @@ import {
   collection,
   doc,
   getDoc,
+  limit,
   onSnapshot,
   query,
   where,
@@ -125,7 +126,8 @@ export default function CampaignDetailsPage() {
       const submissionsQuery = query(
         collection(db, "earnerSubmissions"),
         where("campaignId", "==", id as string),
-        where("advertiserId", "==", user.uid)
+        where("advertiserId", "==", user.uid),
+        limit(250)
       )
 
       unsubscribeSnapshot = onSnapshot(submissionsQuery, (snap) => {

@@ -14,7 +14,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import { collection, doc, getDoc, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -121,8 +121,8 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
       setLoading(true);
       try {
         const campaignSnap = await getDoc(doc(db, "campaigns", id));
-        const submissionsSnap = await getDocs(query(collection(db, "earnerSubmissions"), where("campaignId", "==", id), orderBy("createdAt", "desc")));
-        const transactionsSnap = await getDocs(query(collection(db, "advertiserTransactions"), where("campaignId", "==", id), orderBy("createdAt", "desc")));
+        const submissionsSnap = await getDocs(query(collection(db, "earnerSubmissions"), where("campaignId", "==", id), orderBy("createdAt", "desc"), limit(250)));
+        const transactionsSnap = await getDocs(query(collection(db, "advertiserTransactions"), where("campaignId", "==", id), orderBy("createdAt", "desc"), limit(150)));
 
         const submissionRows = submissionsSnap.docs.map((submissionDoc) => {
           const data = submissionDoc.data();

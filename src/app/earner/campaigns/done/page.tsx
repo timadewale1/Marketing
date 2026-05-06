@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -52,7 +52,7 @@ export default function DoneCampaignsPage() {
       router.push("/auth/sign-in");
       return;
     }
-    const q = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid));
+    const q = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid), limit(250));
     const unsub = onSnapshot(q, (snap) => {
       const mapped: Submission[] = snap.docs.map((d) => {
         const data = d.data() as Partial<Submission>;

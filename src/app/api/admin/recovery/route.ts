@@ -97,8 +97,8 @@ export async function GET(): Promise<Response> {
   }
 
   const [pendingWalletSnap, activationAttemptsSnap, successfulWebhookReferences] = await Promise.all([
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
-    dbAdmin.collection("activationAttempts").get(),
+    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(500).get(),
+    dbAdmin.collection("activationAttempts").limit(500).get(),
     buildSuccessfulWebhookReferences(dbAdmin),
   ])
 

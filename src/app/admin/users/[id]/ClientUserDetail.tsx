@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,15 +49,15 @@ export default function ClientUserDetail({ id }: Props) {
       }
 
       // Transactions
-      const txSnap = await getDocs(query(collection(db, "earnerTransactions"), where("userId", "==", id)));
+      const txSnap = await getDocs(query(collection(db, "earnerTransactions"), where("userId", "==", id), limit(150)));
       setTransactions(txSnap.docs.map((d) => ({ ...(d.data() as unknown as Tx), id: d.id })) as Tx[]);
 
       // Withdrawals
-      const wSnap = await getDocs(query(collection(db, "earnerWithdrawals"), where("userId", "==", id)));
+      const wSnap = await getDocs(query(collection(db, "earnerWithdrawals"), where("userId", "==", id), limit(100)));
       setWithdrawals(wSnap.docs.map((d) => ({ ...(d.data() as unknown as Wd), id: d.id })) as Wd[]);
 
       // Submissions
-      const sSnap = await getDocs(query(collection(db, "earnerSubmissions"), where("userId", "==", id)));
+      const sSnap = await getDocs(query(collection(db, "earnerSubmissions"), where("userId", "==", id), limit(150)));
       const submissionsData = sSnap.docs.map((d) => ({ ...(d.data() as unknown as Sub), id: d.id })) as Sub[];
 
       // Fetch campaigns participated (unique campaignIds from submissions)

@@ -37,8 +37,8 @@ export async function POST(req: Request) {
     // Search both advertiserWithdrawals and earnerWithdrawals
     const collections = ['advertiserWithdrawals', 'earnerWithdrawals']
     for (const col of collections) {
-      const qById = await db.collection(col).where('paystackTransferId', '==', transferId).get()
-      const qByRef = await db.collection(col).where('paystackTransferReference', '==', reference).get()
+      const qById = await db.collection(col).where('paystackTransferId', '==', transferId).limit(5).get()
+      const qByRef = await db.collection(col).where('paystackTransferReference', '==', reference).limit(5).get()
       const docs = [...qById.docs, ...qByRef.docs]
       for (const d of docs) {
         const wd = d.data()

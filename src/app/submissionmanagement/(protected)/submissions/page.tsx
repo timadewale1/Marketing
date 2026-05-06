@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Sparkles } from "lucide-react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { getProofUrls } from "@/lib/proofs";
+
+const SUBMISSION_MANAGEMENT_SUBMISSION_LIMIT = 250;
 
 type Submission = {
   id: string;
@@ -58,7 +60,9 @@ export default function SubmissionManagementSubmissionsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const snap = await getDocs(query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc")));
+      const snap = await getDocs(
+        query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_SUBMISSION_LIMIT))
+      );
       setSubmissions(
         snap.docs.map((doc) => {
           const data = doc.data();

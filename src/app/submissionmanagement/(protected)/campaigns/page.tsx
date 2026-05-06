@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Search, Sparkles } from "lucide-react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,8 @@ type SubmissionProgressRecord = {
   status: string;
 };
 
+const SUBMISSION_MANAGEMENT_CAMPAIGN_LIMIT = 200;
+
 function currency(amount: number) {
   return `₦${amount.toLocaleString()}`;
 }
@@ -53,10 +55,9 @@ export default function SubmissionManagementCampaignsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [campaignSnap, submissionsSnap] = await Promise.all([
-        getDocs(query(collection(db, "campaigns"), orderBy("createdAt", "desc"))),
-        getDocs(collection(db, "earnerSubmissions")),
-      ]);
+      const campaignSnap = await getDocs(
+        query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_CAMPAIGN_LIMIT))
+      );
 
       setCampaigns(
         campaignSnap.docs.map((doc) => {
@@ -77,16 +78,7 @@ export default function SubmissionManagementCampaignsPage() {
         })
       );
 
-      setSubmissions(
-        submissionsSnap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            campaignId: String(data.campaignId || ""),
-            status: String(data.status || ""),
-          };
-        })
-      );
+      setSubmissions([]);
       setLoading(false);
     };
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, doc, getDoc } from "firebase/firestore";
+import { collection, limit, onSnapshot, query, where, doc, getDoc } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WithdrawDialog } from '@/components/withdraw-dialog';
@@ -73,7 +73,7 @@ export default function AdvertiserTransactionsPage() {
     }
 
     // Get transaction history - exclude failed transactions
-    const txQ = query(collection(db, "advertiserTransactions"), where("userId", "==", u.uid), where("status", "!=", "failed"));
+    const txQ = query(collection(db, "advertiserTransactions"), where("userId", "==", u.uid), where("status", "!=", "failed"), limit(250));
     const unsubTx = onSnapshot(txQ, (snap) => {
       const txs = snap.docs.map((d) => {
         const data = d.data();
@@ -111,7 +111,7 @@ export default function AdvertiserTransactionsPage() {
     })()
 
     // subscribe to withdrawals statuses
-    const qW = query(collection(db, 'advertiserWithdrawals'), where('userId','==', u.uid));
+    const qW = query(collection(db, 'advertiserWithdrawals'), where('userId','==', u.uid), limit(150));
     const unsubW = onSnapshot(qW, (snap) => {
       const map: Record<string,string> = {};
       snap.docs.forEach((d) => {

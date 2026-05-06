@@ -10,6 +10,7 @@ import {
   collection,
   doc,
   getDoc,
+  limit,
   onSnapshot,
   query,
   where,
@@ -159,7 +160,7 @@ export default function EarnerDashboard() {
 
       // Withdrawals
       const unsubWithdraws = onSnapshot(
-        query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid)),
+        query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150)),
         (snap) => {
           const data = snap.docs.map((d) => {
             const dat = d.data() as Partial<WithdrawRecord>;
@@ -176,7 +177,7 @@ export default function EarnerDashboard() {
 
       // Campaign submissions (use earnerSubmissions collection to reflect actual submitted/approved/rejected statuses)
       const unsubSubmissions = onSnapshot(
-        query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid)),
+        query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250)),
         (snap) => {
           type Sub = { id: string; status?: string }
           const subs: Sub[] = snap.docs.map((d) => {
@@ -200,7 +201,7 @@ export default function EarnerDashboard() {
 
       // Transactions (compute total earned from earnerTransactions)
       const unsubTx = onSnapshot(
-        query(collection(db, "earnerTransactions"), where("userId", "==", u.uid)),
+        query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250)),
         (snap) => {
           type Tx = { id: string; amount?: number; type?: string }
           const txs: Tx[] = snap.docs.map((d) => {
@@ -216,7 +217,7 @@ export default function EarnerDashboard() {
 
       // Referrals
       const unsubReferrals = onSnapshot(
-        query(collection(db, "referrals"), where("referrerId", "==", u.uid)),
+        query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250)),
         (snap) => {
           const totalReferrals = snap.size
           let completedReferrals = 0

@@ -23,7 +23,7 @@ import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
 import { auth, db } from "@/lib/firebase";
 import { normalizeAdminLoginEmail } from "@/lib/admin-auth";
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch, getCountFromServer } from "firebase/firestore";
 import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
@@ -160,16 +160,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     })();
   }, []);
 
-  // subscribe to unread admin notifications
+  // Load unread count with an aggregation query so the admin shell does not
+  // listen to every unread notification document on every page.
   useEffect(() => {
     const unreadQ = query(collection(db, "adminNotifications"), where("read", "==", false));
-    const unsubUnread = onSnapshot(unreadQ, (snap) => setUnreadCount(snap.size || 0), (err) => console.error('adminNotifications listen failed', err));
+    void getCountFromServer(unreadQ)
+      .then((snap) => setUnreadCount(snap.data().count || 0))
+      .catch((err) => console.error('adminNotifications count failed', err));
 
     // Also keep a small recent list for the bell dropdown
     const recentQ = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"), limit(6));
     const unsubRecent = onSnapshot(recentQ, (snap) => setRecentNotes(snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) } as AdminNotification))), (err) => console.error('adminNotifications recent listen failed', err));
 
-    return () => { unsubUnread(); unsubRecent(); };
+    return () => { unsubRecent(); };
   }, []);
 
   // close dropdown on outside click

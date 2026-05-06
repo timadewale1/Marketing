@@ -14,7 +14,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import { doc, getDoc, getDocs, collection, orderBy, query, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, limit, orderBy, query, where } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -140,14 +140,16 @@ export default function ClientCampaignDetail({ id }: Props) {
           query(
             collection(db, "earnerSubmissions"),
             where("campaignId", "==", id),
-            orderBy("createdAt", "desc")
+            orderBy("createdAt", "desc"),
+            limit(250)
           )
         );
         const transactionsSnap = await getDocs(
           query(
             collection(db, "advertiserTransactions"),
             where("campaignId", "==", id),
-            orderBy("createdAt", "desc")
+            orderBy("createdAt", "desc"),
+            limit(150)
           )
         );
 

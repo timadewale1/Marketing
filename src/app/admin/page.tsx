@@ -8,7 +8,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { collection, getDocs, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,21 +77,21 @@ export default function Page() {
       setLoading(true);
       try {
         const [
-          earnersSnap,
-          advertisersSnap,
-          campaignsSnap,
+          earnersCountSnap,
+          advertisersCountSnap,
+          campaignsCountSnap,
           pendingSubmissionsSnap,
           pendingWithdrawalsSnap,
           unreadMessagesSnap,
           advertiserTransactionsSnap,
         ] = await Promise.all([
-          getDocs(collection(db, "earners")),
-          getDocs(collection(db, "advertisers")),
-          getDocs(collection(db, "campaigns")),
-          getDocs(query(collection(db, "earnerSubmissions"), where("status", "==", "Pending"))),
-          getDocs(query(collection(db, "earnerWithdrawals"), where("status", "==", "pending"))),
-          getDocs(query(collection(db, "contactMessages"), where("status", "==", "unread"))),
-          getDocs(query(collection(db, "advertiserTransactions"), where("type", "==", "campaign_payment"))),
+          getCountFromServer(collection(db, "earners")),
+          getCountFromServer(collection(db, "advertisers")),
+          getCountFromServer(collection(db, "campaigns")),
+          getCountFromServer(query(collection(db, "earnerSubmissions"), where("status", "==", "Pending"))),
+          getCountFromServer(query(collection(db, "earnerWithdrawals"), where("status", "==", "pending"))),
+          getCountFromServer(query(collection(db, "contactMessages"), where("status", "==", "unread"))),
+          getDocs(query(collection(db, "advertiserTransactions"), where("type", "==", "campaign_payment"), limit(500))),
         ]);
 
         const totalTrackedSpend = advertiserTransactionsSnap.docs.reduce((sum, docItem) => {
@@ -100,11 +100,11 @@ export default function Page() {
         }, 0);
 
         setStats({
-          totalUsers: earnersSnap.size + advertisersSnap.size,
-          totalCampaigns: campaignsSnap.size,
-          pendingSubmissions: pendingSubmissionsSnap.size,
-          pendingWithdrawals: pendingWithdrawalsSnap.size,
-          unreadMessages: unreadMessagesSnap.size,
+          totalUsers: earnersCountSnap.data().count + advertisersCountSnap.data().count,
+          totalCampaigns: campaignsCountSnap.data().count,
+          pendingSubmissions: pendingSubmissionsSnap.data().count,
+          pendingWithdrawals: pendingWithdrawalsSnap.data().count,
+          unreadMessages: unreadMessagesSnap.data().count,
           totalTrackedSpend,
         });
       } finally {
@@ -112,69 +112,49 @@ export default function Page() {
       }
     };
 
-    const unsubmissions = onSnapshot(
-      query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(6)),
-      (snap) => {
-        setRecentSubmissions(
-          snap.docs.map((docItem) => {
-            const data = docItem.data();
-            return {
-              id: docItem.id,
-              campaignId: String(data.campaignId || ""),
-              campaignTitle: String(data.campaignTitle || ""),
-              status: String(data.status || ""),
-              createdAtMs: toMillis(data.createdAt),
-            };
-          })
-        );
-      }
-    );
+    const loadRecent = async () => {
+      const [submissionsSnap, withdrawalsSnap, messagesSnap] = await Promise.all([
+        getDocs(query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(6))),
+        getDocs(query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(6))),
+        getDocs(query(collection(db, "contactMessages"), orderBy("createdAt", "desc"), limit(6))),
+      ]);
 
-    const unsubWithdrawals = onSnapshot(
-      query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(6)),
-      (snap) => {
-        setRecentWithdrawals(
-          snap.docs.map((docItem) => {
-            const data = docItem.data();
-            return {
-              id: docItem.id,
-              userId: String(data.userId || ""),
-              amount: Number(data.amount || 0),
-              status: String(data.status || ""),
-              bankName: String(data.bank?.bankName || ""),
-              accountNumber: String(data.bank?.accountNumber || ""),
-            };
-          })
-        );
-      }
-    );
-
-    const unsubMessages = onSnapshot(
-      query(collection(db, "contactMessages"), orderBy("createdAt", "desc"), limit(6)),
-      (snap) => {
-        setRecentMessages(
-          snap.docs.map((docItem) => {
-            const data = docItem.data();
-            return {
-              id: docItem.id,
-              name: String(data.name || ""),
-              email: String(data.email || ""),
-              message: String(data.message || ""),
-              status: String(data.status || ""),
-              createdAtMs: toMillis(data.createdAt),
-            };
-          })
-        );
-      }
-    );
+      setRecentSubmissions(submissionsSnap.docs.map((docItem) => {
+        const data = docItem.data();
+        return {
+          id: docItem.id,
+          campaignId: String(data.campaignId || ""),
+          campaignTitle: String(data.campaignTitle || ""),
+          status: String(data.status || ""),
+          createdAtMs: toMillis(data.createdAt),
+        };
+      }));
+      setRecentWithdrawals(withdrawalsSnap.docs.map((docItem) => {
+        const data = docItem.data();
+        return {
+          id: docItem.id,
+          userId: String(data.userId || ""),
+          amount: Number(data.amount || 0),
+          status: String(data.status || ""),
+          bankName: String(data.bank?.bankName || ""),
+          accountNumber: String(data.bank?.accountNumber || ""),
+        };
+      }));
+      setRecentMessages(messagesSnap.docs.map((docItem) => {
+        const data = docItem.data();
+        return {
+          id: docItem.id,
+          name: String(data.name || ""),
+          email: String(data.email || ""),
+          message: String(data.message || ""),
+          status: String(data.status || ""),
+          createdAtMs: toMillis(data.createdAt),
+        };
+      }));
+    };
 
     load();
-
-    return () => {
-      unsubmissions();
-      unsubWithdrawals();
-      unsubMessages();
-    };
+    loadRecent().catch((error) => console.error("Failed to load recent admin activity", error));
   }, []);
 
   const healthLabel = useMemo(() => {

@@ -10,6 +10,7 @@ import {
   collection,
   query,
   where,
+  limit,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,8 @@ export default function CampaignDetailPage() {
     // Avoid composite-index queries by querying by userId only and filtering client-side
     const userSubmissionsQuery = query(
       collection(db, "earnerSubmissions"),
-      where("userId", "==", userId)
+      where("userId", "==", userId),
+      limit(250)
     );
     const userSubmissionsSnap = await getDocs(userSubmissionsQuery);
     const hasSubmittedForCampaign = userSubmissionsSnap.docs.some((d) => {
@@ -111,7 +113,7 @@ export default function CampaignDetailPage() {
 
     // Then check daily limits separately
     // Check daily limits: query by userId and filter createdAt client-side to avoid index requirements
-    const dailyByUserQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", userId))
+    const dailyByUserQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", userId), limit(250))
     const dailyByUserSnap = await getDocs(dailyByUserQuery)
     const todayTime = today.getTime()
     const submissionsToday = dailyByUserSnap.docs.filter((d) => {
@@ -196,7 +198,7 @@ export default function CampaignDetailPage() {
     console.log("Checking previous submissions...");
     // Check if user has already participated (avoid composite-index queries)
     try {
-      const userSubQ = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid))
+      const userSubQ = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid), limit(250))
       const userSubs = await getDocs(userSubQ)
       const already = userSubs.docs.some((d) => {
         const dd = d.data() as Record<string, unknown>
@@ -290,7 +292,8 @@ export default function CampaignDetailPage() {
       const userSubsSnap = await getDocs(
   query(
     collection(db, "earnerSubmissions"),
-    where("userId", "==", user.uid)
+    where("userId", "==", user.uid),
+    limit(250)
   )
 );
 

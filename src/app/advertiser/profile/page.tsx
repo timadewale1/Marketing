@@ -6,7 +6,7 @@ import {
   collection,
   doc,
   getDocs,
-  onSnapshot,
+  limit,
   query,
   updateDoc,
   where,
@@ -83,7 +83,7 @@ export default function ProfilePage() {
 
       try {
         // ✅ Fetch advertiser by email instead of userId
-        const q = query(collection(db, "advertisers"), where("email", "==", user.email))
+        const q = query(collection(db, "advertisers"), where("email", "==", user.email), limit(1))
         const snap = await getDocs(q)
 
         if (!snap.empty) {
@@ -102,7 +102,7 @@ export default function ProfilePage() {
           })
 
           // ✅ Fetch campaign stats for this advertiser
-          const cQ = query(collection(db, "campaigns"), where("ownerId", "==", user.uid))
+          const cQ = query(collection(db, "campaigns"), where("ownerId", "==", user.uid), limit(200))
           const cSnap = await getDocs(cQ)
           const campaigns = cSnap.docs.map((d) => d.data() as Campaign)
           const total = campaigns.length

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { auth, db } from "@/lib/firebase"
 import {
   collection,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -86,7 +87,8 @@ export default function CampaignsPage() {
     const campaignsQuery = query(
       collection(db, "campaigns"),
       where("ownerId", "==", userId),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(200)
     )
 
     const unsub = onSnapshot(campaignsQuery, (snap) => {
@@ -108,7 +110,8 @@ export default function CampaignsPage() {
 
     const submissionsQuery = query(
       collection(db, "earnerSubmissions"),
-      where("advertiserId", "==", userId)
+      where("advertiserId", "==", userId),
+      limit(500)
     )
 
     const unsub = onSnapshot(submissionsQuery, (snap) => {

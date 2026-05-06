@@ -18,6 +18,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   updateDoc,
@@ -170,28 +171,32 @@ export default function ClientEarnerDetail({ id }: Props) {
             query(
               collection(db, "earnerTransactions"),
               where("userId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(150)
             )
           ),
           getDocs(
             query(
               collection(db, "earnerWithdrawals"),
               where("userId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(100)
             )
           ),
           getDocs(
             query(
               collection(db, "earnerSubmissions"),
               where("userId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(150)
             )
           ),
           getDocs(
             query(
               collection(db, "referrals"),
               where("referrerId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(150)
             )
           ),
         ]);

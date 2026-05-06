@@ -17,6 +17,9 @@ type HomepageDirectAdsProps = {
   variant?: "homepage" | "compact";
 };
 
+const DIRECT_ADS_CACHE_KEY = "pamba-homepage-direct-ads-cache-v1";
+const DIRECT_ADS_CACHE_TTL_MS = 10 * 60 * 1000;
+
 export default function HomepageDirectAds({ variant = "homepage" }: HomepageDirectAdsProps) {
   const [ads, setAds] = useState<HomepageDirectAd[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -25,10 +28,21 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
   useEffect(() => {
     const load = async () => {
       try {
+        const cached = window.sessionStorage.getItem(DIRECT_ADS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as { savedAt?: number; ads?: HomepageDirectAd[] };
+          if (parsed.savedAt && Date.now() - parsed.savedAt < DIRECT_ADS_CACHE_TTL_MS && Array.isArray(parsed.ads)) {
+            setAds(parsed.ads);
+            return;
+          }
+        }
+
         const response = await fetch("/api/homepage-direct-ads", { cache: "no-store" });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) return;
-        setAds(result.ads || []);
+        const nextAds = result.ads || [];
+        setAds(nextAds);
+        window.sessionStorage.setItem(DIRECT_ADS_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), ads: nextAds }));
       } catch (error) {
         console.error("Failed to load homepage direct ads", error);
       }

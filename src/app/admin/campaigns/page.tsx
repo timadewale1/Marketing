@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Search, Sparkles } from "lucide-react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,8 @@ type SubmissionProgressRecord = {
   status: string;
 };
 
+const ADMIN_CAMPAIGN_PAGE_LIMIT = 200;
+
 function toMillis(value: unknown) {
   if (!value) return 0;
   if (typeof value === "object" && value !== null && "seconds" in value) {
@@ -68,10 +70,9 @@ export default function CampaignsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [campaignSnap, submissionsSnap] = await Promise.all([
-        getDocs(query(collection(db, "campaigns"), orderBy("createdAt", "desc"))),
-        getDocs(collection(db, "earnerSubmissions")),
-      ]);
+      const campaignSnap = await getDocs(
+        query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(ADMIN_CAMPAIGN_PAGE_LIMIT))
+      );
       setCampaigns(
         campaignSnap.docs.map((doc) => {
           const data = doc.data();
@@ -91,16 +92,7 @@ export default function CampaignsPage() {
           };
         })
       );
-      setSubmissions(
-        submissionsSnap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            campaignId: String(data.campaignId || ""),
-            status: String(data.status || ""),
-          };
-        })
-      );
+      setSubmissions([]);
       setLoading(false);
     };
 

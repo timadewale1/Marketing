@@ -20,7 +20,10 @@ export async function GET() {
       return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
     }
 
-    const snap = await dbAdmin.collection('homepageDirectAds').get()
+    const snap = await dbAdmin.collection('homepageDirectAds')
+      .orderBy('createdAt', 'desc')
+      .limit(200)
+      .get()
     const ads = snap.docs
       .map((doc) => {
         const data = doc.data() as Record<string, unknown>

@@ -4,9 +4,8 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { auth, db, storage } from "@/lib/firebase"
+import { auth, db } from "@/lib/firebase"
 import { doc, updateDoc, getDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -54,7 +53,6 @@ const industries = [
 export default function AdvertiserOnboarding() {
   const [loading, setLoading] = useState(false)
   const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([])
-  const [open, setOpen] = useState(false)
   const [accountName, setAccountName] = useState("")
   // logo upload removed per request
   const router = useRouter()

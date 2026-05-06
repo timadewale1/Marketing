@@ -86,7 +86,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Task budget has been depleted' }, { status: 400 })
     }
 
-    const userSubmissionsSnap = await db.collection('earnerSubmissions').where('userId', '==', userId).get()
+    const userSubmissionsSnap = await db.collection('earnerSubmissions')
+      .where('userId', '==', userId)
+      .limit(500)
+      .get()
     const alreadySubmitted = userSubmissionsSnap.docs.some((doc) => {
       const data = doc.data() as SubmissionDoc
       return String(data.campaignId || '') === String(campaignId)

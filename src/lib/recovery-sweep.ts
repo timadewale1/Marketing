@@ -125,11 +125,9 @@ export async function runRecoverySweep() {
     source: "recovery-sweep",
   })
 
-  const [earnersSnap, advertisersSnap, pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
-    dbAdmin.collection("earners").get(),
-    dbAdmin.collection("advertisers").get(),
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").get(),
-    dbAdmin.collection("activationAttempts").get(),
+  const [pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
+    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(500).get(),
+    dbAdmin.collection("activationAttempts").limit(500).get(),
   ])
 
   const activationAttemptsByUser = new Map<string, {
@@ -167,10 +165,31 @@ export async function runRecoverySweep() {
 
   const verificationCache = new Map<string, Promise<VerificationState>>()
 
+  const earnerIds = new Set<string>()
+  const advertiserIds = new Set<string>()
+  for (const key of activationAttemptsByUser.keys()) {
+    const [role, userId] = key.split(":")
+    if (role === "earner" && userId) earnerIds.add(userId)
+    if (role === "advertiser" && userId) advertiserIds.add(userId)
+  }
+
+  const fetchUsers = async (role: "earner" | "advertiser", ids: string[]) => {
+    if (ids.length === 0) return []
+    const refs = ids.map((id) => dbAdmin.collection(role === "earner" ? "earners" : "advertisers").doc(id))
+    const snaps = await dbAdmin.getAll(...refs)
+    return snaps.map((doc) => ({ doc, role }))
+  }
+
+  const [earnerDocs, advertiserDocs] = await Promise.all([
+    fetchUsers("earner", Array.from(earnerIds)),
+    fetchUsers("advertiser", Array.from(advertiserIds)),
+  ])
+
   const activationCandidates = (await Promise.all(
-    [...earnersSnap.docs.map((doc) => ({ doc, role: "earner" as const })), ...advertisersSnap.docs.map((doc) => ({ doc, role: "advertiser" as const }))]
+    [...earnerDocs, ...advertiserDocs]
       .map(async ({ doc, role }) => {
-        const data = doc.data()
+        if (!doc.exists) return null
+        const data = doc.data() || {}
         if (data.activated) return null
         const attemptInfo = activationAttemptsByUser.get(`${role}:${doc.id}`)
         const references = normalizeReferences([

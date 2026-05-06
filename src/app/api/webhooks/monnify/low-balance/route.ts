@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       })
 
       // Optionally notify admins
-      const admins = await db.collection('users').where('role', '==', 'admin').get()
+      const admins = await db.collection('users').where('role', '==', 'admin').limit(20).get()
       for (const doc of admins.docs) {
         await db.collection('notifications').add({
           userId: doc.id,

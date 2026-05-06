@@ -16,6 +16,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   updateDoc,
@@ -163,20 +164,22 @@ export default function AdvertiserAdminDetail({
 
         const [campaignsSnap, transactionsSnap, referralsSnap] = await Promise.all([
           getDocs(
-            query(collection(db, "campaigns"), where("ownerId", "==", id), orderBy("createdAt", "desc"))
+            query(collection(db, "campaigns"), where("ownerId", "==", id), orderBy("createdAt", "desc"), limit(150))
           ),
           getDocs(
             query(
               collection(db, "advertiserTransactions"),
               where("userId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(150)
             )
           ),
           getDocs(
             query(
               collection(db, "referrals"),
               where("referrerId", "==", id),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
+              limit(150)
             )
           ),
         ]);
@@ -271,7 +274,8 @@ export default function AdvertiserAdminDetail({
                 query(
                   collection(db, "earnerSubmissions"),
                   where("campaignId", "==", campaign.id),
-                  orderBy("createdAt", "desc")
+                  orderBy("createdAt", "desc"),
+                  limit(80)
                 )
               )
             )

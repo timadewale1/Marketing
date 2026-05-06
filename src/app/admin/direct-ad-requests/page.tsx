@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Megaphone, Search } from "lucide-react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export default function AdminDirectAdRequestsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const snap = await getDocs(query(collection(db, "directAdvertRequests"), orderBy("createdAt", "desc")));
+      const snap = await getDocs(query(collection(db, "directAdvertRequests"), orderBy("createdAt", "desc"), limit(200)));
       setRequests(
         snap.docs.map((doc) => {
           const data = doc.data();

@@ -22,11 +22,11 @@ export async function GET(req: NextRequest) {
     const db = adminSdk.firestore()
 
     // Find referrals for this user as referrer
-    const asReferrer = await db.collection('referrals').where('referrerId', '==', userId).get()
+    const asReferrer = await db.collection('referrals').where('referrerId', '==', userId).limit(500).get()
     console.log(`[referral-debug] User ${userId} as referrer:`, asReferrer.size, 'referrals')
 
     // Find referrals for this user as referred
-    const asReferred = await db.collection('referrals').where('referredId', '==', userId).get()
+    const asReferred = await db.collection('referrals').where('referredId', '==', userId).limit(500).get()
     console.log(`[referral-debug] User ${userId} as referred:`, asReferred.size, 'referrals')
 
     const referrerReferrals = asReferrer.docs.map((doc) => ({

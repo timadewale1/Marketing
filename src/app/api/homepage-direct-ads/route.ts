@@ -18,7 +18,10 @@ export async function GET() {
     }
 
     const now = Date.now()
-    const snap = await dbAdmin.collection('homepageDirectAds').where('status', '==', 'active').get()
+    const snap = await dbAdmin.collection('homepageDirectAds')
+      .where('status', '==', 'active')
+      .limit(30)
+      .get()
 
     const ads = snap.docs
       .map((doc) => {

@@ -3,10 +3,9 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { auth, db } from '@/lib/firebase'
-import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy, Timestamp } from 'firebase/firestore'
+import { collection, query, getDocs, doc, updateDoc, deleteDoc, orderBy, Timestamp, limit } from 'firebase/firestore'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Mail, Trash2, Reply, Check } from 'lucide-react'
@@ -38,22 +37,22 @@ export default function AdminContactMessagesPage() {
         return
       }
 
-      // Check if user is admin
-      const userDoc = doc(db, 'users', u.uid)
       // For now, assume logged-in user can see this (add admin check if needed)
 
-      // Subscribe to contact messages
-      const q = query(collection(db, 'contactMessages'), orderBy('createdAt', 'desc'))
-      const unsubMessages = onSnapshot(q, (snap) => {
+      // Load a bounded inbox snapshot instead of keeping a realtime listener open.
+      const q = query(collection(db, 'contactMessages'), orderBy('createdAt', 'desc'), limit(200))
+      getDocs(q).then((snap) => {
         const msgs = snap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
         })) as ContactMessage[]
         setMessages(msgs)
         setLoading(false)
+      }).catch((error) => {
+        console.error('Failed to load contact messages', error)
+        toast.error('Failed to load contact messages')
+        setLoading(false)
       })
-
-      return () => unsubMessages()
     })
 
     return () => unsub()

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
+import { collection, limit, onSnapshot, query, where, doc } from "firebase/firestore";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { Card } from "@/components/ui/card";
@@ -118,7 +118,7 @@ export default function AvailableCampaignsPage() {
       setActivatingLoading(false);
     }
 
-    const q = query(collection(db, "campaigns"), where("status", "==", "Active"));
+    const q = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(150));
     const unsub = onSnapshot(q, (snap) => {
       const mapped = snap.docs.map((d) => {
         const data = d.data() as Partial<Campaign>;
@@ -150,7 +150,7 @@ export default function AvailableCampaignsPage() {
     let unsubParts: (() => void) | null = null;
     const user = auth.currentUser;
     if (user) {
-      const qParts = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid));
+      const qParts = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid), limit(250));
       type Sub = { campaignId?: string };
       unsubParts = onSnapshot(qParts, (s) => {
         setParticipatedIds(s.docs.map((d) => (d.data() as Sub).campaignId).filter(Boolean) as string[]);

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Copy, CheckCheck } from "lucide-react";
@@ -45,7 +45,7 @@ export default function ReferralsPage() {
       setInviteLink(`https://pambaadverts.com/auth/sign-up?ref=${u.uid}`);
     }
 
-    const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid));
+    const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250));
     const unsub = onSnapshot(q, (snap) => {
       setReferrals(
         snap.docs.map((docItem) => ({
