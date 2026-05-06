@@ -40,7 +40,10 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
-import WhatsAppGroupButton from "@/components/WhatsAppGroupButton"
+import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
+
+const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CItU3jY1oP2GF6wOZA2eKC"
+const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
 
 type WithdrawRecord = {
   id: string
@@ -74,8 +77,31 @@ export default function EarnerDashboard() {
   const [referralStats, setReferralStats] = useState({ totalReferrals: 0, completedReferrals: 0, pendingBonuses: 0, totalReferralEarnings: 0 })
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showEarnerGroupPrompt, setShowEarnerGroupPrompt] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
+
+  useEffect(() => {
+    try {
+      const joined = window.localStorage.getItem(EARNER_WHATSAPP_JOINED_KEY)
+      if (!joined) setShowEarnerGroupPrompt(true)
+    } catch {
+      setShowEarnerGroupPrompt(true)
+    }
+  }, [])
+
+  const dismissEarnerGroupPrompt = () => {
+    setShowEarnerGroupPrompt(false)
+  }
+
+  const markEarnerGroupJoined = () => {
+    setShowEarnerGroupPrompt(false)
+    try {
+      window.localStorage.setItem(EARNER_WHATSAPP_JOINED_KEY, "1")
+    } catch {
+      // ignore storage failures
+    }
+  }
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (u) => {
@@ -470,6 +496,10 @@ export default function EarnerDashboard() {
           </Card>
         </div>
 
+        <div className="mb-10">
+          <HomepageDirectAds variant="compact" />
+        </div>
+
         {/* Campaign Stats Chart Section */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -590,7 +620,37 @@ export default function EarnerDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
-      <WhatsAppGroupButton />
+      {showEarnerGroupPrompt && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-stone-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-amber-200/20 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-7 text-white shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300">Earner Updates</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">
+              Join the earner WhatsApp group for task updates.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-stone-300">
+              Get quick notices, platform reminders, and helpful updates from Pamba. If you do not join now, we will remind you next time you open the dashboard.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={EARNER_WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={markEarnerGroupJoined}
+                className="inline-flex items-center justify-center rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-stone-900 transition hover:bg-amber-300"
+              >
+                Join earner group
+              </a>
+              <button
+                type="button"
+                onClick={dismissEarnerGroupPrompt}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:border-amber-300 hover:text-amber-200"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <WhatsAppChatButton />
     </div>
   )

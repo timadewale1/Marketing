@@ -21,6 +21,7 @@ type Submission = {
   proofUrl?: string;
   proofUrls?: string[];
   note?: string;
+  rejectionReason?: string;
 };
 
 export default function DoneCampaignsPage() {
@@ -64,6 +65,7 @@ export default function DoneCampaignsPage() {
           proofUrl: data.proofUrl,
           proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
           note: data.note,
+          rejectionReason: data.rejectionReason,
         } as Submission;
       });
 
@@ -196,6 +198,11 @@ export default function DoneCampaignsPage() {
                       </div>
 
                       {s.note ? <p className="mt-2 text-sm text-stone-600">{s.note}</p> : null}
+                      {s.status === "Rejected" && s.rejectionReason ? (
+                        <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                          <span className="font-semibold">Rejection reason:</span> {s.rejectionReason}
+                        </div>
+                      ) : null}
 
                       {(s.proofUrls || []).length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-2">

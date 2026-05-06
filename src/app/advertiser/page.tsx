@@ -22,11 +22,13 @@ import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, LayoutDashboard, Wall
 import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
+import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
 
-const ADVERTISER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/F74HRQikOvnDHCIVChjZRw?mode=gi_t"
+const ADVERTISER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/G16JM8Fa8k94BOWI5bbeRP"
+const ADVERTISER_WHATSAPP_JOINED_KEY = "pamba-advertiser-whatsapp-joined"
 
 type Campaign = {
   id: string
@@ -75,8 +77,8 @@ export default function AdvertiserDashboard() {
 
   useEffect(() => {
     try {
-      const dismissed = window.sessionStorage.getItem("pamba-advertiser-whatsapp-dismissed")
-      if (!dismissed) {
+      const joined = window.localStorage.getItem(ADVERTISER_WHATSAPP_JOINED_KEY)
+      if (!joined) {
         setShowAdvertiserGroupPrompt(true)
       }
     } catch {
@@ -86,8 +88,12 @@ export default function AdvertiserDashboard() {
 
   const dismissAdvertiserGroupPrompt = () => {
     setShowAdvertiserGroupPrompt(false)
+  }
+
+  const markAdvertiserGroupJoined = () => {
+    setShowAdvertiserGroupPrompt(false)
     try {
-      window.sessionStorage.setItem("pamba-advertiser-whatsapp-dismissed", "1")
+      window.localStorage.setItem(ADVERTISER_WHATSAPP_JOINED_KEY, "1")
     } catch {
       // ignore storage failures
     }
@@ -553,6 +559,10 @@ export default function AdvertiserDashboard() {
           </div>
         </div>
 
+        <div className="mb-10">
+          <HomepageDirectAds variant="compact" />
+        </div>
+
         {/* Activation banner (if needed) */}
         {ActivationBanner()}
         {showActivationPaymentSelector && (
@@ -707,6 +717,7 @@ export default function AdvertiserDashboard() {
                 href={ADVERTISER_WHATSAPP_GROUP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={markAdvertiserGroupJoined}
                 className="inline-flex items-center justify-center rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-stone-900 transition hover:bg-amber-300"
               >
                 Join advertiser group

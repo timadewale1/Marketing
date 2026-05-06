@@ -12,7 +12,7 @@ import {
   where,
 } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, FileText, Flag, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
 import { auth, db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -68,6 +68,10 @@ type Submission = {
   socialHandle?: string | null
   note?: string | null
   createdAt?: string | null
+  advertiserFlagStatus?: string
+  advertiserFlagReason?: string | null
+  advertiserFlagReviewDueAt?: string | null
+  advertiserFlagWindowEndsAt?: string | null
 }
 
 export default function CampaignDetailsPage() {
@@ -84,6 +88,8 @@ export default function CampaignDetailsPage() {
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
+  const [flaggingSubmissionId, setFlaggingSubmissionId] = useState<string | null>(null)
+  const [flagReasons, setFlagReasons] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!id) return
@@ -134,6 +140,14 @@ export default function CampaignDetailsPage() {
             note: submissionDoc.data().note ? String(submissionDoc.data().note) : null,
             createdAt: submissionDoc.data().createdAt?.toDate
               ? submissionDoc.data().createdAt.toDate().toISOString()
+              : null,
+            advertiserFlagStatus: String(submissionDoc.data().advertiserFlagStatus || "none"),
+            advertiserFlagReason: submissionDoc.data().advertiserFlagReason ? String(submissionDoc.data().advertiserFlagReason) : null,
+            advertiserFlagReviewDueAt: submissionDoc.data().advertiserFlagReviewDueAt?.toDate
+              ? submissionDoc.data().advertiserFlagReviewDueAt.toDate().toISOString()
+              : null,
+            advertiserFlagWindowEndsAt: submissionDoc.data().advertiserFlagWindowEndsAt?.toDate
+              ? submissionDoc.data().advertiserFlagWindowEndsAt.toDate().toISOString()
               : null,
           }))
 
@@ -292,6 +306,38 @@ export default function CampaignDetailsPage() {
       toast.error(error instanceof Error ? error.message : "Failed to update task")
     } finally {
       setSavingDetails(false)
+    }
+  }
+
+  const handleFlagSubmission = async (submission: Submission) => {
+    const user = auth.currentUser
+    if (!user) return toast.error("Please sign in again to continue")
+    const reason = (flagReasons[submission.id] || "").trim()
+    if (reason.length < 10) {
+      return toast.error("Please add a clear reason before flagging this proof.")
+    }
+
+    setFlaggingSubmissionId(submission.id)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch("/api/advertiser/submissions/flag", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ submissionId: submission.id, reason }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to flag submission")
+      }
+      setFlagReasons((current) => ({ ...current, [submission.id]: "" }))
+      toast.success("Proof flagged for admin review")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to flag submission")
+    } finally {
+      setFlaggingSubmissionId(null)
     }
   }
 
@@ -666,6 +712,46 @@ export default function CampaignDetailsPage() {
                     ) : null}
                     {submission.note ? (
                       <p className="text-sm text-stone-600">{submission.note}</p>
+                    ) : null}
+                    {submission.advertiserFlagStatus === "pending" ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-semibold">Flag sent to admin for final review.</p>
+                        <p className="mt-1">{submission.advertiserFlagReason}</p>
+                        {submission.advertiserFlagReviewDueAt ? (
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
+                            Admin review target: {new Date(submission.advertiserFlagReviewDueAt).toLocaleString()}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : submission.advertiserFlagStatus === "upheld" || submission.advertiserFlagStatus === "overruled" ? (
+                      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+                        Your flag {submission.advertiserFlagStatus === "upheld" ? "was upheld" : "was overruled"} by final admin review.
+                      </div>
+                    ) : null}
+                    {submission.status === "Pending" && submission.advertiserFlagStatus !== "pending" ? (
+                      <div className="space-y-2 rounded-2xl border border-stone-200 bg-white p-3">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
+                          <Flag size={15} />
+                          Flag for admin review
+                        </div>
+                        <Textarea
+                          value={flagReasons[submission.id] || ""}
+                          onChange={(event) => setFlagReasons((current) => ({ ...current, [submission.id]: event.target.value }))}
+                          placeholder="Explain which instruction was not followed. Admin will make the final decision."
+                          className="min-h-[82px] rounded-2xl border-stone-200 bg-stone-50"
+                        />
+                        <p className="text-xs text-stone-500">
+                          Please only flag if the proof does not reasonably match the task. Repeated unsupported flags can limit flagging access.
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-amber-300 text-amber-800 hover:bg-amber-50"
+                          disabled={flaggingSubmissionId === submission.id}
+                          onClick={() => handleFlagSubmission(submission)}
+                        >
+                          {flaggingSubmissionId === submission.id ? "Flagging..." : "Flag proof"}
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">

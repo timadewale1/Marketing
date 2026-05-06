@@ -116,6 +116,7 @@ export async function POST(req: Request) {
     }
 
     let createdSubmissionId = ''
+    const flagWindowEndsAt = new Date(Date.now() + 12 * 60 * 60 * 1000)
     await db.runTransaction(async (transaction) => {
       const freshCampaignSnap = await transaction.get(campaignRef)
       if (!freshCampaignSnap.exists) {
@@ -157,6 +158,11 @@ export async function POST(req: Request) {
         reviewedAt: null,
         reviewedBy: null,
         rejectionReason: null,
+        advertiserFlagStatus: 'none',
+        advertiserFlagReason: null,
+        advertiserFlaggedAt: null,
+        advertiserFlagReviewDueAt: null,
+        advertiserFlagWindowEndsAt: flagWindowEndsAt,
       })
 
       const noteRef = db.collection('adminNotifications').doc()

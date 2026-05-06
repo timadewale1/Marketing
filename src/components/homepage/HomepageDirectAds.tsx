@@ -13,7 +13,11 @@ type HomepageDirectAd = {
   mediaUrl: string;
 };
 
-export default function HomepageDirectAds() {
+type HomepageDirectAdsProps = {
+  variant?: "homepage" | "compact";
+};
+
+export default function HomepageDirectAds({ variant = "homepage" }: HomepageDirectAdsProps) {
   const [ads, setAds] = useState<HomepageDirectAd[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -52,7 +56,7 @@ export default function HomepageDirectAds() {
   if (ads.length === 0) return null;
 
   return (
-    <section className="homepage-direct-ads-shell">
+    <section className={`homepage-direct-ads-shell ${variant === "compact" ? "homepage-direct-ads-shell--compact" : ""}`}>
       <style>{`
         .homepage-direct-ads-shell {
           background: linear-gradient(180deg, #1c1917 0%, #292524 100%);
@@ -194,6 +198,44 @@ export default function HomepageDirectAds() {
           .homepage-direct-ads-card {
             width: min(82vw, 280px);
           }
+        }
+        .homepage-direct-ads-shell--compact {
+          border-radius: 28px;
+          padding: 24px 0 18px;
+          box-shadow: 0 28px 70px -42px rgba(28,25,23,0.65);
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-inner {
+          padding: 0 18px;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-heading {
+          margin-bottom: 16px;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-kicker {
+          font-size: 0.66rem;
+          letter-spacing: 0.22em;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-title {
+          font-size: clamp(1.1rem, 1.5vw, 1.45rem);
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-sub {
+          font-size: 0.82rem;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-card {
+          width: min(58vw, 240px);
+          border-radius: 20px;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-content {
+          padding: 14px;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-writeup {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          font-size: 0.82rem;
+        }
+        .homepage-direct-ads-shell--compact .homepage-direct-ads-meta {
+          font-size: 0.78rem;
         }
       `}</style>
 

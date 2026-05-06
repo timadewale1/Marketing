@@ -30,6 +30,10 @@ type Submission = {
   status: string;
   earnerPrice: number;
   createdAtMs: number;
+  advertiserFlagStatus: string;
+  advertiserFlagReason: string;
+  advertiserFlagReviewDueAtMs: number;
+  rejectionReason: string;
 };
 
 function toMillis(value: unknown) {
@@ -69,6 +73,10 @@ export default function SubmissionManagementSubmissionsPage() {
             status: String(data.status || ""),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
+            advertiserFlagStatus: String(data.advertiserFlagStatus || "none"),
+            advertiserFlagReason: String(data.advertiserFlagReason || ""),
+            advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
+            rejectionReason: String(data.rejectionReason || ""),
           };
         })
       );
@@ -103,6 +111,18 @@ export default function SubmissionManagementSubmissionsPage() {
 
   const markProofStatus = async (submission: Submission, status: "Verified" | "Rejected") => {
     try {
+      const rejectionReason =
+        status === "Rejected"
+          ? window.prompt(
+              "Enter the exact rejection reason the earner should see:",
+              submission.advertiserFlagReason || submission.rejectionReason || ""
+            )?.trim()
+          : "";
+      if (status === "Rejected" && !rejectionReason) {
+        toast.error("Please add a clear rejection reason before rejecting.");
+        return;
+      }
+
       setProcessingId(submission.id);
       const response = await fetch("/api/submissionmanagement/submissions/review", {
         method: "POST",
@@ -113,13 +133,28 @@ export default function SubmissionManagementSubmissionsPage() {
           action: status,
           userId: submission.userId,
           campaignId: submission.campaignId,
+          rejectionReason,
         }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Failed to update submission");
       }
-      setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, status } : item));
+      setSubmissions((current) => current.map((item) =>
+        item.id === submission.id
+          ? {
+              ...item,
+              status,
+              rejectionReason: rejectionReason || "",
+              advertiserFlagStatus:
+                submission.advertiserFlagStatus === "pending"
+                  ? status === "Verified"
+                    ? "overruled"
+                    : "upheld"
+                  : submission.advertiserFlagStatus,
+            }
+          : item
+      ));
       toast.success(`Submission marked ${status.toLowerCase()}`);
     } catch (error) {
       console.error("Failed to update submission", error);
@@ -188,6 +223,26 @@ export default function SubmissionManagementSubmissionsPage() {
                     </div>
                     <p className="text-sm text-stone-500">{submission.category} • {currency(submission.earnerPrice)} • Earner {submission.userId}</p>
                     {submission.note ? <p className="text-sm leading-6 text-stone-600">{submission.note}</p> : null}
+                    {submission.advertiserFlagStatus === "pending" ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-semibold">Advertiser flagged this proof for review.</p>
+                        <p className="mt-1">{submission.advertiserFlagReason}</p>
+                        {submission.advertiserFlagReviewDueAtMs ? (
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
+                            Review target: {new Date(submission.advertiserFlagReviewDueAtMs).toLocaleString()}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : submission.advertiserFlagStatus === "overruled" || submission.advertiserFlagStatus === "upheld" ? (
+                      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+                        Advertiser flag {submission.advertiserFlagStatus === "upheld" ? "was upheld" : "was overruled"} by final review.
+                      </div>
+                    ) : null}
+                    {submission.status === "Rejected" && submission.rejectionReason ? (
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                        <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
+                      </div>
+                    ) : null}
                     <p className="text-xs uppercase tracking-[0.24em] text-stone-400">{submission.createdAtMs ? new Date(submission.createdAtMs).toLocaleString() : "Unknown date"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">

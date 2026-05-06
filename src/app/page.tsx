@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 import BillsCard from "@/components/bills/BillsCard";
 import WhatsAppChatButton from "@/components/WhatsAppChatButton";
-import WhatsAppGroupButton, { WHATSAPP_GROUP_URL } from "@/components/WhatsAppGroupButton";
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds";
+
+const HOMEPAGE_TELEGRAM_URL = "https://t.me/pambaadvertisement";
+const HOMEPAGE_TELEGRAM_JOINED_KEY = "pamba-home-telegram-joined";
 
 // ─── Social Media SVG Icons ───────────────────────────────────────────────────
 const FacebookIcon = () => (
@@ -110,8 +112,8 @@ export default function PAMBALanding() {
 
   useEffect(() => {
     try {
-      const dismissed = window.sessionStorage.getItem("pamba-home-welcome-dismissed");
-      if (!dismissed) {
+      const joined = window.localStorage.getItem(HOMEPAGE_TELEGRAM_JOINED_KEY);
+      if (!joined) {
         setShowWelcomePrompt(true);
       }
     } catch {
@@ -121,10 +123,14 @@ export default function PAMBALanding() {
 
   const dismissWelcomePrompt = () => {
     setShowWelcomePrompt(false);
+  };
+
+  const markTelegramJoined = () => {
+    setShowWelcomePrompt(false);
     try {
-      window.sessionStorage.setItem("pamba-home-welcome-dismissed", "1");
+      window.localStorage.setItem(HOMEPAGE_TELEGRAM_JOINED_KEY, "1");
     } catch {
-      // ignore session storage failures
+      // ignore storage failures
     }
   };
 
@@ -780,20 +786,20 @@ export default function PAMBALanding() {
         <div className="welcome-modal-backdrop">
           <div className="welcome-modal">
             <div className="welcome-modal-kicker">Welcome To Pamba</div>
-            <h2 className="welcome-modal-title">Join the Pamba WhatsApp group for updates.</h2>
+            <h2 className="welcome-modal-title">Join the Pamba Telegram channel for updates.</h2>
             <p className="welcome-modal-copy">
               We share important platform updates, opportunities, and announcements there so you do
               not miss anything useful.
             </p>
             <div className="welcome-modal-actions">
               <a
-                href={WHATSAPP_GROUP_URL}
+                href={HOMEPAGE_TELEGRAM_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="btn-primary-lg"
-                onClick={dismissWelcomePrompt}
+                onClick={markTelegramJoined}
               >
-                Join WhatsApp Group
+                Join Telegram Channel
               </a>
               <button type="button" className="welcome-modal-secondary" onClick={dismissWelcomePrompt}>
                 Continue to homepage
@@ -1109,7 +1115,6 @@ export default function PAMBALanding() {
         </div>
       </footer>
       <WhatsAppChatButton />
-            <WhatsAppGroupButton />
 
     </>
   );

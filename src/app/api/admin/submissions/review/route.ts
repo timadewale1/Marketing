@@ -106,10 +106,12 @@ export async function POST(req: Request): Promise<Response> {
         const fullAmount = earnerAmount * 2
         const reservedAmount = Number(submission.reservedAmount || 0)
         const advertiserId = submission.advertiserId || campaign.ownerId
+        const flagPending = String(submission.advertiserFlagStatus || '') === 'pending'
         let reservedBudgetAdjustment = 0
         let reservedToConsume = 0
         let budgetToConsume = 0
         let remainingToCover = 0
+        let advertiserUnfoundedFlags = 0
 
         if (reservedAmount > 0) {
           const pendingSnap = await t.get(
@@ -148,6 +150,11 @@ export async function POST(req: Request): Promise<Response> {
           throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
         }
 
+        if (flagPending && advertiserId) {
+          const advertiserFlagSnap = await t.get(adminDb.collection('advertisers').doc(String(advertiserId)))
+          advertiserUnfoundedFlags = Number(advertiserFlagSnap.data()?.unfoundedSubmissionFlags || 0)
+        }
+
         // 1) Update submission (add updatedAt to ensure clients pick up change)
         t.update(subRef, {
           status: 'Verified',
@@ -158,6 +165,14 @@ export async function POST(req: Request): Promise<Response> {
           proofCleanupStatus: 'scheduled',
           proofsDeletedAt: null,
           updatedAt: now,
+          finalDecisionAt: now,
+          finalDecisionBy: adminUid,
+          finalDecisionSource: 'admin',
+          ...(flagPending ? {
+            advertiserFlagStatus: 'overruled',
+            advertiserFlagReviewedAt: now,
+            advertiserFlagDecision: 'approved_by_admin',
+          } : {}),
         })
 
         if (prevStatus === 'Rejected') {
@@ -272,6 +287,14 @@ export async function POST(req: Request): Promise<Response> {
           if (remainingToCover > 0) {
             advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
           }
+          if (flagPending) {
+            advertiserUpdates.unfoundedSubmissionFlags = admin.firestore.FieldValue.increment(1)
+            if (advertiserUnfoundedFlags + 1 >= 5) {
+              advertiserUpdates.flaggingRestricted = true
+              advertiserUpdates.flaggingRestrictedAt = now
+              advertiserUpdates.flaggingRestrictionReason = 'Repeated submission flags were overruled by admin review'
+            }
+          }
           t.update(adminDb.collection('advertisers').doc(advertiserId), advertiserUpdates)
         }
       } else if (action === 'Rejected') {
@@ -300,6 +323,11 @@ export async function POST(req: Request): Promise<Response> {
         // compute earnerAmount/fullAmount (prefer submission, fall back to campaign costPerLead)
         let earnerAmount = Number(submission.earnerPrice || 0)
         let fullAmount = earnerAmount * 2
+        const flagPending = String(submission.advertiserFlagStatus || '') === 'pending'
+        const finalRejectionReason = String(rejectionReason || submission.advertiserFlagReason || '').trim()
+        if (!finalRejectionReason) {
+          throw new Error('A clear rejection reason is required so the earner can see what went wrong.')
+        }
         if ((!earnerAmount || earnerAmount === 0) && campaign) {
           const costPerLeadTmp = Number(campaign.costPerLead || 0)
           if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
@@ -311,11 +339,19 @@ export async function POST(req: Request): Promise<Response> {
           status: 'Rejected',
           reviewedAt: now,
           reviewedBy: adminUid,
-          rejectionReason: rejectionReason || null,
+          rejectionReason: finalRejectionReason,
           proofCleanupEligibleAt: cleanupEligibleAt,
           proofCleanupStatus: 'scheduled',
           proofsDeletedAt: null,
           updatedAt: now,
+          finalDecisionAt: now,
+          finalDecisionBy: adminUid,
+          finalDecisionSource: 'admin',
+          ...(flagPending ? {
+            advertiserFlagStatus: 'upheld',
+            advertiserFlagReviewedAt: now,
+            advertiserFlagDecision: 'rejected_by_admin',
+          } : {}),
         })
 
         const nextStrikeCount = currentStrikeCount + 1
@@ -336,9 +372,16 @@ export async function POST(req: Request): Promise<Response> {
             email: earnerEmail,
             name: earnerName,
             strikeCount: nextStrikeCount,
-            reason: rejectionReason || null,
+            reason: finalRejectionReason,
             suspended: shouldSuspend,
           }
+        }
+
+        if (flagPending && advertiserId) {
+          t.set(adminDb.collection('advertisers').doc(String(advertiserId)), {
+            upheldSubmissionFlags: admin.firestore.FieldValue.increment(1),
+            lastSubmissionFlagUpheldAt: now,
+          }, { merge: true })
         }
 
         if (wasVerified && earnerAmount > 0) {
