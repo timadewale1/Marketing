@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions/v1";
+import { onSchedule } from "firebase-functions/scheduler";
 
 admin.initializeApp();
 
@@ -41,10 +41,10 @@ async function callInternalRoute(path: string) {
   return payload;
 }
 
-export const autoVerifySubmissions = functions.pubsub.schedule("every 60 minutes").onRun(async () => {
+export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => {
   await callInternalRoute("/api/internal/auto-verify-submissions");
 });
 
-export const retryPendingMonnifyPayments = functions.pubsub.schedule("every 5 minutes").onRun(async () => {
+export const retryPendingMonnifyPayments = onSchedule("every 5 minutes", async () => {
   await callInternalRoute("/api/internal/recovery-sweep");
 });
