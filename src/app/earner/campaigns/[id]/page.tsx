@@ -12,7 +12,7 @@ import {
   where,
   limit,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,19 @@ type EarnerData = {
   status?: string;
   strikeCount?: number;
   activated?: boolean;
+};
+
+const MAX_PROOF_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+const MAX_TOTAL_PROOF_SIZE_BYTES = 40 * 1024 * 1024;
+const PROOF_UPLOAD_TIMEOUT_MS = 2 * 60 * 1000;
+const SUBMISSION_REQUEST_TIMEOUT_MS = 60 * 1000;
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 };
 
 export default function CampaignDetailPage() {
@@ -172,6 +185,43 @@ export default function CampaignDetailPage() {
     })();
   }, [id, router]);
 
+  useEffect(() => {
+    if (!submitting || typeof window === "undefined") return;
+
+    const lockedUrl = window.location.href;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const handlePopState = () => {
+      window.history.pushState({ submissionLocked: true }, "", lockedUrl);
+      toast.error("Please wait until your submission finishes.");
+    };
+
+    const handleAnchorClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a[href]");
+      if (!anchor) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      toast.error("Please wait until your submission finishes.");
+    };
+
+    window.history.pushState({ submissionLocked: true }, "", lockedUrl);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+    document.addEventListener("click", handleAnchorClick, true);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+      document.removeEventListener("click", handleAnchorClick, true);
+    };
+  }, [submitting]);
+
   const handleFileSelect = (index: number, selectedFile: File | null) => {
     if (!selectedFile) return;
     setProofSlots((current) =>
@@ -188,9 +238,33 @@ export default function CampaignDetailPage() {
 
   const uploadProofFile = async (file: File, uid: string) => {
     const storageRef = ref(storage, `earnerSubmissions/${uid}/${Date.now()}-${file.name}`);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-    return url;
+
+    return new Promise<string>((resolve, reject) => {
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      const timeoutId = window.setTimeout(() => {
+        uploadTask.cancel();
+        reject(new Error(`Proof upload timed out for ${file.name}. Please try a smaller file or a stronger network.`));
+      }, PROOF_UPLOAD_TIMEOUT_MS);
+
+      uploadTask.on(
+        "state_changed",
+        undefined,
+        (error) => {
+          window.clearTimeout(timeoutId);
+          reject(error);
+        },
+        async () => {
+          window.clearTimeout(timeoutId);
+
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
   };
 
   const submitParticipation = async () => {
@@ -235,6 +309,14 @@ export default function CampaignDetailPage() {
     }
     if (files.length > 5) {
       return toast.error("You can upload up to 5 proof files only");
+    }
+    const oversizeFile = files.find((file) => file.size > MAX_PROOF_FILE_SIZE_BYTES);
+    if (oversizeFile) {
+      return toast.error(`${oversizeFile.name} is too large. Keep each proof under ${formatBytes(MAX_PROOF_FILE_SIZE_BYTES)}.`);
+    }
+    const totalProofSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalProofSize > MAX_TOTAL_PROOF_SIZE_BYTES) {
+      return toast.error(`Your total proof size is too large. Keep all proofs under ${formatBytes(MAX_TOTAL_PROOF_SIZE_BYTES)}.`);
     }
 
   // For social tasks, also require the social handle
@@ -335,6 +417,8 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
       console.log("Creating submission document...");
       try {
         const idToken = await user.getIdToken()
+        const controller = new AbortController()
+        const timeoutId = window.setTimeout(() => controller.abort(), SUBMISSION_REQUEST_TIMEOUT_MS)
         const res = await fetch('/api/earner/submissions', {
           method: 'POST',
           headers: {
@@ -348,7 +432,8 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             note: note || null,
             socialHandle: socialHandle || null,
           }),
-        })
+          signal: controller.signal,
+        }).finally(() => window.clearTimeout(timeoutId))
         const submitData = await res.json().catch(() => ({}))
         if (!res.ok || !submitData?.success) {
           throw new Error(submitData?.message || 'Failed to submit participation')
@@ -357,6 +442,9 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
         router.push("/earner/campaigns/done");
       } catch (submitError) {
         console.error("Error creating submission:", submitError);
+        if (submitError instanceof DOMException && submitError.name === "AbortError") {
+          throw new Error("Submission took too long to finish. Please check your network and try again.");
+        }
         throw submitError; // Re-throw to be caught by outer catch block
       }
     } catch (err) {
@@ -394,7 +482,18 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
       <div className="px-6 py-8 max-w-3xl mx-auto">
         <div className="mb-6 flex items-center gap-3">
-          <Button variant="ghost" onClick={() => router.back()} className="hover:bg-white/20">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (submitting) {
+                toast.error("Please wait until your submission finishes.");
+                return;
+              }
+              router.back();
+            }}
+            disabled={submitting}
+            className="hover:bg-white/20"
+          >
             <ArrowLeft size={16} className="mr-2" /> Back
           </Button>
           <h1 className="text-2xl font-semibold text-stone-800">{campaign.title}</h1>
@@ -839,7 +938,14 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => router.push("/earner/campaigns")}
+                onClick={() => {
+                  if (submitting) {
+                    toast.error("Please wait until your submission finishes.");
+                    return;
+                  }
+                  router.push("/earner/campaigns");
+                }}
+                disabled={submitting}
                 className="hover:bg-stone-100"
               >
                 Cancel
