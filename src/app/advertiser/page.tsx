@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button"
 import { PaymentSelector } from '@/components/payment-selector'
 import Image from "next/image"
 import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, LayoutDashboard, WalletCards, Landmark, Gift, ListChecks, UserCircle } from "lucide-react"
-import { calculateWalletBalances } from '@/lib/wallet'
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
@@ -103,9 +102,6 @@ export default function AdvertiserDashboard() {
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
     let unsubCampaigns: (() => void) | null = null
-    let unsubWithdrawals: (() => void) | null = null
-    let unsubReroutes: (() => void) | null = null
-    let unsubResumed: (() => void) | null = null
     let unsubSubmissions: (() => void) | null = null
 
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
@@ -153,6 +149,19 @@ export default function AdvertiserDashboard() {
 
       // Campaigns
       const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid), limit(200))
+      unsubCampaigns = onSnapshot(q, (snapshot) => {
+        const data: Campaign[] = snapshot.docs.map((campaignDoc) => ({
+          id: campaignDoc.id,
+          ...(campaignDoc.data() as Omit<Campaign, "id">),
+        }))
+        setCampaigns(data)
+        setStats((prev) => ({
+          ...prev,
+          activeCampaigns: data.filter((campaign) => campaign.status === "Active").length,
+          leadsPaidFor: data.reduce((sum, campaign) => sum + (campaign.estimatedLeads || 0), 0),
+        }))
+      })
+
       unsubSubmissions = onSnapshot(
         query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), limit(500)),
         (snapshot) => {
@@ -172,96 +181,6 @@ export default function AdvertiserDashboard() {
           }))
         }
       )
-
-      // Withdrawals
-      const wq = query(collection(db, "withdrawals"), where("userId", "==", u.uid), limit(100))
-      unsubWithdrawals = onSnapshot(wq, () => {
-        // compute balance after we have reroutes/resumed
-      })
-
-      // Reroutes
-      const rq = query(collection(db, "reroutes"), where("userId", "==", u.uid), limit(100))
-      unsubReroutes = onSnapshot(rq, () => {
-        // compute balance after we have withdrawals/resumed
-      })
-
-      // Resumed campaigns
-      const rsq = query(collection(db, "resumedCampaigns"), where("userId", "==", u.uid), limit(100))
-      unsubResumed = onSnapshot(rsq, () => {
-        // compute balance after we have campaigns/withdrawals/reroutes
-      })
-
-      // Instead of individually setting inside each listener above, create a join: listen to campaigns + withdrawals + reroutes + resumed by reading them once and recomputing when any changes.
-      // We'll re-use the campaign listener's snapshot to compute; set up helper refs to current arrays
-  type Withdrawal = { id: string; amount: number; status?: string; createdAt?: unknown }
-  type Reroute = { id: string; reroutes?: { campaignId: string; amount: number }[]; status?: string; createdAt?: unknown }
-  type Resumed = { id: string; amountUsed?: number; status?: string }
-
-      const current = {
-        campaigns: [] as Campaign[],
-        withdrawals: [] as Withdrawal[],
-        reroutes: [] as Reroute[],
-        resumed: [] as Resumed[],
-      }
-
-      // helper to compute when arrays update
-       const recompute = () => {
-         // Recompute derived transaction totals if needed but do not
-         // overwrite the dashboard `stats.balance` which should come
-         // from the advertiser profile (server source-of-truth).
-         calculateWalletBalances(
-           current.campaigns,
-           current.withdrawals,
-           current.reroutes,
-           current.resumed
-         )
-      }
-
-      // wire the existing snapshots to update 'current' and recompute
-      // campaigns handler (replace above inline behaviour)
-        if (unsubCampaigns) {
-        // replace with a fresh onSnapshot that updates current.campaigns and recomputes
-        if (unsubCampaigns) unsubCampaigns()
-        unsubCampaigns = onSnapshot(q, (snapshot) => {
-      current.campaigns = snapshot.docs.map((d) => {
-            const docData = d.data() as Omit<Campaign, 'id'>
-            return { id: d.id, ...docData }
-          })
-          // update stats counts from campaigns
-          setCampaigns(current.campaigns as Campaign[])
-          setStats((prev) => ({
-            ...prev,
-            activeCampaigns: current.campaigns.filter((c) => c.status === "Active").length,
-            leadsPaidFor: current.campaigns.reduce((s, c) => s + (c.estimatedLeads || 0), 0),
-            leadsGenerated: current.campaigns.reduce((s, c) => s + (c.generatedLeads || 0), 0),
-          }))
-          recompute()
-        })
-      }
-
-      if (unsubWithdrawals) {
-        if (unsubWithdrawals) unsubWithdrawals()
-        unsubWithdrawals = onSnapshot(wq, (snap) => {
-          current.withdrawals = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Withdrawal, 'id'>) }))
-          recompute()
-        })
-      }
-
-      if (unsubReroutes) {
-        if (unsubReroutes) unsubReroutes()
-        unsubReroutes = onSnapshot(rq, (snap) => {
-          current.reroutes = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Reroute, 'id'>) }))
-          recompute()
-        })
-      }
-
-      if (unsubResumed) {
-        if (unsubResumed) unsubResumed()
-        unsubResumed = onSnapshot(rsq, (snap) => {
-          current.resumed = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Resumed, 'id'>) }))
-          recompute()
-        })
-      }
     })
 
     return () => {
@@ -269,9 +188,6 @@ export default function AdvertiserDashboard() {
       previousActivatedRef.current = null
       activationReloadedRef.current = false
       if (unsubCampaigns) unsubCampaigns()
-      if (unsubWithdrawals) unsubWithdrawals()
-      if (unsubReroutes) unsubReroutes()
-      if (unsubResumed) unsubResumed()
       if (unsubSubmissions) unsubSubmissions()
       if (unsubProfile) unsubProfile()
     }

@@ -74,6 +74,9 @@ type SubmissionRecord = {
   status: string;
   earnerPrice: number;
   createdAtMs: number;
+  advertiserFlagStatus: string;
+  advertiserFlagReason: string;
+  advertiserFlagReviewDueAtMs: number;
 };
 
 type TransactionRecord = {
@@ -167,6 +170,9 @@ export default function ClientCampaignDetail({ id }: Props) {
             status: String(data.status || ""),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
+            advertiserFlagStatus: String(data.advertiserFlagStatus || "none"),
+            advertiserFlagReason: String(data.advertiserFlagReason || ""),
+            advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
           };
         });
         setSubmissions(submissionRows);
@@ -631,6 +637,21 @@ export default function ClientCampaignDetail({ id }: Props) {
                     </p>
                     {submission.note ? (
                       <p className="text-sm text-stone-600">{submission.note}</p>
+                    ) : null}
+                    {submission.advertiserFlagStatus === "pending" ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        <p className="font-semibold">Advertiser flagged this proof for final admin review.</p>
+                        {submission.advertiserFlagReason ? <p className="mt-1">{submission.advertiserFlagReason}</p> : null}
+                        {submission.advertiserFlagReviewDueAtMs ? (
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
+                            Review target: {new Date(submission.advertiserFlagReviewDueAtMs).toLocaleString()}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : submission.advertiserFlagStatus === "upheld" || submission.advertiserFlagStatus === "overruled" ? (
+                      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+                        Advertiser flag {submission.advertiserFlagStatus === "upheld" ? "was upheld" : "was overruled"} by final admin review.
+                      </div>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">

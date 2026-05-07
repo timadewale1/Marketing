@@ -14,11 +14,13 @@ import {
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   limit,
   orderBy,
   query,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
@@ -101,6 +103,13 @@ function statusTone(status: string) {
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summaryCounts, setSummaryCounts] = useState({
+    totalUsers: 0,
+    totalAdvertisers: 0,
+    totalEarners: 0,
+    activatedUsers: 0,
+    suspendedUsers: 0,
+  });
   const [roleFilter, setRoleFilter] = useState("all");
   const [activationFilter, setActivationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -112,12 +121,27 @@ export default function UsersPage() {
       setLoading(true);
 
       try {
-        const [earnersSnap, advertisersSnap] =
+        const [
+          earnersSnap,
+          advertisersSnap,
+          earnersCountSnap,
+          advertisersCountSnap,
+          activatedEarnersCountSnap,
+          activatedAdvertisersCountSnap,
+          suspendedEarnersCountSnap,
+          suspendedAdvertisersCountSnap,
+        ] =
           await Promise.all([
             getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_LIMIT))),
             getDocs(
               query(collection(db, "advertisers"), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_LIMIT))
             ),
+            getCountFromServer(collection(db, "earners")),
+            getCountFromServer(collection(db, "advertisers")),
+            getCountFromServer(query(collection(db, "earners"), where("activated", "==", true))),
+            getCountFromServer(query(collection(db, "advertisers"), where("activated", "==", true))),
+            getCountFromServer(query(collection(db, "earners"), where("status", "==", "suspended"))),
+            getCountFromServer(query(collection(db, "advertisers"), where("status", "==", "suspended"))),
           ]);
 
         const earners = earnersSnap.docs.map((userDoc) => {
@@ -159,6 +183,13 @@ export default function UsersPage() {
         });
 
         setUsers([...advertisers, ...earners].sort((a, b) => b.createdAtMs - a.createdAtMs));
+        setSummaryCounts({
+          totalUsers: earnersCountSnap.data().count + advertisersCountSnap.data().count,
+          totalAdvertisers: advertisersCountSnap.data().count,
+          totalEarners: earnersCountSnap.data().count,
+          activatedUsers: activatedEarnersCountSnap.data().count + activatedAdvertisersCountSnap.data().count,
+          suspendedUsers: suspendedEarnersCountSnap.data().count + suspendedAdvertisersCountSnap.data().count,
+        });
       } catch (error) {
         console.error("Error fetching users:", error);
         toast.error("Failed to load admin users");
@@ -189,17 +220,15 @@ export default function UsersPage() {
   }, [activationFilter, roleFilter, search, statusFilter, users]);
 
   const stats = useMemo(() => {
-    const advertisers = users.filter((user) => user.role === "advertiser");
-    const earners = users.filter((user) => user.role === "earner");
     return {
-      totalUsers: users.length,
-      totalAdvertisers: advertisers.length,
-      totalEarners: earners.length,
-      activatedUsers: users.filter((user) => user.activated).length,
-      suspendedUsers: users.filter((user) => user.status === "suspended").length,
+      totalUsers: summaryCounts.totalUsers,
+      totalAdvertisers: summaryCounts.totalAdvertisers,
+      totalEarners: summaryCounts.totalEarners,
+      activatedUsers: summaryCounts.activatedUsers,
+      suspendedUsers: summaryCounts.suspendedUsers,
       totalWalletValue: users.reduce((sum, user) => sum + user.balance, 0),
     };
-  }, [users]);
+  }, [summaryCounts, users]);
 
   const updateUserStatus = async (user: AdminUser, nextStatus: string) => {
     try {
@@ -262,7 +291,7 @@ export default function UsersPage() {
         <MetricCard
           label="Wallet balances"
           value={currency(stats.totalWalletValue)}
-          hint="Combined visible balances"
+          hint="Combined balances from the loaded directory snapshot"
           icon={Wallet}
           tone="emerald"
         />

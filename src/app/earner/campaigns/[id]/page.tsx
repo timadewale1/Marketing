@@ -55,6 +55,7 @@ type CampaignData = Omit<Campaign, "id">;
 type EarnerData = {
   status?: string;
   strikeCount?: number;
+  activated?: boolean;
 };
 
 export default function CampaignDetailPage() {
@@ -64,6 +65,7 @@ export default function CampaignDetailPage() {
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [earnerActivated, setEarnerActivated] = useState(true);
 
   // participation fields
   const [note, setNote] = useState("");
@@ -144,7 +146,10 @@ export default function CampaignDetailPage() {
     if (!id) return;
     (async () => {
       try {
-        const snap = await getDoc(doc(db, "campaigns", id));
+        const [snap, user] = await Promise.all([
+          getDoc(doc(db, "campaigns", id)),
+          Promise.resolve(auth.currentUser),
+        ]);
         if (!snap.exists()) {
           toast.error("Task not found");
           router.back();
@@ -152,6 +157,12 @@ export default function CampaignDetailPage() {
         }
         const data = snap.data() as Campaign;
         setCampaign({ ...data, id: snap.id });
+        if (user) {
+          const earnerSnap = await getDoc(doc(db, "earners", user.uid));
+          if (earnerSnap.exists()) {
+            setEarnerActivated(Boolean((earnerSnap.data() as EarnerData).activated));
+          }
+        }
       } catch (err) {
         console.error(err);
         toast.error("Failed to load task");
@@ -810,11 +821,13 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 Submitted participations can take up to 12 hours to be reviewed and approved.
               </p>
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <p className="text-sm text-amber-900">
-                Your first ₦2,000 earned will be used to activate your account automatically. Until then, you can complete tasks but cannot withdraw or use wallet funds for bills.
-              </p>
-            </div>
+            {!earnerActivated ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm text-amber-900">
+                  Your first ₦2,000 earned will be used to activate your account automatically. Until then, you can complete tasks but cannot withdraw or use wallet funds for bills.
+                </p>
+              </div>
+            ) : null}
 
             <div className="flex gap-3 pt-4">
               <Button
