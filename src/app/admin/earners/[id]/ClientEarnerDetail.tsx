@@ -27,6 +27,7 @@ import {
 import toast from "react-hot-toast";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AdminPageHeader,
   EmptyState,
@@ -85,6 +86,7 @@ type Submission = {
   proofUrls: string[];
   earnerPrice: number;
   createdAtMs: number;
+  rejectionReason?: string;
 };
 
 type Referral = {
@@ -135,6 +137,7 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [strikeCount, setStrikeCount] = useState<number>(0);
   const [activationBusy, setActivationBusy] = useState(false);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -241,6 +244,7 @@ export default function ClientEarnerDetail({ id }: Props) {
             proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
+            rejectionReason: String(data.rejectionReason || ""),
           };
         });
         setSubmissions(submissionRows);
@@ -398,6 +402,15 @@ export default function ClientEarnerDetail({ id }: Props) {
 
   const reviewSubmission = async (submission: Submission, action: "Verified" | "Rejected") => {
     try {
+      const rejectionReason =
+        action === "Rejected"
+          ? String(rejectionReasons[submission.id] || submission.rejectionReason || "").trim()
+          : "";
+      if (action === "Rejected" && !rejectionReason) {
+        toast.error("Please add a clear rejection reason before rejecting.");
+        return;
+      }
+
       setActionLoading(`${action}-${submission.id}`);
       const user = auth.currentUser;
       const headers: Record<string, string> = {
@@ -416,6 +429,7 @@ export default function ClientEarnerDetail({ id }: Props) {
           action,
           userId: id,
           campaignId: submission.campaignId,
+          rejectionReason,
         }),
       });
 
@@ -426,9 +440,12 @@ export default function ClientEarnerDetail({ id }: Props) {
 
       setSubmissions((current) =>
         current.map((item) =>
-          item.id === submission.id ? { ...item, status: action } : item
+          item.id === submission.id ? { ...item, status: action, rejectionReason } : item
         )
       );
+      if (action === "Rejected") {
+        setRejectionReasons((current) => ({ ...current, [submission.id]: rejectionReason }));
+      }
       toast.success(`Submission marked ${action.toLowerCase()}`);
     } catch (error) {
       console.error("Submission review failed", error);
@@ -691,6 +708,29 @@ export default function ClientEarnerDetail({ id }: Props) {
                         ? new Date(submission.createdAtMs).toLocaleString()
                         : "Unknown date"}
                     </p>
+                    {submission.status === "Rejected" && submission.rejectionReason ? (
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                        <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
+                      </div>
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Rejection reason
+                        </p>
+                        <Textarea
+                          value={rejectionReasons[submission.id] ?? submission.rejectionReason ?? ""}
+                          onChange={(event) =>
+                            setRejectionReasons((current) => ({
+                              ...current,
+                              [submission.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Explain clearly what the earner did wrong so they can see the exact reason."
+                          className="min-h-[92px] rounded-2xl border-stone-200 bg-white"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {submission.proofUrls.length > 0 ? (

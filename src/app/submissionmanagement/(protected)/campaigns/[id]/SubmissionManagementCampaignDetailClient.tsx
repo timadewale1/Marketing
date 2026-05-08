@@ -18,6 +18,7 @@ import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from "
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AdminPageHeader,
   EmptyState,
@@ -65,6 +66,7 @@ type SubmissionRecord = {
   advertiserFlagStatus: string;
   advertiserFlagReason: string;
   advertiserFlagReviewDueAtMs: number;
+  rejectionReason?: string;
 };
 
 type TransactionRecord = {
@@ -118,6 +120,7 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -143,6 +146,7 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
             advertiserFlagStatus: String(data.advertiserFlagStatus || "none"),
             advertiserFlagReason: String(data.advertiserFlagReason || ""),
             advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
+            rejectionReason: String(data.rejectionReason || ""),
           };
         });
         setSubmissions(submissionRows);
@@ -227,16 +231,33 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
 
   const reviewSubmission = async (submission: SubmissionRecord, action: "Verified" | "Rejected") => {
     try {
+      const rejectionReason =
+        action === "Rejected"
+          ? String(
+              rejectionReasons[submission.id] ||
+              submission.advertiserFlagReason ||
+              submission.rejectionReason ||
+              ""
+            ).trim()
+          : "";
+      if (action === "Rejected" && !rejectionReason) {
+        toast.error("Please add a clear rejection reason before rejecting.");
+        return;
+      }
+
       setActionLoading(`${action}-${submission.id}`);
       const response = await fetch("/api/submissionmanagement/submissions/review", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId: submission.id, action, userId: submission.userId, campaignId: submission.campaignId }),
+        body: JSON.stringify({ submissionId: submission.id, action, userId: submission.userId, campaignId: submission.campaignId, rejectionReason }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.message || "Submission update failed");
-      setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, status: action } : item));
+      setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, status: action, rejectionReason } : item));
+      if (action === "Rejected") {
+        setRejectionReasons((current) => ({ ...current, [submission.id]: rejectionReason }));
+      }
       toast.success(`Submission marked ${action.toLowerCase()}`);
     } catch (error) {
       console.error("Submission review failed", error);
@@ -361,6 +382,29 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
                     ) : submission.advertiserFlagStatus === "upheld" || submission.advertiserFlagStatus === "overruled" ? (
                       <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
                         Advertiser flag {submission.advertiserFlagStatus === "upheld" ? "was upheld" : "was overruled"} by final admin review.
+                      </div>
+                    ) : null}
+                    {submission.status === "Rejected" && submission.rejectionReason ? (
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                        <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
+                      </div>
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Rejection reason
+                        </p>
+                        <Textarea
+                          value={rejectionReasons[submission.id] ?? submission.advertiserFlagReason ?? submission.rejectionReason ?? ""}
+                          onChange={(event) =>
+                            setRejectionReasons((current) => ({
+                              ...current,
+                              [submission.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Explain clearly what the earner did wrong so they can see the exact reason."
+                          className="min-h-[92px] rounded-2xl border-stone-200 bg-white"
+                        />
                       </div>
                     ) : null}
                   </div>

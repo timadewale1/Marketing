@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AdminPageHeader,
@@ -56,6 +57,7 @@ export default function SubmissionManagementSubmissionsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -117,10 +119,12 @@ export default function SubmissionManagementSubmissionsPage() {
     try {
       const rejectionReason =
         status === "Rejected"
-          ? window.prompt(
-              "Enter the exact rejection reason the earner should see:",
-              submission.advertiserFlagReason || submission.rejectionReason || ""
-            )?.trim()
+          ? String(
+              rejectionReasons[submission.id] ||
+              submission.advertiserFlagReason ||
+              submission.rejectionReason ||
+              ""
+            ).trim()
           : "";
       if (status === "Rejected" && !rejectionReason) {
         toast.error("Please add a clear rejection reason before rejecting.");
@@ -159,6 +163,9 @@ export default function SubmissionManagementSubmissionsPage() {
             }
           : item
       ));
+      if (status === "Rejected") {
+        setRejectionReasons((current) => ({ ...current, [submission.id]: rejectionReason }));
+      }
       toast.success(`Submission marked ${status.toLowerCase()}`);
     } catch (error) {
       console.error("Failed to update submission", error);
@@ -245,6 +252,24 @@ export default function SubmissionManagementSubmissionsPage() {
                     {submission.status === "Rejected" && submission.rejectionReason ? (
                       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
                         <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
+                      </div>
+                    ) : null}
+                    {submission.status !== "Rejected" ? (
+                      <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Rejection reason
+                        </p>
+                        <Textarea
+                          value={rejectionReasons[submission.id] ?? submission.advertiserFlagReason ?? submission.rejectionReason ?? ""}
+                          onChange={(event) =>
+                            setRejectionReasons((current) => ({
+                              ...current,
+                              [submission.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Explain clearly what the earner did wrong so they can see the exact reason."
+                          className="min-h-[92px] rounded-2xl border-stone-200 bg-white"
+                        />
                       </div>
                     ) : null}
                     <p className="text-xs uppercase tracking-[0.24em] text-stone-400">{submission.createdAtMs ? new Date(submission.createdAtMs).toLocaleString() : "Unknown date"}</p>

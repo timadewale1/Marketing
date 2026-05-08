@@ -100,6 +100,10 @@ export async function POST(req: Request): Promise<Response> {
           throw new Error('Campaign no longer exists. It was likely deleted after submissions were created, so pending proofs cannot be verified.')
         }
         const campaign = campaignSnap.data() as Campaign
+        const userId = submission.userId as string
+        if (!userId) throw new Error('Submission missing userId')
+        const liveEarnerSnap = await t.get(earnerRef)
+        const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
         const campaignBudget = Number(campaign.budget || 0)
         const campaignReservedBudget = Number(campaign.reservedBudget || 0)
         const earnerAmount = Number(submission.earnerPrice || 0)
@@ -215,10 +219,6 @@ export async function POST(req: Request): Promise<Response> {
         t.update(campaignRef, campaignUpdates)
 
         // 3) Earner transaction + balance
-        const userId = submission.userId as string
-        if (!userId) throw new Error('Submission missing userId')
-        const liveEarnerSnap = await t.get(earnerRef)
-        const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
         const earnerCurrentBalance = Number(liveEarnerData?.balance || 0)
         const earnerIsActivated = Boolean(liveEarnerData?.activated)
         const shouldAutoActivate =
