@@ -42,6 +42,12 @@ export async function POST(req: Request) {
     if (costPerLead > 0 && budget < costPerLead) {
       return NextResponse.json({ success: false, message: 'Budget cannot be less than the task amount' }, { status: 400 })
     }
+    if (costPerLead > 0 && budget % costPerLead !== 0) {
+      return NextResponse.json({
+        success: false,
+        message: `Budget must be in exact multiples of NGN ${costPerLead.toLocaleString()} for this task type`,
+      }, { status: 400 })
+    }
 
     const advertiserRef = db.collection('advertisers').doc(verifiedUid)
     const advertiserSnap = await advertiserRef.get()

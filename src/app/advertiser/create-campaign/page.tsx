@@ -138,8 +138,10 @@ export default function CreateCampaignPage() {
   // derived values
   const numericBudget = typeof budget === "number" ? budget : Number(budget || 0)
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
+  const isBudgetMultiple =
+    numericBudget > 0 && currentCPL > 0 ? numericBudget % currentCPL === 0 : false
   const estimatedLeads =
-    numericBudget > 0 ? Math.floor(numericBudget / currentCPL) : 0
+    numericBudget > 0 && isBudgetMultiple ? Math.floor(numericBudget / currentCPL) : 0
 
   // helper: generate thumbnail for category
   const getThumbnailForCategory = (cat: string) => {
@@ -246,7 +248,7 @@ const compressed = await imageCompression(file, options)
         return externalLink.trim().length > 5
       return true
     }
-    if (step === 2) return numericBudget > 0
+    if (step === 2) return numericBudget > 0 && numericBudget >= currentCPL && isBudgetMultiple
     if (step === 3) {
       // If this is a product campaign require face capture upload and address
       if (category === "Share my Product") {
@@ -258,6 +260,10 @@ const compressed = await imageCompression(file, options)
   }
 
   const minimumBudget = currentCPL
+  const nextValidBudget =
+    numericBudget > 0 && currentCPL > 0
+      ? Math.ceil(numericBudget / currentCPL) * currentCPL
+      : currentCPL
 
   // Verify payment server-side
   const verifyPayment = async (
@@ -321,6 +327,13 @@ const compressed = await imageCompression(file, options)
 
     if (numericBudget < minimumBudget) {
       toast.error(`Budget must be at least NGN ${minimumBudget.toLocaleString()} for this task type`)
+      setLoading(false)
+      payInFlightRef.current = false
+      return
+    }
+
+    if (!isBudgetMultiple) {
+      toast.error(`Budget must be in exact multiples of NGN ${currentCPL.toLocaleString()} for this task type`)
       setLoading(false)
       payInFlightRef.current = false
       return
@@ -835,11 +848,18 @@ const getEmbeddedVideo = (url: string) => {
                   type="number"
                   placeholder="Enter budget in NGN"
                   value={budget}
+                  min={currentCPL}
+                  step={currentCPL}
                   onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <p className="text-xs text-stone-500 mt-1">
                   Cost-per-lead for <b>{category || "selected type"}</b> is NGN {currentCPL.toLocaleString()}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
                 </p>
+                {numericBudget > 0 && !isBudgetMultiple ? (
+                  <p className="mt-2 text-xs text-rose-600">
+                    This task type only allows multiples of NGN {currentCPL.toLocaleString()}. Try NGN {nextValidBudget.toLocaleString()} instead.
+                  </p>
+                ) : null}
               </div>
 
               <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
