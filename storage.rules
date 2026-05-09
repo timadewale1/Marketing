@@ -34,6 +34,11 @@ service firebase.storage {
       allow write: if isSelf(uid);
     }
 
+    match /campaignProofSamples/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
     match /homepage-direct-ads/{allPaths=**} {
       allow read, write: if false;
     }

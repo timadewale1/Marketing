@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Search, Sparkles } from "lucide-react";
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
-import { summarizeCampaignProgress } from "@/lib/campaign-progress";
 
 type Campaign = {
   id: string;
@@ -55,9 +54,19 @@ export default function SubmissionManagementCampaignsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const campaignSnap = await getDocs(
-        query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_CAMPAIGN_LIMIT))
-      );
+      const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
+        getDocs(
+          query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_CAMPAIGN_LIMIT))
+        ),
+        getDocs(
+          query(
+            collection(db, "earnerSubmissions"),
+            where("status", "==", "Pending"),
+            orderBy("createdAt", "desc"),
+            limit(1000)
+          )
+        ),
+      ]);
 
       setCampaigns(
         campaignSnap.docs.map((doc) => {
@@ -78,7 +87,16 @@ export default function SubmissionManagementCampaignsPage() {
         })
       );
 
-      setSubmissions([]);
+      setSubmissions(
+        pendingSubmissionSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            campaignId: String(data.campaignId || ""),
+            status: String(data.status || ""),
+          };
+        })
+      );
       setLoading(false);
     };
 
@@ -167,11 +185,13 @@ export default function SubmissionManagementCampaignsPage() {
             items={filteredCampaigns}
             itemsPerPage={3}
             renderItem={(campaign) => {
-              const progress = summarizeCampaignProgress({
-                target: campaign.targetLeads,
-                generatedLeads: campaign.generatedLeads,
-                submissions: submissions.filter((submission) => submission.campaignId === campaign.id),
-              });
+              const pendingCount = submissions.filter(
+                (submission) => submission.campaignId === campaign.id
+              ).length;
+              const verifiedCount = campaign.generatedLeads;
+              const safeTarget = Math.max(0, campaign.targetLeads || 0);
+              const progressPercent =
+                safeTarget > 0 ? Math.min((verifiedCount / safeTarget) * 100, 100) : 0;
 
               return (
                 <div key={campaign.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(28,25,23,0.6)]">
@@ -204,8 +224,11 @@ export default function SubmissionManagementCampaignsPage() {
                     </div>
                     <div className="rounded-2xl bg-stone-50 p-3">
                       <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Progress</p>
-                      <p className="mt-2 font-semibold text-stone-900">{progress.verified}/{progress.target || 0}</p>
-                      <p className="mt-1 text-xs text-stone-500">{progress.pending} pending</p>
+                      <p className="mt-2 font-semibold text-stone-900">{verifiedCount}/{safeTarget || 0}</p>
+                      <p className="mt-1 text-xs text-stone-500">{pendingCount} pending</p>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${progressPercent}%` }} />
+                      </div>
                     </div>
                   </div>
                 </div>
