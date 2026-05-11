@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { PaginatedCardList } from "@/app/admin/_components/admin-primitives"
 import {
   Select,
   SelectContent,
@@ -692,8 +693,10 @@ export default function CampaignDetailsPage() {
             No proofs matched the current filter.
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredSubmissions.map((submission) => (
+          <PaginatedCardList
+            items={filteredSubmissions}
+            itemsPerPage={5}
+            renderItem={(submission) => (
               <div key={submission.id} className="rounded-2xl border border-stone-200 bg-white/80 p-4">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 space-y-2">
@@ -773,8 +776,8 @@ export default function CampaignDetailsPage() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </Card>
     </div>

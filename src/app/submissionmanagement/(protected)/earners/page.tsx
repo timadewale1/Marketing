@@ -8,17 +8,19 @@ import {
   ShieldAlert,
   Sparkles,
   Users,
-  Wallet,
 } from "lucide-react";
 import {
   collection,
   deleteField,
   doc,
+  DocumentData,
   getCountFromServer,
   getDocs,
   limit,
   orderBy,
   query,
+  QueryDocumentSnapshot,
+  startAfter,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -42,7 +44,7 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 
-const SUBMISSION_MANAGEMENT_EARNER_PAGE_LIMIT = 250;
+const SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE = 50;
 
 type EarnerUser = {
   id: string;
@@ -103,36 +105,70 @@ export default function SubmissionManagementEarnersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
+  const mapEarnerDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): EarnerUser => {
+    const data = userDoc.data();
+    return {
+      id: userDoc.id,
+      name: String(data.name || "Unnamed earner"),
+      email: String(data.email || ""),
+      status: String(data.status || "pending"),
+      activated: Boolean(data.activated),
+      verified: Boolean(data.verified),
+      createdAtMs: toMillis(data.createdAt),
+      balance: Number(data.balance || 0),
+      totalEarned: Number(data.totalEarned || 0),
+      submissionsCount: Number(data.submissionsCount || data.leadsPaidFor || 0),
+    };
+  };
+
+  const buildEarnersQuery = (cursor?: QueryDocumentSnapshot<DocumentData> | null) =>
+    cursor
+      ? query(
+          collection(db, "earners"),
+          orderBy("createdAt", "desc"),
+          startAfter(cursor),
+          limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
+        )
+      : query(
+          collection(db, "earners"),
+          orderBy("createdAt", "desc"),
+          limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
+        );
+
+  const loadMoreEarners = async ({
+    cursor,
+    append,
+  }: {
+    cursor?: QueryDocumentSnapshot<DocumentData> | null;
+    append: boolean;
+  }) => {
+    const snap = await getDocs(buildEarnersQuery(cursor));
+    const rows = snap.docs.map(mapEarnerDoc);
+
+    setEarners((current) => (append ? [...current, ...rows] : rows));
+    setLoadedCount((current) => (append ? current + rows.length : rows.length));
+    setLastVisible(snap.docs.at(-1) ?? null);
+    setHasMore(snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE);
+    return rows;
+  };
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
 
       try {
-        const [earnersSnap, totalCountSnap, activatedCountSnap, suspendedCountSnap] = await Promise.all([
-          getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_LIMIT))),
+        const [totalCountSnap, activatedCountSnap, suspendedCountSnap] = await Promise.all([
           getCountFromServer(collection(db, "earners")),
           getCountFromServer(query(collection(db, "earners"), where("activated", "==", true))),
           getCountFromServer(query(collection(db, "earners"), where("status", "==", "suspended"))),
         ]);
 
-        setEarners(
-          earnersSnap.docs.map((userDoc) => {
-            const data = userDoc.data();
-            return {
-              id: userDoc.id,
-              name: String(data.name || "Unnamed earner"),
-              email: String(data.email || ""),
-              status: String(data.status || "pending"),
-              activated: Boolean(data.activated),
-              verified: Boolean(data.verified),
-              createdAtMs: toMillis(data.createdAt),
-              balance: Number(data.balance || 0),
-              totalEarned: Number(data.totalEarned || 0),
-              submissionsCount: Number(data.submissionsCount || data.leadsPaidFor || 0),
-            };
-          })
-        );
+        await loadMoreEarners({ append: false });
 
         setSummaryCounts({
           totalEarners: totalCountSnap.data().count,
@@ -172,9 +208,58 @@ export default function SubmissionManagementEarnersPage() {
       totalEarners: summaryCounts.totalEarners,
       activatedEarners: summaryCounts.activatedEarners,
       suspendedEarners: summaryCounts.suspendedEarners,
-      totalWalletValue: earners.reduce((sum, earner) => sum + earner.balance, 0),
     };
-  }, [summaryCounts, earners]);
+  }, [summaryCounts]);
+
+  useEffect(() => {
+    if (!search.trim() || filteredEarners.length > 0 || !hasMore || loading || loadingMore) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const keepSearching = async () => {
+      try {
+        setLoadingMore(true);
+        let localHasMore: boolean = hasMore;
+        let cursor = lastVisible;
+        const lowered = search.trim().toLowerCase();
+
+        while (!cancelled && localHasMore) {
+          const snap = await getDocs(buildEarnersQuery(cursor));
+          const rows = snap.docs.map(mapEarnerDoc);
+
+          setEarners((current) => [...current, ...rows]);
+          setLoadedCount((current) => current + rows.length);
+          cursor = snap.docs.at(-1) ?? null;
+          setLastVisible(cursor);
+          localHasMore = snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE;
+          setHasMore(localHasMore);
+
+          const foundMatch = rows.some((earner) =>
+            earner.name.toLowerCase().includes(lowered) ||
+            earner.email.toLowerCase().includes(lowered)
+          );
+
+          if (foundMatch || rows.length === 0) {
+            break;
+          }
+        }
+      } catch (error) {
+        console.error("Error loading more earners for search:", error);
+      } finally {
+        if (!cancelled) {
+          setLoadingMore(false);
+        }
+      }
+    };
+
+    void keepSearching();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredEarners.length, hasMore, lastVisible, loading, loadingMore, search]);
 
   const updateEarnerStatus = async (earner: EarnerUser, nextStatus: string) => {
     try {
@@ -238,13 +323,6 @@ export default function SubmissionManagementEarnersPage() {
           tone="rose"
         />
         <MetricCard
-          label="Wallet balances"
-          value={currency(stats.totalWalletValue)}
-          hint="Combined balances from the loaded earner snapshot"
-          icon={Wallet}
-          tone="emerald"
-        />
-        <MetricCard
           label="Active moderation pool"
           value={stats.totalEarners - stats.suspendedEarners}
           hint="Earners available for review and campaign participation"
@@ -296,7 +374,30 @@ export default function SubmissionManagementEarnersPage() {
 
       <SectionCard
         title="Earner list"
-        description={`${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} matched the current filters.`}
+        description={`${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} matched the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
+        action={
+          hasMore ? (
+            <Button
+              variant="outline"
+              className="rounded-full border-stone-300 bg-white"
+              disabled={loadingMore}
+              onClick={async () => {
+                if (!lastVisible) return;
+                try {
+                  setLoadingMore(true);
+                  await loadMoreEarners({ cursor: lastVisible, append: true });
+                } catch (error) {
+                  console.error("Failed to load more earners", error);
+                  toast.error("Failed to load more earners");
+                } finally {
+                  setLoadingMore(false);
+                }
+              }}
+            >
+              {loadingMore ? "Loading..." : "Load more"}
+            </Button>
+          ) : undefined
+        }
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -341,10 +442,6 @@ export default function SubmissionManagementEarnersPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl bg-stone-50 p-3">
-                        <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Wallet</p>
-                        <p className="mt-2 text-lg font-semibold text-stone-900">{currency(earner.balance)}</p>
-                      </div>
                       <div className="rounded-2xl bg-stone-50 p-3">
                         <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Submissions</p>
                         <p className="mt-2 text-lg font-semibold text-stone-900">{earner.submissionsCount}</p>
