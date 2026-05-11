@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { FileCheck, LayoutList, LogOut } from "lucide-react"
+import { FileCheck, LayoutList, LogOut, Users } from "lucide-react"
 import { signOut } from "firebase/auth"
 import toast from "react-hot-toast"
 import { auth } from "@/lib/firebase"
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 const NAV_ITEMS = [
   { href: "/submissionmanagement/campaigns", label: "Campaigns", icon: LayoutList },
   { href: "/submissionmanagement/submissions", label: "Submissions", icon: FileCheck },
+  { href: "/submissionmanagement/earners", label: "Earners", icon: Users },
 ]
 
 export default function SubmissionManagementShell({ children }: { children: React.ReactNode }) {

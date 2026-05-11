@@ -1,0 +1,399 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  CircleSlash,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Users,
+  Wallet,
+} from "lucide-react";
+import {
+  collection,
+  deleteField,
+  doc,
+  getCountFromServer,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import toast from "react-hot-toast";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AdminPageHeader,
+  EmptyState,
+  MetricCard,
+  PaginatedCardList,
+  SectionCard,
+  StatusBadge,
+} from "@/app/admin/_components/admin-primitives";
+
+const SUBMISSION_MANAGEMENT_EARNER_PAGE_LIMIT = 250;
+
+type EarnerUser = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  activated: boolean;
+  verified: boolean;
+  createdAtMs: number;
+  balance: number;
+  totalEarned: number;
+  submissionsCount: number;
+};
+
+const activationOptions = [
+  { value: "all", label: "All activation" },
+  { value: "activated", label: "Activated" },
+  { value: "inactive", label: "Not activated" },
+];
+
+const statusOptions = [
+  { value: "all", label: "All status" },
+  { value: "active", label: "Active" },
+  { value: "pending", label: "Pending" },
+  { value: "suspended", label: "Suspended" },
+];
+
+function toMillis(value: unknown) {
+  if (!value) return 0;
+  if (typeof value === "object" && value !== null && "seconds" in value) {
+    return Number((value as { seconds?: number }).seconds || 0) * 1000;
+  }
+  if (value instanceof Date) return value.getTime();
+  return 0;
+}
+
+function currency(amount: number) {
+  return `₦${amount.toLocaleString()}`;
+}
+
+function statusTone(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "active") return "green" as const;
+  if (normalized === "pending") return "amber" as const;
+  if (normalized === "suspended") return "red" as const;
+  return "stone" as const;
+}
+
+export default function SubmissionManagementEarnersPage() {
+  const [earners, setEarners] = useState<EarnerUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [summaryCounts, setSummaryCounts] = useState({
+    totalEarners: 0,
+    activatedEarners: 0,
+    suspendedEarners: 0,
+  });
+  const [activationFilter, setActivationFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+
+      try {
+        const [earnersSnap, totalCountSnap, activatedCountSnap, suspendedCountSnap] = await Promise.all([
+          getDocs(query(collection(db, "earners"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_LIMIT))),
+          getCountFromServer(collection(db, "earners")),
+          getCountFromServer(query(collection(db, "earners"), where("activated", "==", true))),
+          getCountFromServer(query(collection(db, "earners"), where("status", "==", "suspended"))),
+        ]);
+
+        setEarners(
+          earnersSnap.docs.map((userDoc) => {
+            const data = userDoc.data();
+            return {
+              id: userDoc.id,
+              name: String(data.name || "Unnamed earner"),
+              email: String(data.email || ""),
+              status: String(data.status || "pending"),
+              activated: Boolean(data.activated),
+              verified: Boolean(data.verified),
+              createdAtMs: toMillis(data.createdAt),
+              balance: Number(data.balance || 0),
+              totalEarned: Number(data.totalEarned || 0),
+              submissionsCount: Number(data.submissionsCount || data.leadsPaidFor || 0),
+            };
+          })
+        );
+
+        setSummaryCounts({
+          totalEarners: totalCountSnap.data().count,
+          activatedEarners: activatedCountSnap.data().count,
+          suspendedEarners: suspendedCountSnap.data().count,
+        });
+      } catch (error) {
+        console.error("Error fetching submission management earners:", error);
+        toast.error("Failed to load earners");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const filteredEarners = useMemo(() => {
+    return earners.filter((earner) => {
+      const searchText = search.trim().toLowerCase();
+      const matchesSearch =
+        !searchText ||
+        earner.name.toLowerCase().includes(searchText) ||
+        earner.email.toLowerCase().includes(searchText);
+      const matchesStatus =
+        statusFilter === "all" || earner.status.toLowerCase() === statusFilter;
+      const matchesActivation =
+        activationFilter === "all" ||
+        (activationFilter === "activated" ? earner.activated : !earner.activated);
+
+      return matchesSearch && matchesStatus && matchesActivation;
+    });
+  }, [activationFilter, earners, search, statusFilter]);
+
+  const stats = useMemo(() => {
+    return {
+      totalEarners: summaryCounts.totalEarners,
+      activatedEarners: summaryCounts.activatedEarners,
+      suspendedEarners: summaryCounts.suspendedEarners,
+      totalWalletValue: earners.reduce((sum, earner) => sum + earner.balance, 0),
+    };
+  }, [summaryCounts, earners]);
+
+  const updateEarnerStatus = async (earner: EarnerUser, nextStatus: string) => {
+    try {
+      setUpdatingId(earner.id);
+      const updates: Record<string, unknown> = { status: nextStatus };
+      if (nextStatus === "active") {
+        updates.strikeCount = 0;
+        updates.suspensionReason = deleteField();
+        updates.suspendedAt = deleteField();
+        updates.lastStrikeUpdatedAt = deleteField();
+      }
+      await updateDoc(doc(db, "earners", earner.id), updates);
+      setEarners((current) =>
+        current.map((entry) =>
+          entry.id === earner.id ? { ...entry, status: nextStatus } : entry
+        )
+      );
+      toast.success(
+        nextStatus === "active"
+          ? `${earner.name} unsuspended and strikes reset`
+          : `${earner.name} is now ${nextStatus}`
+      );
+    } catch (error) {
+      console.error("Error updating earner status:", error);
+      toast.error("Failed to update earner status");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <AdminPageHeader
+        eyebrow="Submission management"
+        title="Earner directory"
+        description="Review earner account health, open detailed moderation context, and suspend or restore accounts when moderation requires it."
+        action={
+          <Button
+            variant="outline"
+            className="rounded-full border-stone-300 bg-white/80"
+            onClick={() => window.location.reload()}
+          >
+            <Sparkles className="h-4 w-4" />
+            Refresh snapshot
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Total earners"
+          value={stats.totalEarners}
+          hint={`${stats.activatedEarners} activated`}
+          icon={Users}
+        />
+        <MetricCard
+          label="Suspended"
+          value={stats.suspendedEarners}
+          hint="Accounts currently restricted"
+          icon={ShieldAlert}
+          tone="rose"
+        />
+        <MetricCard
+          label="Wallet balances"
+          value={currency(stats.totalWalletValue)}
+          hint="Combined balances from the loaded earner snapshot"
+          icon={Wallet}
+          tone="emerald"
+        />
+        <MetricCard
+          label="Active moderation pool"
+          value={stats.totalEarners - stats.suspendedEarners}
+          hint="Earners available for review and campaign participation"
+          icon={CircleSlash}
+          tone="blue"
+        />
+      </div>
+
+      <SectionCard
+        title="Filter earners"
+        description="Search earners and narrow by activation state or moderation status."
+      >
+        <div className="grid gap-3 lg:grid-cols-[1.5fr_repeat(2,minmax(0,0.7fr))]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name or email"
+              className="h-11 rounded-2xl border-stone-200 bg-white pl-10"
+            />
+          </div>
+          <Select value={activationFilter} onValueChange={setActivationFilter}>
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Activation" />
+            </SelectTrigger>
+            <SelectContent>
+              {activationOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-11 rounded-2xl border-stone-200 bg-white">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Earner list"
+        description={`${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} matched the current filters.`}
+      >
+        {loading ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+            ))}
+          </div>
+        ) : filteredEarners.length === 0 ? (
+          <EmptyState
+            title="No earners matched"
+            description="Try widening the filters. Combining activation and status can narrow the list quickly."
+          />
+        ) : (
+          <PaginatedCardList
+            items={filteredEarners}
+            itemsPerPage={3}
+            renderItem={(earner) => (
+              <div
+                key={earner.id}
+                className="group rounded-3xl border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,250,249,0.88))] p-5 shadow-[0_18px_40px_-34px_rgba(28,25,23,0.7)] transition duration-200 hover:-translate-y-1 hover:border-amber-300 hover:shadow-[0_24px_50px_-34px_rgba(217,119,6,0.45)]"
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge label="Earner" tone="amber" />
+                      <StatusBadge
+                        label={earner.activated ? "Activated" : "Not activated"}
+                        tone={earner.activated ? "green" : "stone"}
+                      />
+                      <StatusBadge label={earner.status} tone={statusTone(earner.status)} />
+                      {earner.verified ? <StatusBadge label="Verified" tone="green" /> : null}
+                    </div>
+
+                    <div>
+                      <Link
+                        href={`/submissionmanagement/earners/${earner.id}`}
+                        className="text-xl font-semibold text-stone-900 transition group-hover:text-amber-700"
+                      >
+                        {earner.name}
+                      </Link>
+                      <p className="text-sm text-stone-500">{earner.email || "No email recorded"}</p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-stone-50 p-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Wallet</p>
+                        <p className="mt-2 text-lg font-semibold text-stone-900">{currency(earner.balance)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-stone-50 p-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Submissions</p>
+                        <p className="mt-2 text-lg font-semibold text-stone-900">{earner.submissionsCount}</p>
+                      </div>
+                      <div className="rounded-2xl bg-stone-50 p-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Total earned</p>
+                        <p className="mt-2 text-lg font-semibold text-stone-900">{currency(earner.totalEarned)}</p>
+                      </div>
+                      <div className="rounded-2xl bg-stone-50 p-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Joined</p>
+                        <p className="mt-2 text-sm font-medium text-stone-900">
+                          {earner.createdAtMs ? new Date(earner.createdAtMs).toLocaleString() : "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-row gap-2 md:flex-col md:items-end">
+                    <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
+                      <Link href={`/submissionmanagement/earners/${earner.id}`}>Open profile</Link>
+                    </Button>
+                    {earner.status === "active" ? (
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                        disabled={updatingId === earner.id}
+                        onClick={() => updateEarnerStatus(earner, "suspended")}
+                      >
+                        <CircleSlash className="h-4 w-4" />
+                        Suspend
+                      </Button>
+                    ) : earner.status === "suspended" ? (
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        disabled={updatingId === earner.id}
+                        onClick={() => updateEarnerStatus(earner, "active")}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Unsuspend
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+          />
+        )}
+      </SectionCard>
+    </div>
+  );
+}

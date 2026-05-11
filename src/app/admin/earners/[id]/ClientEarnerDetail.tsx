@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -123,9 +124,10 @@ function currency(amount: number) {
 
 interface Props {
   id: string;
+  mode?: "admin" | "submissionmanagement";
 }
 
-export default function ClientEarnerDetail({ id }: Props) {
+export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
   const [loading, setLoading] = useState(true);
   const [earner, setEarner] = useState<Earner | null>(null);
   const [transactions, setTransactions] = useState<EarnerTransaction[]>([]);
@@ -138,6 +140,12 @@ export default function ClientEarnerDetail({ id }: Props) {
   const [strikeCount, setStrikeCount] = useState<number>(0);
   const [activationBusy, setActivationBusy] = useState(false);
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const campaignBasePath = mode === "submissionmanagement" ? "/submissionmanagement/campaigns" : "/admin/campaigns";
+  const reviewEndpoint =
+    mode === "submissionmanagement"
+      ? "/api/submissionmanagement/submissions/review"
+      : "/api/admin/submissions/review";
+  const emptyHref = mode === "submissionmanagement" ? "/submissionmanagement/earners" : "/admin/users";
 
   useEffect(() => {
     const load = async () => {
@@ -359,8 +367,18 @@ export default function ClientEarnerDetail({ id }: Props) {
   const updateStatus = async (status: string) => {
     try {
       setUpdatingStatus(true);
-      await updateDoc(doc(db, "earners", id), { status });
+      const updates: Record<string, unknown> = { status };
+      if (status === "active") {
+        updates.strikeCount = 0;
+        updates.suspensionReason = deleteField();
+        updates.suspendedAt = deleteField();
+        updates.lastStrikeUpdatedAt = deleteField();
+      }
+      await updateDoc(doc(db, "earners", id), updates);
       setEarner((current) => (current ? { ...current, status } : current));
+      if (status === "active") {
+        setStrikeCount(0);
+      }
       toast.success(`Earner set to ${status}`);
     } catch (error) {
       console.error("Failed to update earner status", error);
@@ -421,7 +439,7 @@ export default function ClientEarnerDetail({ id }: Props) {
         headers.Authorization = `Bearer ${await user.getIdToken()}`;
       }
 
-      const response = await fetch("/api/admin/submissions/review", {
+      const response = await fetch(reviewEndpoint, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -470,7 +488,7 @@ export default function ClientEarnerDetail({ id }: Props) {
         <EmptyState
           title="No earner record"
           description="Double-check the id in the URL or verify that the earner still exists in the earners collection."
-          href="/admin/users"
+          href={emptyHref}
           cta="Back to users"
         />
       </div>
@@ -480,9 +498,13 @@ export default function ClientEarnerDetail({ id }: Props) {
   return (
     <div className="space-y-8">
       <AdminPageHeader
-        eyebrow="Earner profile"
+        eyebrow={mode === "submissionmanagement" ? "Submission management" : "Earner profile"}
         title={earner.name}
-        description="Follow earnings, submissions, withdrawals, and campaign history for this earner in one connected admin view."
+        description={
+          mode === "submissionmanagement"
+            ? "Review this earner's submissions, strikes, withdrawals, and campaign history from the moderation side."
+            : "Follow earnings, submissions, withdrawals, and campaign history for this earner in one connected admin view."
+        }
         action={
           <div className="flex flex-wrap gap-2">
             {earner.status === "active" ? (
@@ -506,7 +528,7 @@ export default function ClientEarnerDetail({ id }: Props) {
                 Unsuspend
               </Button>
             ) : null}
-            {earner.activated ? (
+            {mode === "admin" && earner.activated ? (
               <Button
                 variant="destructive"
                 className="rounded-full"
@@ -515,7 +537,7 @@ export default function ClientEarnerDetail({ id }: Props) {
               >
                 {activationBusy ? "Deactivating..." : "Deactivate user"}
               </Button>
-            ) : (
+            ) : mode === "admin" ? (
               <Button
                 className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
                 disabled={activationBusy}
@@ -523,7 +545,7 @@ export default function ClientEarnerDetail({ id }: Props) {
               >
                 {activationBusy ? "Activating..." : "Activate user"}
               </Button>
-            )}
+            ) : null}
           </div>
         }
       />
@@ -630,10 +652,10 @@ export default function ClientEarnerDetail({ id }: Props) {
                 >
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/admin/campaigns/${campaign.id}`}
-                        className="font-medium text-stone-900 hover:text-amber-700"
-                      >
+                        <Link
+                          href={`${campaignBasePath}/${campaign.id}`}
+                          className="font-medium text-stone-900 hover:text-amber-700"
+                        >
                         {campaign.title}
                       </Link>
                       <StatusBadge
@@ -652,7 +674,7 @@ export default function ClientEarnerDetail({ id }: Props) {
                     </p>
                   </div>
                   <Button asChild variant="outline" className="rounded-full">
-                    <Link href={`/admin/campaigns/${campaign.id}`}>
+                    <Link href={`${campaignBasePath}/${campaign.id}`}>
                       Open campaign
                       <ArrowUpRight className="h-4 w-4" />
                     </Link>
@@ -686,7 +708,7 @@ export default function ClientEarnerDetail({ id }: Props) {
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
-                        href={`/admin/campaigns/${submission.campaignId}`}
+                        href={`${campaignBasePath}/${submission.campaignId}`}
                         className="font-medium text-stone-900 hover:text-amber-700"
                       >
                         {submission.campaignTitle || submission.campaignId}
@@ -764,7 +786,7 @@ export default function ClientEarnerDetail({ id }: Props) {
                       </Button>
                     ) : null}
                     <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
-                      <Link href={`/admin/campaigns/${submission.campaignId}`}>
+                      <Link href={`${campaignBasePath}/${submission.campaignId}`}>
                         Review campaign
                       </Link>
                     </Button>

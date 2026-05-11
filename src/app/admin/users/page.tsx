@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import {
   collection,
+  deleteField,
   doc,
   getCountFromServer,
   getDocs,
@@ -234,13 +235,24 @@ export default function UsersPage() {
     try {
       setUpdatingId(user.id);
       const collectionName = user.role === "earner" ? "earners" : "advertisers";
-      await updateDoc(doc(db, collectionName, user.id), { status: nextStatus });
+      const updates: Record<string, unknown> = { status: nextStatus };
+      if (user.role === "earner" && nextStatus === "active") {
+        updates.strikeCount = 0;
+        updates.suspensionReason = deleteField();
+        updates.suspendedAt = deleteField();
+        updates.lastStrikeUpdatedAt = deleteField();
+      }
+      await updateDoc(doc(db, collectionName, user.id), updates);
       setUsers((current) =>
         current.map((entry) =>
           entry.id === user.id ? { ...entry, status: nextStatus } : entry
         )
       );
-      toast.success(`${user.name} is now ${nextStatus}`);
+      toast.success(
+        user.role === "earner" && nextStatus === "active"
+          ? `${user.name} unsuspended and strikes reset`
+          : `${user.name} is now ${nextStatus}`
+      );
     } catch (error) {
       console.error("Error updating user status:", error);
       toast.error("Failed to update user status");
