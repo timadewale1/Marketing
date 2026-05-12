@@ -134,6 +134,7 @@ export default function UsersPage() {
   const [hasMoreAdvertisers, setHasMoreAdvertisers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
+  const [lastExactSearchTerm, setLastExactSearchTerm] = useState("");
   const [lastVisibleEarner, setLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastVisibleAdvertiser, setLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
@@ -334,6 +335,12 @@ export default function UsersPage() {
     });
   }, [activationFilter, roleFilter, search, statusFilter, users]);
 
+  useEffect(() => {
+    if (!search.trim()) {
+      setLastExactSearchTerm("");
+    }
+  }, [search]);
+
   const stats = useMemo(() => {
     return {
       totalUsers: summaryCounts.totalUsers,
@@ -346,7 +353,8 @@ export default function UsersPage() {
   }, [summaryCounts, users]);
 
   useEffect(() => {
-    if (!search.trim() || filteredUsers.length > 0 || loading || searchingExact) {
+    const searchTerm = search.trim();
+    if (!searchTerm || filteredUsers.length > 0 || loading || searchingExact || lastExactSearchTerm === searchTerm) {
       return;
     }
 
@@ -355,7 +363,8 @@ export default function UsersPage() {
     const searchDirectly = async () => {
       try {
         setSearchingExact(true);
-        const directMatches = await directSearchUsers(search);
+        setLastExactSearchTerm(searchTerm);
+        const directMatches = await directSearchUsers(searchTerm);
         if (!cancelled && directMatches.length > 0) {
           let nextLoadedCount = directMatches.length;
           setUsers((current) => {
@@ -379,7 +388,7 @@ export default function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [directSearchUsers, filteredUsers.length, loading, search, searchingExact]);
+  }, [directSearchUsers, filteredUsers.length, lastExactSearchTerm, loading, search, searchingExact]);
 
   const handleLoadMoreUsers = useCallback(async () => {
     if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {

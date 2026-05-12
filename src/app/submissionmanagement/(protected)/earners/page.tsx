@@ -119,6 +119,7 @@ export default function SubmissionManagementEarnersPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
+  const [lastExactSearchTerm, setLastExactSearchTerm] = useState("");
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
   const mapEarnerData = (id: string, data: DocumentData): EarnerUser => {
@@ -249,6 +250,12 @@ export default function SubmissionManagementEarnersPage() {
     });
   }, [activationFilter, earners, search, statusFilter]);
 
+  useEffect(() => {
+    if (!search.trim()) {
+      setLastExactSearchTerm("");
+    }
+  }, [search]);
+
   const stats = useMemo(() => {
     return {
       totalEarners: summaryCounts.totalEarners,
@@ -258,7 +265,8 @@ export default function SubmissionManagementEarnersPage() {
   }, [summaryCounts]);
 
   useEffect(() => {
-    if (!search.trim() || filteredEarners.length > 0 || loading || searchingExact) {
+    const searchTerm = search.trim();
+    if (!searchTerm || filteredEarners.length > 0 || loading || searchingExact || lastExactSearchTerm === searchTerm) {
       return;
     }
 
@@ -267,7 +275,8 @@ export default function SubmissionManagementEarnersPage() {
     const searchDirectly = async () => {
       try {
         setSearchingExact(true);
-        const directMatches = await directSearchEarners(search);
+        setLastExactSearchTerm(searchTerm);
+        const directMatches = await directSearchEarners(searchTerm);
         if (!cancelled && directMatches.length > 0) {
           let nextLoadedCount = directMatches.length;
           setEarners((current) => {
@@ -291,7 +300,7 @@ export default function SubmissionManagementEarnersPage() {
     return () => {
       cancelled = true;
     };
-  }, [directSearchEarners, filteredEarners.length, loading, search, searchingExact]);
+  }, [directSearchEarners, filteredEarners.length, lastExactSearchTerm, loading, search, searchingExact]);
 
   const handleLoadMoreEarners = useCallback(async () => {
     if (!lastVisible || !hasMore || loadingMore) {
