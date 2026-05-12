@@ -7,11 +7,16 @@ import { auth, db } from "@/lib/firebase"
 import toast, { Toaster } from "react-hot-toast"
 import {
   collection,
+  count,
+  sum,
   limit,
   query,
   where,
   onSnapshot,
   doc,
+  getAggregateFromServer,
+  getCountFromServer,
+  orderBy,
 } from "firebase/firestore"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -148,22 +153,43 @@ export default function AdvertiserDashboard() {
       })
 
       // Campaigns
-      const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid), limit(200))
+      const q = query(collection(db, "campaigns"), where("ownerId", "==", u.uid), orderBy("createdAt", "desc"), limit(200))
       unsubCampaigns = onSnapshot(q, (snapshot) => {
         const data: Campaign[] = snapshot.docs.map((campaignDoc) => ({
           id: campaignDoc.id,
           ...(campaignDoc.data() as Omit<Campaign, "id">),
         }))
         setCampaigns(data)
-        setStats((prev) => ({
-          ...prev,
-          activeCampaigns: data.filter((campaign) => campaign.status === "Active").length,
-          leadsPaidFor: data.reduce((sum, campaign) => sum + (campaign.estimatedLeads || 0), 0),
-        }))
+        void Promise.all([
+          getCountFromServer(query(collection(db, "campaigns"), where("ownerId", "==", u.uid), where("status", "==", "Active"))),
+          getAggregateFromServer(
+            query(collection(db, "campaigns"), where("ownerId", "==", u.uid)),
+            {
+              campaignCount: count(),
+              estimatedLeadsSum: sum("estimatedLeads"),
+            }
+          ),
+        ])
+          .then(([activeCampaignsSnap, campaignAggregateSnap]) => {
+            setStats((prev) => ({
+              ...prev,
+              activeCampaigns: activeCampaignsSnap.data().count,
+              leadsPaidFor: Number(campaignAggregateSnap.data().estimatedLeadsSum || 0),
+              campaignSubmitted: prev.campaignSubmitted,
+            }))
+          })
+          .catch((error) => {
+            console.error("Failed to refresh advertiser campaign stats", error)
+            setStats((prev) => ({
+              ...prev,
+              activeCampaigns: data.filter((campaign) => campaign.status === "Active").length,
+              leadsPaidFor: data.reduce((sum, campaign) => sum + (campaign.estimatedLeads || 0), 0),
+            }))
+          })
       })
 
       unsubSubmissions = onSnapshot(
-        query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), limit(500)),
+        query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), orderBy("createdAt", "desc"), limit(500)),
         (snapshot) => {
           const data: Submission[] = snapshot.docs.map((submissionDoc) => ({
             id: submissionDoc.id,
@@ -171,14 +197,39 @@ export default function AdvertiserDashboard() {
             status: String(submissionDoc.data().status || ""),
           }))
           setSubmissions(data)
-          setStats((prev) => ({
-            ...prev,
-            leadsGenerated: data.filter((submission) => submission.status === "Verified").length,
-            campaignSubmitted: data.length,
-            campaignPending: data.filter((submission) => submission.status === "Pending" || submission.status === "In Review").length,
-            campaignRejected: data.filter((submission) => submission.status === "Rejected").length,
-            campaignApproved: data.filter((submission) => ["Completed", "Paid", "Verified"].includes(submission.status || "")).length,
-          }))
+
+          void Promise.all([
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Pending"))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "In Review"))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Rejected"))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Verified"))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Completed"))),
+            getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Paid"))),
+          ])
+            .then(([
+              totalSnap,
+              pendingSnap,
+              inReviewSnap,
+              rejectedSnap,
+              verifiedSnap,
+              completedSnap,
+              paidSnap,
+            ]) => {
+              setStats((prev) => ({
+                ...prev,
+                leadsGenerated:
+                  verifiedSnap.data().count + completedSnap.data().count + paidSnap.data().count,
+                campaignSubmitted: totalSnap.data().count,
+                campaignPending: pendingSnap.data().count + inReviewSnap.data().count,
+                campaignRejected: rejectedSnap.data().count,
+                campaignApproved:
+                  verifiedSnap.data().count + completedSnap.data().count + paidSnap.data().count,
+              }))
+            })
+            .catch((error) => {
+              console.error("Failed to refresh advertiser submission stats", error)
+            })
         }
       )
     })

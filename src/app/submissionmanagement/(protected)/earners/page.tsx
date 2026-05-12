@@ -118,6 +118,7 @@ export default function SubmissionManagementEarnersPage() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchingExact, setSearchingExact] = useState(false);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
   const mapEarnerData = (id: string, data: DocumentData): EarnerUser => {
@@ -257,7 +258,7 @@ export default function SubmissionManagementEarnersPage() {
   }, [summaryCounts]);
 
   useEffect(() => {
-    if (!search.trim() || filteredEarners.length > 0 || loading || loadingMore) {
+    if (!search.trim() || filteredEarners.length > 0 || loading || searchingExact) {
       return;
     }
 
@@ -265,7 +266,7 @@ export default function SubmissionManagementEarnersPage() {
 
     const searchDirectly = async () => {
       try {
-        setLoadingMore(true);
+        setSearchingExact(true);
         const directMatches = await directSearchEarners(search);
         if (!cancelled && directMatches.length > 0) {
           let nextLoadedCount = directMatches.length;
@@ -280,7 +281,7 @@ export default function SubmissionManagementEarnersPage() {
         console.error("Error loading direct earner search matches:", error);
       } finally {
         if (!cancelled) {
-          setLoadingMore(false);
+          setSearchingExact(false);
         }
       }
     };
@@ -290,7 +291,7 @@ export default function SubmissionManagementEarnersPage() {
     return () => {
       cancelled = true;
     };
-  }, [directSearchEarners, filteredEarners.length, loading, loadingMore, search]);
+  }, [directSearchEarners, filteredEarners.length, loading, search, searchingExact]);
 
   const handleLoadMoreEarners = useCallback(async () => {
     if (!lastVisible || !hasMore || loadingMore) {
@@ -430,10 +431,19 @@ export default function SubmissionManagementEarnersPage() {
             ))}
           </div>
         ) : filteredEarners.length === 0 ? (
-          <EmptyState
-            title="No earners matched"
-            description="Try widening the filters. Combining activation and status can narrow the list quickly."
-          />
+          searchingExact ? (
+            <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center">
+              <p className="text-base font-semibold text-stone-900">Searching Firestore</p>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-stone-600">
+                Checking exact id, email, and name matches directly.
+              </p>
+            </div>
+          ) : (
+            <EmptyState
+              title="No earners matched"
+              description="Try widening the filters or search with the exact email, id, or saved name. Partial search still works on the earners already loaded on this page."
+            />
+          )
         ) : (
           <PaginatedCardList
             items={filteredEarners}

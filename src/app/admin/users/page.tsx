@@ -133,6 +133,7 @@ export default function UsersPage() {
   const [hasMoreEarners, setHasMoreEarners] = useState(true);
   const [hasMoreAdvertisers, setHasMoreAdvertisers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchingExact, setSearchingExact] = useState(false);
   const [lastVisibleEarner, setLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastVisibleAdvertiser, setLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
@@ -345,7 +346,7 @@ export default function UsersPage() {
   }, [summaryCounts, users]);
 
   useEffect(() => {
-    if (!search.trim() || filteredUsers.length > 0 || loading || loadingMore) {
+    if (!search.trim() || filteredUsers.length > 0 || loading || searchingExact) {
       return;
     }
 
@@ -353,7 +354,7 @@ export default function UsersPage() {
 
     const searchDirectly = async () => {
       try {
-        setLoadingMore(true);
+        setSearchingExact(true);
         const directMatches = await directSearchUsers(search);
         if (!cancelled && directMatches.length > 0) {
           let nextLoadedCount = directMatches.length;
@@ -368,7 +369,7 @@ export default function UsersPage() {
         console.error("Error loading direct user search matches:", error);
       } finally {
         if (!cancelled) {
-          setLoadingMore(false);
+          setSearchingExact(false);
         }
       }
     };
@@ -378,7 +379,7 @@ export default function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [directSearchUsers, filteredUsers.length, loading, loadingMore, search]);
+  }, [directSearchUsers, filteredUsers.length, loading, search, searchingExact]);
 
   const handleLoadMoreUsers = useCallback(async () => {
     if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {
@@ -545,10 +546,19 @@ export default function UsersPage() {
             ))}
           </div>
         ) : filteredUsers.length === 0 ? (
-          <EmptyState
-            title="No users matched"
-            description="Try widening the filters. The new user filters combine role, activation state, and account status, so it is easy to narrow too far."
-          />
+          searchingExact ? (
+            <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center">
+              <p className="text-base font-semibold text-stone-900">Searching Firestore</p>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-stone-600">
+                Checking exact id, email, and name matches directly.
+              </p>
+            </div>
+          ) : (
+            <EmptyState
+              title="No users matched"
+              description="Try widening the filters or search with the exact email, id, or saved name. Partial search still works on the users already loaded on this page."
+            />
+          )
         ) : (
           <PaginatedCardList
             items={filteredUsers}

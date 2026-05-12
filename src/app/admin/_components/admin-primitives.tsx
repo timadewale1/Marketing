@@ -202,17 +202,6 @@ export function PaginatedCardList<T>({
     }
   }, [page, totalPages]);
 
-  useEffect(() => {
-    if (!hasMore || loadingMore || !onLoadMore || items.length === 0) {
-      return;
-    }
-
-    const currentPageIsFull = items.length >= safePage * itemsPerPage;
-    if (safePage === totalPages && currentPageIsFull) {
-      void onLoadMore();
-    }
-  }, [hasMore, items.length, itemsPerPage, loadingMore, onLoadMore, safePage, totalPages]);
-
   if (items.length === 0) {
     return empty ?? null;
   }
