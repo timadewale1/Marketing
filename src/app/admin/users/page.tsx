@@ -345,13 +345,13 @@ export default function UsersPage() {
   }, [summaryCounts, users]);
 
   useEffect(() => {
-    if (!search.trim() || filteredUsers.length > 0 || (!hasMoreEarners && !hasMoreAdvertisers) || loading || loadingMore) {
+    if (!search.trim() || filteredUsers.length > 0 || loading || loadingMore) {
       return;
     }
 
     let cancelled = false;
 
-    const keepSearching = async () => {
+    const searchDirectly = async () => {
       try {
         setLoadingMore(true);
         const directMatches = await directSearchUsers(search);
@@ -364,60 +364,8 @@ export default function UsersPage() {
           });
           setLoadedCount(nextLoadedCount);
         }
-
-        if (
-          directMatches.some((user) => {
-            const lowered = search.trim().toLowerCase();
-            return user.name.toLowerCase().includes(lowered) || user.email.toLowerCase().includes(lowered);
-          })
-        ) {
-          return;
-        }
-
-        let localHasMoreEarners: boolean = hasMoreEarners;
-        let localHasMoreAdvertisers: boolean = hasMoreAdvertisers;
-        let earnersCursor = lastVisibleEarner;
-        let advertisersCursor = lastVisibleAdvertiser;
-        const lowered = search.trim().toLowerCase();
-
-        while (!cancelled && (localHasMoreEarners || localHasMoreAdvertisers)) {
-          const [earnersSnap, advertisersSnap] = await Promise.all([
-            localHasMoreEarners ? getDocs(buildUserQuery("earners", earnersCursor)) : Promise.resolve(null),
-            localHasMoreAdvertisers ? getDocs(buildUserQuery("advertisers", advertisersCursor)) : Promise.resolve(null),
-          ]);
-
-          const earners = earnersSnap ? earnersSnap.docs.map(mapEarnerDoc) : [];
-          const advertisers = advertisersSnap ? advertisersSnap.docs.map(mapAdvertiserDoc) : [];
-          const combined = [...advertisers, ...earners];
-
-          let nextLoadedCount = combined.length;
-          setUsers((current) => {
-            const next = mergeUniqueUsers(current, combined);
-            nextLoadedCount = next.length;
-            return next;
-          });
-          setLoadedCount(nextLoadedCount);
-
-          earnersCursor = earnersSnap?.docs.at(-1) ?? earnersCursor;
-          advertisersCursor = advertisersSnap?.docs.at(-1) ?? advertisersCursor;
-          localHasMoreEarners = (earnersSnap?.docs.length ?? 0) === ADMIN_USER_PAGE_SIZE;
-          localHasMoreAdvertisers = (advertisersSnap?.docs.length ?? 0) === ADMIN_USER_PAGE_SIZE;
-          setLastVisibleEarner(earnersCursor ?? null);
-          setLastVisibleAdvertiser(advertisersCursor ?? null);
-          setHasMoreEarners(localHasMoreEarners);
-          setHasMoreAdvertisers(localHasMoreAdvertisers);
-
-          const foundMatch = combined.some((user) =>
-            user.name.toLowerCase().includes(lowered) ||
-            user.email.toLowerCase().includes(lowered)
-          );
-
-          if (foundMatch || combined.length === 0) {
-            break;
-          }
-        }
       } catch (error) {
-        console.error("Error loading more users for search:", error);
+        console.error("Error loading direct user search matches:", error);
       } finally {
         if (!cancelled) {
           setLoadingMore(false);
@@ -425,23 +373,12 @@ export default function UsersPage() {
       }
     };
 
-    void keepSearching();
+    void searchDirectly();
 
     return () => {
       cancelled = true;
     };
-  }, [
-    filteredUsers.length,
-    hasMoreAdvertisers,
-    hasMoreEarners,
-    lastVisibleAdvertiser,
-    lastVisibleEarner,
-    loading,
-    loadingMore,
-    search,
-    directSearchUsers,
-    buildUserQuery,
-  ]);
+  }, [directSearchUsers, filteredUsers.length, loading, loadingMore, search]);
 
   const handleLoadMoreUsers = useCallback(async () => {
     if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {
@@ -596,7 +533,7 @@ export default function UsersPage() {
 
       <SectionCard
         title="User directory"
-        description={`${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
+        description={`${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded. Search checks exact id, email, or name directly in Firestore without sweeping the whole directory.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">

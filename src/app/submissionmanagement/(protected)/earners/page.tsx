@@ -257,13 +257,13 @@ export default function SubmissionManagementEarnersPage() {
   }, [summaryCounts]);
 
   useEffect(() => {
-    if (!search.trim() || filteredEarners.length > 0 || !hasMore || loading || loadingMore) {
+    if (!search.trim() || filteredEarners.length > 0 || loading || loadingMore) {
       return;
     }
 
     let cancelled = false;
 
-    const keepSearching = async () => {
+    const searchDirectly = async () => {
       try {
         setLoadingMore(true);
         const directMatches = await directSearchEarners(search);
@@ -276,47 +276,8 @@ export default function SubmissionManagementEarnersPage() {
           });
           setLoadedCount(nextLoadedCount);
         }
-
-        if (
-          directMatches.some((earner) => {
-            const lowered = search.trim().toLowerCase();
-            return earner.name.toLowerCase().includes(lowered) || earner.email.toLowerCase().includes(lowered);
-          })
-        ) {
-          return;
-        }
-
-        let localHasMore: boolean = hasMore;
-        let cursor = lastVisible;
-        const lowered = search.trim().toLowerCase();
-
-        while (!cancelled && localHasMore) {
-          const snap = await getDocs(buildEarnersQuery(cursor));
-          const rows = snap.docs.map(mapEarnerDoc);
-
-          let nextLoadedCount = rows.length;
-          setEarners((current) => {
-            const next = mergeUniqueEarners(current, rows);
-            nextLoadedCount = next.length;
-            return next;
-          });
-          setLoadedCount(nextLoadedCount);
-          cursor = snap.docs.at(-1) ?? null;
-          setLastVisible(cursor);
-          localHasMore = snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE;
-          setHasMore(localHasMore);
-
-          const foundMatch = rows.some((earner) =>
-            earner.name.toLowerCase().includes(lowered) ||
-            earner.email.toLowerCase().includes(lowered)
-          );
-
-          if (foundMatch || rows.length === 0) {
-            break;
-          }
-        }
       } catch (error) {
-        console.error("Error loading more earners for search:", error);
+        console.error("Error loading direct earner search matches:", error);
       } finally {
         if (!cancelled) {
           setLoadingMore(false);
@@ -324,12 +285,12 @@ export default function SubmissionManagementEarnersPage() {
       }
     };
 
-    void keepSearching();
+    void searchDirectly();
 
     return () => {
       cancelled = true;
     };
-  }, [directSearchEarners, filteredEarners.length, hasMore, lastVisible, loading, loadingMore, search, buildEarnersQuery]);
+  }, [directSearchEarners, filteredEarners.length, loading, loadingMore, search]);
 
   const handleLoadMoreEarners = useCallback(async () => {
     if (!lastVisible || !hasMore || loadingMore) {
@@ -460,7 +421,7 @@ export default function SubmissionManagementEarnersPage() {
 
       <SectionCard
         title="Earner list"
-        description={`${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
+        description={`${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded. Search checks exact id, email, or name directly in Firestore without sweeping the whole directory.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
