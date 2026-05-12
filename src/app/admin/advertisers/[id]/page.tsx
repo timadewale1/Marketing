@@ -14,6 +14,7 @@ import {
 import {
   collection,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -129,6 +130,7 @@ export default function AdvertiserAdminDetail({
   const [transactions, setTransactions] = useState<AdvertiserTransaction[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [referralCounts, setReferralCounts] = useState({ pending: 0, completed: 0 });
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activationBusy, setActivationBusy] = useState(false);
 
@@ -162,7 +164,13 @@ export default function AdvertiserAdminDetail({
           bank: advertiserData.bank as Advertiser["bank"],
         });
 
-        const [campaignsSnap, transactionsSnap, referralsSnap] = await Promise.all([
+        const [
+          campaignsSnap,
+          transactionsSnap,
+          referralsSnap,
+          totalReferralsCountSnap,
+          completedReferralsCountSnap,
+        ] = await Promise.all([
           getDocs(
             query(collection(db, "campaigns"), where("ownerId", "==", id), orderBy("createdAt", "desc"), limit(150))
           ),
@@ -182,7 +190,15 @@ export default function AdvertiserAdminDetail({
               limit(150)
             )
           ),
+          getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", id))),
+          getCountFromServer(
+            query(collection(db, "referrals"), where("referrerId", "==", id), where("status", "==", "completed"))
+          ),
         ]);
+        setReferralCounts({
+          pending: Math.max(0, totalReferralsCountSnap.data().count - completedReferralsCountSnap.data().count),
+          completed: completedReferralsCountSnap.data().count,
+        });
 
         const campaignRows = campaignsSnap.docs.map((campaignDoc) => {
           const data = campaignDoc.data();
@@ -325,18 +341,15 @@ export default function AdvertiserAdminDetail({
       (sum, campaign) => sum + campaign.budget + campaign.reservedBudget,
       0
     );
-    const pendingReferrals = referrals.filter((referral) => referral.status.toLowerCase() !== "completed").length;
-    const completedReferrals = referrals.filter((referral) => referral.status.toLowerCase() === "completed").length;
-
     return {
       activeCampaigns,
       pendingSubmissions,
       verifiedSubmissions,
       totalVisibleBudget,
-      pendingReferrals,
-      completedReferrals,
+      pendingReferrals: referralCounts.pending,
+      completedReferrals: referralCounts.completed,
     };
-  }, [campaigns, submissions, referrals]);
+  }, [campaigns, referralCounts.completed, referralCounts.pending, submissions]);
 
   const updateStatus = async (status: string) => {
     try {

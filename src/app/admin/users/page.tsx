@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -17,6 +17,7 @@ import {
   doc,
   DocumentData,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -104,6 +105,15 @@ function statusTone(status: string) {
   return "stone" as const;
 }
 
+function mergeUniqueUsers(current: AdminUser[], incoming: AdminUser[]) {
+  const userMap = new Map(current.map((user) => [user.id, user]));
+  incoming.forEach((user) => {
+    userMap.set(user.id, user);
+  });
+
+  return Array.from(userMap.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,10 +136,9 @@ export default function UsersPage() {
   const [lastVisibleEarner, setLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastVisibleAdvertiser, setLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
-  const mapEarnerDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): AdminUser => {
-    const data = userDoc.data();
+  const mapEarnerData = (id: string, data: DocumentData): AdminUser => {
     return {
-      id: userDoc.id,
+      id,
       name: String(data.name || "Unnamed earner"),
       email: String(data.email || ""),
       role: "earner",
@@ -145,10 +154,12 @@ export default function UsersPage() {
     };
   };
 
-  const mapAdvertiserDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): AdminUser => {
-    const data = userDoc.data();
+  const mapEarnerDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): AdminUser =>
+    mapEarnerData(userDoc.id, userDoc.data());
+
+  const mapAdvertiserData = (id: string, data: DocumentData): AdminUser => {
     return {
-      id: userDoc.id,
+      id,
       name: String(data.name || data.companyName || "Unnamed advertiser"),
       email: String(data.email || ""),
       role: "advertiser",
@@ -164,15 +175,18 @@ export default function UsersPage() {
     };
   };
 
-  const buildUserQuery = (
+  const mapAdvertiserDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): AdminUser =>
+    mapAdvertiserData(userDoc.id, userDoc.data());
+
+  const buildUserQuery = useCallback((
     collectionName: "earners" | "advertisers",
     cursor?: QueryDocumentSnapshot<DocumentData> | null
   ) =>
     cursor
       ? query(collection(db, collectionName), orderBy("createdAt", "desc"), startAfter(cursor), limit(ADMIN_USER_PAGE_SIZE))
-      : query(collection(db, collectionName), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_SIZE));
+      : query(collection(db, collectionName), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_SIZE)), []);
 
-  const loadUserPages = async ({
+  const loadUserPages = useCallback(async ({
     earnersCursor,
     advertisersCursor,
     append,
@@ -190,15 +204,76 @@ export default function UsersPage() {
     const advertisers = advertisersSnap ? advertisersSnap.docs.map(mapAdvertiserDoc) : [];
     const combined = [...advertisers, ...earners].sort((a, b) => b.createdAtMs - a.createdAtMs);
 
-    setUsers((current) => (append ? [...current, ...combined].sort((a, b) => b.createdAtMs - a.createdAtMs) : combined));
-    setLoadedCount((current) => (append ? current + combined.length : combined.length));
+    let nextLoadedCount = combined.length;
+    setUsers((current) => {
+      const next = append ? mergeUniqueUsers(current, combined) : combined;
+      nextLoadedCount = next.length;
+      return next;
+    });
+    setLoadedCount(nextLoadedCount);
     setLastVisibleEarner(earnersSnap?.docs.at(-1) ?? (append ? earnersCursor ?? null : null));
     setLastVisibleAdvertiser(advertisersSnap?.docs.at(-1) ?? (append ? advertisersCursor ?? null : null));
     setHasMoreEarners((earnersSnap?.docs.length ?? 0) === ADMIN_USER_PAGE_SIZE);
     setHasMoreAdvertisers((advertisersSnap?.docs.length ?? 0) === ADMIN_USER_PAGE_SIZE);
 
     return combined;
-  };
+  }, [buildUserQuery, hasMoreAdvertisers, hasMoreEarners]);
+
+  const directSearchUsers = useCallback(async (searchText: string) => {
+    const trimmed = searchText.trim();
+    if (!trimmed) return [] as AdminUser[];
+
+    const [
+      earnerDocSnap,
+      advertiserDocSnap,
+      earnerEmailSnap,
+      advertiserEmailSnap,
+      earnerNameSnap,
+      earnerFullNameSnap,
+      advertiserNameSnap,
+      advertiserCompanySnap,
+    ] =
+      await Promise.all([
+        getDoc(doc(db, "earners", trimmed)),
+        getDoc(doc(db, "advertisers", trimmed)),
+        getDocs(query(collection(db, "earners"), where("email", "==", trimmed), limit(1))),
+        getDocs(query(collection(db, "advertisers"), where("email", "==", trimmed), limit(1))),
+        getDocs(query(collection(db, "earners"), where("name", "==", trimmed), limit(3))),
+        getDocs(query(collection(db, "earners"), where("fullName", "==", trimmed), limit(3))),
+        getDocs(query(collection(db, "advertisers"), where("name", "==", trimmed), limit(3))),
+        getDocs(query(collection(db, "advertisers"), where("companyName", "==", trimmed), limit(3))),
+      ]);
+
+    const directMatches: AdminUser[] = [];
+
+    if (earnerDocSnap.exists()) {
+      directMatches.push(mapEarnerData(earnerDocSnap.id, earnerDocSnap.data()));
+    }
+    if (advertiserDocSnap.exists()) {
+      directMatches.push(mapAdvertiserData(advertiserDocSnap.id, advertiserDocSnap.data()));
+    }
+
+    earnerEmailSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+    advertiserEmailSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapAdvertiserDoc(userDoc));
+    });
+    earnerNameSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+    earnerFullNameSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+    advertiserNameSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapAdvertiserDoc(userDoc));
+    });
+    advertiserCompanySnap.docs.forEach((userDoc) => {
+      directMatches.push(mapAdvertiserDoc(userDoc));
+    });
+
+    return mergeUniqueUsers([], directMatches);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -238,7 +313,7 @@ export default function UsersPage() {
     };
 
     load();
-  }, []);
+  }, [loadUserPages]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -279,6 +354,26 @@ export default function UsersPage() {
     const keepSearching = async () => {
       try {
         setLoadingMore(true);
+        const directMatches = await directSearchUsers(search);
+        if (!cancelled && directMatches.length > 0) {
+          let nextLoadedCount = directMatches.length;
+          setUsers((current) => {
+            const next = mergeUniqueUsers(current, directMatches);
+            nextLoadedCount = next.length;
+            return next;
+          });
+          setLoadedCount(nextLoadedCount);
+        }
+
+        if (
+          directMatches.some((user) => {
+            const lowered = search.trim().toLowerCase();
+            return user.name.toLowerCase().includes(lowered) || user.email.toLowerCase().includes(lowered);
+          })
+        ) {
+          return;
+        }
+
         let localHasMoreEarners: boolean = hasMoreEarners;
         let localHasMoreAdvertisers: boolean = hasMoreAdvertisers;
         let earnersCursor = lastVisibleEarner;
@@ -295,8 +390,13 @@ export default function UsersPage() {
           const advertisers = advertisersSnap ? advertisersSnap.docs.map(mapAdvertiserDoc) : [];
           const combined = [...advertisers, ...earners];
 
-          setUsers((current) => [...current, ...combined].sort((a, b) => b.createdAtMs - a.createdAtMs));
-          setLoadedCount((current) => current + combined.length);
+          let nextLoadedCount = combined.length;
+          setUsers((current) => {
+            const next = mergeUniqueUsers(current, combined);
+            nextLoadedCount = next.length;
+            return next;
+          });
+          setLoadedCount(nextLoadedCount);
 
           earnersCursor = earnersSnap?.docs.at(-1) ?? earnersCursor;
           advertisersCursor = advertisersSnap?.docs.at(-1) ?? advertisersCursor;
@@ -339,7 +439,29 @@ export default function UsersPage() {
     loading,
     loadingMore,
     search,
+    directSearchUsers,
+    buildUserQuery,
   ]);
+
+  const handleLoadMoreUsers = useCallback(async () => {
+    if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      await loadUserPages({
+        earnersCursor: lastVisibleEarner,
+        advertisersCursor: lastVisibleAdvertiser,
+        append: true,
+      });
+    } catch (error) {
+      console.error("Failed to load more users", error);
+      toast.error("Failed to load more users");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMoreAdvertisers, hasMoreEarners, lastVisibleAdvertiser, lastVisibleEarner, loadUserPages, loadingMore]);
 
   const updateUserStatus = async (user: AdminUser, nextStatus: string) => {
     try {
@@ -474,33 +596,7 @@ export default function UsersPage() {
 
       <SectionCard
         title="User directory"
-        description={`${filteredUsers.length} account${filteredUsers.length === 1 ? "" : "s"} matched the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
-        action={
-          hasMoreEarners || hasMoreAdvertisers ? (
-            <Button
-              variant="outline"
-              className="rounded-full border-stone-300 bg-white"
-              disabled={loadingMore}
-              onClick={async () => {
-                try {
-                  setLoadingMore(true);
-                  await loadUserPages({
-                    earnersCursor: lastVisibleEarner,
-                    advertisersCursor: lastVisibleAdvertiser,
-                    append: true,
-                  });
-                } catch (error) {
-                  console.error("Failed to load more users", error);
-                  toast.error("Failed to load more users");
-                } finally {
-                  setLoadingMore(false);
-                }
-              }}
-            >
-              {loadingMore ? "Loading..." : "Load more"}
-            </Button>
-          ) : undefined
-        }
+        description={`${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -520,6 +616,9 @@ export default function UsersPage() {
           <PaginatedCardList
             items={filteredUsers}
             itemsPerPage={3}
+            hasMore={hasMoreEarners || hasMoreAdvertisers}
+            loadingMore={loadingMore}
+            onLoadMore={handleLoadMoreUsers}
             renderItem={(user) => {
               const detailHref =
                 user.role === "advertiser"

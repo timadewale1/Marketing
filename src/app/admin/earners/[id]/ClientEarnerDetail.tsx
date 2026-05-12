@@ -17,6 +17,7 @@ import {
   collection,
   deleteField,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -140,6 +141,7 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
   const [strikeCount, setStrikeCount] = useState<number>(0);
   const [activationBusy, setActivationBusy] = useState(false);
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [referralCounts, setReferralCounts] = useState({ pending: 0, completed: 0 });
   const campaignBasePath = mode === "submissionmanagement" ? "/submissionmanagement/campaigns" : "/admin/campaigns";
   const reviewEndpoint =
     mode === "submissionmanagement"
@@ -177,7 +179,14 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
         });
         setStrikeCount(Number(earnerData.strikeCount || 0));
 
-        const [transactionsSnap, withdrawalsSnap, submissionsSnap, referralsSnap] = await Promise.all([
+        const [
+          transactionsSnap,
+          withdrawalsSnap,
+          submissionsSnap,
+          referralsSnap,
+          totalReferralsCountSnap,
+          completedReferralsCountSnap,
+        ] = await Promise.all([
           getDocs(
             query(
               collection(db, "earnerTransactions"),
@@ -210,7 +219,15 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
               limit(150)
             )
           ),
+          getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", id))),
+          getCountFromServer(
+            query(collection(db, "referrals"), where("referrerId", "==", id), where("status", "==", "completed"))
+          ),
         ]);
+        setReferralCounts({
+          pending: Math.max(0, totalReferralsCountSnap.data().count - completedReferralsCountSnap.data().count),
+          completed: completedReferralsCountSnap.data().count,
+        });
 
         setTransactions(
           transactionsSnap.docs.map((transactionDoc) => {
@@ -359,10 +376,10 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
       pendingWithdrawals: withdrawals.filter((withdrawal) =>
         withdrawal.status.toLowerCase().includes("pending")
       ).length,
-      pendingReferrals: referrals.filter((referral) => referral.status.toLowerCase() !== "completed").length,
-      completedReferrals: referrals.filter((referral) => referral.status.toLowerCase() === "completed").length,
+      pendingReferrals: referralCounts.pending,
+      completedReferrals: referralCounts.completed,
     };
-  }, [submissions, withdrawals, referrals]);
+  }, [referralCounts.completed, referralCounts.pending, submissions, withdrawals]);
 
   const updateStatus = async (status: string) => {
     try {

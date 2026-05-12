@@ -175,17 +175,19 @@ export function PaginatedCardList<T>({
   renderItem,
   itemsPerPage = 3,
   empty,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: {
   items: T[];
   renderItem: (item: T, index: number) => React.ReactNode;
   itemsPerPage?: number;
   empty?: React.ReactNode;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => Promise<void> | void;
 }) {
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    setPage(1);
-  }, [items.length]);
 
   const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
   const safePage = Math.min(page, totalPages);
@@ -194,9 +196,38 @@ export function PaginatedCardList<T>({
     [items, itemsPerPage, safePage]
   );
 
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!hasMore || loadingMore || !onLoadMore || items.length === 0) {
+      return;
+    }
+
+    const currentPageIsFull = items.length >= safePage * itemsPerPage;
+    if (safePage === totalPages && currentPageIsFull) {
+      void onLoadMore();
+    }
+  }, [hasMore, items.length, itemsPerPage, loadingMore, onLoadMore, safePage, totalPages]);
+
   if (items.length === 0) {
     return empty ?? null;
   }
+
+  const handleNext = async () => {
+    if (safePage < totalPages) {
+      setPage((current) => Math.min(totalPages, current + 1));
+      return;
+    }
+
+    if (hasMore && onLoadMore && !loadingMore) {
+      await onLoadMore();
+      setPage((current) => current + 1);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -226,12 +257,10 @@ export function PaginatedCardList<T>({
               variant="outline"
               size="sm"
               className="rounded-full"
-              disabled={safePage === totalPages}
-              onClick={() =>
-                setPage((current) => Math.min(totalPages, current + 1))
-              }
+              disabled={(safePage === totalPages && !hasMore) || loadingMore}
+              onClick={() => void handleNext()}
             >
-              Next
+              {loadingMore ? "Loading..." : "Next"}
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CircleSlash,
@@ -15,6 +15,7 @@ import {
   doc,
   DocumentData,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -93,6 +94,15 @@ function statusTone(status: string) {
   return "stone" as const;
 }
 
+function mergeUniqueEarners(current: EarnerUser[], incoming: EarnerUser[]) {
+  const earnerMap = new Map(current.map((earner) => [earner.id, earner]));
+  incoming.forEach((earner) => {
+    earnerMap.set(earner.id, earner);
+  });
+
+  return Array.from(earnerMap.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
 export default function SubmissionManagementEarnersPage() {
   const [earners, setEarners] = useState<EarnerUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,10 +120,9 @@ export default function SubmissionManagementEarnersPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
 
-  const mapEarnerDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): EarnerUser => {
-    const data = userDoc.data();
+  const mapEarnerData = (id: string, data: DocumentData): EarnerUser => {
     return {
-      id: userDoc.id,
+      id,
       name: String(data.name || "Unnamed earner"),
       email: String(data.email || ""),
       status: String(data.status || "pending"),
@@ -126,7 +135,10 @@ export default function SubmissionManagementEarnersPage() {
     };
   };
 
-  const buildEarnersQuery = (cursor?: QueryDocumentSnapshot<DocumentData> | null) =>
+  const mapEarnerDoc = (userDoc: QueryDocumentSnapshot<DocumentData>): EarnerUser =>
+    mapEarnerData(userDoc.id, userDoc.data());
+
+  const buildEarnersQuery = useCallback((cursor?: QueryDocumentSnapshot<DocumentData> | null) =>
     cursor
       ? query(
           collection(db, "earners"),
@@ -138,9 +150,9 @@ export default function SubmissionManagementEarnersPage() {
           collection(db, "earners"),
           orderBy("createdAt", "desc"),
           limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
-        );
+        ), []);
 
-  const loadMoreEarners = async ({
+  const loadMoreEarners = useCallback(async ({
     cursor,
     append,
   }: {
@@ -150,12 +162,45 @@ export default function SubmissionManagementEarnersPage() {
     const snap = await getDocs(buildEarnersQuery(cursor));
     const rows = snap.docs.map(mapEarnerDoc);
 
-    setEarners((current) => (append ? [...current, ...rows] : rows));
-    setLoadedCount((current) => (append ? current + rows.length : rows.length));
+    let nextLoadedCount = rows.length;
+    setEarners((current) => {
+      const next = append ? mergeUniqueEarners(current, rows) : rows;
+      nextLoadedCount = next.length;
+      return next;
+    });
+    setLoadedCount(nextLoadedCount);
     setLastVisible(snap.docs.at(-1) ?? null);
     setHasMore(snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE);
     return rows;
-  };
+  }, [buildEarnersQuery]);
+
+  const directSearchEarners = useCallback(async (searchText: string) => {
+    const trimmed = searchText.trim();
+    if (!trimmed) return [] as EarnerUser[];
+
+    const [earnerDocSnap, emailSnap, nameSnap, fullNameSnap] = await Promise.all([
+      getDoc(doc(db, "earners", trimmed)),
+      getDocs(query(collection(db, "earners"), where("email", "==", trimmed), limit(1))),
+      getDocs(query(collection(db, "earners"), where("name", "==", trimmed), limit(3))),
+      getDocs(query(collection(db, "earners"), where("fullName", "==", trimmed), limit(3))),
+    ]);
+
+    const directMatches: EarnerUser[] = [];
+    if (earnerDocSnap.exists()) {
+      directMatches.push(mapEarnerData(earnerDocSnap.id, earnerDocSnap.data()));
+    }
+    emailSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+    nameSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+    fullNameSnap.docs.forEach((userDoc) => {
+      directMatches.push(mapEarnerDoc(userDoc));
+    });
+
+    return mergeUniqueEarners([], directMatches);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -184,7 +229,7 @@ export default function SubmissionManagementEarnersPage() {
     };
 
     load();
-  }, []);
+  }, [loadMoreEarners]);
 
   const filteredEarners = useMemo(() => {
     return earners.filter((earner) => {
@@ -221,6 +266,26 @@ export default function SubmissionManagementEarnersPage() {
     const keepSearching = async () => {
       try {
         setLoadingMore(true);
+        const directMatches = await directSearchEarners(search);
+        if (!cancelled && directMatches.length > 0) {
+          let nextLoadedCount = directMatches.length;
+          setEarners((current) => {
+            const next = mergeUniqueEarners(current, directMatches);
+            nextLoadedCount = next.length;
+            return next;
+          });
+          setLoadedCount(nextLoadedCount);
+        }
+
+        if (
+          directMatches.some((earner) => {
+            const lowered = search.trim().toLowerCase();
+            return earner.name.toLowerCase().includes(lowered) || earner.email.toLowerCase().includes(lowered);
+          })
+        ) {
+          return;
+        }
+
         let localHasMore: boolean = hasMore;
         let cursor = lastVisible;
         const lowered = search.trim().toLowerCase();
@@ -229,8 +294,13 @@ export default function SubmissionManagementEarnersPage() {
           const snap = await getDocs(buildEarnersQuery(cursor));
           const rows = snap.docs.map(mapEarnerDoc);
 
-          setEarners((current) => [...current, ...rows]);
-          setLoadedCount((current) => current + rows.length);
+          let nextLoadedCount = rows.length;
+          setEarners((current) => {
+            const next = mergeUniqueEarners(current, rows);
+            nextLoadedCount = next.length;
+            return next;
+          });
+          setLoadedCount(nextLoadedCount);
           cursor = snap.docs.at(-1) ?? null;
           setLastVisible(cursor);
           localHasMore = snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE;
@@ -259,7 +329,23 @@ export default function SubmissionManagementEarnersPage() {
     return () => {
       cancelled = true;
     };
-  }, [filteredEarners.length, hasMore, lastVisible, loading, loadingMore, search]);
+  }, [directSearchEarners, filteredEarners.length, hasMore, lastVisible, loading, loadingMore, search, buildEarnersQuery]);
+
+  const handleLoadMoreEarners = useCallback(async () => {
+    if (!lastVisible || !hasMore || loadingMore) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      await loadMoreEarners({ cursor: lastVisible, append: true });
+    } catch (error) {
+      console.error("Failed to load more earners", error);
+      toast.error("Failed to load more earners");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, lastVisible, loadMoreEarners, loadingMore]);
 
   const updateEarnerStatus = async (earner: EarnerUser, nextStatus: string) => {
     try {
@@ -374,30 +460,7 @@ export default function SubmissionManagementEarnersPage() {
 
       <SectionCard
         title="Earner list"
-        description={`${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} matched the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
-        action={
-          hasMore ? (
-            <Button
-              variant="outline"
-              className="rounded-full border-stone-300 bg-white"
-              disabled={loadingMore}
-              onClick={async () => {
-                if (!lastVisible) return;
-                try {
-                  setLoadingMore(true);
-                  await loadMoreEarners({ cursor: lastVisible, append: true });
-                } catch (error) {
-                  console.error("Failed to load more earners", error);
-                  toast.error("Failed to load more earners");
-                } finally {
-                  setLoadingMore(false);
-                }
-              }}
-            >
-              {loadingMore ? "Loading..." : "Load more"}
-            </Button>
-          ) : undefined
-        }
+        description={`${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -414,6 +477,9 @@ export default function SubmissionManagementEarnersPage() {
           <PaginatedCardList
             items={filteredEarners}
             itemsPerPage={3}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={handleLoadMoreEarners}
             renderItem={(earner) => (
               <div
                 key={earner.id}

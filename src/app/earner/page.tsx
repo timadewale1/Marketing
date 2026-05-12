@@ -9,6 +9,7 @@ import { auth, db } from "@/lib/firebase"
 import {
   collection,
   doc,
+  getCountFromServer,
   getDoc,
   limit,
   onSnapshot,
@@ -216,10 +217,22 @@ export default function EarnerDashboard() {
       )
 
       // Referrals
+      void Promise.all([
+        getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid))),
+        getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid), where("status", "==", "completed"))),
+      ]).then(([totalSnap, completedSnap]) => {
+        setReferralStats((prev) => ({
+          ...prev,
+          totalReferrals: totalSnap.data().count,
+          completedReferrals: completedSnap.data().count,
+        }))
+      }).catch((error) => {
+        console.error("Failed to load dashboard referral counts", error)
+      })
+
       const unsubReferrals = onSnapshot(
         query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250)),
         (snap) => {
-          const totalReferrals = snap.size
           let completedReferrals = 0
           let pendingBonuses = 0
           let earnings = 0
@@ -233,7 +246,12 @@ export default function EarnerDashboard() {
             }
             if (!r.bonusPaid) pendingBonuses += amount
           })
-          setReferralStats({ totalReferrals, completedReferrals, pendingBonuses, totalReferralEarnings: earnings })
+          setReferralStats((prev) => ({
+            ...prev,
+            completedReferrals: Math.max(prev.completedReferrals, completedReferrals),
+            pendingBonuses,
+            totalReferralEarnings: earnings,
+          }))
         }
       )
 

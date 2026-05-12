@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
+import { collection, getCountFromServer, limit, onSnapshot, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Copy, CheckCheck } from "lucide-react";
@@ -29,6 +29,11 @@ export default function ReferralsPage() {
   const [loading, setLoading] = useState(true);
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [summaryCounts, setSummaryCounts] = useState({
+    totalReferrals: 0,
+    completedCount: 0,
+    pendingCount: 0,
+  });
 
   useEffect(() => {
     const u = auth.currentUser;
@@ -44,6 +49,21 @@ export default function ReferralsPage() {
     } catch {
       setInviteLink(`https://pambaadverts.com/auth/sign-up?ref=${u.uid}`);
     }
+
+    void Promise.all([
+      getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid))),
+      getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid), where("status", "==", "completed"))),
+    ]).then(([totalSnap, completedSnap]) => {
+      const completedCount = completedSnap.data().count;
+      const totalReferrals = totalSnap.data().count;
+      setSummaryCounts({
+        totalReferrals,
+        completedCount,
+        pendingCount: Math.max(0, totalReferrals - completedCount),
+      });
+    }).catch((error) => {
+      console.error("Failed to load referral counts", error);
+    });
 
     const q = query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250));
     const unsub = onSnapshot(q, (snap) => {
@@ -76,12 +96,12 @@ export default function ReferralsPage() {
     const pending = referrals.filter((referral) => referral.status !== "completed");
 
     return {
-      completedCount: completed.length,
-      pendingCount: pending.length,
+      completedCount: summaryCounts.completedCount,
+      pendingCount: summaryCounts.pendingCount,
       totalEarned: completed.reduce((sum, referral) => sum + (Number(referral.amount) || 0), 0),
       pendingEarnings: pending.reduce((sum, referral) => sum + (Number(referral.amount) || 0), 0),
     };
-  }, [referrals]);
+  }, [referrals, summaryCounts.completedCount, summaryCounts.pendingCount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300">
@@ -140,7 +160,7 @@ export default function ReferralsPage() {
             <h3 className="text-sm font-medium text-stone-500 mb-2">Completed Referrals</h3>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-stone-800">{stats.completedCount}</span>
-              <span className="text-stone-500">out of {referrals.length}</span>
+              <span className="text-stone-500">out of {summaryCounts.totalReferrals}</span>
             </div>
           </Card>
 
@@ -156,12 +176,12 @@ export default function ReferralsPage() {
             <div className="text-3xl font-bold text-stone-800">
               ₦{stats.pendingEarnings.toLocaleString()}
             </div>
-            <p className="mt-2 text-xs text-stone-500">{stats.pendingCount} referral(s) awaiting activation</p>
+            <p className="mt-2 text-xs text-stone-500">{summaryCounts.pendingCount} referral(s) awaiting activation</p>
           </Card>
         </div>
 
         <div className="bg-white/80 backdrop-blur rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-stone-800 mb-4">Referral History</h3>
+          <h3 className="text-lg font-semibold text-stone-800 mb-4">Recent Referral History</h3>
           {loading ? (
             <PageLoader />
           ) : referrals.length === 0 ? (
