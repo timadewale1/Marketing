@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireSubmissionManagementSession } from '@/lib/submissionmanagement-session'
 import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
-import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
+import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
 
 interface Submission {
   status?: string
@@ -26,8 +26,6 @@ interface Campaign {
   status?: string
   [key: string]: unknown
 }
-
-const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 
 type StrikeEmailPayload =
   | { type: 'added'; email: string; name?: string; strikeCount: number; reason?: string | null; suspended: boolean }
@@ -52,7 +50,6 @@ export async function POST(req: Request): Promise<Response> {
   const cleanupEligibleAt = getProofCleanupEligibleAt(now)
   const adminUid = 'submissionmanagement-admin'
   let strikeEmailPayload: StrikeEmailPayload | null = null
-  let autoActivatedUserId: string | null = null
 
   try {
     let subRef = adminDb.collection('submissions').doc(submissionId)
@@ -104,8 +101,7 @@ export async function POST(req: Request): Promise<Response> {
         
         const userId = submission.userId as string
         if (!userId) throw new Error('Submission missing userId')
-        const liveEarnerSnap = await t.get(earnerRef)
-        const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
+        await t.get(earnerRef)
         
         const campaignBudget = Number(campaign.budget || 0)
         const campaignReservedBudget = Number(campaign.reservedBudget || 0)
@@ -207,12 +203,6 @@ export async function POST(req: Request): Promise<Response> {
         if (completionRate >= 100 && campaign.status !== 'Deleted') campaignUpdates.status = 'Completed'
         t.update(campaignRef, campaignUpdates)
 
-        const earnerCurrentBalance = Number(liveEarnerData?.balance || 0)
-        const earnerIsActivated = Boolean(liveEarnerData?.activated)
-        const shouldAutoActivate = !earnerIsActivated && earnerCurrentBalance + earnerAmount >= EARNER_AUTO_ACTIVATION_THRESHOLD
-        const activationDeduction = shouldAutoActivate ? EARNER_AUTO_ACTIVATION_THRESHOLD : 0
-        const netEarning = earnerAmount - activationDeduction
-
         const earnerTxRef = adminDb.collection('earnerTransactions').doc()
         t.set(earnerTxRef, {
           userId,
@@ -223,33 +213,12 @@ export async function POST(req: Request): Promise<Response> {
           note: `Payment for ${submission.campaignTitle}`,
           createdAt: now,
         })
-        if (shouldAutoActivate) {
-          const activationTxRef = adminDb.collection('earnerTransactions').doc()
-          t.set(activationTxRef, {
-            userId,
-            campaignId: submission.campaignId,
-            type: 'activation_fee',
-            amount: -activationDeduction,
-            status: 'completed',
-            note: 'Automatic account activation from wallet earnings',
-            createdAt: now,
-          })
-        }
 
         const earnerUpdates: Record<string, unknown> = {
-          balance: admin.firestore.FieldValue.increment(netEarning),
+          balance: admin.firestore.FieldValue.increment(earnerAmount),
           leadsPaidFor: admin.firestore.FieldValue.increment(1),
           totalEarned: admin.firestore.FieldValue.increment(earnerAmount),
           lastEarnedAt: now,
-        }
-        if (shouldAutoActivate) {
-          earnerUpdates.activated = true
-          earnerUpdates.activatedAt = now
-          earnerUpdates.activationPaymentProvider = 'wallet_auto'
-          earnerUpdates.pendingActivationProvider = admin.firestore.FieldValue.delete()
-          earnerUpdates.pendingActivationReference = admin.firestore.FieldValue.delete()
-          earnerUpdates.needsReactivation = false
-          autoActivatedUserId = userId
         }
         t.update(adminDb.collection('earners').doc(userId), earnerUpdates)
 
@@ -337,15 +306,25 @@ export async function POST(req: Request): Promise<Response> {
         })
 
         const nextStrikeCount = currentStrikeCount + 1
-        const shouldSuspend = nextStrikeCount >= 5
+        const shouldSuspend = nextStrikeCount >= EARNER_STRIKE_SUSPENSION_THRESHOLD
         const earnerUpdates: Record<string, unknown> = {
           strikeCount: nextStrikeCount,
           lastStrikeUpdatedAt: now,
         }
         if (shouldSuspend) {
+          const suspension = buildNextEarnerSuspension(earnerData, now)
           earnerUpdates.status = 'suspended'
           earnerUpdates.suspensionReason = 'Reached 5 rejected submission strikes'
           earnerUpdates.suspendedAt = now
+          earnerUpdates.suspensionCount = suspension.suspensionCount
+          earnerUpdates.suspensionIndefinite = suspension.indefinite
+          if (suspension.releaseAt) {
+            earnerUpdates.suspensionReleaseAt = suspension.releaseAt
+            earnerUpdates.suspensionDurationDays = suspension.durationDays
+          } else {
+            earnerUpdates.suspensionReleaseAt = admin.firestore.FieldValue.delete()
+            earnerUpdates.suspensionDurationDays = admin.firestore.FieldValue.delete()
+          }
         }
         t.set(earnerRef, earnerUpdates, { merge: true })
         if (earnerEmail) {
@@ -471,10 +450,6 @@ export async function POST(req: Request): Promise<Response> {
         throw new Error('Unknown action')
       }
     })
-
-    if (autoActivatedUserId) {
-      await processPendingActivationReferrals(adminDb, admin, autoActivatedUserId)
-    }
 
     await runSubmissionProofCleanupIfDue(admin, adminDb)
 

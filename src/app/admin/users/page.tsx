@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -134,9 +134,10 @@ export default function UsersPage() {
   const [hasMoreAdvertisers, setHasMoreAdvertisers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
-  const [lastExactSearchTerm, setLastExactSearchTerm] = useState("");
+  const [exactSearchResults, setExactSearchResults] = useState<AdminUser[] | null>(null);
   const [lastVisibleEarner, setLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastVisibleAdvertiser, setLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const searchRequestRef = useRef(0);
 
   const mapEarnerData = (id: string, data: DocumentData): AdminUser => {
     return {
@@ -240,10 +241,10 @@ export default function UsersPage() {
         getDoc(doc(db, "advertisers", trimmed)),
         getDocs(query(collection(db, "earners"), where("email", "==", trimmed), limit(1))),
         getDocs(query(collection(db, "advertisers"), where("email", "==", trimmed), limit(1))),
-        getDocs(query(collection(db, "earners"), where("name", "==", trimmed), limit(3))),
-        getDocs(query(collection(db, "earners"), where("fullName", "==", trimmed), limit(3))),
-        getDocs(query(collection(db, "advertisers"), where("name", "==", trimmed), limit(3))),
-        getDocs(query(collection(db, "advertisers"), where("companyName", "==", trimmed), limit(3))),
+        getDocs(query(collection(db, "earners"), orderBy("name"), where("name", ">=", trimmed), where("name", "<=", `${trimmed}\uf8ff`), limit(5))),
+        getDocs(query(collection(db, "earners"), orderBy("fullName"), where("fullName", ">=", trimmed), where("fullName", "<=", `${trimmed}\uf8ff`), limit(5))),
+        getDocs(query(collection(db, "advertisers"), orderBy("name"), where("name", ">=", trimmed), where("name", "<=", `${trimmed}\uf8ff`), limit(5))),
+        getDocs(query(collection(db, "advertisers"), orderBy("companyName"), where("companyName", ">=", trimmed), where("companyName", "<=", `${trimmed}\uf8ff`), limit(5))),
       ]);
 
     const directMatches: AdminUser[] = [];
@@ -317,13 +318,8 @@ export default function UsersPage() {
     load();
   }, [loadUserPages]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const searchText = search.trim().toLowerCase();
-      const matchesSearch =
-        !searchText ||
-        user.name.toLowerCase().includes(searchText) ||
-        user.email.toLowerCase().includes(searchText);
+  const applyDirectoryFilters = useCallback((list: AdminUser[]) => {
+    return list.filter((user) => {
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
       const matchesStatus =
         statusFilter === "all" || user.status.toLowerCase() === statusFilter;
@@ -331,15 +327,27 @@ export default function UsersPage() {
         activationFilter === "all" ||
         (activationFilter === "activated" ? user.activated : !user.activated);
 
-      return matchesSearch && matchesRole && matchesStatus && matchesActivation;
+      return matchesRole && matchesStatus && matchesActivation;
     });
-  }, [activationFilter, roleFilter, search, statusFilter, users]);
+  }, [activationFilter, roleFilter, statusFilter]);
 
-  useEffect(() => {
-    if (!search.trim()) {
-      setLastExactSearchTerm("");
+  const browseUsers = useMemo(() => {
+    const searchText = search.trim().toLowerCase();
+    return applyDirectoryFilters(users).filter((user) => {
+      if (!searchText) return true;
+      return (
+        user.name.toLowerCase().includes(searchText) ||
+        user.email.toLowerCase().includes(searchText)
+      );
+    });
+  }, [applyDirectoryFilters, search, users]);
+
+  const filteredUsers = useMemo(() => {
+    if (search.trim()) {
+      return applyDirectoryFilters(exactSearchResults || []);
     }
-  }, [search]);
+    return browseUsers;
+  }, [applyDirectoryFilters, browseUsers, exactSearchResults, search]);
 
   const stats = useMemo(() => {
     return {
@@ -354,41 +362,36 @@ export default function UsersPage() {
 
   useEffect(() => {
     const searchTerm = search.trim();
-    if (!searchTerm || filteredUsers.length > 0 || loading || searchingExact || lastExactSearchTerm === searchTerm) {
+    if (!searchTerm) {
+      setExactSearchResults(null);
+      setSearchingExact(false);
       return;
     }
 
-    let cancelled = false;
-
-    const searchDirectly = async () => {
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    const timeoutId = window.setTimeout(async () => {
       try {
         setSearchingExact(true);
-        setLastExactSearchTerm(searchTerm);
         const directMatches = await directSearchUsers(searchTerm);
-        if (!cancelled && directMatches.length > 0) {
-          let nextLoadedCount = directMatches.length;
-          setUsers((current) => {
-            const next = mergeUniqueUsers(current, directMatches);
-            nextLoadedCount = next.length;
-            return next;
-          });
-          setLoadedCount(nextLoadedCount);
-        }
+        if (searchRequestRef.current !== requestId) return;
+        setExactSearchResults(directMatches);
       } catch (error) {
         console.error("Error loading direct user search matches:", error);
+        if (searchRequestRef.current === requestId) {
+          setExactSearchResults([]);
+        }
       } finally {
-        if (!cancelled) {
+        if (searchRequestRef.current === requestId) {
           setSearchingExact(false);
         }
       }
-    };
-
-    void searchDirectly();
+    }, 250);
 
     return () => {
-      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-  }, [directSearchUsers, filteredUsers.length, lastExactSearchTerm, loading, search, searchingExact]);
+  }, [directSearchUsers, search]);
 
   const handleLoadMoreUsers = useCallback(async () => {
     if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {
@@ -419,6 +422,9 @@ export default function UsersPage() {
         updates.strikeCount = 0;
         updates.suspensionReason = deleteField();
         updates.suspendedAt = deleteField();
+        updates.suspensionReleaseAt = deleteField();
+        updates.suspensionDurationDays = deleteField();
+        updates.suspensionIndefinite = deleteField();
         updates.lastStrikeUpdatedAt = deleteField();
       }
       await updateDoc(doc(db, collectionName, user.id), updates);
@@ -543,7 +549,9 @@ export default function UsersPage() {
 
       <SectionCard
         title="User directory"
-        description={`${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded. Search checks exact id, email, or name directly in Firestore without sweeping the whole directory.`}
+        description={search.trim()
+          ? `${filteredUsers.length} account${filteredUsers.length === 1 ? "" : "s"} match this search. Exact search queries Firestore directly by id, email, or saved name without sweeping the whole directory.`
+          : `${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
@@ -553,6 +561,13 @@ export default function UsersPage() {
                 className="h-48 animate-pulse rounded-3xl bg-stone-100"
               />
             ))}
+          </div>
+        ) : search.trim() && searchingExact ? (
+          <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center">
+            <p className="text-base font-semibold text-stone-900">Searching Firestore</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-stone-600">
+              Looking for exact id, email, or saved name matches.
+            </p>
           </div>
         ) : filteredUsers.length === 0 ? (
           searchingExact ? (
@@ -572,9 +587,9 @@ export default function UsersPage() {
           <PaginatedCardList
             items={filteredUsers}
             itemsPerPage={3}
-            hasMore={hasMoreEarners || hasMoreAdvertisers}
-            loadingMore={loadingMore}
-            onLoadMore={handleLoadMoreUsers}
+            hasMore={!search.trim() && (hasMoreEarners || hasMoreAdvertisers)}
+            loadingMore={!search.trim() && loadingMore}
+            onLoadMore={!search.trim() ? handleLoadMoreUsers : undefined}
             renderItem={(user) => {
               const detailHref =
                 user.role === "advertiser"

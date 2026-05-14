@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CircleSlash,
@@ -119,8 +119,9 @@ export default function SubmissionManagementEarnersPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
-  const [lastExactSearchTerm, setLastExactSearchTerm] = useState("");
+  const [exactSearchResults, setExactSearchResults] = useState<EarnerUser[] | null>(null);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const searchRequestRef = useRef(0);
 
   const mapEarnerData = (id: string, data: DocumentData): EarnerUser => {
     return {
@@ -183,8 +184,8 @@ export default function SubmissionManagementEarnersPage() {
     const [earnerDocSnap, emailSnap, nameSnap, fullNameSnap] = await Promise.all([
       getDoc(doc(db, "earners", trimmed)),
       getDocs(query(collection(db, "earners"), where("email", "==", trimmed), limit(1))),
-      getDocs(query(collection(db, "earners"), where("name", "==", trimmed), limit(3))),
-      getDocs(query(collection(db, "earners"), where("fullName", "==", trimmed), limit(3))),
+      getDocs(query(collection(db, "earners"), orderBy("name"), where("name", ">=", trimmed), where("name", "<=", `${trimmed}\uf8ff`), limit(5))),
+      getDocs(query(collection(db, "earners"), orderBy("fullName"), where("fullName", ">=", trimmed), where("fullName", "<=", `${trimmed}\uf8ff`), limit(5))),
     ]);
 
     const directMatches: EarnerUser[] = [];
@@ -233,28 +234,28 @@ export default function SubmissionManagementEarnersPage() {
     load();
   }, [loadMoreEarners]);
 
-  const filteredEarners = useMemo(() => {
-    return earners.filter((earner) => {
-      const searchText = search.trim().toLowerCase();
-      const matchesSearch =
-        !searchText ||
-        earner.name.toLowerCase().includes(searchText) ||
-        earner.email.toLowerCase().includes(searchText);
+  const applyDirectoryFilters = useCallback((list: EarnerUser[]) => {
+    return list.filter((earner) => {
       const matchesStatus =
         statusFilter === "all" || earner.status.toLowerCase() === statusFilter;
       const matchesActivation =
         activationFilter === "all" ||
         (activationFilter === "activated" ? earner.activated : !earner.activated);
 
-      return matchesSearch && matchesStatus && matchesActivation;
+      return matchesStatus && matchesActivation;
     });
-  }, [activationFilter, earners, search, statusFilter]);
+  }, [activationFilter, statusFilter]);
 
-  useEffect(() => {
-    if (!search.trim()) {
-      setLastExactSearchTerm("");
-    }
-  }, [search]);
+  const browseEarners = useMemo(() => {
+    const searchText = search.trim().toLowerCase();
+    return applyDirectoryFilters(earners).filter((earner) => {
+      if (!searchText) return true;
+      return (
+        earner.name.toLowerCase().includes(searchText) ||
+        earner.email.toLowerCase().includes(searchText)
+      );
+    });
+  }, [applyDirectoryFilters, earners, search]);
 
   const stats = useMemo(() => {
     return {
@@ -266,41 +267,43 @@ export default function SubmissionManagementEarnersPage() {
 
   useEffect(() => {
     const searchTerm = search.trim();
-    if (!searchTerm || filteredEarners.length > 0 || loading || searchingExact || lastExactSearchTerm === searchTerm) {
+    if (!searchTerm) {
+      setExactSearchResults(null);
+      setSearchingExact(false);
       return;
     }
 
-    let cancelled = false;
-
-    const searchDirectly = async () => {
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    const timeoutId = window.setTimeout(async () => {
       try {
         setSearchingExact(true);
-        setLastExactSearchTerm(searchTerm);
         const directMatches = await directSearchEarners(searchTerm);
-        if (!cancelled && directMatches.length > 0) {
-          let nextLoadedCount = directMatches.length;
-          setEarners((current) => {
-            const next = mergeUniqueEarners(current, directMatches);
-            nextLoadedCount = next.length;
-            return next;
-          });
-          setLoadedCount(nextLoadedCount);
-        }
+        if (searchRequestRef.current !== requestId) return;
+        setExactSearchResults(directMatches);
       } catch (error) {
         console.error("Error loading direct earner search matches:", error);
+        if (searchRequestRef.current === requestId) {
+          setExactSearchResults([]);
+        }
       } finally {
-        if (!cancelled) {
+        if (searchRequestRef.current === requestId) {
           setSearchingExact(false);
         }
       }
-    };
-
-    void searchDirectly();
+    }, 250);
 
     return () => {
-      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-  }, [directSearchEarners, filteredEarners.length, lastExactSearchTerm, loading, search, searchingExact]);
+  }, [directSearchEarners, search]);
+
+  const filteredEarners = useMemo(() => {
+    if (search.trim()) {
+      return applyDirectoryFilters(exactSearchResults || []);
+    }
+    return browseEarners;
+  }, [applyDirectoryFilters, browseEarners, exactSearchResults, search]);
 
   const handleLoadMoreEarners = useCallback(async () => {
     if (!lastVisible || !hasMore || loadingMore) {
@@ -326,6 +329,9 @@ export default function SubmissionManagementEarnersPage() {
         updates.strikeCount = 0;
         updates.suspensionReason = deleteField();
         updates.suspendedAt = deleteField();
+        updates.suspensionReleaseAt = deleteField();
+        updates.suspensionDurationDays = deleteField();
+        updates.suspensionIndefinite = deleteField();
         updates.lastStrikeUpdatedAt = deleteField();
       }
       await updateDoc(doc(db, "earners", earner.id), updates);
@@ -431,13 +437,22 @@ export default function SubmissionManagementEarnersPage() {
 
       <SectionCard
         title="Earner list"
-        description={`${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded. Search checks exact id, email, or name directly in Firestore without sweeping the whole directory.`}
+        description={search.trim()
+          ? `${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} match this search. Exact search queries Firestore directly by id, email, or saved name.`
+          : `${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
       >
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="h-48 animate-pulse rounded-3xl bg-stone-100" />
             ))}
+          </div>
+        ) : search.trim() && searchingExact ? (
+          <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center">
+            <p className="text-base font-semibold text-stone-900">Searching Firestore</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-stone-600">
+              Looking for exact id, email, or saved name matches.
+            </p>
           </div>
         ) : filteredEarners.length === 0 ? (
           searchingExact ? (
@@ -457,9 +472,9 @@ export default function SubmissionManagementEarnersPage() {
           <PaginatedCardList
             items={filteredEarners}
             itemsPerPage={3}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-            onLoadMore={handleLoadMoreEarners}
+            hasMore={!search.trim() && hasMore}
+            loadingMore={!search.trim() && loadingMore}
+            onLoadMore={!search.trim() ? handleLoadMoreEarners : undefined}
             renderItem={(earner) => (
               <div
                 key={earner.id}

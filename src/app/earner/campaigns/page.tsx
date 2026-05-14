@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, limit, onSnapshot, query, where, doc } from "firebase/firestore";
+import { collection, doc, limit, onSnapshot, query, where } from "firebase/firestore";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { Card } from "@/components/ui/card";
@@ -86,21 +86,24 @@ export default function AvailableCampaignsPage() {
         setActivatingLoading(false);
         return;
       }
+
       const earnerDoc = doc(db, "earners", u.uid);
-      unsubProfile = onSnapshot(earnerDoc, (d) => {
-        if (!d.exists()) {
+      unsubProfile = onSnapshot(earnerDoc, (snapshot) => {
+        if (!snapshot.exists()) {
           router.replace("/auth/sign-in");
           setActivatingLoading(false);
           return;
         }
-        if (!d.data()?.onboarded) {
+        if (!snapshot.data()?.onboarded) {
           router.replace("/earner/onboarding");
           setActivatingLoading(false);
           return;
         }
-        const nextActivated = !!d.data()?.activated;
+
+        const nextActivated = Boolean(snapshot.data()?.activated);
         setActivated(nextActivated);
-        setAccountStatus(String(d.data()?.status || "active"));
+        setAccountStatus(String(snapshot.data()?.status || "active"));
+
         if (
           previousActivatedRef.current === false &&
           nextActivated &&
@@ -110,6 +113,7 @@ export default function AvailableCampaignsPage() {
           toast.success("Your account is now activated. Refreshing this page...");
           setTimeout(() => window.location.reload(), 700);
         }
+
         previousActivatedRef.current = nextActivated;
         setActivatingLoading(false);
       });
@@ -118,12 +122,12 @@ export default function AvailableCampaignsPage() {
       setActivatingLoading(false);
     }
 
-    const q = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(150));
-    const unsub = onSnapshot(q, (snap) => {
-      const mapped = snap.docs.map((d) => {
-        const data = d.data() as Partial<Campaign>;
+    const liveCampaignsQuery = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(150));
+    const unsubCampaigns = onSnapshot(liveCampaignsQuery, (snapshot) => {
+      const mapped = snapshot.docs.map((campaignDoc) => {
+        const data = campaignDoc.data() as Partial<Campaign>;
         return {
-          id: d.id,
+          id: campaignDoc.id,
           title: data.title || "Untitled task",
           category: data.category,
           budget: data.budget,
@@ -147,32 +151,63 @@ export default function AvailableCampaignsPage() {
       setLoading(false);
     });
 
-    let unsubParts: (() => void) | null = null;
-    const user = auth.currentUser;
-    if (user) {
-      const qParts = query(collection(db, "earnerSubmissions"), where("userId", "==", user.uid), limit(250));
-      type Sub = { campaignId?: string };
-      unsubParts = onSnapshot(qParts, (s) => {
-        setParticipatedIds(s.docs.map((d) => (d.data() as Sub).campaignId).filter(Boolean) as string[]);
+    let unsubParticipations: (() => void) | null = null;
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const participationsQuery = query(
+        collection(db, "earnerSubmissions"),
+        where("userId", "==", currentUser.uid),
+        limit(250)
+      );
+      type SubmissionStub = { campaignId?: string };
+      unsubParticipations = onSnapshot(participationsQuery, (snapshot) => {
+        setParticipatedIds(
+          snapshot.docs
+            .map((submissionDoc) => (submissionDoc.data() as SubmissionStub).campaignId)
+            .filter(Boolean) as string[]
+        );
       });
     }
 
     return () => {
-      unsub();
-      if (unsubParts) unsubParts();
+      unsubCampaigns();
+      if (unsubParticipations) unsubParticipations();
       if (unsubProfile) unsubProfile();
     };
   }, [router]);
 
   const filteredCampaigns = campaigns
-    .filter((c) => Number(c.budget || 0) > 0)
-    .filter((c) => filterType === "All" || c.category === filterType)
-    .filter((c) => !participatedIds.includes(c.id));
+    .filter((campaign) => Number(campaign.budget || 0) > 0)
+    .filter((campaign) => filterType === "All" || campaign.category === filterType)
+    .filter((campaign) => !participatedIds.includes(campaign.id));
 
   const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / campaignsPerPage));
   const paginatedCampaigns = filteredCampaigns.slice(
     (currentPage - 1) * campaignsPerPage,
     currentPage * campaignsPerPage
+  );
+
+  const activationRequiredCard = (
+    <Card className="border border-amber-200 bg-amber-50 p-6 shadow-sm">
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Activation required</p>
+        <h3 className="text-2xl font-semibold text-stone-900">Activate your earner account before performing tasks</h3>
+        <p className="max-w-2xl text-sm leading-6 text-amber-900">
+          Non-activated earners cannot participate in tasks, withdraw funds, or use wallet balance for bills until the activation fee has been paid successfully.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={() => router.push("/earner/transactions")}
+            className="bg-amber-500 hover:bg-amber-600 text-stone-900"
+          >
+            Activate Account
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/earner")}>
+            Back to dashboard
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 
   return (
@@ -209,14 +244,10 @@ export default function AvailableCampaignsPage() {
 
         {activatingLoading || loading ? (
           <PageLoader />
+        ) : activated === false ? (
+          activationRequiredCard
         ) : (
           <div>
-            {activated === false ? (
-              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Your account will activate automatically once your earnings reach ₦2,000. Until then, you can do tasks normally, but withdrawals and bill purchases from your wallet are disabled.
-              </div>
-            ) : null}
-
             <Card className="mb-6 border-none bg-white/75 p-4 shadow backdrop-blur">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
@@ -224,8 +255,8 @@ export default function AvailableCampaignsPage() {
                   <select
                     className="w-full md:w-72 rounded-xl border border-stone-300 bg-white px-4 py-2 text-stone-800 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                     value={filterType}
-                    onChange={(e) => {
-                      setFilterType(e.target.value);
+                    onChange={(event) => {
+                      setFilterType(event.target.value);
                       setCurrentPage(1);
                     }}
                   >
@@ -246,7 +277,7 @@ export default function AvailableCampaignsPage() {
             {filteredCampaigns.length === 0 ? (
               <Card className="border-none bg-white/80 p-10 shadow-lg backdrop-blur">
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="mb-6 text-6xl">📭</div>
+                  <div className="mb-6 text-6xl">ðŸ“­</div>
                   <h3 className="text-3xl font-bold text-stone-800">No Available Tasks</h3>
                   <p className="mt-2 text-lg text-stone-600">Nothing is open right now.</p>
                   <p className="mt-2 max-w-md text-sm leading-6 text-stone-500">
@@ -256,16 +287,16 @@ export default function AvailableCampaignsPage() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {paginatedCampaigns.map((c) => {
-                  const earnerPrice = Math.round((c.costPerLead || 0) / 2);
+                {paginatedCampaigns.map((campaign) => {
+                  const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
 
                   return (
-                    <Card key={c.id} className="overflow-hidden border-none bg-white/80 shadow-md backdrop-blur transition duration-300 hover:shadow-xl">
+                    <Card key={campaign.id} className="overflow-hidden border-none bg-white/80 shadow-md backdrop-blur transition duration-300 hover:shadow-xl">
                       <div className="grid gap-0 md:grid-cols-[260px_1fr]">
                         <div className="relative min-h-[220px] overflow-hidden bg-stone-100">
                           <Image
-                            src={c.bannerUrl || "/placeholders/default.jpg"}
-                            alt={c.title || "task banner"}
+                            src={campaign.bannerUrl || "/placeholders/default.jpg"}
+                            alt={campaign.title || "task banner"}
                             fill
                             style={{ objectFit: "cover" }}
                           />
@@ -274,16 +305,16 @@ export default function AvailableCampaignsPage() {
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
                               <div className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                                {c.category || "General task"}
+                                {campaign.category || "General task"}
                               </div>
-                              <h3 className="mt-3 text-xl font-semibold text-stone-800">{c.title}</h3>
+                              <h3 className="mt-3 text-xl font-semibold text-stone-800">{campaign.title}</h3>
                               <p className="mt-2 text-sm leading-6 text-stone-600">
                                 Complete the task instructions carefully, submit clear proof, and wait for review before payout.
                               </p>
                             </div>
                             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 min-w-[150px]">
                               <div className="text-xs uppercase tracking-wide text-stone-500">Earn per lead</div>
-                              <div className="mt-1 text-xl font-bold text-amber-600">₦{earnerPrice.toLocaleString()}</div>
+                              <div className="mt-1 text-xl font-bold text-amber-600">â‚¦{earnerPrice.toLocaleString()}</div>
                             </div>
                           </div>
 
@@ -300,7 +331,12 @@ export default function AvailableCampaignsPage() {
                                   toast.error("Your account is suspended. Please contact support for review.");
                                   return;
                                 }
-                                router.push(`/earner/campaigns/${c.id}`);
+                                if (!activated) {
+                                  toast.error("Please activate your account before performing tasks.");
+                                  router.push("/earner/transactions");
+                                  return;
+                                }
+                                router.push(`/earner/campaigns/${campaign.id}`);
                               }}
                               className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium"
                             >

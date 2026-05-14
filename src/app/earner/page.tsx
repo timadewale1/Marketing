@@ -285,6 +285,11 @@ export default function EarnerDashboard() {
       toast.error('Your account is suspended. Please contact support for review.')
       return
     }
+    if (!activated) {
+      toast.error('Please activate your account before performing tasks.')
+      router.push("/earner/transactions")
+      return
+    }
     router.push("/earner/campaigns")
   }
 
@@ -347,7 +352,7 @@ export default function EarnerDashboard() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
             {activated
               ? "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning."
-              : "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning. Your first ₦2,000 earned will activate your account automatically."}
+              : "Activate your account to unlock task participation, withdrawals, and wallet spending across the platform."}
           </p>
         </div>
   {/* Top Cards */}
@@ -365,7 +370,7 @@ export default function EarnerDashboard() {
                 </p>
                 {!activated ? (
                   <p className="mt-2 text-xs leading-5 text-stone-600">
-                    Until your account activates automatically from your first ₦2,000 earned, you can do tasks normally but cannot withdraw or use wallet funds for bills.
+                    Your account must be activated before you can perform tasks, withdraw funds, or use your wallet balance for bills.
                   </p>
                 ) : null}
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -376,6 +381,16 @@ export default function EarnerDashboard() {
                     >
                       Withdraw
                     </Button>
+                    {!activated ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-none"
+                        onClick={() => router.push("/earner/transactions")}
+                      >
+                        Activate Account
+                      </Button>
+                    ) : null}
                     <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
                   </div>
                   {accountStatus === 'suspended' ? (
@@ -577,7 +592,7 @@ export default function EarnerDashboard() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Earner menu</p>
                     <h3 className="mt-2 text-lg font-bold text-stone-800">{userName}</h3>
-                    <p className="mt-1 text-xs text-stone-500">{activated ? "Account active" : "Auto-activation in progress"}</p>
+                    <p className="mt-1 text-xs text-stone-500">{activated ? "Account active" : "Activation required"}</p>
                   </div>
                   <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
                     {profilePic ? (

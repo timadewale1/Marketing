@@ -4,6 +4,7 @@ import { getBankDetails } from '@/lib/bank-details'
 import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
 import monnify from '@/services/monnify'
 import { sendAdminActionEmail } from '@/lib/mailer'
+import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
 
 export async function POST(req: Request) {
   try {
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
     type EarnerDoc = {
       balance?: number
       activated?: boolean
+      status?: string
       bank?: { accountNumber?: string; bankCode?: string; accountName?: string; bankName?: string }
       bankCode?: string
       bankName?: string
@@ -54,6 +56,24 @@ export async function POST(req: Request) {
       paystackRecipientCode?: string
     }
     const earner = earnerSnap.data() as EarnerDoc | null
+    if (earner && shouldAutoUnsuspendEarner(earner)) {
+      await earnerRef.set({
+        status: 'active',
+        strikeCount: 0,
+        suspensionReason: admin.firestore.FieldValue.delete(),
+        suspendedAt: admin.firestore.FieldValue.delete(),
+        suspensionReleaseAt: admin.firestore.FieldValue.delete(),
+        suspensionDurationDays: admin.firestore.FieldValue.delete(),
+        suspensionIndefinite: admin.firestore.FieldValue.delete(),
+        lastStrikeUpdatedAt: admin.firestore.FieldValue.delete(),
+      }, { merge: true })
+      earner.status = 'active'
+      earner.activated = Boolean(earner.activated)
+    }
+
+    if (String((earner as { status?: string } | null)?.status || '').toLowerCase() === 'suspended') {
+      return NextResponse.json({ success: false, message: 'Your account is suspended. Please contact support for review.' }, { status: 403 })
+    }
 
     if (!earner?.activated) {
       return NextResponse.json(

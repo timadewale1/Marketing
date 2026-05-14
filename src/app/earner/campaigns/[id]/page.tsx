@@ -100,6 +100,11 @@ export default function CampaignDetailPage() {
     }
 
     const campaignData = campaignSnap.data() as CampaignData;
+    const earnerData = earnerSnap.data() as EarnerData;
+    if (!earnerData?.activated) {
+      return false;
+    }
+
     // Check if campaign is active and has budget
     if (campaignData?.status !== "Active" || (campaignData?.budget || 0) < (campaignData?.costPerLead || 0)) {
       return false;
@@ -277,6 +282,11 @@ export default function CampaignDetailPage() {
     const earnerData = earnerDoc.data() as EarnerData;
     if (String(earnerData.status || "").toLowerCase() === "suspended") {
       toast.error("Your account is suspended. Please contact support for review.");
+      return;
+    }
+    if (!earnerData.activated) {
+      toast.error("Please activate your account before performing tasks.");
+      router.push("/earner/transactions");
       return;
     }
 
@@ -922,9 +932,19 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             </div>
             {!earnerActivated ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-sm text-amber-900">
-                  Your first ₦2,000 earned will be used to activate your account automatically. Until then, you can complete tasks but cannot withdraw or use wallet funds for bills.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-amber-900">
+                    Please activate your account before performing tasks. Non-activated earners cannot submit participation, withdraw funds, or use wallet balance for bills.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/earner/transactions")}
+                    className="border-amber-300 text-amber-900 hover:bg-amber-100"
+                  >
+                    Activate Account
+                  </Button>
+                </div>
               </div>
             ) : null}
 
@@ -932,7 +952,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
               <Button
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium h-12"
                 onClick={submitParticipation}
-                disabled={submitting}
+                disabled={submitting || !earnerActivated}
               >
                 {submitting ? "Submitting..." : `Submit Participation - ₦${earnerPrice}`}
               </Button>

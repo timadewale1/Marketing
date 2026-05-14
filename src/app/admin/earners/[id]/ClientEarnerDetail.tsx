@@ -389,6 +389,9 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
         updates.strikeCount = 0;
         updates.suspensionReason = deleteField();
         updates.suspendedAt = deleteField();
+        updates.suspensionReleaseAt = deleteField();
+        updates.suspensionDurationDays = deleteField();
+        updates.suspensionIndefinite = deleteField();
         updates.lastStrikeUpdatedAt = deleteField();
       }
       await updateDoc(doc(db, "earners", id), updates);

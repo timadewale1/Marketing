@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
 
 type CampaignDoc = {
   title?: string
@@ -19,6 +20,10 @@ type SubmissionDoc = {
 
 type EarnerDoc = {
   status?: string
+  activated?: boolean
+  strikeCount?: number
+  suspensionCount?: number
+  suspensionReleaseAt?: { toDate?: () => Date; seconds?: number } | string | Date | null
 }
 
 export async function POST(req: Request) {
@@ -64,8 +69,25 @@ export async function POST(req: Request) {
     }
 
     const earner = earnerSnap.data() as EarnerDoc
+    if (shouldAutoUnsuspendEarner(earner)) {
+      await earnerRef.set({
+        status: 'active',
+        strikeCount: 0,
+        suspensionReason: admin.firestore.FieldValue.delete(),
+        suspendedAt: admin.firestore.FieldValue.delete(),
+        suspensionReleaseAt: admin.firestore.FieldValue.delete(),
+        suspensionDurationDays: admin.firestore.FieldValue.delete(),
+        suspensionIndefinite: admin.firestore.FieldValue.delete(),
+        lastStrikeUpdatedAt: admin.firestore.FieldValue.delete(),
+      }, { merge: true })
+      earner.status = 'active'
+      earner.strikeCount = 0
+    }
     if (String(earner?.status || '').toLowerCase() === 'suspended') {
       return NextResponse.json({ success: false, message: 'Your account is suspended. Please contact admin for review.' }, { status: 403 })
+    }
+    if (!earner?.activated) {
+      return NextResponse.json({ success: false, message: 'Please activate your account before performing tasks.' }, { status: 403 })
     }
 
     const campaignRef = db.collection('campaigns').doc(String(campaignId))

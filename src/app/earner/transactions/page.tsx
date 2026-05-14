@@ -112,7 +112,7 @@ export default function TransactionsPage() {
       return;
     }
     if (!activated) {
-      toast.error("Your first N2,000 earned will activate your account automatically before withdrawals are allowed");
+      toast.error("Please activate your account before making withdrawals");
       return;
     }
 
@@ -163,7 +163,7 @@ export default function TransactionsPage() {
               </p>
               {!activated ? (
                 <p className="text-sm text-stone-600 mt-1">
-                  Your first ₦2,000 earned will be deducted automatically to activate your account. Until then, withdrawals and bill purchases from your wallet are disabled.
+                  Please activate your account before withdrawals and wallet bill purchases are available.
                 </p>
               ) : null}
             </div>

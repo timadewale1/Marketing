@@ -7,6 +7,7 @@ import { generateRequestId } from '@/services/vtpass/utils'
 import { getVariations, requery as requeryVtpass } from '@/services/vtpass/serviceApi'
 import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts'
 import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment'
+import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
 
 const FRIENDLY_PROVIDER_ERROR_MESSAGE = 'This service is temporarily unavailable right now. Please try again later.'
 const FRIENDLY_REFUND_PENDING_MESSAGE = 'We could not complete this payment. If you were charged, your refund will be processed shortly.'
@@ -164,6 +165,7 @@ export async function POST(req: NextRequest) {
       const earnerRef = db.collection('earners').doc(verifiedUid)
       const advSnap = await advertiserRef.get()
       const earSnap = await earnerRef.get()
+      const earnerData = earSnap.data() as Record<string, unknown> | undefined
       let userType: 'advertiser' | 'earner' | null = null
       let userRef: import('firebase-admin').firestore.DocumentReference
       let txCollection = ''
@@ -173,7 +175,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, message: 'User wallet not found' }, { status: 404 })
       }
 
-      if (userType === 'earner' && !earSnap.data()?.activated) {
+      if (userType === 'earner' && earSnap.exists && shouldAutoUnsuspendEarner(earnerData)) {
+        await earnerRef.set({
+          status: 'active',
+          strikeCount: 0,
+          suspensionReason: admin.firestore.FieldValue.delete(),
+          suspendedAt: admin.firestore.FieldValue.delete(),
+          suspensionReleaseAt: admin.firestore.FieldValue.delete(),
+          suspensionDurationDays: admin.firestore.FieldValue.delete(),
+          suspensionIndefinite: admin.firestore.FieldValue.delete(),
+          lastStrikeUpdatedAt: admin.firestore.FieldValue.delete(),
+        }, { merge: true })
+        if (earnerData) {
+          earnerData.status = 'active'
+        }
+      }
+
+      if (userType === 'earner' && String(earnerData?.status || '').toLowerCase() === 'suspended') {
+        return NextResponse.json({ ok: false, message: 'Your account is suspended. Please contact support for review.' }, { status: 403 })
+      }
+
+      if (userType === 'earner' && !earnerData?.activated) {
         return NextResponse.json(
           {
             ok: false,
