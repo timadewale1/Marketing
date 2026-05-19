@@ -130,13 +130,21 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadedCount, setLoadedCount] = useState(0);
+  const [suspendedUsers, setSuspendedUsers] = useState<AdminUser[]>([]);
+  const [suspendedLoadedCount, setSuspendedLoadedCount] = useState(0);
   const [hasMoreEarners, setHasMoreEarners] = useState(true);
   const [hasMoreAdvertisers, setHasMoreAdvertisers] = useState(true);
+  const [suspendedHasMoreEarners, setSuspendedHasMoreEarners] = useState(true);
+  const [suspendedHasMoreAdvertisers, setSuspendedHasMoreAdvertisers] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [suspendedLoadingMore, setSuspendedLoadingMore] = useState(false);
+  const [loadingSuspended, setLoadingSuspended] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
   const [exactSearchResults, setExactSearchResults] = useState<AdminUser[] | null>(null);
   const [lastVisibleEarner, setLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [lastVisibleAdvertiser, setLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [suspendedLastVisibleEarner, setSuspendedLastVisibleEarner] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [suspendedLastVisibleAdvertiser, setSuspendedLastVisibleAdvertiser] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const searchRequestRef = useRef(0);
 
   const mapEarnerData = (id: string, data: DocumentData): AdminUser => {
@@ -221,6 +229,61 @@ export default function UsersPage() {
 
     return combined;
   }, [buildUserQuery, hasMoreAdvertisers, hasMoreEarners]);
+
+  const buildSuspendedUserQuery = useCallback((
+    collectionName: "earners" | "advertisers",
+    cursor?: QueryDocumentSnapshot<DocumentData> | null
+  ) => {
+    const baseFilters = [where("status", "==", "suspended")];
+    if (cursor) {
+      return query(
+        collection(db, collectionName),
+        ...baseFilters,
+        orderBy("createdAt", "desc"),
+        startAfter(cursor),
+        limit(ADMIN_USER_PAGE_SIZE)
+      );
+    }
+    return query(
+      collection(db, collectionName),
+      ...baseFilters,
+      orderBy("createdAt", "desc"),
+      limit(ADMIN_USER_PAGE_SIZE)
+    );
+  }, []);
+
+  const loadSuspendedUserPages = useCallback(async ({
+    earnersCursor,
+    advertisersCursor,
+    append,
+  }: {
+    earnersCursor?: QueryDocumentSnapshot<DocumentData> | null;
+    advertisersCursor?: QueryDocumentSnapshot<DocumentData> | null;
+    append: boolean;
+  }) => {
+    const [earnersSnap, advertisersSnap] = await Promise.all([
+      getDocs(buildSuspendedUserQuery("earners", earnersCursor)),
+      getDocs(buildSuspendedUserQuery("advertisers", advertisersCursor)),
+    ]);
+
+    const earners = earnersSnap.docs.map(mapEarnerDoc);
+    const advertisers = advertisersSnap.docs.map(mapAdvertiserDoc);
+    const combined = [...advertisers, ...earners].sort((a, b) => b.createdAtMs - a.createdAtMs);
+
+    let nextLoadedCount = combined.length;
+    setSuspendedUsers((current) => {
+      const next = append ? mergeUniqueUsers(current, combined) : combined;
+      nextLoadedCount = next.length;
+      return next;
+    });
+    setSuspendedLoadedCount(nextLoadedCount);
+    setSuspendedLastVisibleEarner(earnersSnap.docs.at(-1) ?? (append ? earnersCursor ?? null : null));
+    setSuspendedLastVisibleAdvertiser(advertisersSnap.docs.at(-1) ?? (append ? advertisersCursor ?? null : null));
+    setSuspendedHasMoreEarners(earnersSnap.docs.length === ADMIN_USER_PAGE_SIZE);
+    setSuspendedHasMoreAdvertisers(advertisersSnap.docs.length === ADMIN_USER_PAGE_SIZE);
+
+    return combined;
+  }, [buildSuspendedUserQuery]);
 
   const directSearchUsers = useCallback(async (searchText: string) => {
     const trimmed = searchText.trim();
@@ -318,6 +381,27 @@ export default function UsersPage() {
     load();
   }, [loadUserPages]);
 
+  useEffect(() => {
+    if (search.trim() || statusFilter !== "suspended") {
+      setLoadingSuspended(false);
+      return;
+    }
+
+    const loadSuspended = async () => {
+      setLoadingSuspended(true);
+      try {
+        await loadSuspendedUserPages({ append: false });
+      } catch (error) {
+        console.error("Error fetching suspended users:", error);
+        toast.error("Failed to load suspended users");
+      } finally {
+        setLoadingSuspended(false);
+      }
+    };
+
+    loadSuspended();
+  }, [loadSuspendedUserPages, search, statusFilter]);
+
   const applyDirectoryFilters = useCallback((list: AdminUser[]) => {
     return list.filter((user) => {
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
@@ -342,12 +426,19 @@ export default function UsersPage() {
     });
   }, [applyDirectoryFilters, search, users]);
 
+  const suspendedBrowseUsers = useMemo(() => {
+    return applyDirectoryFilters(suspendedUsers);
+  }, [applyDirectoryFilters, suspendedUsers]);
+
   const filteredUsers = useMemo(() => {
     if (search.trim()) {
       return applyDirectoryFilters(exactSearchResults || []);
     }
+    if (statusFilter === "suspended") {
+      return suspendedBrowseUsers;
+    }
     return browseUsers;
-  }, [applyDirectoryFilters, browseUsers, exactSearchResults, search]);
+  }, [applyDirectoryFilters, browseUsers, exactSearchResults, search, statusFilter, suspendedBrowseUsers]);
 
   const stats = useMemo(() => {
     return {
@@ -412,6 +503,33 @@ export default function UsersPage() {
       setLoadingMore(false);
     }
   }, [hasMoreAdvertisers, hasMoreEarners, lastVisibleAdvertiser, lastVisibleEarner, loadUserPages, loadingMore]);
+
+  const handleLoadMoreSuspendedUsers = useCallback(async () => {
+    if ((!suspendedHasMoreEarners && !suspendedHasMoreAdvertisers) || suspendedLoadingMore) {
+      return;
+    }
+
+    try {
+      setSuspendedLoadingMore(true);
+      await loadSuspendedUserPages({
+        earnersCursor: suspendedLastVisibleEarner,
+        advertisersCursor: suspendedLastVisibleAdvertiser,
+        append: true,
+      });
+    } catch (error) {
+      console.error("Failed to load more suspended users", error);
+      toast.error("Failed to load more suspended users");
+    } finally {
+      setSuspendedLoadingMore(false);
+    }
+  }, [
+    loadSuspendedUserPages,
+    suspendedHasMoreAdvertisers,
+    suspendedHasMoreEarners,
+    suspendedLastVisibleAdvertiser,
+    suspendedLastVisibleEarner,
+    suspendedLoadingMore,
+  ]);
 
   const updateUserStatus = async (user: AdminUser, nextStatus: string) => {
     try {
@@ -551,9 +669,11 @@ export default function UsersPage() {
         title="User directory"
         description={search.trim()
           ? `${filteredUsers.length} account${filteredUsers.length === 1 ? "" : "s"} match this search. Exact search queries Firestore directly by id, email, or saved name without sweeping the whole directory.`
-          : `${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
+          : statusFilter === "suspended"
+            ? `${filteredUsers.length} suspended account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${suspendedLoadedCount} suspended users are currently loaded.`
+            : `${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
       >
-        {loading ? (
+        {loading || loadingSuspended ? (
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
@@ -587,9 +707,9 @@ export default function UsersPage() {
           <PaginatedCardList
             items={filteredUsers}
             itemsPerPage={3}
-            hasMore={!search.trim() && (hasMoreEarners || hasMoreAdvertisers)}
-            loadingMore={!search.trim() && loadingMore}
-            onLoadMore={!search.trim() ? handleLoadMoreUsers : undefined}
+            hasMore={!search.trim() && ((statusFilter === "suspended" ? (suspendedHasMoreEarners || suspendedHasMoreAdvertisers) : (hasMoreEarners || hasMoreAdvertisers)))}
+            loadingMore={!search.trim() && (statusFilter === "suspended" ? suspendedLoadingMore : loadingMore)}
+            onLoadMore={!search.trim() ? (statusFilter === "suspended" ? handleLoadMoreSuspendedUsers : handleLoadMoreUsers) : undefined}
             renderItem={(user) => {
               const detailHref =
                 user.role === "advertiser"

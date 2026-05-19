@@ -116,11 +116,17 @@ export default function SubmissionManagementEarnersPage() {
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadedCount, setLoadedCount] = useState(0);
+  const [suspendedEarners, setSuspendedEarners] = useState<EarnerUser[]>([]);
+  const [suspendedLoadedCount, setSuspendedLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [suspendedHasMore, setSuspendedHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [suspendedLoadingMore, setSuspendedLoadingMore] = useState(false);
+  const [loadingSuspended, setLoadingSuspended] = useState(false);
   const [searchingExact, setSearchingExact] = useState(false);
   const [exactSearchResults, setExactSearchResults] = useState<EarnerUser[] | null>(null);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [suspendedLastVisible, setSuspendedLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const searchRequestRef = useRef(0);
 
   const mapEarnerData = (id: string, data: DocumentData): EarnerUser => {
@@ -176,6 +182,44 @@ export default function SubmissionManagementEarnersPage() {
     setHasMore(snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE);
     return rows;
   }, [buildEarnersQuery]);
+
+  const buildSuspendedEarnersQuery = useCallback((cursor?: QueryDocumentSnapshot<DocumentData> | null) =>
+    cursor
+      ? query(
+          collection(db, "earners"),
+          where("status", "==", "suspended"),
+          orderBy("createdAt", "desc"),
+          startAfter(cursor),
+          limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
+        )
+      : query(
+          collection(db, "earners"),
+          where("status", "==", "suspended"),
+          orderBy("createdAt", "desc"),
+          limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
+        ), []);
+
+  const loadSuspendedEarners = useCallback(async ({
+    cursor,
+    append,
+  }: {
+    cursor?: QueryDocumentSnapshot<DocumentData> | null;
+    append: boolean;
+  }) => {
+    const snap = await getDocs(buildSuspendedEarnersQuery(cursor));
+    const rows = snap.docs.map(mapEarnerDoc);
+
+    let nextLoadedCount = rows.length;
+    setSuspendedEarners((current) => {
+      const next = append ? mergeUniqueEarners(current, rows) : rows;
+      nextLoadedCount = next.length;
+      return next;
+    });
+    setSuspendedLoadedCount(nextLoadedCount);
+    setSuspendedLastVisible(snap.docs.at(-1) ?? null);
+    setSuspendedHasMore(snap.docs.length === SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE);
+    return rows;
+  }, [buildSuspendedEarnersQuery]);
 
   const directSearchEarners = useCallback(async (searchText: string) => {
     const trimmed = searchText.trim();
@@ -234,6 +278,27 @@ export default function SubmissionManagementEarnersPage() {
     load();
   }, [loadMoreEarners]);
 
+  useEffect(() => {
+    if (search.trim() || statusFilter !== "suspended") {
+      setLoadingSuspended(false);
+      return;
+    }
+
+    const loadSuspended = async () => {
+      setLoadingSuspended(true);
+      try {
+        await loadSuspendedEarners({ append: false });
+      } catch (error) {
+        console.error("Error fetching suspended earners:", error);
+        toast.error("Failed to load suspended earners");
+      } finally {
+        setLoadingSuspended(false);
+      }
+    };
+
+    loadSuspended();
+  }, [loadSuspendedEarners, search, statusFilter]);
+
   const applyDirectoryFilters = useCallback((list: EarnerUser[]) => {
     return list.filter((earner) => {
       const matchesStatus =
@@ -256,6 +321,10 @@ export default function SubmissionManagementEarnersPage() {
       );
     });
   }, [applyDirectoryFilters, earners, search]);
+
+  const suspendedBrowseEarners = useMemo(() => {
+    return applyDirectoryFilters(suspendedEarners);
+  }, [applyDirectoryFilters, suspendedEarners]);
 
   const stats = useMemo(() => {
     return {
@@ -302,8 +371,11 @@ export default function SubmissionManagementEarnersPage() {
     if (search.trim()) {
       return applyDirectoryFilters(exactSearchResults || []);
     }
+    if (statusFilter === "suspended") {
+      return suspendedBrowseEarners;
+    }
     return browseEarners;
-  }, [applyDirectoryFilters, browseEarners, exactSearchResults, search]);
+  }, [applyDirectoryFilters, browseEarners, exactSearchResults, search, statusFilter, suspendedBrowseEarners]);
 
   const handleLoadMoreEarners = useCallback(async () => {
     if (!lastVisible || !hasMore || loadingMore) {
@@ -320,6 +392,22 @@ export default function SubmissionManagementEarnersPage() {
       setLoadingMore(false);
     }
   }, [hasMore, lastVisible, loadMoreEarners, loadingMore]);
+
+  const handleLoadMoreSuspendedEarners = useCallback(async () => {
+    if (!suspendedLastVisible || !suspendedHasMore || suspendedLoadingMore) {
+      return;
+    }
+
+    try {
+      setSuspendedLoadingMore(true);
+      await loadSuspendedEarners({ cursor: suspendedLastVisible, append: true });
+    } catch (error) {
+      console.error("Failed to load more suspended earners", error);
+      toast.error("Failed to load more suspended earners");
+    } finally {
+      setSuspendedLoadingMore(false);
+    }
+  }, [loadSuspendedEarners, suspendedHasMore, suspendedLastVisible, suspendedLoadingMore]);
 
   const updateEarnerStatus = async (earner: EarnerUser, nextStatus: string) => {
     try {
@@ -439,9 +527,11 @@ export default function SubmissionManagementEarnersPage() {
         title="Earner list"
         description={search.trim()
           ? `${filteredEarners.length} earner${filteredEarners.length === 1 ? "" : "s"} match this search. Exact search queries Firestore directly by id, email, or saved name.`
-          : `${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
+          : statusFilter === "suspended"
+            ? `${filteredEarners.length} suspended earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${suspendedLoadedCount} suspended earners are currently loaded.`
+            : `${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
       >
-        {loading ? (
+        {loading || loadingSuspended ? (
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="h-48 animate-pulse rounded-3xl bg-stone-100" />
@@ -472,9 +562,9 @@ export default function SubmissionManagementEarnersPage() {
           <PaginatedCardList
             items={filteredEarners}
             itemsPerPage={3}
-            hasMore={!search.trim() && hasMore}
-            loadingMore={!search.trim() && loadingMore}
-            onLoadMore={!search.trim() ? handleLoadMoreEarners : undefined}
+            hasMore={!search.trim() && (statusFilter === "suspended" ? suspendedHasMore : hasMore)}
+            loadingMore={!search.trim() && (statusFilter === "suspended" ? suspendedLoadingMore : loadingMore)}
+            onLoadMore={!search.trim() ? (statusFilter === "suspended" ? handleLoadMoreSuspendedEarners : handleLoadMoreEarners) : undefined}
             renderItem={(earner) => (
               <div
                 key={earner.id}
