@@ -478,7 +478,7 @@ export async function POST(req: Request) {
       await dbAdmin.collection("adminNotifications").add({
         type: "wallet_recovery_dismissed",
         title: "Wallet recovery item dismissed",
-        body: `Wallet funding recovery item of â‚¦${Number(tx.amount || 0).toLocaleString()} was removed by admin`,
+        body: `Wallet funding recovery item of ₦${Number(tx.amount || 0).toLocaleString()} was removed by admin`,
         link: "/admin/recovery",
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),

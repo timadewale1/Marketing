@@ -39,6 +39,7 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { getProofUrls } from "@/lib/proofs";
+import { SubmissionReviewStatus } from "@/components/submission-review-status";
 
 type Earner = {
   id: string;
@@ -89,6 +90,10 @@ type Submission = {
   earnerPrice: number;
   createdAtMs: number;
   rejectionReason?: string;
+  advertiserDecisionStatus?: string;
+  advertiserDecisionReason?: string;
+  advertiserDecisionAtMs?: number;
+  earnerDisputeReason?: string;
 };
 
 type Referral = {
@@ -270,6 +275,10 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
             earnerPrice: Number(data.earnerPrice || 0),
             createdAtMs: toMillis(data.createdAt),
             rejectionReason: String(data.rejectionReason || ""),
+            advertiserDecisionStatus: String(data.advertiserDecisionStatus || ""),
+            advertiserDecisionReason: String(data.advertiserDecisionReason || ""),
+            advertiserDecisionAtMs: toMillis(data.advertiserDecisionAt),
+            earnerDisputeReason: String(data.earnerDisputeReason || ""),
           };
         });
         setSubmissions(submissionRows);
@@ -750,18 +759,19 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
                         ? new Date(submission.createdAtMs).toLocaleString()
                         : "Unknown date"}
                     </p>
-                    {submission.status === "Rejected" && submission.rejectionReason ? (
-                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                        <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
-                      </div>
-                    ) : null}
+                    <SubmissionReviewStatus
+                      advertiserStatus={submission.advertiserDecisionStatus}
+                      advertiserReason={submission.advertiserDecisionReason || submission.rejectionReason}
+                      advertiserReviewAt={submission.advertiserDecisionAtMs ? new Date(submission.advertiserDecisionAtMs).toISOString() : null}
+                      earnerDisputeReason={submission.earnerDisputeReason}
+                    />
                     {submission.status !== "Rejected" ? (
                       <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                           Rejection reason
                         </p>
                         <Textarea
-                          value={rejectionReasons[submission.id] ?? submission.rejectionReason ?? ""}
+                          value={rejectionReasons[submission.id] ?? submission.advertiserDecisionReason ?? submission.rejectionReason ?? ""}
                           onChange={(event) =>
                             setRejectionReasons((current) => ({
                               ...current,

@@ -927,7 +927,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
 
             <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
               <p className="text-sm text-blue-900">
-                Submitted participations can take up to 12 hours to be reviewed and approved.
+                Submitted participations can take up to 24 hours to be reviewed and approved.
               </p>
             </div>
             {!earnerActivated ? (

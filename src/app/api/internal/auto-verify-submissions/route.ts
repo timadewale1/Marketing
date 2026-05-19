@@ -25,7 +25,7 @@ interface Campaign {
   [key: string]: unknown
 }
 
-const TWELVE_HOURS_MS = 1000 * 60 * 60 * 12
+const TWENTY_FOUR_HOURS_MS = 1000 * 60 * 60 * 24
 const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 
   const adminDb = firebaseAdmin.dbAdmin
   const admin = await import('firebase-admin')
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWELVE_HOURS_MS)
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWENTY_FOUR_HOURS_MS)
 
   try {
     const snap = await adminDb
@@ -72,7 +72,15 @@ export async function GET(request: Request) {
     for (const sDoc of snap.docs) {
       try {
         const preview = sDoc.data() as Submission
-        if (String(preview.advertiserFlagStatus || '').toLowerCase() === 'pending') {
+        const advertiserDecisionStatus = String(preview.advertiserDecisionStatus || '').toLowerCase()
+        const legacyAdvertiserFlagStatus = String(preview.advertiserFlagStatus || '').toLowerCase()
+        if (
+          advertiserDecisionStatus === 'pending' ||
+          legacyAdvertiserFlagStatus === 'pending' ||
+          advertiserDecisionStatus === 'approved' ||
+          advertiserDecisionStatus === 'rejected' ||
+          advertiserDecisionStatus === 'auto_verified'
+        ) {
           skippedFlagged += 1
           continue
         }
@@ -94,7 +102,15 @@ export async function GET(request: Request) {
             outcome.value = 'skipped_stale'
             return
           }
-          if (String(submission.advertiserFlagStatus || '').toLowerCase() === 'pending') {
+          const submissionDecisionStatus = String(submission.advertiserDecisionStatus || '').toLowerCase()
+          const submissionLegacyFlagStatus = String(submission.advertiserFlagStatus || '').toLowerCase()
+          if (
+            submissionDecisionStatus === 'pending' ||
+            submissionLegacyFlagStatus === 'pending' ||
+            submissionDecisionStatus === 'approved' ||
+            submissionDecisionStatus === 'rejected' ||
+            submissionDecisionStatus === 'auto_verified'
+          ) {
             outcome.value = 'skipped_flagged'
             return
           }
@@ -172,6 +188,11 @@ export async function GET(request: Request) {
             reviewedAt: now,
             reviewedBy: 'system-auto-verify',
             rejectionReason: null,
+            advertiserDecisionStatus: 'auto_verified',
+            advertiserDecisionReason: null,
+            advertiserDecisionAt: now,
+            advertiserDecisionBy: 'system-auto-verify',
+            advertiserDecisionSource: 'system_auto_verify',
             updatedAt: now,
             finalDecisionAt: now,
             finalDecisionBy: 'system-auto-verify',

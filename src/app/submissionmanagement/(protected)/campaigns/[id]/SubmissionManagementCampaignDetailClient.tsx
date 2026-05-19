@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { SubmissionReviewStatus } from "@/components/submission-review-status";
 import {
   AdminPageHeader,
   EmptyState,
@@ -67,6 +68,10 @@ type SubmissionRecord = {
   advertiserFlagReason: string;
   advertiserFlagReviewDueAtMs: number;
   rejectionReason?: string;
+  advertiserDecisionStatus?: string;
+  advertiserDecisionReason?: string;
+  advertiserDecisionAtMs?: number;
+  earnerDisputeReason?: string;
 };
 
 type TransactionRecord = {
@@ -147,6 +152,10 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
             advertiserFlagReason: String(data.advertiserFlagReason || ""),
             advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
             rejectionReason: String(data.rejectionReason || ""),
+            advertiserDecisionStatus: String(data.advertiserDecisionStatus || ""),
+            advertiserDecisionReason: String(data.advertiserDecisionReason || ""),
+            advertiserDecisionAtMs: toMillis(data.advertiserDecisionAt),
+            earnerDisputeReason: String(data.earnerDisputeReason || ""),
           };
         });
         setSubmissions(submissionRows);
@@ -369,33 +378,20 @@ export default function SubmissionManagementCampaignDetailClient({ id }: Props) 
                     </div>
                     <p className="text-sm text-stone-500">{submission.category} • {currency(submission.earnerPrice)} • {submission.createdAtMs ? new Date(submission.createdAtMs).toLocaleString() : "Unknown date"}</p>
                     {submission.note ? <p className="text-sm text-stone-600">{submission.note}</p> : null}
-                    {submission.advertiserFlagStatus === "pending" ? (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                        <p className="font-semibold">Advertiser flagged this proof for final admin review.</p>
-                        {submission.advertiserFlagReason ? <p className="mt-1">{submission.advertiserFlagReason}</p> : null}
-                        {submission.advertiserFlagReviewDueAtMs ? (
-                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
-                            Review target: {new Date(submission.advertiserFlagReviewDueAtMs).toLocaleString()}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : submission.advertiserFlagStatus === "upheld" || submission.advertiserFlagStatus === "overruled" ? (
-                      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
-                        Advertiser flag {submission.advertiserFlagStatus === "upheld" ? "was upheld" : "was overruled"} by final admin review.
-                      </div>
-                    ) : null}
-                    {submission.status === "Rejected" && submission.rejectionReason ? (
-                      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                        <span className="font-semibold">Reason shown to earner:</span> {submission.rejectionReason}
-                      </div>
-                    ) : null}
+                    <SubmissionReviewStatus
+                      advertiserStatus={submission.advertiserDecisionStatus || submission.advertiserFlagStatus}
+                      advertiserReason={submission.advertiserDecisionReason || submission.advertiserFlagReason || submission.rejectionReason}
+                      advertiserReviewAt={submission.advertiserDecisionAtMs ? new Date(submission.advertiserDecisionAtMs).toISOString() : null}
+                      advertiserReviewDueAt={submission.advertiserFlagReviewDueAtMs ? new Date(submission.advertiserFlagReviewDueAtMs).toISOString() : null}
+                      earnerDisputeReason={submission.earnerDisputeReason}
+                    />
                     {submission.status !== "Rejected" ? (
                       <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                           Rejection reason
                         </p>
                         <Textarea
-                          value={rejectionReasons[submission.id] ?? submission.advertiserFlagReason ?? submission.rejectionReason ?? ""}
+                          value={rejectionReasons[submission.id] ?? submission.advertiserDecisionReason ?? submission.advertiserFlagReason ?? submission.rejectionReason ?? ""}
                           onChange={(event) =>
                             setRejectionReasons((current) => ({
                               ...current,

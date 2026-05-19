@@ -38,14 +38,29 @@ export async function POST(req: Request) {
     if (!budget || budget <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid campaign budget' }, { status: 400 })
     }
-    const costPerLead = Number(campaignData.costPerLead || 0)
+    const baseCostPerLead = Number(campaignData.baseCostPerLead || campaignData.costPerLead || 0)
+    const priorityMultiplierRaw = Number(campaignData.priorityMultiplier || 1)
+    const priorityMultiplier = Number.isFinite(priorityMultiplierRaw)
+      ? Math.max(1, Math.min(10, Math.round(priorityMultiplierRaw)))
+      : 1
+    const priorityEnabled = Boolean(campaignData.priorityEnabled) && priorityMultiplier > 1
+    const costPerLead = Number(campaignData.costPerLead || 0) || baseCostPerLead * priorityMultiplier
+    if (baseCostPerLead <= 0) {
+      return NextResponse.json({ success: false, message: 'Invalid task amount' }, { status: 400 })
+    }
+    if (priorityEnabled && priorityMultiplier > 10) {
+      return NextResponse.json({ success: false, message: 'Priority can only go up to 10x the base task amount' }, { status: 400 })
+    }
+    if (costPerLead !== baseCostPerLead * priorityMultiplier) {
+      return NextResponse.json({ success: false, message: 'Priority pricing is invalid' }, { status: 400 })
+    }
     if (costPerLead > 0 && budget < costPerLead) {
-      return NextResponse.json({ success: false, message: 'Budget cannot be less than the task amount' }, { status: 400 })
+      return NextResponse.json({ success: false, message: `Budget cannot be less than ₦${costPerLead.toLocaleString()} for this task type` }, { status: 400 })
     }
     if (costPerLead > 0 && budget % costPerLead !== 0) {
       return NextResponse.json({
         success: false,
-        message: `Budget must be in exact multiples of NGN ${costPerLead.toLocaleString()} for this task type`,
+        message: `Budget must be in exact multiples of ₦${costPerLead.toLocaleString()} for this task type`,
       }, { status: 400 })
     }
 
@@ -80,6 +95,11 @@ export async function POST(req: Request) {
       // always show the original task amount (originalBudget). Also initialize reservedBudget.
       t.set(campaignRef, {
         ...campaignData,
+        baseCostPerLead,
+        priorityEnabled,
+        priorityMultiplier,
+        costPerLead,
+        earnerPrice: Math.round(costPerLead / 2),
         ownerId: verifiedUid,
         status: 'Active',
         originalBudget: budget,

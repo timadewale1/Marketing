@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
         await adminDb.collection('adminNotifications').add({
           type: 'wallet_funding',
           title: 'Wallet funded',
-          body: `Advertiser ${userId} funded wallet with â‚¦${amount}`,
+          body: `Advertiser ${userId} funded wallet with ₦${amount}`,
           link: '/admin/transactions',
           userId,
           amount,

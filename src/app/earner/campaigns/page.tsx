@@ -18,6 +18,9 @@ type Campaign = {
   budget?: number;
   reservedBudget?: number;
   costPerLead?: number;
+  baseCostPerLead?: number;
+  priorityEnabled?: boolean;
+  priorityMultiplier?: number;
   reward?: number;
   bannerUrl?: string;
   status?: string;
@@ -133,6 +136,9 @@ export default function AvailableCampaignsPage() {
           budget: data.budget,
           reservedBudget: data.reservedBudget,
           costPerLead: data.costPerLead,
+          baseCostPerLead: data.baseCostPerLead,
+          priorityEnabled: data.priorityEnabled,
+          priorityMultiplier: data.priorityMultiplier,
           reward: data.reward,
           bannerUrl: data.bannerUrl,
           status: data.status,
@@ -141,6 +147,12 @@ export default function AvailableCampaignsPage() {
       });
 
       mapped.sort((a, b) => {
+        const aPriority = Number(a.priorityMultiplier || 1) > 1 ? 1 : 0;
+        const bPriority = Number(b.priorityMultiplier || 1) > 1 ? 1 : 0;
+        if (bPriority !== aPriority) return bPriority - aPriority;
+        const aPay = Number(a.costPerLead || 0);
+        const bPay = Number(b.costPerLead || 0);
+        if (bPay !== aPay) return bPay - aPay;
         const aTime = getCampaignDate(a.createdAt)?.getTime() || 0;
         const bTime = getCampaignDate(b.createdAt)?.getTime() || 0;
         return bTime - aTime;
@@ -180,9 +192,20 @@ export default function AvailableCampaignsPage() {
     .filter((campaign) => Number(campaign.budget || 0) > 0)
     .filter((campaign) => filterType === "All" || campaign.category === filterType)
     .filter((campaign) => !participatedIds.includes(campaign.id));
+  const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
+    const aPriority = Number(a.priorityMultiplier || 1) > 1 ? 1 : 0;
+    const bPriority = Number(b.priorityMultiplier || 1) > 1 ? 1 : 0;
+    if (bPriority !== aPriority) return bPriority - aPriority;
+    const aPay = Number(a.costPerLead || 0);
+    const bPay = Number(b.costPerLead || 0);
+    if (bPay !== aPay) return bPay - aPay;
+    const aTime = getCampaignDate(a.createdAt)?.getTime() || 0;
+    const bTime = getCampaignDate(b.createdAt)?.getTime() || 0;
+    return bTime - aTime;
+  });
 
-  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / campaignsPerPage));
-  const paginatedCampaigns = filteredCampaigns.slice(
+  const totalPages = Math.max(1, Math.ceil(sortedCampaigns.length / campaignsPerPage));
+  const paginatedCampaigns = sortedCampaigns.slice(
     (currentPage - 1) * campaignsPerPage,
     currentPage * campaignsPerPage
   );
@@ -227,6 +250,9 @@ export default function AvailableCampaignsPage() {
               <h2 className="mt-2 text-3xl font-semibold text-stone-900">Pick from live tasks and start earning</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
                 Browse active tasks, filter by category, and jump into any task you have not submitted yet. The newest tasks show first where timestamps are available.
+              </p>
+              <p className="mt-3 text-sm font-medium text-emerald-700">
+                Priority tasks appear first, and higher-paying tasks are sorted above lower-paying ones.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 md:min-w-[240px]">
@@ -307,6 +333,11 @@ export default function AvailableCampaignsPage() {
                               <div className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
                                 {campaign.category || "General task"}
                               </div>
+                              {Number(campaign.priorityMultiplier || 1) > 1 ? (
+                                <div className="ml-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                  Priority x{campaign.priorityMultiplier || 1}
+                                </div>
+                              ) : null}
                               <h3 className="mt-3 text-xl font-semibold text-stone-800">{campaign.title}</h3>
                               <p className="mt-2 text-sm leading-6 text-stone-600">
                                 Complete the task instructions carefully, submit clear proof, and wait for review before payout.
@@ -314,7 +345,7 @@ export default function AvailableCampaignsPage() {
                             </div>
                             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 min-w-[150px]">
                               <div className="text-xs uppercase tracking-wide text-stone-500">Earn per lead</div>
-                              <div className="mt-1 text-xl font-bold text-amber-600">â‚¦{earnerPrice.toLocaleString()}</div>
+                              <div className="mt-1 text-xl font-bold text-amber-600">₦{earnerPrice.toLocaleString()}</div>
                             </div>
                           </div>
 

@@ -5,12 +5,14 @@ import { auth, db, storage } from "@/lib/firebase";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 import { ArrowLeft } from "lucide-react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import toast from "react-hot-toast";
 import { getProofUrls } from "@/lib/proofs";
+import { SubmissionReviewStatus } from "@/components/submission-review-status";
 
 type Submission = {
   id: string;
@@ -22,12 +24,18 @@ type Submission = {
   proofUrls?: string[];
   note?: string;
   rejectionReason?: string;
+  advertiserDecisionStatus?: string;
+  advertiserDecisionReason?: string | null;
+  advertiserDecisionAt?: string | null;
+  advertiserFlagStatus?: string;
+  earnerDisputeReason?: string | null;
 };
 
 export default function DoneCampaignsPage() {
   const [subs, setSubs] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [proofFiles, setProofFiles] = useState<Record<string, File[]>>({});
+  const [disputeReasons, setDisputeReasons] = useState<Record<string, string>>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
@@ -42,6 +50,24 @@ export default function DoneCampaignsPage() {
     if (typeof value === "string") {
       const parsed = new Date(value);
       return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  };
+
+  const getTimestampLikeDate = (
+    value: Submission["createdAt"] | string | null | undefined
+  ) => {
+    if (!value) return null;
+    if (typeof value === "string") {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (value instanceof Date) return value;
+    if (typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
+      return value.toDate();
+    }
+    if (typeof value === "object" && "seconds" in value && typeof value.seconds === "number") {
+      return new Date(value.seconds * 1000);
     }
     return null;
   };
@@ -66,6 +92,10 @@ export default function DoneCampaignsPage() {
           proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
           note: data.note,
           rejectionReason: data.rejectionReason,
+          advertiserDecisionStatus: String(data.advertiserDecisionStatus || data.advertiserFlagStatus || ""),
+          advertiserDecisionReason: data.advertiserDecisionReason ? String(data.advertiserDecisionReason) : null,
+          advertiserDecisionAt: getTimestampLikeDate(data.advertiserDecisionAt as Submission["createdAt"])?.toISOString() || null,
+          earnerDisputeReason: data.earnerDisputeReason ? String(data.earnerDisputeReason) : null,
         } as Submission;
       });
 
@@ -125,6 +155,40 @@ export default function DoneCampaignsPage() {
     } catch (error) {
       console.error("Failed to resubmit proof", error);
       toast.error(error instanceof Error ? error.message : "Failed to update proof");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDispute = async (submissionId: string) => {
+    const reason = (disputeReasons[submissionId] || "").trim();
+    if (reason.length < 10) {
+      toast.error("Please add a clear dispute reason");
+      return;
+    }
+
+    try {
+      setUpdatingId(submissionId);
+      const user = auth.currentUser;
+      if (!user) throw new Error("You must be signed in");
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/earner/submissions/${submissionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ disputeReason: reason }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to send dispute");
+      }
+      setDisputeReasons((current) => ({ ...current, [submissionId]: "" }));
+      toast.success("Dispute sent successfully");
+    } catch (error) {
+      console.error("Failed to send dispute", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send dispute");
     } finally {
       setUpdatingId(null);
     }
@@ -198,11 +262,13 @@ export default function DoneCampaignsPage() {
                       </div>
 
                       {s.note ? <p className="mt-2 text-sm text-stone-600">{s.note}</p> : null}
-                      {s.status === "Rejected" && s.rejectionReason ? (
-                        <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                          <span className="font-semibold">Rejection reason:</span> {s.rejectionReason}
-                        </div>
-                      ) : null}
+                      <SubmissionReviewStatus
+                        advertiserStatus={s.advertiserDecisionStatus}
+                        advertiserReason={s.advertiserDecisionReason || s.rejectionReason || null}
+                        advertiserReviewAt={s.advertiserDecisionAt}
+                        earnerDisputeReason={s.earnerDisputeReason}
+                        className="mt-3"
+                      />
 
                       {(s.proofUrls || []).length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -264,6 +330,35 @@ export default function DoneCampaignsPage() {
                             ? `${(proofFiles[s.id] || []).length} file(s) selected`
                             : "No new files selected"}
                         </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {s.status === "Rejected" ? (
+                    <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                      <p className="text-sm font-medium text-sky-900">Dispute this rejection</p>
+                      <p className="mt-1 text-xs text-sky-700">
+                        Explain why you believe this rejection should be rechecked. Admin and the advertiser will see it.
+                      </p>
+                      <Textarea
+                        value={disputeReasons[s.id] ?? s.earnerDisputeReason ?? ""}
+                        onChange={(event) =>
+                          setDisputeReasons((current) => ({
+                            ...current,
+                            [s.id]: event.target.value,
+                          }))
+                        }
+                        className="mt-3 min-h-[92px] rounded-2xl border-sky-200 bg-white"
+                        placeholder="Explain why you think this rejection should be reviewed again"
+                      />
+                      <div className="mt-3 flex items-center gap-3">
+                        <Button
+                          className="bg-stone-900 text-white hover:bg-stone-800"
+                          disabled={updatingId === s.id}
+                          onClick={() => void handleDispute(s.id)}
+                        >
+                          {updatingId === s.id ? "Sending..." : "Send dispute"}
+                        </Button>
                       </div>
                     </div>
                   ) : null}

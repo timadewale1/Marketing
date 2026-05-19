@@ -13,9 +13,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const proofUrls = Array.isArray(body?.proofUrls)
       ? body.proofUrls.map((value: unknown) => String(value || "").trim()).filter(Boolean).slice(0, 5)
       : []
+    const disputeReason = String(body?.disputeReason || "").trim()
 
-    if (proofUrls.length === 0) {
-      return NextResponse.json({ success: false, message: "At least one proof is required" }, { status: 400 })
+    if (proofUrls.length === 0 && disputeReason.length === 0) {
+      return NextResponse.json({ success: false, message: "At least one proof or dispute note is required" }, { status: 400 })
     }
 
     const { id } = await params
@@ -37,15 +38,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const status = String(submission.status || "")
-    if (status === "Verified" || status === "Rejected") {
-      return NextResponse.json({ success: false, message: "This submission can no longer be updated" }, { status: 400 })
+    const updates: Record<string, unknown> = {}
+
+    if (proofUrls.length > 0) {
+      if (status === "Verified" || status === "Rejected") {
+        return NextResponse.json({ success: false, message: "This submission can no longer be updated" }, { status: 400 })
+      }
+      updates.proofUrl = proofUrls[0]
+      updates.proofUrls = proofUrls
     }
 
-    await submissionRef.set({
-      proofUrl: proofUrls[0],
-      proofUrls,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true })
+    if (disputeReason.length > 0) {
+      if (status !== "Rejected") {
+        return NextResponse.json({ success: false, message: "You can only dispute a rejected submission" }, { status: 400 })
+      }
+      updates.earnerDisputeReason = disputeReason
+      updates.earnerDisputeAt = admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ success: false, message: "Nothing to update" }, { status: 400 })
+    }
+
+    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp()
+    await submissionRef.set(updates, { merge: true })
 
     return NextResponse.json({ success: true })
   } catch (error) {

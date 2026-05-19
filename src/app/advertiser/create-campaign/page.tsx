@@ -134,14 +134,18 @@ export default function CreateCampaignPage() {
   // targeting removed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only budget is required now
 
   const [budget, setBudget] = useState<number | "">("")
+  const [priorityEnabled, setPriorityEnabled] = useState(false)
+  const [priorityMultiplier, setPriorityMultiplier] = useState(1)
 
   // derived values
   const numericBudget = typeof budget === "number" ? budget : Number(budget || 0)
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
+  const selectedMultiplier = priorityEnabled ? Math.min(10, Math.max(1, priorityMultiplier)) : 1
+  const effectiveCPL = currentCPL * selectedMultiplier
   const isBudgetMultiple =
-    numericBudget > 0 && currentCPL > 0 ? numericBudget % currentCPL === 0 : false
+    numericBudget > 0 && effectiveCPL > 0 ? numericBudget % effectiveCPL === 0 : false
   const estimatedLeads =
-    numericBudget > 0 && isBudgetMultiple ? Math.floor(numericBudget / currentCPL) : 0
+    numericBudget > 0 && isBudgetMultiple ? Math.floor(numericBudget / effectiveCPL) : 0
 
   // helper: generate thumbnail for category
   const getThumbnailForCategory = (cat: string) => {
@@ -248,7 +252,7 @@ const compressed = await imageCompression(file, options)
         return externalLink.trim().length > 5
       return true
     }
-    if (step === 2) return numericBudget > 0 && numericBudget >= currentCPL && isBudgetMultiple
+    if (step === 2) return numericBudget > 0 && numericBudget >= effectiveCPL && isBudgetMultiple
     if (step === 3) {
       // If this is a product campaign require face capture upload and address
       if (category === "Share my Product") {
@@ -259,11 +263,11 @@ const compressed = await imageCompression(file, options)
     return false
   }
 
-  const minimumBudget = currentCPL
+  const minimumBudget = effectiveCPL
   const nextValidBudget =
-    numericBudget > 0 && currentCPL > 0
-      ? Math.ceil(numericBudget / currentCPL) * currentCPL
-      : currentCPL
+    numericBudget > 0 && effectiveCPL > 0
+      ? Math.ceil(numericBudget / effectiveCPL) * effectiveCPL
+      : effectiveCPL
 
   // Verify payment server-side
   const verifyPayment = async (
@@ -326,14 +330,14 @@ const compressed = await imageCompression(file, options)
     }
 
     if (numericBudget < minimumBudget) {
-      toast.error(`Budget must be at least NGN ${minimumBudget.toLocaleString()} for this task type`)
+      toast.error(`Budget must be at least ₦${minimumBudget.toLocaleString()} for this task type`)
       setLoading(false)
       payInFlightRef.current = false
       return
     }
 
     if (!isBudgetMultiple) {
-      toast.error(`Budget must be in exact multiples of NGN ${currentCPL.toLocaleString()} for this task type`)
+      toast.error(`Budget must be in exact multiples of ₦${effectiveCPL.toLocaleString()} for this task type`)
       setLoading(false)
       payInFlightRef.current = false
       return
@@ -353,7 +357,11 @@ const compressed = await imageCompression(file, options)
       externalLink: category === "Share my Product" ? productLink : (externalLink || ""),
       budget: numericBudget,
       estimatedLeads,
-      costPerLead: currentCPL,
+      baseCostPerLead: currentCPL,
+      priorityEnabled,
+      priorityMultiplier: selectedMultiplier,
+      costPerLead: effectiveCPL,
+      earnerPrice: Math.round(effectiveCPL / 2),
       participationProofSampleUrls: participationProofSampleSlots
         .map((slot) => slot.url)
         .filter(Boolean),
@@ -843,21 +851,67 @@ const getEmbeddedVideo = (url: string) => {
           <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
             <CardContent className="space-y-5 p-6 md:p-8">
               <div>
-                <label className="text-sm font-medium text-stone-700">Budget (NGN)</label>
+                <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
                 <Input
                   type="number"
-                  placeholder="Enter budget in NGN"
+                  placeholder="Enter budget in ₦"
                   value={budget}
-                  min={currentCPL}
-                  step={currentCPL}
+                  min={effectiveCPL}
+                  step={effectiveCPL}
                   onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
                 />
                 <p className="text-xs text-stone-500 mt-1">
-                  Cost-per-lead for <b>{category || "selected type"}</b> is NGN {currentCPL.toLocaleString()}. Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
+                  Base cost for <b>{category || "selected type"}</b> is ₦{currentCPL.toLocaleString()}.
+                  {priorityEnabled ? ` Priority multiplier x${selectedMultiplier} makes the lead price ₦${effectiveCPL.toLocaleString()}.` : ""}
+                  Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
                 </p>
+                <div className="mt-3 rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-stone-800">Priority listing</p>
+                      <p className="text-xs text-stone-500">
+                        Boost this task to pay more per lead and surface it above normal tasks.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={priorityEnabled ? "default" : "outline"}
+                      className={priorityEnabled ? "bg-amber-500 text-stone-900 hover:bg-amber-600" : "rounded-full"}
+                      onClick={() =>
+                        setPriorityEnabled((current) => {
+                          const next = !current
+                          if (next && priorityMultiplier < 2) {
+                            setPriorityMultiplier(2)
+                          }
+                          return next
+                        })
+                      }
+                    >
+                      {priorityEnabled ? "Priority on" : "Enable priority"}
+                    </Button>
+                  </div>
+                  {priorityEnabled ? (
+                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
+                      <div className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
+                        Priority tasks can pay from x2 up to x10 of the base lead amount. Earners still receive half of the final lead amount.
+                      </div>
+                      <select
+                        value={priorityMultiplier}
+                        onChange={(event) => setPriorityMultiplier(Number(event.target.value))}
+                        className="rounded-2xl border border-amber-200 bg-white px-4 py-3 text-stone-800"
+                      >
+                        {Array.from({ length: 10 }, (_, index) => index + 1).map((multiplier) => (
+                          <option key={multiplier} value={multiplier}>
+                            x{multiplier}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+                </div>
                 {numericBudget > 0 && !isBudgetMultiple ? (
                   <p className="mt-2 text-xs text-rose-600">
-                    This task type only allows multiples of NGN {currentCPL.toLocaleString()}. Try NGN {nextValidBudget.toLocaleString()} instead.
+                    This task type only allows multiples of ₦{effectiveCPL.toLocaleString()}. Try ₦{nextValidBudget.toLocaleString()} instead.
                   </p>
                 ) : null}
               </div>
@@ -867,7 +921,7 @@ const getEmbeddedVideo = (url: string) => {
                   <FileText size={18} />
                   <div>
                     <div className="font-medium">Summary</div>
-                    <div className="text-sm text-stone-600">Budget: NGN {numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
+                    <div className="text-sm text-stone-600">Budget: ₦{numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
                   </div>
                 </div>
               </div>
@@ -885,11 +939,12 @@ const getEmbeddedVideo = (url: string) => {
                     {title}
                   </h3>
                   <p className="text-sm text-stone-600">
-                    {category} • NGN {numericBudget.toLocaleString() || 0}
+                    {category} • ₦{numericBudget.toLocaleString() || 0}
                   </p>
                 </div>
                 <div className="text-right text-xs text-stone-500">
-                  <div>Cost per lead: NGN {currentCPL.toLocaleString()}</div>
+                  <div>Cost per lead: ₦{effectiveCPL.toLocaleString()}</div>
+                  {priorityEnabled ? <div>Priority x{selectedMultiplier}</div> : null}
                   <div>Estimated leads: {estimatedLeads}</div>
                 </div>
               </div>
@@ -1110,9 +1165,9 @@ const getEmbeddedVideo = (url: string) => {
                   disabled={loading || showPaymentSelector || (category === "Share my Product" && faceUploading)}
                 >
                   <CreditCard size={16} />{" "}
-                  {loading
+                    {loading
                     ? "Creating task..."
-                    : `Pay NGN ${numericBudget.toLocaleString() || 0}`}
+                    : `Pay ₦${numericBudget.toLocaleString() || 0}`}
                 </Button>
               </div>
             </CardContent>
@@ -1131,7 +1186,7 @@ const getEmbeddedVideo = (url: string) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-stone-800">Account Not Activated</div>
-                <div className="text-sm text-stone-600">You must activate your advertiser account (NGN 2,000) before creating tasks.</div>
+                <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
               </div>
               <div>
                 <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Activate Now</Button>
