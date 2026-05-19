@@ -134,11 +134,13 @@ export default function CreateCampaignPage() {
   // targeting removed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only budget is required now
 
   const [budget, setBudget] = useState<number | "">("")
+  const [priorityBudget, setPriorityBudget] = useState<number | "">("")
   const [priorityEnabled, setPriorityEnabled] = useState(false)
   const [priorityMultiplier, setPriorityMultiplier] = useState(1)
 
   // derived values
-  const numericBudget = typeof budget === "number" ? budget : Number(budget || 0)
+  const activeBudget = priorityEnabled ? priorityBudget : budget
+  const numericBudget = typeof activeBudget === "number" ? activeBudget : Number(activeBudget || 0)
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
   const selectedMultiplier = priorityEnabled ? Math.min(10, Math.max(1, priorityMultiplier)) : 1
   const effectiveCPL = currentCPL * selectedMultiplier
@@ -268,6 +270,22 @@ const compressed = await imageCompression(file, options)
     numericBudget > 0 && effectiveCPL > 0
       ? Math.ceil(numericBudget / effectiveCPL) * effectiveCPL
       : effectiveCPL
+
+  const handlePriorityToggle = () => {
+    setPriorityEnabled((current) => {
+      const next = !current
+      if (next) {
+        setPriorityMultiplier((multiplier) => Math.max(2, multiplier))
+        setPriorityBudget((currentPriorityBudget) => {
+          if (currentPriorityBudget !== "" && Number(currentPriorityBudget) > 0) {
+            return currentPriorityBudget
+          }
+          return currentCPL * Math.max(2, priorityMultiplier)
+        })
+      }
+      return next
+    })
+  }
 
   // Verify payment server-side
   const verifyPayment = async (
@@ -851,20 +869,51 @@ const getEmbeddedVideo = (url: string) => {
           <Card className="rounded-[28px] border-white/70 bg-white/85 shadow-[0_18px_50px_rgba(120,53,15,0.08)]">
             <CardContent className="space-y-5 p-6 md:p-8">
               <div>
-                <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
-                <Input
-                  type="number"
-                  placeholder="Enter budget in ₦"
-                  value={budget}
-                  min={effectiveCPL}
-                  step={effectiveCPL}
-                  onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
-                />
-                <p className="text-xs text-stone-500 mt-1">
-                  Base cost for <b>{category || "selected type"}</b> is ₦{currentCPL.toLocaleString()}.
-                  {priorityEnabled ? ` Priority multiplier x${selectedMultiplier} makes the lead price ₦${effectiveCPL.toLocaleString()}.` : ""}
-                  Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
-                </p>
+                {!priorityEnabled ? (
+                  <>
+                    <label className="text-sm font-medium text-stone-700">Budget (₦)</label>
+                    <Input
+                      type="number"
+                      placeholder="Enter budget in ₦"
+                      value={budget}
+                      min={currentCPL}
+                      step={currentCPL}
+                      onChange={(e) => setBudget(e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                    <p className="text-xs text-stone-500 mt-1">
+                      Base cost for <b>{category || "selected type"}</b> is ₦{currentCPL.toLocaleString()}.
+                      Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
+                    </p>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-stone-800">Priority budget (₦)</p>
+                        <p className="text-xs text-stone-500">
+                          Set the total budget for this priority task. The multiplier controls the per-lead amount.
+                        </p>
+                      </div>
+                      <div className="text-right text-xs text-stone-600">
+                        <div>Base: ₦{currentCPL.toLocaleString()}</div>
+                        <div>Multiplier: x{selectedMultiplier}</div>
+                        <div>Per lead: ₦{effectiveCPL.toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <Input
+                      className="mt-4"
+                      type="number"
+                      placeholder="Enter priority budget in ₦"
+                      value={priorityBudget}
+                      min={effectiveCPL}
+                      step={effectiveCPL}
+                      onChange={(e) => setPriorityBudget(e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                    <p className="mt-2 text-xs text-stone-500">
+                      Estimated leads: <span className="font-semibold">{estimatedLeads}</span>
+                    </p>
+                  </div>
+                )}
                 <div className="mt-3 rounded-2xl border border-stone-200 bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -877,15 +926,7 @@ const getEmbeddedVideo = (url: string) => {
                       type="button"
                       variant={priorityEnabled ? "default" : "outline"}
                       className={priorityEnabled ? "bg-amber-500 text-stone-900 hover:bg-amber-600" : "rounded-full"}
-                      onClick={() =>
-                        setPriorityEnabled((current) => {
-                          const next = !current
-                          if (next && priorityMultiplier < 2) {
-                            setPriorityMultiplier(2)
-                          }
-                          return next
-                        })
-                      }
+                      onClick={handlePriorityToggle}
                     >
                       {priorityEnabled ? "Priority on" : "Enable priority"}
                     </Button>
@@ -893,7 +934,7 @@ const getEmbeddedVideo = (url: string) => {
                   {priorityEnabled ? (
                     <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
                       <div className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
-                        Priority tasks can pay from x2 up to x10 of the base lead amount. Earners still receive half of the final lead amount.
+                        Priority tasks can pay from x2 up to x10 of the base lead amount.
                       </div>
                       <select
                         value={priorityMultiplier}
