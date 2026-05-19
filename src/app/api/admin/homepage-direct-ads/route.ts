@@ -69,16 +69,27 @@ export async function POST(req: Request) {
     const writeup = String(formData.get('writeup') || '').trim()
     const link = String(formData.get('link') || '').trim()
     const durationDays = Number(formData.get('durationDays') || 0)
+    const sourceAdId = String(formData.get('sourceAdId') || '').trim()
     const file = formData.get('media')
 
-    if (!brandName || !phone || !email || !writeup || !durationDays || !(file instanceof File)) {
+    if (!brandName || !phone || !email || !writeup || !durationDays) {
       return NextResponse.json(
         { success: false, message: 'Brand name, phone, email, writeup, duration, and media are required' },
         { status: 400 }
       )
     }
 
-    const mimeType = file.type || ''
+    const sourceAdSnap = sourceAdId ? await dbAdmin.collection('homepageDirectAds').doc(sourceAdId).get() : null
+    const sourceAdData = sourceAdSnap?.exists ? (sourceAdSnap.data() as Record<string, unknown>) : null
+    const usingSourceMedia = sourceAdData && !(file instanceof File)
+    if (!(file instanceof File) && !usingSourceMedia) {
+      return NextResponse.json(
+        { success: false, message: 'Media upload is required unless you are reusing an existing advert' },
+        { status: 400 }
+      )
+    }
+
+    const mimeType = file instanceof File ? file.type || '' : String(sourceAdData?.mediaType || '')
     if (!mimeType.startsWith('image/') && !mimeType.startsWith('video/')) {
       return NextResponse.json({ success: false, message: 'Only image or video uploads are supported' }, { status: 400 })
     }
@@ -89,24 +100,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Storage bucket is not configured' }, { status: 500 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const extension = file.name.includes('.') ? file.name.split('.').pop() : mimeType.split('/')[1] || 'bin'
-    const sanitizedBrand = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    const mediaPath = `homepage-direct-ads/${Date.now()}-${sanitizedBrand}.${extension}`
+    let mediaUrl = ''
+    let mediaPath = ''
+    let mediaType: 'image' | 'video' = mimeType.startsWith('video/') ? 'video' : 'image'
 
-    const bucket = admin.storage().bucket(bucketName)
-    const bucketFile = bucket.file(mediaPath)
-    await bucketFile.save(buffer, {
-      metadata: {
-        contentType: mimeType,
-        cacheControl: 'public,max-age=3600',
-      },
-    })
+    if (file instanceof File) {
+      const buffer = Buffer.from(await file.arrayBuffer())
+      const extension = file.name.includes('.') ? file.name.split('.').pop() : mimeType.split('/')[1] || 'bin'
+      const sanitizedBrand = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      mediaPath = `homepage-direct-ads/${Date.now()}-${sanitizedBrand}.${extension}`
 
-    const [mediaUrl] = await bucketFile.getSignedUrl({
-      action: 'read',
-      expires: '03-01-2035',
-    })
+      const bucket = admin.storage().bucket(bucketName)
+      const bucketFile = bucket.file(mediaPath)
+      await bucketFile.save(buffer, {
+        metadata: {
+          contentType: mimeType,
+          cacheControl: 'public,max-age=3600',
+        },
+      })
+
+      const [signedUrl] = await bucketFile.getSignedUrl({
+        action: 'read',
+        expires: '03-01-2035',
+      })
+      mediaUrl = signedUrl
+    } else {
+      mediaUrl = String(sourceAdData?.mediaUrl || '')
+      mediaPath = String(sourceAdData?.mediaPath || '')
+      mediaType = String(sourceAdData?.mediaType || 'image') === 'video' ? 'video' : 'image'
+    }
 
     const adRef = dbAdmin.collection('homepageDirectAds').doc()
     const startsAt = admin.firestore.Timestamp.now()
@@ -122,7 +144,7 @@ export async function POST(req: Request) {
       email,
       writeup,
       link: link || null,
-      mediaType: mimeType.startsWith('video/') ? 'video' : 'image',
+      mediaType,
       mediaUrl,
       mediaPath,
       durationDays,

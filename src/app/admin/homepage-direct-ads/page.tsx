@@ -30,6 +30,18 @@ type HomepageDirectAd = {
   expiresAtMs: number;
 };
 
+type HomepageDirectAdDraft = {
+  sourceAdId: string | null;
+  brandName: string;
+  phone: string;
+  email: string;
+  link: string;
+  durationDays: string;
+  writeup: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
+};
+
 function formatDate(value: number) {
   return value ? new Date(value).toLocaleString() : "Unknown";
 }
@@ -45,6 +57,8 @@ export default function HomepageDirectAdsPage() {
   const [durationDays, setDurationDays] = useState("7");
   const [writeup, setWriteup] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [sourceAdId, setSourceAdId] = useState<string | null>(null);
+  const [reusingAd, setReusingAd] = useState<HomepageDirectAdDraft | null>(null);
 
   const loadAds = async () => {
     setLoading(true);
@@ -80,7 +94,7 @@ export default function HomepageDirectAdsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!brandName || !phone || !email || !writeup || !durationDays || !file) {
+    if (!brandName || !phone || !email || !writeup || !durationDays) {
       toast.error("Please complete every required field");
       return;
     }
@@ -100,7 +114,12 @@ export default function HomepageDirectAdsPage() {
       formData.append("link", link);
       formData.append("writeup", writeup);
       formData.append("durationDays", String(days));
-      formData.append("media", file);
+      if (sourceAdId) {
+        formData.append("sourceAdId", sourceAdId);
+      }
+      if (file) {
+        formData.append("media", file);
+      }
 
       const response = await fetch("/api/admin/homepage-direct-ads", {
         method: "POST",
@@ -120,6 +139,8 @@ export default function HomepageDirectAdsPage() {
       setDurationDays("7");
       setWriteup("");
       setFile(null);
+      setSourceAdId(null);
+      setReusingAd(null);
       await loadAds();
     } catch (error) {
       console.error(error);
@@ -127,6 +148,34 @@ export default function HomepageDirectAdsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const prepareReuse = (ad: HomepageDirectAd) => {
+    setBrandName(ad.brandName);
+    setPhone(ad.phone);
+    setEmail(ad.email);
+    setLink(ad.link || "");
+    setDurationDays(String(ad.durationDays || 7));
+    setWriteup(ad.writeup);
+    setFile(null);
+    setSourceAdId(ad.id);
+    setReusingAd({
+      sourceAdId: ad.id,
+      brandName: ad.brandName,
+      phone: ad.phone,
+      email: ad.email,
+      link: ad.link || "",
+      durationDays: String(ad.durationDays || 7),
+      writeup: ad.writeup,
+      mediaUrl: ad.mediaUrl,
+      mediaType: ad.mediaType,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const clearReuse = () => {
+    setSourceAdId(null);
+    setReusingAd(null);
   };
 
   const updateStatus = async (id: string, status: "active" | "inactive") => {
@@ -179,9 +228,18 @@ export default function HomepageDirectAdsPage() {
       </div>
 
       <SectionCard
-        title="New homepage advert"
-        description="Upload an image or video, attach the brand details, and set how many days the advert should stay live."
+        title={reusingAd ? "Reactivate homepage advert" : "New homepage advert"}
+        description={reusingAd ? "Edit the reused advert details or publish it directly with the existing media." : "Upload an image or video, attach the brand details, and set how many days the advert should stay live."}
       >
+        {reusingAd ? (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Reusing expired advert for <span className="font-semibold">{reusingAd.brandName}</span>.
+            You can edit any field below or publish it again as-is.
+            <Button type="button" variant="ghost" className="ml-3 rounded-full" onClick={clearReuse}>
+              Cancel reuse
+            </Button>
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -233,8 +291,13 @@ export default function HomepageDirectAdsPage() {
               className="bg-white"
             />
             <p className="mt-2 text-xs text-stone-500">
-              Upload either a landscape image or a short video for the homepage rail.
+              Upload either a landscape image or a short video for the homepage rail. If you are reusing an expired advert, you can leave this blank to publish with the existing media.
             </p>
+            {reusingAd?.mediaUrl ? (
+              <div className="mt-3 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">
+                Current reused media: {reusingAd.mediaType === "video" ? "Video" : "Image"} from the expired advert.
+              </div>
+            ) : null}
           </div>
 
           <div className="flex justify-end">
@@ -295,8 +358,8 @@ export default function HomepageDirectAdsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-lg font-semibold text-stone-900">{ad.brandName}</p>
                         <StatusBadge label={ad.status} tone={ad.status === "active" ? "green" : "stone"} />
-                        {expired ? <StatusBadge label="Expired" tone="amber" /> : null}
-                        <StatusBadge
+                          {expired ? <StatusBadge label="Expired" tone="amber" /> : null}
+                          <StatusBadge
                           label={ad.mediaType === "video" ? "Video" : "Image"}
                           tone="blue"
                         />
@@ -324,6 +387,16 @@ export default function HomepageDirectAdsPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
+                        {expired ? (
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-amber-300 text-amber-800 hover:bg-amber-50"
+                            onClick={() => prepareReuse(ad)}
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                            Reactivate
+                          </Button>
+                        ) : null}
                         {ad.link ? (
                           <Button asChild variant="outline" className="rounded-full">
                             <a href={ad.link} target="_blank" rel="noreferrer">

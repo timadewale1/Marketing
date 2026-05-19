@@ -65,6 +65,14 @@ type AdminUser = {
   submissionsCount: number;
 };
 
+type SuspendedAwareRecord = {
+  status?: string;
+  suspendedAt?: unknown;
+  suspensionReason?: unknown;
+  suspensionReleaseAt?: unknown;
+  suspensionIndefinite?: boolean;
+};
+
 const roleOptions = [
   { value: "all", label: "All roles" },
   { value: "advertiser", label: "Advertisers" },
@@ -112,6 +120,17 @@ function mergeUniqueUsers(current: AdminUser[], incoming: AdminUser[]) {
   });
 
   return Array.from(userMap.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
+function isSuspendedRecord(data: SuspendedAwareRecord | null | undefined) {
+  const status = String(data?.status || "").toLowerCase();
+  return (
+    status === "suspended" ||
+    Boolean(data?.suspendedAt) ||
+    Boolean(data?.suspensionReason) ||
+    Boolean(data?.suspensionReleaseAt) ||
+    Boolean(data?.suspensionIndefinite)
+  );
 }
 
 export default function UsersPage() {
@@ -234,20 +253,17 @@ export default function UsersPage() {
     collectionName: "earners" | "advertisers",
     cursor?: QueryDocumentSnapshot<DocumentData> | null
   ) => {
-    const baseFilters = [where("status", "==", "suspended")];
     if (cursor) {
       return query(
         collection(db, collectionName),
-        ...baseFilters,
-        orderBy("createdAt", "desc"),
+        where("status", "==", "suspended"),
         startAfter(cursor),
         limit(ADMIN_USER_PAGE_SIZE)
       );
     }
     return query(
       collection(db, collectionName),
-      ...baseFilters,
-      orderBy("createdAt", "desc"),
+      where("status", "==", "suspended"),
       limit(ADMIN_USER_PAGE_SIZE)
     );
   }, []);
@@ -427,7 +443,7 @@ export default function UsersPage() {
   }, [applyDirectoryFilters, search, users]);
 
   const suspendedBrowseUsers = useMemo(() => {
-    return applyDirectoryFilters(suspendedUsers);
+    return applyDirectoryFilters(suspendedUsers.filter((user) => isSuspendedRecord(user)));
   }, [applyDirectoryFilters, suspendedUsers]);
 
   const filteredUsers = useMemo(() => {

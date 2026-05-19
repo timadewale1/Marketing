@@ -60,6 +60,14 @@ type EarnerUser = {
   submissionsCount: number;
 };
 
+type SuspendedAwareRecord = {
+  status?: string;
+  suspendedAt?: unknown;
+  suspensionReason?: unknown;
+  suspensionReleaseAt?: unknown;
+  suspensionIndefinite?: boolean;
+};
+
 const activationOptions = [
   { value: "all", label: "All activation" },
   { value: "activated", label: "Activated" },
@@ -101,6 +109,17 @@ function mergeUniqueEarners(current: EarnerUser[], incoming: EarnerUser[]) {
   });
 
   return Array.from(earnerMap.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
+function isSuspendedRecord(data: SuspendedAwareRecord | null | undefined) {
+  const status = String(data?.status || "").toLowerCase();
+  return (
+    status === "suspended" ||
+    Boolean(data?.suspendedAt) ||
+    Boolean(data?.suspensionReason) ||
+    Boolean(data?.suspensionReleaseAt) ||
+    Boolean(data?.suspensionIndefinite)
+  );
 }
 
 export default function SubmissionManagementEarnersPage() {
@@ -188,14 +207,12 @@ export default function SubmissionManagementEarnersPage() {
       ? query(
           collection(db, "earners"),
           where("status", "==", "suspended"),
-          orderBy("createdAt", "desc"),
           startAfter(cursor),
           limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
         )
       : query(
           collection(db, "earners"),
           where("status", "==", "suspended"),
-          orderBy("createdAt", "desc"),
           limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
         ), []);
 
@@ -323,7 +340,7 @@ export default function SubmissionManagementEarnersPage() {
   }, [applyDirectoryFilters, earners, search]);
 
   const suspendedBrowseEarners = useMemo(() => {
-    return applyDirectoryFilters(suspendedEarners);
+    return applyDirectoryFilters(suspendedEarners.filter((earner) => isSuspendedRecord(earner)));
   }, [applyDirectoryFilters, suspendedEarners]);
 
   const stats = useMemo(() => {
