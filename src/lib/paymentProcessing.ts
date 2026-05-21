@@ -3,7 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/activation-attempts'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
-import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly'
+import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'

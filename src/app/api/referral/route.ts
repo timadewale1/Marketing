@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, REFERRAL_CREATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
-import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly'
+import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 
 // Handle referral processing for both earners and advertisers
 export async function POST(req: Request) {
