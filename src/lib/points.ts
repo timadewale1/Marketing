@@ -2,9 +2,9 @@ import type { Firestore as AdminFirestore, Transaction } from 'firebase-admin/fi
 
 export const POINTS_REDEEM_MINIMUM = 2500
 export const DAILY_LOGIN_POINTS = 10
-export const TASK_APPROVAL_POINTS = 20
-export const BILL_PAYMENT_POINTS = 10
-export const REFERRAL_CREATED_POINTS = 10
+export const TASK_APPROVAL_POINTS = 10
+export const BILL_PAYMENT_POINTS = 5
+export const REFERRAL_CREATED_POINTS = 5
 export const REFERRAL_ACTIVATED_POINTS = 50
 export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000

@@ -345,6 +345,34 @@ export default function PAMBALanding() {
           padding: 28px 0 58px;
           background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
         }
+        .updates-wrap {
+          background: linear-gradient(180deg, #fafaf9 0%, #f5f5f4 100%);
+          padding: 72px 0;
+        }
+        .updates-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 18px;
+          margin-top: 28px;
+        }
+        .updates-card {
+          background: rgba(255,255,255,0.82);
+          border: 1px solid rgba(231,229,228,0.95);
+          border-radius: 24px;
+          padding: 22px;
+          box-shadow: 0 18px 40px -30px rgba(28,25,23,0.28);
+        }
+        .updates-card h3 {
+          font-family: 'Sora', sans-serif;
+          font-size: 1rem;
+          margin-bottom: 10px;
+          color: var(--stone-900);
+        }
+        .updates-card p {
+          color: var(--stone-600);
+          font-size: 0.95rem;
+          line-height: 1.7;
+        }
         .hero-inner {
           position: relative; z-index: 2;
           max-width: 1200px; margin: 0 auto; padding: 120px 24px 80px;
@@ -755,6 +783,7 @@ export default function PAMBALanding() {
           .hamburger { display: block; }
           .features-grid { grid-template-columns: 1fr; }
           .bills-grid { grid-template-columns: repeat(2, 1fr); }
+          .updates-grid { grid-template-columns: 1fr; }
           .hiw-steps { grid-template-columns: 1fr; }
           .footer-grid { grid-template-columns: 1fr; gap: 32px; }
           .about-stat-row { grid-template-columns: 1fr; }
@@ -931,6 +960,37 @@ export default function PAMBALanding() {
           </div>
         </div>
       </div>
+
+      {/* ── UPDATES ── */}
+      <section className="updates-wrap">
+        <div className="section-inner">
+          <div className="section-header center">
+            <div className="section-label">Latest Updates</div>
+            <h2 className="section-title">A few things we improved recently</h2>
+            <p className="section-sub">
+              We keep making the platform smoother, more rewarding, and easier to use for everyone.
+            </p>
+          </div>
+          <div className="updates-grid">
+            <div className="updates-card">
+              <h3>More ways to earn rewards</h3>
+              <p>You can now earn points for everyday activity like logging in, referring others, completing tasks, and paying bills.</p>
+            </div>
+            <div className="updates-card">
+              <h3>Weekly referral recognition</h3>
+              <p>Every week, top referrers can be recognized for bringing in active users and helping the platform grow.</p>
+            </div>
+            <div className="updates-card">
+              <h3>Better account control</h3>
+              <p>You can now reset your password from your profile page, without needing to go through a separate reset page.</p>
+            </div>
+            <div className="updates-card">
+              <h3>Faster advert refresh</h3>
+              <p>Expired homepage adverts can be brought back more easily, so you can reuse the same details and publish again.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── ABOUT ── */}
       <section className="section about-bg" id="about">

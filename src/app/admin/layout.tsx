@@ -116,6 +116,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [firebaseAuthReady, setFirebaseAuthReady] = useState(false);
+  const [firebaseUserPresent, setFirebaseUserPresent] = useState(false);
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -172,9 +174,28 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     })();
   }, []);
 
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setFirebaseUserPresent(Boolean(user));
+      setFirebaseAuthReady(true);
+    });
+
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (authenticated && firebaseAuthReady && !firebaseUserPresent) {
+      setAuthenticated(false);
+    }
+  }, [authenticated, firebaseAuthReady, firebaseUserPresent]);
+
   // Load unread count with an aggregation query so the admin shell does not
   // listen to every unread notification document on every page.
   useEffect(() => {
+    if (authenticated !== true) {
+      return;
+    }
+
     const unreadQ = query(collection(db, "adminNotifications"), where("read", "==", false));
     void getCountFromServer(unreadQ)
       .then((snap) => setUnreadCount(snap.data().count || 0))
@@ -183,9 +204,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     // Also keep a small recent list for the bell dropdown
     const recentQ = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"), limit(6));
     const unsubRecent = onSnapshot(recentQ, (snap) => setRecentNotes(snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) } as AdminNotification))), (err) => console.error('adminNotifications recent listen failed', err));
-
     return () => { unsubRecent(); };
-  }, []);
+  }, [authenticated]);
 
   // close dropdown on outside click
   useEffect(() => {
@@ -240,6 +260,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       if (n.link) window.location.href = n.link as string;
     }
   };
+
+  if (authenticated === null || (authenticated && !firebaseAuthReady)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900">
+        <Card className="p-8 max-w-md mx-auto w-full">
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full" />
+          </div>
+          <p className="text-center text-sm text-stone-600">Loading secure admin session...</p>
+        </Card>
+      </div>
+    );
+  }
 
   if (!authenticated) {
     return (

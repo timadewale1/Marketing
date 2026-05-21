@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import { PaymentSelector } from '@/components/payment-selector'
@@ -33,6 +34,7 @@ import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralReco
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
+import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
 
 const ADVERTISER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/G16JM8Fa8k94BOWI5bbeRP"
 const ADVERTISER_WHATSAPP_JOINED_KEY = "pamba-advertiser-whatsapp-joined"
@@ -476,6 +478,17 @@ export default function AdvertiserDashboard() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
             Your dashboard is ready for campaign planning. Track wallet health, monitor live results, and launch the next task when you are ready.
           </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Badge
+              variant="outline"
+              className={`${getPointsBadgeClass(activatedReferralCount)} border px-3 py-1 text-sm font-semibold`}
+            >
+              {getPointsStarLabel(activatedReferralCount)}
+            </Badge>
+            <p className="text-sm text-stone-600">
+              {activatedReferralCount.toLocaleString()} activated referrals
+            </p>
+          </div>
         </div>
         {/* Top Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -514,7 +527,6 @@ export default function AdvertiserDashboard() {
               role="advertiser"
               userId={userId}
               displayName={name}
-              activatedReferralCount={activatedReferralCount}
               pointsBalance={stats.pointsBalance}
               activated={activated}
               tasksRoute="/advertiser/create-campaign"
@@ -532,10 +544,6 @@ export default function AdvertiserDashboard() {
             />
           </div>
         ) : null}
-
-        <div className="mb-10">
-          <HomepageDirectAds variant="compact" />
-        </div>
 
         {/* Activation banner (if needed) */}
         {ActivationBanner()}
@@ -674,6 +682,10 @@ export default function AdvertiserDashboard() {
               </Link>
             </div>
           )}
+        </div>
+
+        <div className="mt-10 mb-10">
+          <HomepageDirectAds variant="compact" />
         </div>
       </main>
       {showAdvertiserGroupPrompt && (

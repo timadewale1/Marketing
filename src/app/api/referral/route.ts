@@ -162,6 +162,7 @@ export async function PUT(req: Request) {
         | undefined
       await recordWeeklyReferralActivationInTransaction({
         adminDb,
+        admin,
         transaction,
         role: earnerSnap.exists ? 'earner' : 'advertiser',
         userId: referral.referrerId,

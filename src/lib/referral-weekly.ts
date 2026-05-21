@@ -2,6 +2,13 @@ export type ReferralRole = 'earner' | 'advertiser'
 
 export type ReferralTier = 'bronze' | 'silver' | 'gold' | 'elite'
 
+export const REFERRAL_WEEKLY_REWARD_POINTS: Record<ReferralTier, number> = {
+  bronze: 250,
+  silver: 1000,
+  gold: 2500,
+  elite: 5000,
+}
+
 export type WeeklyReferralStat = {
   id: string
   userId: string

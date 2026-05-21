@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { FileCheck, LayoutList, LogOut, Users } from "lucide-react"
 import { signOut } from "firebase/auth"
@@ -17,6 +18,22 @@ const NAV_ITEMS = [
 export default function SubmissionManagementShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [authReady, setAuthReady] = useState(false)
+  const [firebaseUserPresent, setFirebaseUserPresent] = useState(false)
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setFirebaseUserPresent(Boolean(user))
+      setAuthReady(true)
+    })
+    return () => unsub()
+  }, [])
+
+  useEffect(() => {
+    if (authReady && !firebaseUserPresent) {
+      router.replace("/submissionmanagement/login")
+    }
+  }, [authReady, firebaseUserPresent, router])
 
   const handleLogout = async () => {
     try {
@@ -28,6 +45,21 @@ export default function SubmissionManagementShell({ children }: { children: Reac
       console.error(error)
       toast.error("Could not sign out")
     }
+  }
+
+  if (!authReady || !firebaseUserPresent) {
+    return (
+      <div className="min-h-screen bg-stone-100">
+        <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-6 lg:px-6">
+          <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-[0_24px_60px_-40px_rgba(28,25,23,0.45)]">
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-900 border-t-transparent" />
+              <p className="text-sm text-stone-600">Loading secure submission management session...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -46,6 +46,7 @@ export async function processPendingActivationReferrals(
           | undefined
         await recordWeeklyReferralActivationInTransaction({
           adminDb,
+          admin,
           transaction: t,
           role: advSnap.exists ? 'advertiser' : 'earner',
           userId: referrerId,

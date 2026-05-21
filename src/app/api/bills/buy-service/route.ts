@@ -119,6 +119,7 @@ async function awardBillPurchasePoints(
   amount: number
 ) {
   if (!userId) return
+  if (Number(amount || 0) < 200) return
   const [earnerSnap, advertiserSnap] = await Promise.all([
     db.collection('earners').doc(userId).get(),
     db.collection('advertisers').doc(userId).get(),

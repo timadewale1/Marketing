@@ -19,6 +19,7 @@ import {
 import Image from "next/image"
 import toast from 'react-hot-toast'
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import BillsCard from '@/components/bills/BillsCard'
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +46,7 @@ import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
 import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
+import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
 
 const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CItU3jY1oP2GF6wOZA2eKC"
 const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
@@ -352,7 +354,7 @@ export default function EarnerDashboard() {
       </header>
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
-  <div className="mb-8 rounded-3xl border border-white/40 bg-white/55 p-6 backdrop-blur">
+        <div className="mb-8 rounded-3xl border border-white/40 bg-white/55 p-6 backdrop-blur">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
           <h2 className="mt-2 text-3xl font-semibold text-stone-900">{userName}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
@@ -360,6 +362,17 @@ export default function EarnerDashboard() {
               ? "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning."
               : "Activate your account to unlock task participation, withdrawals, and wallet spending across the platform."}
           </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Badge
+              variant="outline"
+              className={`${getPointsBadgeClass(referralStats.completedReferrals)} border px-3 py-1 text-sm font-semibold`}
+            >
+              {getPointsStarLabel(referralStats.completedReferrals)}
+            </Badge>
+            <p className="text-sm text-stone-600">
+              {referralStats.completedReferrals.toLocaleString()} activated referrals
+            </p>
+          </div>
         </div>
   {/* Top Cards */}
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -542,7 +555,6 @@ export default function EarnerDashboard() {
               role="earner"
               userId={userId}
               displayName={userName}
-              activatedReferralCount={referralStats.completedReferrals}
               pointsBalance={stats.pointsBalance}
               activated={activated}
               withdrawRoute="/earner/transactions"
@@ -560,10 +572,6 @@ export default function EarnerDashboard() {
             />
           </div>
         ) : null}
-
-        <div className="mb-10">
-          <HomepageDirectAds variant="compact" />
-        </div>
 
         {/* Campaign Stats Chart Section */}
         <motion.section
@@ -605,6 +613,10 @@ export default function EarnerDashboard() {
             ))}
           </div>
         </motion.section>
+
+        <div className="mt-10 mb-10">
+          <HomepageDirectAds variant="compact" />
+        </div>
       </main>
 
       {/* Sidebar */}

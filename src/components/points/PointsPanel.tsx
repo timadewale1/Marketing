@@ -3,17 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth, db } from "@/lib/firebase"
-import { collection, limit, onSnapshot, orderBy, query, where } from "firebase/firestore"
+import { collection, limit, onSnapshot, query, where } from "firebase/firestore"
 import toast from "react-hot-toast"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Gift, Medal } from "lucide-react"
-import { getPointsBadgeClass, getPointsStarLabel, getRedeemablePoints, POINTS_REDEEM_MINIMUM } from "@/lib/points"
-import { isReferralRecognitionWeekEnd } from "@/lib/referral-weekly"
+import { Gift } from "lucide-react"
+import { getRedeemablePoints, POINTS_REDEEM_MINIMUM } from "@/lib/points"
 
 type Role = "earner" | "advertiser"
 
@@ -21,7 +19,6 @@ type PointsPanelProps = {
   role: Role
   userId: string
   displayName: string
-  activatedReferralCount: number
   pointsBalance: number
   activated?: boolean
   walletRoute?: string
@@ -30,12 +27,28 @@ type PointsPanelProps = {
   withdrawRoute?: string
 }
 
-type LeaderboardRow = {
-  id: string
-  name: string
-  pointsActivatedReferralCount: number
-  pointsBalance: number
-}
+const REFERRAL_CATEGORY_GUIDE = [
+  {
+    label: "Bronze Earner",
+    requirement: "5 active users",
+    reward: "250 points",
+  },
+  {
+    label: "Silver",
+    requirement: "20 activated users",
+    reward: "1,000 points",
+  },
+  {
+    label: "Gold",
+    requirement: "50 activated users",
+    reward: "2,500 points",
+  },
+  {
+    label: "Elite",
+    requirement: "100 activated users and above",
+    reward: "5,000 points",
+  },
+]
 
 const TARGETS: Array<{ value: "wallet" | "withdraw" | "bills" | "tasks"; label: string; description: string }> = [
   { value: "wallet", label: "Add to wallet", description: "Move points into wallet balance for later use." },
@@ -48,7 +61,6 @@ export function PointsPanel({
   role,
   userId,
   displayName,
-  activatedReferralCount,
   pointsBalance,
   activated = true,
   walletRoute,
@@ -57,16 +69,12 @@ export function PointsPanel({
   withdrawRoute,
 }: PointsPanelProps) {
   const router = useRouter()
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([])
   const [redeemOpen, setRedeemOpen] = useState(false)
   const [redeemTarget, setRedeemTarget] = useState<"wallet" | "withdraw" | "bills" | "tasks">("wallet")
   const [redeemAmount, setRedeemAmount] = useState<string>(String(POINTS_REDEEM_MINIMUM))
   const [redeeming, setRedeeming] = useState(false)
   const seenPointIdsRef = useRef<Set<string>>(new Set())
   const loginAwardAttemptedRef = useRef(false)
-  const showLeaderboard = useMemo(() => isReferralRecognitionWeekEnd(), [])
-
-  const pointsTierLabel = getPointsStarLabel(activatedReferralCount)
   const redeemablePoints = useMemo(() => getRedeemablePoints(pointsBalance), [pointsBalance])
   const totalUserPoints = Math.max(0, Number(pointsBalance || 0))
 
@@ -105,8 +113,7 @@ export function PointsPanel({
   }, [role, userId])
 
   useEffect(() => {
-    if (!userId || !showLeaderboard) {
-      setLeaderboard([])
+    if (!userId) {
       return
     }
 
@@ -132,41 +139,7 @@ export function PointsPanel({
     })
 
     return () => unsub()
-  }, [userId, showLeaderboard])
-
-  useEffect(() => {
-    if (!userId) {
-      setLeaderboard([])
-      return
-    }
-
-    const leaderboardQuery = query(
-      collection(db, role === "earner" ? "earners" : "advertisers"),
-      orderBy("pointsActivatedReferralCount", "desc"),
-      limit(10)
-    )
-
-    const unsub = onSnapshot(leaderboardQuery, (snapshot) => {
-      setLeaderboard(
-        snapshot.docs.map((snap) => {
-          const data = snap.data() as Partial<LeaderboardRow> & {
-            fullName?: string
-            name?: string
-            businessName?: string
-            companyName?: string
-          }
-          return {
-            id: snap.id,
-            name: String(data.fullName || data.name || data.businessName || data.companyName || "User"),
-            pointsActivatedReferralCount: Number(data.pointsActivatedReferralCount || 0),
-            pointsBalance: Number(data.pointsBalance || 0),
-          }
-        })
-      )
-    })
-
-    return () => unsub()
-  }, [role, userId])
+  }, [userId])
 
   const handleRedeem = async () => {
     try {
@@ -236,7 +209,6 @@ export function PointsPanel({
     setRedeemOpen(true)
   }
 
-  const badgeClass = getPointsBadgeClass(activatedReferralCount)
   const targetOptions = role === "advertiser" ? TARGETS : TARGETS.filter((option) => option.value !== "tasks")
   const getFallbackRoute = (target: "wallet" | "withdraw" | "bills" | "tasks") => {
     if (target === "wallet") return walletRoute || null
@@ -261,18 +233,15 @@ export function PointsPanel({
                   <p className="text-xs text-stone-500">{displayName}</p>
                   <p className="text-3xl font-bold text-stone-900">{totalUserPoints.toLocaleString()} points</p>
                 </div>
-                <Badge variant="outline" className={`${badgeClass} border px-3 py-1 text-sm font-semibold`}>
-                  {pointsTierLabel}
-                </Badge>
               </div>
               <p className="text-sm text-stone-600 max-w-2xl">
                 Earn points for daily logins, referrals, completed tasks, bills, and high-value tasks. Redeem starts at {POINTS_REDEEM_MINIMUM.toLocaleString()} points.
               </p>
               <div className="flex flex-wrap gap-2 text-xs text-stone-500">
                 <span>Daily login: +10</span>
-                <span>Approved task: +20</span>
-                <span>Bills: +10</span>
-                <span>Referral: +10</span>
+                <span>Approved task: +10</span>
+                <span>Bills: +5 for bills of ₦200 and above</span>
+                <span>Referral: +5</span>
                 <span>Referral activation: +50</span>
                 <span>High-value task: +200</span>
               </div>
@@ -308,37 +277,30 @@ export function PointsPanel({
         </CardContent>
       </Card>
 
-      {showLeaderboard && leaderboard.length > 0 ? (
       <Card className="bg-white/75 backdrop-blur border-none shadow-md mt-6">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Medal className="h-5 w-5 text-amber-600" />
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <Gift className="h-5 w-5 text-amber-600" />
             <div>
-              <h3 className="text-lg font-semibold text-stone-900">Referral Leaderboard</h3>
-              <p className="text-sm text-stone-600">Competitive leaderboard based on activated referrals.</p>
+              <h3 className="text-lg font-semibold text-stone-900">Referral category guide</h3>
+              <p className="text-sm text-stone-600">See the badge level, referral target, and reward for each category.</p>
             </div>
           </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Activated referrals</TableHead>
-                  <TableHead className="text-right">Badge</TableHead>
+                  <TableHead>Badge</TableHead>
+                  <TableHead>Requirement</TableHead>
+                  <TableHead className="text-right">Reward</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaderboard.map((row, index) => (
-                  <TableRow key={row.id} className={row.id === userId ? "bg-amber-50" : undefined}>
-                    <TableCell className="font-medium">#{index + 1}</TableCell>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell className="text-right">{row.pointsActivatedReferralCount.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-                        {getPointsStarLabel(row.pointsActivatedReferralCount)}
-                      </Badge>
-                    </TableCell>
+                {REFERRAL_CATEGORY_GUIDE.map((row) => (
+                  <TableRow key={row.label}>
+                    <TableCell className="font-medium text-stone-900">{row.label}</TableCell>
+                    <TableCell className="text-stone-600">{row.requirement}</TableCell>
+                    <TableCell className="text-right font-semibold text-amber-700">{row.reward}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -346,7 +308,6 @@ export function PointsPanel({
           </div>
         </CardContent>
       </Card>
-      ) : null}
 
       <Dialog open={redeemOpen} onOpenChange={setRedeemOpen}>
         <DialogContent className="bg-white sm:max-w-lg">
