@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { buildCustomFirebaseActionLink } from "@/lib/firebase-action-links"
 import { sendVerificationEmail } from "@/lib/mailer"
+import { REFERRAL_CREATED_POINTS, awardPointsOnce, getPointsEventId } from "@/lib/points"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
 
@@ -81,6 +82,13 @@ export async function POST(req: Request) {
 
     const profileRef = dbAdmin.collection(`${action}s`).doc(createdUid)
     const referralRef = referralId ? dbAdmin.collection("referrals").doc(`${referralId}-${createdUid}`) : null
+    const [referrerEarnerSnap, referrerAdvertiserSnap] = referralId
+      ? await Promise.all([
+          dbAdmin.collection("earners").doc(referralId).get(),
+          dbAdmin.collection("advertisers").doc(referralId).get(),
+        ])
+      : [null, null]
+    const referrerExists = Boolean(referrerEarnerSnap?.exists || referrerAdvertiserSnap?.exists)
     const batch = dbAdmin.batch()
 
     batch.set(profileRef, {
@@ -94,21 +102,50 @@ export async function POST(req: Request) {
     })
 
     if (referralRef) {
-      batch.set(referralRef, {
-        referrerId: referralId,
-        referredId: createdUid,
-        userType: action,
-        email,
-        name,
-        amount: 500,
-        status: "pending",
-        bonusPaid: false,
-        condition: "activation",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
+      if (!referrerExists) {
+        console.warn(`[signup] referral ${referralId} not found for ${createdUid}; skipping referral doc creation`)
+      } else {
+        batch.set(referralRef, {
+          referrerId: referralId,
+          referredId: createdUid,
+          userType: action,
+          email,
+          name,
+          amount: 500,
+          status: "pending",
+          bonusPaid: false,
+          condition: "activation",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
     }
 
     await batch.commit()
+
+    if (referralId && referrerExists) {
+      const referrerCollection = referrerAdvertiserSnap?.exists ? 'advertisers' : 'earners'
+      await awardPointsOnce({
+        adminDb: dbAdmin,
+        admin,
+        userCollection: referrerCollection,
+        userId: referralId,
+        amount: REFERRAL_CREATED_POINTS,
+        eventId: getPointsEventId('referral-created', referralId, createdUid),
+        type: 'referral_created',
+        note: `Referral signup bonus for inviting ${createdUid}`,
+        referenceId: createdUid,
+        extraUserUpdates: {
+          pointsReferralCount: admin.firestore.FieldValue.increment(1),
+          pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        extraLedgerData: {
+          referredUserId: createdUid,
+          referredUserType: action,
+        },
+      }).catch((error) => {
+        console.error('[signup] referral points award failed', error)
+      })
+    }
 
     const firebaseLink = await admin.auth().generateEmailVerificationLink(email, {
       url: `${APP_URL}/auth/sign-in?verified=1`,

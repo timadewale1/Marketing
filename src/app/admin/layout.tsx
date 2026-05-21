@@ -18,6 +18,8 @@ import {
   Menu,
   X,
   Mail,
+  Award,
+  Coins,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -91,6 +93,16 @@ const NAVIGATION = [
     name: "Submissions",
     href: "/admin/submissions",
     icon: FileCheck,
+  },
+  {
+    name: "Referrals",
+    href: "/admin/referrals",
+    icon: Award,
+  },
+  {
+    name: "Bills Profit",
+    href: "/admin/bills-profit",
+    icon: Coins,
   },
   {
     name: "Withdrawals",

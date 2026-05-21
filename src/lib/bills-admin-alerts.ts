@@ -7,7 +7,7 @@ type BillsPurchaseActor = {
   roleLabel: string
 }
 
-async function resolveBillsPurchaseActor(userId?: string | null): Promise<BillsPurchaseActor> {
+export async function resolveBillsPurchaseActor(userId?: string | null): Promise<BillsPurchaseActor> {
   if (!userId) {
     return {
       name: "Guest user",

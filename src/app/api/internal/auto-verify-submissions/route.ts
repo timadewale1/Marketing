@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
+import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
 interface Submission {
   status?: string
@@ -182,6 +183,27 @@ export async function GET(request: Request) {
           const now = new Date()
           const userId = String(submission.userId || '')
           if (!userId) throw new Error('Submission missing userId')
+
+          await awardPointsInTransaction({
+            adminDb,
+            admin,
+            transaction: t,
+            userCollection: 'earners',
+            userId,
+            amount: TASK_APPROVAL_POINTS,
+            eventId: getPointsEventId('task-approved', subRef.id),
+            type: 'task_approved',
+            note: `Approval bonus for submission ${subRef.id}`,
+            referenceId: subRef.id,
+            extraUserUpdates: {
+              pointsApprovedTaskCount: admin.firestore.FieldValue.increment(1),
+              pointsLastApprovedTaskAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            extraLedgerData: {
+              submissionId: subRef.id,
+              campaignId,
+            },
+          })
 
           t.update(subRef, {
             status: 'Verified',

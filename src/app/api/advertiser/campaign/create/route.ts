@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
+import { HIGH_VALUE_TASK_POINTS, HIGH_VALUE_TASK_THRESHOLD, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
 export async function POST(req: Request) {
   try {
@@ -55,12 +56,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Priority pricing is invalid' }, { status: 400 })
     }
     if (costPerLead > 0 && budget < costPerLead) {
-      return NextResponse.json({ success: false, message: `Budget cannot be less than ₦${costPerLead.toLocaleString()} for this task type` }, { status: 400 })
+      return NextResponse.json({ success: false, message: `Budget cannot be less than â‚¦${costPerLead.toLocaleString()} for this task type` }, { status: 400 })
     }
     if (costPerLead > 0 && budget % costPerLead !== 0) {
       return NextResponse.json({
         success: false,
-        message: `Budget must be in exact multiples of ₦${costPerLead.toLocaleString()} for this task type`,
+        message: `Budget must be in exact multiples of â‚¦${costPerLead.toLocaleString()} for this task type`,
       }, { status: 400 })
     }
 
@@ -90,6 +91,29 @@ export async function POST(req: Request) {
       // Prepare campaign doc ref
       const campaignRef = db.collection('campaigns').doc()
       createdCampaignId = campaignRef.id
+
+      if (budget >= HIGH_VALUE_TASK_THRESHOLD) {
+        await awardPointsInTransaction({
+          adminDb: db,
+          admin,
+          transaction: t,
+          userCollection: 'advertisers',
+          userId: verifiedUid,
+          amount: HIGH_VALUE_TASK_POINTS,
+          eventId: getPointsEventId('campaign-created-high-value', campaignRef.id),
+          type: 'high_value_campaign_created',
+          note: `Bonus for creating a high-value task with a budget of â‚¦${budget.toLocaleString()}`,
+          referenceId: campaignRef.id,
+          extraUserUpdates: {
+            pointsHighValueTaskCount: admin.firestore.FieldValue.increment(1),
+            pointsLastHighValueTaskAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            campaignId: campaignRef.id,
+            campaignBudget: budget,
+          },
+        })
+      }
 
       // Preserve original budget as the advertiser-entered total so advertiser views
       // always show the original task amount (originalBudget). Also initialize reservedBudget.
@@ -125,7 +149,6 @@ export async function POST(req: Request) {
         note: 'Budget allocated for campaign',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
-
     })
 
     if (createdCampaignId) {

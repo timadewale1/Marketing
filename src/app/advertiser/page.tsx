@@ -28,6 +28,8 @@ import { Menu, X, TrendingUp, Wallet, Users, Plus, LogOut, LayoutDashboard, Wall
 import Link from "next/link"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
+import { PointsPanel } from "@/components/points/PointsPanel"
+import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
@@ -59,12 +61,15 @@ export default function AdvertiserDashboard() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement | null>(null)
+  const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
   const [name, setName] = useState<string>("Advertiser")
   const [profilePic, setProfilePic] = useState("")
+  const [activatedReferralCount, setActivatedReferralCount] = useState(0)
   const [activated, setActivated] = useState<boolean>(true)
   const [onboarded, setOnboarded] = useState<boolean>(false)
   const [stats, setStats] = useState({
     balance: 0,
+    pointsBalance: 0,
     activeCampaigns: 0,
     leadsGenerated: 0,
     leadsPaidFor: 0,
@@ -114,6 +119,7 @@ export default function AdvertiserDashboard() {
         router.replace("/auth/sign-in")
         return
       }
+      setUserId(u.uid)
       if (!u.emailVerified) {
         router.replace("/auth/verify-email")
         return
@@ -135,8 +141,13 @@ export default function AdvertiserDashboard() {
         setProfilePic(profileData.profilePic || "")
         setActivated(nextActivated)
         setOnboarded(Boolean(profileData.onboarded))
+        setActivatedReferralCount(Number(profileData.pointsActivatedReferralCount || 0))
         const profBal = Number(profileData.balance || 0)
-        setStats((prev) => ({ ...prev, balance: profBal }))
+        setStats((prev) => ({
+          ...prev,
+          balance: profBal,
+          pointsBalance: Number(profileData.pointsBalance || 0),
+        }))
 
         if (
           ADVERTISER_ACTIVATION_REQUIRED &&
@@ -496,6 +507,31 @@ export default function AdvertiserDashboard() {
             <BillsCard />
           </div>
         </div>
+
+        {userId ? (
+          <div className="mb-10">
+            <PointsPanel
+              role="advertiser"
+              userId={userId}
+              displayName={name}
+              activatedReferralCount={activatedReferralCount}
+              pointsBalance={stats.pointsBalance}
+              activated={activated}
+              tasksRoute="/advertiser/create-campaign"
+              withdrawRoute="/advertiser/wallet"
+            />
+          </div>
+        ) : null}
+
+        {userId ? (
+          <div className="mb-10">
+            <WeeklyReferralRecognition
+              role="advertiser"
+              userId={userId}
+              displayName={name}
+            />
+          </div>
+        ) : null}
 
         <div className="mb-10">
           <HomepageDirectAds variant="compact" />

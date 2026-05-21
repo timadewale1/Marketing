@@ -16,6 +16,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "react-hot-toast"
 import {
   Loader2,
@@ -29,6 +30,7 @@ import {
   Edit3,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth"
 
 type Advertiser = {
   id: string
@@ -61,6 +63,9 @@ export default function ProfilePage() {
     active: 0,
     stopped: 0,
   })
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" })
+  const [passwordSaving, setPasswordSaving] = useState(false)
 
   const [form, setForm] = useState({
     name: "",
@@ -174,6 +179,37 @@ export default function ProfilePage() {
     } catch (err) {
       console.error(err)
       toast.error("Logout failed")
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    const user = auth.currentUser
+    if (!user?.email) {
+      toast.error("Your account email is missing")
+      return
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters")
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("Passwords do not match")
+      return
+    }
+
+    try {
+      setPasswordSaving(true)
+      const credential = EmailAuthProvider.credential(user.email, passwordForm.currentPassword)
+      await reauthenticateWithCredential(user, credential)
+      await updatePassword(user, passwordForm.newPassword)
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      setPasswordOpen(false)
+      toast.success("Password updated successfully")
+    } catch (err) {
+      console.error(err)
+      toast.error("Password update failed. Please confirm your current password and try again.")
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -329,10 +365,56 @@ export default function ProfilePage() {
               >
                 <LogOut size={16} className="mr-2" /> Logout
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => setPasswordOpen(true)}
+                className="flex-1"
+              >
+                Reset Password
+              </Button>
             </>
           )}
         </div>
       </Card>
+
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent className="bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Confirm your current password, then choose a new password for your account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+              placeholder="Current password"
+            />
+            <Input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+              placeholder="New password"
+            />
+            <Input
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+              placeholder="Confirm new password"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordOpen(false)} disabled={passwordSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasswordReset} disabled={passwordSaving} className="bg-amber-500 text-stone-900">
+              {passwordSaving ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

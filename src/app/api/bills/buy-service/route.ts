@@ -7,7 +7,10 @@ import { generateRequestId } from '@/services/vtpass/utils'
 import { getVariations, requery as requeryVtpass } from '@/services/vtpass/serviceApi'
 import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts'
 import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment'
+import { getBillsCommission, getBillsServiceLabel } from '@/lib/bills-commission'
+import { resolveBillsPurchaseActor } from '@/lib/bills-admin-alerts'
 import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
+import { BILL_PAYMENT_POINTS, awardPointsOnce, getPointsEventId } from '@/lib/points'
 
 const FRIENDLY_PROVIDER_ERROR_MESSAGE = 'This service is temporarily unavailable right now. Please try again later.'
 const FRIENDLY_REFUND_PENDING_MESSAGE = 'We could not complete this payment. If you were charged, your refund will be processed shortly.'
@@ -106,6 +109,59 @@ async function settleVtpassPurchase(payload: Record<string, unknown>, reqId: str
   }
 
   return { state: 'pending' as const, data: lastData }
+}
+
+async function awardBillPurchasePoints(
+  db: import('firebase-admin').firestore.Firestore,
+  admin: typeof import('firebase-admin'),
+  userId: string | undefined,
+  reference: string,
+  amount: number
+) {
+  if (!userId) return
+  const [earnerSnap, advertiserSnap] = await Promise.all([
+    db.collection('earners').doc(userId).get(),
+    db.collection('advertisers').doc(userId).get(),
+  ])
+  const userCollection = advertiserSnap.exists ? 'advertisers' : earnerSnap.exists ? 'earners' : null
+  if (!userCollection) return
+
+  await awardPointsOnce({
+    adminDb: db,
+    admin,
+    userCollection,
+    userId,
+    amount: BILL_PAYMENT_POINTS,
+    eventId: getPointsEventId('bills-paid', reference),
+    type: 'bill_payment',
+    note: 'Bills payment reward',
+    referenceId: reference,
+    extraUserUpdates: {
+      pointsBillsPaidCount: admin.firestore.FieldValue.increment(1),
+      pointsLastBillPaidAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    extraLedgerData: {
+      reference,
+      rewardSource: 'bills_purchase',
+      amountPaid: amount,
+    },
+  }).catch((error) => {
+    console.error('Failed to award bill purchase points', error)
+  })
+}
+
+async function buildBillPurchaseMeta(actorUserId: string | undefined, serviceID: string, paidAmount: number) {
+  const actor = await resolveBillsPurchaseActor(actorUserId)
+  const commission = getBillsCommission(serviceID, paidAmount, getBillsServiceLabel(serviceID))
+  return {
+    actorName: actor.name,
+    actorRole: actor.roleLabel,
+    actorPath: actor.adminPath,
+    serviceLabel: commission.label,
+    profit: commission.profit,
+    profitRate: commission.rate,
+    commissionCap: commission.cap ?? null,
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -236,6 +292,39 @@ export async function POST(req: NextRequest) {
         const vtData2 = settlement.data
         if (settlement.state === 'success') {
           try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'completed', response: vtData2, updatedAt: new Date().toISOString() }) } catch (e) { console.warn('Failed to update tx', e) }
+          try {
+            const billMeta = await buildBillPurchaseMeta(verifiedUid, String(serviceID), amountN)
+            await db.collection('vtpassTransactions').add({
+              request_id: reqId,
+              serviceID,
+              serviceLabel: billMeta.serviceLabel,
+              variation_code: variation_code || null,
+              billersCode: billersCode || null,
+              amount: amountN,
+              paidAmount: amountN,
+              profit: billMeta.profit,
+              profitRate: billMeta.profitRate,
+              commissionCap: billMeta.commissionCap,
+              phone: phone || null,
+              paystackReference: paystackReference || null,
+              provider: 'wallet',
+              paymentChannel: 'wallet',
+              actorUserId: verifiedUid,
+              actorName: billMeta.actorName,
+              actorNameLower: billMeta.actorName.toLowerCase(),
+              actorRole: billMeta.actorRole,
+              actorPath: billMeta.actorPath,
+              serviceIDLower: String(serviceID || '').toLowerCase(),
+              reference: reqId,
+              referenceLower: String(reqId || '').toLowerCase(),
+              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+              response: vtData2 || null,
+              status: 'completed',
+              createdAt: new Date().toISOString(),
+            })
+          } catch (e) {
+            console.warn('Failed to save wallet vtpass transaction', e)
+          }
           await notifyAdminOfBillsPurchase({
             actorUserId: verifiedUid,
             paidAmount: amountN,
@@ -243,6 +332,7 @@ export async function POST(req: NextRequest) {
             paymentChannel: 'wallet',
             reference: reqId,
           })
+          await awardBillPurchasePoints(db, admin, verifiedUid, reqId, amountN)
 
           return NextResponse.json({ ok: true, result: vtData2 })
         }
@@ -250,10 +340,77 @@ export async function POST(req: NextRequest) {
         if (settlement.state === 'failed') {
           try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'failed', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
           try { await db.collection(userType === 'advertiser' ? 'advertisers' : 'earners').doc(verifiedUid).update({ balance: admin.firestore.FieldValue.increment(amountN) }) } catch (e) { console.error('Failed to restore balance', e) }
+          try {
+            const billMeta = await buildBillPurchaseMeta(verifiedUid, String(serviceID), amountN)
+            await db.collection('vtpassTransactions').add({
+              request_id: reqId,
+              serviceID,
+              serviceLabel: billMeta.serviceLabel,
+              variation_code: variation_code || null,
+              billersCode: billersCode || null,
+              amount: amountN,
+              paidAmount: amountN,
+              profit: 0,
+              profitRate: billMeta.profitRate,
+              commissionCap: billMeta.commissionCap,
+              phone: phone || null,
+              paystackReference: paystackReference || null,
+              provider: 'wallet',
+              paymentChannel: 'wallet',
+              actorUserId: verifiedUid,
+              actorName: billMeta.actorName,
+              actorNameLower: billMeta.actorName.toLowerCase(),
+              actorRole: billMeta.actorRole,
+              actorPath: billMeta.actorPath,
+              serviceIDLower: String(serviceID || '').toLowerCase(),
+              reference: reqId,
+              referenceLower: String(reqId || '').toLowerCase(),
+              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+              response: vtData2 || null,
+              status: 'failed',
+              vtpassFailed: true,
+              createdAt: new Date().toISOString(),
+            })
+          } catch (e) {
+            console.warn('Failed to save failed wallet vtpass transaction', e)
+          }
           return NextResponse.json({ ok: false, message: FRIENDLY_PROVIDER_ERROR_MESSAGE }, { status: 400 })
         }
 
         try { await db.collection(txCollection).doc(txDocRef.id).update({ status: 'pending', response: vtData2, updatedAt: new Date().toISOString() }) } catch {}
+        try {
+          const billMeta = await buildBillPurchaseMeta(verifiedUid, String(serviceID), amountN)
+          await db.collection('vtpassTransactions').add({
+            request_id: reqId,
+            serviceID,
+            serviceLabel: billMeta.serviceLabel,
+            variation_code: variation_code || null,
+            billersCode: billersCode || null,
+            amount: amountN,
+            paidAmount: amountN,
+            profit: 0,
+            profitRate: billMeta.profitRate,
+            commissionCap: billMeta.commissionCap,
+            phone: phone || null,
+            paystackReference: paystackReference || null,
+            provider: 'wallet',
+            paymentChannel: 'wallet',
+            actorUserId: verifiedUid,
+            actorName: billMeta.actorName,
+            actorNameLower: billMeta.actorName.toLowerCase(),
+            actorRole: billMeta.actorRole,
+            actorPath: billMeta.actorPath,
+            serviceIDLower: String(serviceID || '').toLowerCase(),
+            reference: reqId,
+            referenceLower: String(reqId || '').toLowerCase(),
+            searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+            response: vtData2 || null,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          })
+        } catch (e) {
+          console.warn('Failed to save pending wallet vtpass transaction', e)
+        }
         return NextResponse.json({ ok: false, message: 'Your payment is still being processed. Please wait a moment and check again shortly.' }, { status: 202 })
       } catch (e) {
         console.error('VTpass call after wallet reserve failed', e)
@@ -361,17 +518,32 @@ export async function POST(req: NextRequest) {
       try {
         const { dbAdmin } = await initFirebaseAdmin()
         if (dbAdmin) {
+          const billMeta = await buildBillPurchaseMeta(actorUserId || undefined, String(serviceID), paidAmount)
           await dbAdmin.collection('vtpassTransactions').add({
             request_id: reqId,
             serviceID,
+            serviceLabel: billMeta.serviceLabel,
             variation_code: variation_code || null,
             billersCode: billersCode || null,
             amount: recordedAmount || null,
             paidAmount,
             markup,
+            profit: billMeta.profit,
+            profitRate: billMeta.profitRate,
+            commissionCap: billMeta.commissionCap,
             phone: phone || null,
             paystackReference: paystackReference || null,
             provider: provider || null,
+            paymentChannel: provider || null,
+            actorUserId: actorUserId || null,
+            actorName: billMeta.actorName,
+            actorNameLower: billMeta.actorName.toLowerCase(),
+            actorRole: billMeta.actorRole,
+            actorPath: billMeta.actorPath,
+            serviceIDLower: String(serviceID || '').toLowerCase(),
+            reference: String(paystackReference || reqId),
+            referenceLower: String(paystackReference || reqId).toLowerCase(),
+            searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
             response: vtData || null,
             userId: actorUserId || null,
             vtpassFailed: true,
@@ -394,19 +566,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: errorMsg, refundStatus }, { status: 400 })
     }
 
+    let firebaseAdminForPoints: Awaited<ReturnType<typeof initFirebaseAdmin>> | null = null
     try {
-      const { dbAdmin } = await initFirebaseAdmin()
+      firebaseAdminForPoints = await initFirebaseAdmin()
+      const { dbAdmin } = firebaseAdminForPoints
       if (dbAdmin) {
+        const billMeta = await buildBillPurchaseMeta(actorUserId || undefined, String(serviceID), paidAmount)
         await dbAdmin.collection('vtpassTransactions').add({
           request_id: reqId,
           serviceID,
+          serviceLabel: billMeta.serviceLabel,
           variation_code: variation_code || null,
           billersCode: billersCode || null,
           amount: recordedAmount || null,
           paidAmount,
           markup,
+          profit: billMeta.profit,
+          profitRate: billMeta.profitRate,
+          commissionCap: billMeta.commissionCap,
           phone: phone || null,
           paystackReference: paystackReference || null,
+          provider: provider || null,
+          paymentChannel: provider || null,
+          actorUserId: actorUserId || null,
+          actorName: billMeta.actorName,
+          actorNameLower: billMeta.actorName.toLowerCase(),
+          actorRole: billMeta.actorRole,
+          actorPath: billMeta.actorPath,
+          serviceIDLower: String(serviceID || '').toLowerCase(),
+          reference: String(paystackReference || reqId),
+          referenceLower: String(paystackReference || reqId).toLowerCase(),
+          searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
           response: vtData || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),
@@ -417,7 +607,7 @@ export async function POST(req: NextRequest) {
         const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
         if (authHeader && authHeader.startsWith('Bearer ')) {
           const idToken = authHeader.split('Bearer ')[1]
-          const { admin, dbAdmin: dbAdminInstance } = await initFirebaseAdmin()
+          const { admin, dbAdmin: dbAdminInstance } = firebaseAdminForPoints || await initFirebaseAdmin()
           if (admin && dbAdminInstance) {
             try {
               const decoded = await admin.auth().verifyIdToken(idToken)
@@ -466,6 +656,16 @@ export async function POST(req: NextRequest) {
       paymentChannel: provider === 'monnify' || provider === 'paystack' ? provider : 'direct',
       reference: String(paystackReference || reqId),
     })
+
+    if (firebaseAdminForPoints?.admin && firebaseAdminForPoints.dbAdmin) {
+      await awardBillPurchasePoints(
+        firebaseAdminForPoints.dbAdmin as import('firebase-admin').firestore.Firestore,
+        firebaseAdminForPoints.admin,
+        actorUserId || undefined,
+        String(paystackReference || reqId),
+        paidAmount
+      )
+    }
 
     /*
     if (false && actorUserId) {

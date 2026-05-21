@@ -43,6 +43,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
+import { PointsPanel } from "@/components/points/PointsPanel"
+import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
 
 const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CItU3jY1oP2GF6wOZA2eKC"
 const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
@@ -60,8 +62,10 @@ export default function EarnerDashboard() {
   const router = useRouter()
   const [userName, setUserName] = useState("User")
   const [profilePic, setProfilePic] = useState("")
+  const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
   const [stats, setStats] = useState({
     balance: 0,
+    pointsBalance: 0,
     activeCampaigns: 0,
     leadsGenerated: 0,
     leadsPaidFor: 0,
@@ -112,6 +116,7 @@ export default function EarnerDashboard() {
         router.replace("/auth/sign-in")
         return
       }
+      setUserId(u.uid)
       if (!u.emailVerified) {
         router.replace("/auth/verify-email")
         return
@@ -139,6 +144,7 @@ export default function EarnerDashboard() {
             activeCampaigns: d.activeCampaigns || 0,
             leadsGenerated: d.leadsGenerated || 0,
             leadsPaidFor: d.leadsPaidFor || 0,
+            pointsBalance: d.pointsBalance || 0,
           }))
           const nextActivated = !!d.activated
           setActivated(nextActivated)
@@ -529,6 +535,31 @@ export default function EarnerDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {userId ? (
+          <div className="mb-10">
+            <PointsPanel
+              role="earner"
+              userId={userId}
+              displayName={userName}
+              activatedReferralCount={referralStats.completedReferrals}
+              pointsBalance={stats.pointsBalance}
+              activated={activated}
+              withdrawRoute="/earner/transactions"
+              billsRoute="/earner/campaigns"
+            />
+          </div>
+        ) : null}
+
+        {userId ? (
+          <div className="mb-10">
+            <WeeklyReferralRecognition
+              role="earner"
+              userId={userId}
+              displayName={userName}
+            />
+          </div>
+        ) : null}
 
         <div className="mb-10">
           <HomepageDirectAds variant="compact" />

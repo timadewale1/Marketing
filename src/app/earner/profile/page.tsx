@@ -7,11 +7,13 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 import { ArrowLeft } from "lucide-react";
 import { User, Mail, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 export default function EarnerProfilePage() {
   const router = useRouter();
@@ -25,6 +27,9 @@ export default function EarnerProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", phone: "" });
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,6 +82,36 @@ export default function EarnerProfilePage() {
       toast.error("Save failed");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!u?.email) {
+      toast.error("Your account email is missing")
+      return
+    }
+    if (passwordForm.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters")
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("Passwords do not match")
+      return
+    }
+
+    try {
+      setPasswordSaving(true)
+      const credential = EmailAuthProvider.credential(u.email, passwordForm.currentPassword)
+      await reauthenticateWithCredential(u, credential)
+      await updatePassword(u, passwordForm.newPassword)
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      setPasswordOpen(false)
+      toast.success("Password updated successfully")
+    } catch (error) {
+      console.error(error)
+      toast.error("Password update failed. Please confirm your current password and try again.")
+    } finally {
+      setPasswordSaving(false)
     }
   };
 
@@ -134,13 +169,55 @@ export default function EarnerProfilePage() {
                     <Button variant="outline" onClick={() => setEditing(false)} className="font-semibold">Cancel</Button>
                   </>
                 ) : (
-                  <Button onClick={() => setEditing(true)} className="bg-amber-500 text-stone-900 font-semibold">Edit Profile</Button>
+                  <>
+                    <Button onClick={() => setEditing(true)} className="bg-amber-500 text-stone-900 font-semibold">Edit Profile</Button>
+                    <Button variant="outline" onClick={() => setPasswordOpen(true)} className="font-semibold">Reset Password</Button>
+                  </>
                 )}
               </div>
             </div>
           </div>
         </Card>
       </div>
+
+      <Dialog open={passwordOpen} onOpenChange={setPasswordOpen}>
+        <DialogContent className="bg-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Confirm your current password, then choose a new password for your account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+              placeholder="Current password"
+            />
+            <Input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+              placeholder="New password"
+            />
+            <Input
+              type="password"
+              value={passwordForm.confirmPassword}
+              onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+              placeholder="Confirm new password"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordOpen(false)} disabled={passwordSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasswordReset} disabled={passwordSaving} className="bg-amber-500 text-stone-900">
+              {passwordSaving ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

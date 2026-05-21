@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import vtpassClient from '@/services/vtpass/client'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { SERVICE_CHARGE, generateRequestId } from '@/services/vtpass/utils'
+import { getBillsCommission, getBillsServiceLabel } from '@/lib/bills-commission'
+import { resolveBillsPurchaseActor } from '@/lib/bills-admin-alerts'
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,16 +37,33 @@ export async function POST(req: NextRequest) {
     try {
       const { dbAdmin } = await initFirebaseAdmin()
       if (dbAdmin) {
+        const actor = await resolveBillsPurchaseActor(userId || null)
+        const commission = getBillsCommission(String(serviceID), paidAmount, getBillsServiceLabel(String(serviceID)))
         await dbAdmin.collection('vtpassTransactions').add({
           request_id: reqId,
           serviceID,
+          serviceLabel: commission.label,
           variation_code: variation_code || null,
           billersCode: billersCode || null,
           amount: recordedAmount || null,
           paidAmount,
           markup,
+          profit: commission.profit,
+          profitRate: commission.rate,
+          commissionCap: commission.cap ?? null,
           phone: phone || null,
           paystackReference: paystackReference || null,
+          provider: null,
+          paymentChannel: 'direct',
+          actorUserId: userId || null,
+          actorName: actor.name,
+          actorNameLower: actor.name.toLowerCase(),
+          actorRole: actor.roleLabel,
+          actorPath: actor.adminPath,
+          serviceIDLower: String(serviceID || '').toLowerCase(),
+          reference: String(paystackReference || reqId),
+          referenceLower: String(paystackReference || reqId).toLowerCase(),
+          searchKey: [actor.name, actor.roleLabel, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
           response: vtRes.data || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),

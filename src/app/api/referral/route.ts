@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { REFERRAL_ACTIVATED_POINTS, REFERRAL_CREATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly'
 
 // Handle referral processing for both earners and advertisers
 export async function POST(req: Request) {
   try {
     const { referrerId, referredId, userType } = await req.json()
-    
+
     if (!referrerId || !referredId || !userType) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
     }
@@ -37,22 +39,50 @@ export async function POST(req: Request) {
         userType,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         status: 'pending',
-        bonusPaid: false
+        bonusPaid: false,
+      }
+
+      const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+        transaction.get(adminDb.collection('earners').doc(referrerId)),
+        transaction.get(adminDb.collection('advertisers').doc(referrerId)),
+      ])
+      const referrerCollection = referrerAdvertiserSnap.exists ? 'advertisers' : referrerEarnerSnap.exists ? 'earners' : null
+      if (referrerCollection) {
+        await awardPointsInTransaction({
+          adminDb,
+          admin,
+          transaction,
+          userCollection: referrerCollection,
+          userId: referrerId,
+          amount: REFERRAL_CREATED_POINTS,
+          eventId: getPointsEventId('referral-created', referrerId, referredId),
+          type: 'referral_created',
+          note: `Referral signup bonus for inviting ${referredId}`,
+          referenceId: referredId,
+          extraUserUpdates: {
+            pointsReferralCount: admin.firestore.FieldValue.increment(1),
+            pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            referredUserId: referredId,
+            referredUserType: userType,
+          },
+        })
       }
 
       if (userType === 'earner') {
-        // Earner referral (₦500 after activation)
+        // Earner referral (â‚¦500 after activation)
         transaction.set(referralRef, {
           ...referralDoc,
           amount: 500,
-          condition: 'activation'
+          condition: 'activation',
         })
       } else if (userType === 'advertiser') {
-        // Advertiser referral (₦500 after advertiser activation)
+        // Advertiser referral (â‚¦500 after advertiser activation)
         transaction.set(referralRef, {
           ...referralDoc,
           amount: 500,
-          condition: 'activation'
+          condition: 'activation',
         })
       } else {
         throw new Error('Invalid user type')
@@ -72,7 +102,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const { referralId, action, campaignAmount } = await req.json()
-    
+
     if (!referralId || !action) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
     }
@@ -126,14 +156,56 @@ export async function PUT(req: Request) {
       const amount = referral.amount || 500
       if (!(amount > 0)) throw new Error('Invalid referral amount')
 
+      const referrerCollection = earnerSnap.exists ? 'earners' : 'advertisers'
+      const referrerData = (earnerSnap.exists ? earnerSnap.data() : advertiserSnap.data()) as
+        | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
+        | undefined
+      await recordWeeklyReferralActivationInTransaction({
+        adminDb,
+        transaction,
+        role: earnerSnap.exists ? 'earner' : 'advertiser',
+        userId: referral.referrerId,
+        name: String(
+          referrerData?.fullName ||
+            referrerData?.name ||
+            referrerData?.businessName ||
+            referrerData?.companyName ||
+            referrerData?.email ||
+            ''
+        ).trim(),
+        email: referrerData?.email || null,
+        referredId: referral.referredId,
+        referralId,
+      })
+      await awardPointsInTransaction({
+        adminDb,
+        admin,
+        transaction,
+        userCollection: referrerCollection,
+        userId: referral.referrerId,
+        amount: REFERRAL_ACTIVATED_POINTS,
+        eventId: getPointsEventId('referral-activated', referralId),
+        type: 'referral_activated',
+        note: `Referral activation bonus for referring ${referral.referredId}`,
+        referenceId: referral.referredId,
+        extraUserUpdates: {
+          pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
+          pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        extraLedgerData: {
+          referralId,
+          referredUserId: referral.referredId,
+        },
+      })
+
       // Credit the referrer (earner or advertiser)
       if (earnerSnap.exists) {
         transaction.update(earnerRef, {
-          balance: admin.firestore.FieldValue.increment(amount)
+          balance: admin.firestore.FieldValue.increment(amount),
         })
       } else if (advertiserSnap.exists) {
         transaction.update(advertiserRef, {
-          balance: admin.firestore.FieldValue.increment(amount)
+          balance: admin.firestore.FieldValue.increment(amount),
         })
       }
 
@@ -144,7 +216,7 @@ export async function PUT(req: Request) {
         amount,
         status: 'completed',
         note: `Referral bonus for ${referral.referredId} ${action}`,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
       // Mark referral completed
@@ -152,7 +224,7 @@ export async function PUT(req: Request) {
         status: 'completed',
         bonusPaid: true,
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
-        paidAmount: amount
+        paidAmount: amount,
       })
 
       return { success: true }

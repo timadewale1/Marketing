@@ -4,6 +4,7 @@ import { requireSubmissionManagementSession } from '@/lib/submissionmanagement-s
 import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
+import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
 interface Submission {
   status?: string
@@ -154,6 +155,27 @@ export async function POST(req: Request): Promise<Response> {
           const advertiserFlagSnap = await t.get(adminDb.collection('advertisers').doc(String(advertiserId)))
           advertiserUnfoundedFlags = Number(advertiserFlagSnap.data()?.unfoundedSubmissionFlags || 0)
         }
+
+        await awardPointsInTransaction({
+          adminDb,
+          admin,
+          transaction: t,
+          userCollection: 'earners',
+          userId,
+          amount: TASK_APPROVAL_POINTS,
+          eventId: getPointsEventId('task-approved', subRef.id),
+          type: 'task_approved',
+          note: `Approval bonus for submission ${subRef.id}`,
+          referenceId: subRef.id,
+          extraUserUpdates: {
+            pointsApprovedTaskCount: admin.firestore.FieldValue.increment(1),
+            pointsLastApprovedTaskAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            submissionId: subRef.id,
+            campaignId: submission.campaignId,
+          },
+        })
 
         // NOW PERFORM ALL WRITES
         t.update(subRef, {

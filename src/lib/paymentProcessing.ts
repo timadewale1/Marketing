@@ -2,6 +2,8 @@
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/activation-attempts'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
@@ -37,6 +39,48 @@ export async function processPendingActivationReferrals(
           t.get(advRef),
           t.get(earnerRef)
         ])
+
+        const referrerCollection = advSnap.exists ? 'advertisers' : 'earners'
+        const referrerData = (advSnap.exists ? advSnap.data() : earnerSnap.data()) as
+          | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
+          | undefined
+        await recordWeeklyReferralActivationInTransaction({
+          adminDb,
+          transaction: t,
+          role: advSnap.exists ? 'advertiser' : 'earner',
+          userId: referrerId,
+          name: String(
+            referrerData?.fullName ||
+              referrerData?.name ||
+              referrerData?.businessName ||
+              referrerData?.companyName ||
+              referrerData?.email ||
+              ''
+          ).trim(),
+          email: referrerData?.email || null,
+          referredId: userId,
+          referralId: rDoc.id,
+        })
+        await awardPointsInTransaction({
+          adminDb,
+          admin,
+          transaction: t,
+          userCollection: referrerCollection,
+          userId: referrerId,
+          amount: REFERRAL_ACTIVATED_POINTS,
+          eventId: getPointsEventId('referral-activated', rDoc.id),
+          type: 'referral_activated',
+          note: `Referral activation bonus for referring ${userId}`,
+          referenceId: userId,
+          extraUserUpdates: {
+            pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
+            pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            referralId: rDoc.id,
+            referredUserId: userId,
+          },
+        })
 
         t.update(referralRef, {
           status: 'completed',

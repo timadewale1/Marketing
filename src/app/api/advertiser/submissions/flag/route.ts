@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
 import { sendEarnerStrikeEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
+import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
 interface Submission {
   status?: string
@@ -182,6 +183,28 @@ export async function POST(req: Request) {
         if (remainingToCover > 0 && advertiserBalance < remainingToCover) {
           throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
         }
+
+        await awardPointsInTransaction({
+          adminDb: db,
+          admin,
+          transaction: t,
+          userCollection: 'earners',
+          userId,
+          amount: TASK_APPROVAL_POINTS,
+          eventId: getPointsEventId('task-approved', submissionRef.id),
+          type: 'task_approved',
+          note: `Approval bonus for submission ${submissionRef.id}`,
+          referenceId: submissionRef.id,
+          extraUserUpdates: {
+            pointsApprovedTaskCount: admin.firestore.FieldValue.increment(1),
+            pointsLastApprovedTaskAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            submissionId: submissionRef.id,
+            campaignId,
+          },
+        })
+
         t.update(submissionRef, {
           status: 'Verified',
           reviewedAt: now,
