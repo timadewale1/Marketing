@@ -985,8 +985,8 @@ export default function PAMBALanding() {
               <p>You can now reset your password from your profile page, without needing to go through a separate reset page.</p>
             </div>
             <div className="updates-card">
-              <h3>Faster advert refresh</h3>
-              <p>Expired homepage adverts can be brought back more easily, so you can reuse the same details and publish again.</p>
+              <h3>Coming soon: Vendors & rewards</h3>
+              <p>Big things are on the way. Soon, vendors will show up right on dashboards, and earners will earn points for supporting real businesses on Pamba.</p>
             </div>
           </div>
         </div>
