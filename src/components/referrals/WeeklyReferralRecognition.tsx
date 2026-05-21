@@ -41,7 +41,7 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
   const showRecognition = useMemo(() => isReferralRecognitionWeekEnd(), [])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !showRecognition) return
 
     const weeklyQuery = query(
       collection(db, "referralWeeklyStats"),
@@ -69,7 +69,7 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
     })
 
     return () => unsub()
-  }, [role, userId, weekKey])
+  }, [role, userId, weekKey, showRecognition])
 
   const tierBuckets = useMemo(() => {
     const buckets: Record<ReferralTier, WeeklyStat[]> = {
@@ -117,8 +117,13 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
 
   const currentWeekTotal = userStat?.weeklyActivatedReferrals || 0
   const eligible = Boolean(userTier)
+  const visibleCategoryCards = categoryCards.filter((card) => card.winnerNames.length > 0)
 
   if (!showRecognition) {
+    return null
+  }
+
+  if (visibleCategoryCards.length === 0) {
     return null
   }
 
@@ -159,7 +164,7 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {categoryCards.map((card) => (
+          {visibleCategoryCards.map((card) => (
             <div
               key={card.tier}
               className={`rounded-2xl border p-4 ${
@@ -176,13 +181,9 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
                 </Badge>
               </div>
               <div className="mt-3 space-y-2">
-                {card.winnerNames.length > 0 ? (
-                  <p className="text-sm text-stone-700">
-                    Congratulations to {card.winnerNames.join(", ")} for referring the highest number of people in the {card.label.toLowerCase()} category this week.
-                  </p>
-                ) : (
-                  <p className="text-sm text-stone-500">No winners yet this week.</p>
-                )}
+                <p className="text-sm text-stone-700">
+                  Congratulations to {card.winnerNames.join(", ")} for referring the highest number of people in the {card.label.toLowerCase()} category this week.
+                </p>
                 {card.userWon ? (
                   <p className="text-sm font-semibold text-amber-700">
                     Congratulations {displayName}, you won this week&apos;s {card.label.toLowerCase()} prize. Kindly reach out to admin to accept your prize.

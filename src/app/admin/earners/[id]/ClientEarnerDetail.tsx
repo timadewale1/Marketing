@@ -40,6 +40,7 @@ import {
 } from "@/app/admin/_components/admin-primitives";
 import { getProofUrls } from "@/lib/proofs";
 import { SubmissionReviewStatus } from "@/components/submission-review-status";
+import { getPointsStarLabel } from "@/lib/points";
 
 type Earner = {
   id: string;
@@ -53,6 +54,11 @@ type Earner = {
   totalEarned: number;
   leadsPaidFor: number;
   createdAtMs: number;
+  pointsBalance: number;
+  pointsLifetimeEarned: number;
+  pointsRedeemedTotal: number;
+  pointsReferralCount: number;
+  pointsActivatedReferralCount: number;
   bank?: {
     bankName?: string;
     accountNumber?: string;
@@ -69,6 +75,15 @@ type EarnerTransaction = {
   note: string;
   createdAtMs: number;
   campaignId?: string;
+};
+
+type PointTransaction = {
+  id: string;
+  type: string;
+  amount: number;
+  status: string;
+  note: string;
+  createdAtMs: number;
 };
 
 type Withdrawal = {
@@ -137,6 +152,7 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
   const [loading, setLoading] = useState(true);
   const [earner, setEarner] = useState<Earner | null>(null);
   const [transactions, setTransactions] = useState<EarnerTransaction[]>([]);
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -180,6 +196,11 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
           totalEarned: Number(earnerData.totalEarned || 0),
           leadsPaidFor: Number(earnerData.leadsPaidFor || 0),
           createdAtMs: toMillis(earnerData.createdAt),
+          pointsBalance: Number(earnerData.pointsBalance || 0),
+          pointsLifetimeEarned: Number(earnerData.pointsLifetimeEarned || 0),
+          pointsRedeemedTotal: Number(earnerData.pointsRedeemedTotal || 0),
+          pointsReferralCount: Number(earnerData.pointsReferralCount || 0),
+          pointsActivatedReferralCount: Number(earnerData.pointsActivatedReferralCount || 0),
           bank: earnerData.bank as Earner["bank"],
         });
         setStrikeCount(Number(earnerData.strikeCount || 0));
@@ -245,6 +266,29 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
               note: String(data.note || ""),
               createdAtMs: toMillis(data.createdAt),
               campaignId: data.campaignId ? String(data.campaignId) : undefined,
+            };
+          })
+        );
+
+        const pointsSnap = await getDocs(
+          query(
+            collection(db, "pointsTransactions"),
+            where("userId", "==", id),
+            orderBy("createdAt", "desc"),
+            limit(100)
+          )
+        );
+
+        setPointTransactions(
+          pointsSnap.docs.map((pointDoc) => {
+            const data = pointDoc.data();
+            return {
+              id: pointDoc.id,
+              type: String(data.type || "unknown"),
+              amount: Number(data.amount || 0),
+              status: String(data.status || "completed"),
+              note: String(data.note || ""),
+              createdAtMs: toMillis(data.createdAt),
             };
           })
         );
@@ -389,6 +433,16 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
       completedReferrals: referralCounts.completed,
     };
   }, [referralCounts.completed, referralCounts.pending, submissions, withdrawals]);
+
+  const pointsSummary = useMemo(() => {
+    return {
+      balance: earner?.pointsBalance || 0,
+      earned: earner?.pointsLifetimeEarned || 0,
+      redeemed: earner?.pointsRedeemedTotal || 0,
+      referrals: earner?.pointsReferralCount || 0,
+      activatedReferrals: earner?.pointsActivatedReferralCount || 0,
+    };
+  }, [earner]);
 
   const updateStatus = async (status: string) => {
     try {
@@ -628,6 +682,19 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
         />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Points balance" value={pointsSummary.balance.toLocaleString()} hint="Current reward points" icon={Gift} tone="amber" />
+        <MetricCard label="Points earned" value={pointsSummary.earned.toLocaleString()} hint="Lifetime earned points" icon={Coins} tone="emerald" />
+        <MetricCard label="Points redeemed" value={pointsSummary.redeemed.toLocaleString()} hint="Converted to wallet or use" icon={Wallet} tone="blue" />
+        <MetricCard
+          label="Points tier"
+          value={getPointsStarLabel(pointsSummary.activatedReferrals)}
+          hint={`${pointsSummary.referrals.toLocaleString()} total referral bonuses`}
+          icon={Gift}
+          tone="rose"
+        />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1fr_1.25fr]">
         <SectionCard
           title="Profile and payout details"
@@ -828,10 +895,10 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
         </SectionCard>
 
         <div className="space-y-6">
-          <SectionCard
-            title="Referrals"
-            description="Referral bonuses earned by this earner, split between pending and completed payouts."
-          >
+        <SectionCard
+          title="Referrals"
+          description="Referral bonuses earned by this earner, split between pending and completed payouts."
+        >
             {referrals.length === 0 ? (
               <EmptyState
                 title="No referrals"
@@ -922,6 +989,43 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
                           Open campaign
                         </Link>
                       ) : null}
+                    </div>
+                  </div>
+                )}
+              />
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Points history"
+            description="Login bonuses, referral rewards, task approvals, bill rewards, and redemptions tied to this earner."
+          >
+            {pointTransactions.length === 0 ? (
+              <EmptyState
+                title="No points transactions"
+                description="This earner has not earned or redeemed points yet."
+              />
+            ) : (
+              <PaginatedCardList
+                items={pointTransactions}
+                itemsPerPage={3}
+                renderItem={(tx) => (
+                  <div key={tx.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium capitalize text-stone-900">{tx.type.replace(/_/g, " ")}</p>
+                        <p className="mt-1 text-sm text-stone-500">{tx.note || "No note"}</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
+                          {tx.createdAtMs ? new Date(tx.createdAtMs).toLocaleString() : "Unknown date"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-semibold ${tx.amount >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                          {tx.amount >= 0 ? "+" : ""}
+                          {tx.amount.toLocaleString()}
+                        </p>
+                        <StatusBadge label={tx.status} tone="stone" />
+                      </div>
                     </div>
                   </div>
                 )}

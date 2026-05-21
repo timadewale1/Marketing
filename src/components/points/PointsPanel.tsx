@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Gift, Medal } from "lucide-react"
 import { getPointsBadgeClass, getPointsStarLabel, getRedeemablePoints, POINTS_REDEEM_MINIMUM } from "@/lib/points"
+import { isReferralRecognitionWeekEnd } from "@/lib/referral-weekly"
 
 type Role = "earner" | "advertiser"
 
@@ -63,6 +64,7 @@ export function PointsPanel({
   const [redeeming, setRedeeming] = useState(false)
   const seenPointIdsRef = useRef<Set<string>>(new Set())
   const loginAwardAttemptedRef = useRef(false)
+  const showLeaderboard = useMemo(() => isReferralRecognitionWeekEnd(), [])
 
   const pointsTierLabel = getPointsStarLabel(activatedReferralCount)
   const redeemablePoints = useMemo(() => getRedeemablePoints(pointsBalance), [pointsBalance])
@@ -103,7 +105,10 @@ export function PointsPanel({
   }, [role, userId])
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId || !showLeaderboard) {
+      setLeaderboard([])
+      return
+    }
 
     const pointsQuery = query(
       collection(db, "pointsTransactions"),
@@ -127,7 +132,7 @@ export function PointsPanel({
     })
 
     return () => unsub()
-  }, [userId])
+  }, [userId, showLeaderboard])
 
   useEffect(() => {
     if (!userId) {
@@ -269,7 +274,7 @@ export function PointsPanel({
                 <span>Bills: +10</span>
                 <span>Referral: +10</span>
                 <span>Referral activation: +50</span>
-                <span>High-value task: +250</span>
+                <span>High-value task: +200</span>
               </div>
             </div>
             <div className="flex flex-col gap-3 min-w-[220px]">
@@ -303,6 +308,7 @@ export function PointsPanel({
         </CardContent>
       </Card>
 
+      {showLeaderboard && leaderboard.length > 0 ? (
       <Card className="bg-white/75 backdrop-blur border-none shadow-md mt-6">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -323,13 +329,7 @@ export function PointsPanel({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaderboard.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-stone-500">
-                      No leaderboard data yet.
-                    </TableCell>
-                  </TableRow>
-                ) : leaderboard.map((row, index) => (
+                {leaderboard.map((row, index) => (
                   <TableRow key={row.id} className={row.id === userId ? "bg-amber-50" : undefined}>
                     <TableCell className="font-medium">#{index + 1}</TableCell>
                     <TableCell>{row.name}</TableCell>
@@ -346,6 +346,7 @@ export function PointsPanel({
           </div>
         </CardContent>
       </Card>
+      ) : null}
 
       <Dialog open={redeemOpen} onOpenChange={setRedeemOpen}>
         <DialogContent className="bg-white sm:max-w-lg">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
+import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
 
 type UserRole = "earner" | "advertiser"
 
@@ -309,6 +310,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     await userRef.set(updates, { merge: true })
+    await processPendingActivationReferrals(dbAdmin, admin, userId)
 
     const attemptRef = dbAdmin.collection("activationAttempts").doc(getActivationAttemptDocId(role, userId))
     const attemptSnap = await attemptRef.get()

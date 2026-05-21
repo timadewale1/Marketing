@@ -7,6 +7,7 @@ import {
   BanknoteArrowDown,
   BriefcaseBusiness,
   ExternalLink,
+  Gift,
   PauseCircle,
   ShieldCheck,
   Wallet,
@@ -35,6 +36,7 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { getProofUrls } from "@/lib/proofs";
+import { getPointsStarLabel } from "@/lib/points";
 
 type Advertiser = {
   id: string;
@@ -50,6 +52,11 @@ type Advertiser = {
   totalSpent: number;
   campaignsCreated: number;
   createdAtMs: number;
+  pointsBalance: number;
+  pointsLifetimeEarned: number;
+  pointsRedeemedTotal: number;
+  pointsReferralCount: number;
+  pointsActivatedReferralCount: number;
   bank?: {
     bankName?: string;
     accountNumber?: string;
@@ -80,6 +87,15 @@ type AdvertiserTransaction = {
   status: string;
   createdAtMs: number;
   campaignId?: string;
+};
+
+type PointTransaction = {
+  id: string;
+  type: string;
+  amount: number;
+  note: string;
+  status: string;
+  createdAtMs: number;
 };
 
 type Submission = {
@@ -128,6 +144,7 @@ export default function AdvertiserAdminDetail({
   const [advertiser, setAdvertiser] = useState<Advertiser | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [transactions, setTransactions] = useState<AdvertiserTransaction[]>([]);
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [referralCounts, setReferralCounts] = useState({ pending: 0, completed: 0 });
@@ -161,6 +178,11 @@ export default function AdvertiserAdminDetail({
           totalSpent: Number(advertiserData.totalSpent || 0),
           campaignsCreated: Number(advertiserData.campaignsCreated || 0),
           createdAtMs: toMillis(advertiserData.createdAt),
+          pointsBalance: Number(advertiserData.pointsBalance || 0),
+          pointsLifetimeEarned: Number(advertiserData.pointsLifetimeEarned || 0),
+          pointsRedeemedTotal: Number(advertiserData.pointsRedeemedTotal || 0),
+          pointsReferralCount: Number(advertiserData.pointsReferralCount || 0),
+          pointsActivatedReferralCount: Number(advertiserData.pointsActivatedReferralCount || 0),
           bank: advertiserData.bank as Advertiser["bank"],
         });
 
@@ -283,6 +305,29 @@ export default function AdvertiserAdminDetail({
           })
         );
 
+        const pointsSnap = await getDocs(
+          query(
+            collection(db, "pointsTransactions"),
+            where("userId", "==", id),
+            orderBy("createdAt", "desc"),
+            limit(100)
+          )
+        );
+
+        setPointTransactions(
+          pointsSnap.docs.map((pointDoc) => {
+            const data = pointDoc.data();
+            return {
+              id: pointDoc.id,
+              type: String(data.type || "unknown"),
+              amount: Number(data.amount || 0),
+              note: String(data.note || ""),
+              status: String(data.status || "completed"),
+              createdAtMs: toMillis(data.createdAt),
+            };
+          })
+        );
+
         if (campaignRows.length > 0) {
           const submissionSnaps = await Promise.all(
             campaignRows.map((campaign) =>
@@ -350,6 +395,16 @@ export default function AdvertiserAdminDetail({
       completedReferrals: referralCounts.completed,
     };
   }, [campaigns, referralCounts.completed, referralCounts.pending, submissions]);
+
+  const pointsSummary = useMemo(() => {
+    return {
+      balance: advertiser?.pointsBalance || 0,
+      earned: advertiser?.pointsLifetimeEarned || 0,
+      redeemed: advertiser?.pointsRedeemedTotal || 0,
+      referrals: advertiser?.pointsReferralCount || 0,
+      activatedReferrals: advertiser?.pointsActivatedReferralCount || 0,
+    };
+  }, [advertiser]);
 
   const updateStatus = async (status: string) => {
     try {
@@ -507,6 +562,19 @@ export default function AdvertiserAdminDetail({
           hint={`${summary.verifiedSubmissions} verified submissions`}
           icon={Activity}
           tone="emerald"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Points balance" value={pointsSummary.balance.toLocaleString()} hint="Current reward points" icon={Gift} tone="amber" />
+        <MetricCard label="Points earned" value={pointsSummary.earned.toLocaleString()} hint="Lifetime earned points" icon={Wallet} tone="emerald" />
+        <MetricCard label="Points redeemed" value={pointsSummary.redeemed.toLocaleString()} hint="Converted to wallet or use" icon={BanknoteArrowDown} tone="blue" />
+        <MetricCard
+          label="Points tier"
+          value={getPointsStarLabel(pointsSummary.activatedReferrals)}
+          hint={`${pointsSummary.referrals.toLocaleString()} total referral bonuses`}
+          icon={BriefcaseBusiness}
+          tone="rose"
         />
       </div>
 
@@ -705,6 +773,43 @@ export default function AdvertiserAdminDetail({
         </SectionCard>
 
         <div className="space-y-6">
+          <SectionCard
+            title="Points history"
+            description="Login bonuses, referral rewards, task bonuses, bill rewards, and redemptions tied to this advertiser."
+          >
+            {pointTransactions.length === 0 ? (
+              <EmptyState
+                title="No points transactions"
+                description="This advertiser has not earned or redeemed points yet."
+              />
+            ) : (
+              <PaginatedCardList
+                items={pointTransactions}
+                itemsPerPage={3}
+                renderItem={(tx) => (
+                  <div key={tx.id} className="rounded-2xl border border-stone-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium capitalize text-stone-900">{tx.type.replace(/_/g, " ")}</p>
+                        <p className="mt-1 text-sm text-stone-500">{tx.note || "No note"}</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
+                          {tx.createdAtMs ? new Date(tx.createdAtMs).toLocaleString() : "Unknown date"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-semibold ${tx.amount >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                          {tx.amount >= 0 ? "+" : ""}
+                          {tx.amount.toLocaleString()}
+                        </p>
+                        <StatusBadge label={tx.status} tone="stone" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              />
+            )}
+          </SectionCard>
+
           <SectionCard
             title="Referrals"
             description="Referral bonuses earned by this advertiser, split between pending and completed payouts."

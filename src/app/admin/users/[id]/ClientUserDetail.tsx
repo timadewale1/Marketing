@@ -6,11 +6,13 @@ import { db } from "@/lib/firebase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { getPointsStarLabel } from "@/lib/points";
 
 interface Tx { id: string; type?: string; amount?: number; status?: string }
 interface Wd { id: string; amount?: number; status?: string }
 interface Sub { id: string; campaignId?: string; campaignTitle?: string }
 interface Camp { id: string; title?: string; status?: string }
+interface PointTx { id: string; type?: string; amount?: number; status?: string; note?: string }
 
 interface Props {
   id: string;
@@ -21,6 +23,7 @@ export default function ClientUserDetail({ id }: Props) {
   const [userType, setUserType] = useState<"earner" | "advertiser" | null>(null);
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [transactions, setTransactions] = useState<Tx[]>([]);
+  const [pointTransactions, setPointTransactions] = useState<PointTx[]>([]);
   const [withdrawals, setWithdrawals] = useState<Wd[]>([]);
   const [campaignsParticipated, setCampaignsParticipated] = useState<Camp[]>([]);
   const [activationBusy, setActivationBusy] = useState(false);
@@ -51,6 +54,9 @@ export default function ClientUserDetail({ id }: Props) {
       // Transactions
       const txSnap = await getDocs(query(collection(db, "earnerTransactions"), where("userId", "==", id), limit(150)));
       setTransactions(txSnap.docs.map((d) => ({ ...(d.data() as unknown as Tx), id: d.id })) as Tx[]);
+
+      const pointsSnap = await getDocs(query(collection(db, "pointsTransactions"), where("userId", "==", id), limit(100)));
+      setPointTransactions(pointsSnap.docs.map((d) => ({ ...(d.data() as unknown as PointTx), id: d.id })) as PointTx[]);
 
       // Withdrawals
       const wSnap = await getDocs(query(collection(db, "earnerWithdrawals"), where("userId", "==", id), limit(100)));
@@ -132,6 +138,11 @@ export default function ClientUserDetail({ id }: Props) {
     return <div className="p-8">User not found.</div>;
   }
   const isActivated = Boolean((user as Record<string, unknown>).activated);
+  const pointsBalance = Number((user as Record<string, unknown>).pointsBalance || 0);
+  const pointsLifetimeEarned = Number((user as Record<string, unknown>).pointsLifetimeEarned || 0);
+  const pointsRedeemedTotal = Number((user as Record<string, unknown>).pointsRedeemedTotal || 0);
+  const pointsReferralCount = Number((user as Record<string, unknown>).pointsReferralCount || 0);
+  const pointsActivatedReferralCount = Number((user as Record<string, unknown>).pointsActivatedReferralCount || 0);
 
   return (
     <div className="space-y-6">
@@ -162,6 +173,11 @@ export default function ClientUserDetail({ id }: Props) {
             <div>Status: {String((user as Record<string, unknown>).status)}</div>
             <div>Activated: {isActivated ? "Yes" : "No"}</div>
             <div>Balance: ₦{Number((user as Record<string, unknown>)['balance'] || 0).toLocaleString()}</div>
+            <div>Points balance: {pointsBalance.toLocaleString()}</div>
+            <div>Points earned: {pointsLifetimeEarned.toLocaleString()}</div>
+            <div>Points redeemed: {pointsRedeemedTotal.toLocaleString()}</div>
+            <div>Points tier: {getPointsStarLabel(pointsActivatedReferralCount)}</div>
+            <div>Referral points: {pointsReferralCount.toLocaleString()}</div>
           </div>
         </Card>
 
@@ -214,6 +230,24 @@ export default function ClientUserDetail({ id }: Props) {
                         </a>
                         {" — "}
                         <span className="text-sm text-stone-500">{c.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-medium">Points transactions</h4>
+              <div className="text-sm mt-2">
+                {pointTransactions.length === 0 ? (
+                  <div className="text-stone-500">No points transactions</div>
+                ) : (
+                  <ul className="list-disc pl-5">
+                    {pointTransactions.map((p) => (
+                      <li key={p.id}>
+                        {p.type} — {Number(p.amount || 0).toLocaleString()} points — {p.status}
+                        {p.note ? ` — ${p.note}` : ""}
                       </li>
                     ))}
                   </ul>
