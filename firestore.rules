@@ -130,6 +130,22 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /pointsTransactions/{transactionId} {
+      allow get, list: if isAdmin() || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid
+      );
+      allow write: if false;
+    }
+
+    match /referralWeeklyStats/{statId} {
+      allow get, list: if isAdmin() || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid
+      );
+      allow write: if false;
+    }
+
     match /directAdvertRequests/{requestId} {
       allow read, write: if isAdmin();
     }
