@@ -88,3 +88,7 @@ export function getReferralWeekWindowLabel(date: Date = new Date()) {
     label: `${start.toLocaleDateString('en-NG')} - ${end.toLocaleDateString('en-NG')}`,
   }
 }
+
+export function isReferralRecognitionWeekEnd(date: Date = new Date()) {
+  return toLagosDateParts(date).day === 0
+}

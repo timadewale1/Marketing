@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { collection, count, doc, getAggregateFromServer, getDoc, getDocs, limit, orderBy, query, startAfter, sum, where } from "firebase/firestore"
+import { collection, getDocs, limit, orderBy, query, startAfter, where } from "firebase/firestore"
 import { Search, ShoppingCart, Banknote, ChartColumnBig } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
@@ -83,15 +83,15 @@ export default function AdminBillsProfitPage() {
   }
 
   const loadStats = async () => {
-    const snapshot = await getAggregateFromServer(query(collection(db, "vtpassTransactions")), {
-      totalPurchases: count(),
-      totalAmount: sum("paidAmount"),
-      totalProfit: sum("profit"),
-    })
+    const response = await fetch("/api/admin/vtpass/stats", { credentials: "include" })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.message || "Failed to load bills profit stats")
+    }
     setStats({
-      totalPurchases: Number(snapshot.data().totalPurchases || 0),
-      totalAmount: Number(snapshot.data().totalAmount || 0),
-      totalProfit: Number(snapshot.data().totalProfit || 0),
+      totalPurchases: Number(payload.stats?.totalTransactions || 0),
+      totalAmount: Number(payload.stats?.totalTransacted || 0),
+      totalProfit: Number(payload.stats?.totalMarkup || 0),
     })
   }
 

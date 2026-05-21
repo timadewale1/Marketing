@@ -89,7 +89,14 @@ export async function POST(req: Request) {
       )
     }
 
-    const mimeType = file instanceof File ? file.type || '' : String(sourceAdData?.mediaType || '')
+    const sourceMediaType = String(sourceAdData?.mediaType || '').toLowerCase()
+    const mimeType = file instanceof File
+      ? file.type || ''
+      : sourceMediaType === 'video'
+        ? 'video/mp4'
+        : sourceMediaType === 'image'
+          ? 'image/jpeg'
+          : ''
     if (!mimeType.startsWith('image/') && !mimeType.startsWith('video/')) {
       return NextResponse.json({ success: false, message: 'Only image or video uploads are supported' }, { status: 400 })
     }

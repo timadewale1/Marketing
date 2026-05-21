@@ -11,6 +11,7 @@ import {
   getReferralTierDescription,
   getReferralTierFromCount,
   getReferralTierLabel,
+  isReferralRecognitionWeekEnd,
   type ReferralRole,
   type ReferralTier,
 } from "@/lib/referral-weekly"
@@ -37,6 +38,7 @@ function categoryForCount(count: number): ReferralTier | null {
 export default function WeeklyReferralRecognition({ role, userId, displayName }: Props) {
   const [stats, setStats] = useState<WeeklyStat[]>([])
   const weekKey = useMemo(() => getCurrentLagosWeekKey(), [])
+  const showRecognition = useMemo(() => isReferralRecognitionWeekEnd(), [])
 
   useEffect(() => {
     if (!userId) return
@@ -115,6 +117,10 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
 
   const currentWeekTotal = userStat?.weeklyActivatedReferrals || 0
   const eligible = Boolean(userTier)
+
+  if (!showRecognition) {
+    return null
+  }
 
   return (
     <Card className="border-none bg-white/80 shadow-md backdrop-blur">
