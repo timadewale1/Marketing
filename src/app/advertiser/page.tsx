@@ -485,9 +485,6 @@ export default function AdvertiserDashboard() {
             >
               {getPointsStarLabel(activatedReferralCount)}
             </Badge>
-            <p className="text-sm text-stone-600">
-              {activatedReferralCount.toLocaleString()} activated referrals
-            </p>
           </div>
         </div>
         {/* Top Cards */}

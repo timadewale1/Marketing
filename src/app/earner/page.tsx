@@ -369,9 +369,6 @@ export default function EarnerDashboard() {
             >
               {getPointsStarLabel(referralStats.completedReferrals)}
             </Badge>
-            <p className="text-sm text-stone-600">
-              {referralStats.completedReferrals.toLocaleString()} activated referrals
-            </p>
           </div>
         </div>
   {/* Top Cards */}
