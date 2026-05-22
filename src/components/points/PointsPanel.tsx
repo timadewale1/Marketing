@@ -29,8 +29,8 @@ type PointsPanelProps = {
 
 const REFERRAL_CATEGORY_GUIDE = [
   {
-    label: "Bronze Earner",
-    requirement: "5 active users",
+    label: "Bronze",
+    requirement: "5 activated users",
     reward: "250 points",
   },
   {
@@ -74,6 +74,7 @@ export function PointsPanel({
   const [redeemAmount, setRedeemAmount] = useState<string>(String(POINTS_REDEEM_MINIMUM))
   const [redeeming, setRedeeming] = useState(false)
   const seenPointIdsRef = useRef<Set<string>>(new Set())
+  const seenPointSnapshotInitializedRef = useRef(false)
   const loginAwardAttemptedRef = useRef(false)
   const redeemablePoints = useMemo(() => getRedeemablePoints(pointsBalance), [pointsBalance])
   const totalUserPoints = Math.max(0, Number(pointsBalance || 0))
@@ -124,18 +125,22 @@ export function PointsPanel({
     )
 
     const unsub = onSnapshot(pointsQuery, (snapshot) => {
-      const currentIds = new Set<string>()
-      snapshot.docs.forEach((snap) => {
-        currentIds.add(snap.id)
-        if (!seenPointIdsRef.current.has(snap.id)) {
-          const data = snap.data() as { amount?: number; type?: string; note?: string }
+      if (!seenPointSnapshotInitializedRef.current) {
+        seenPointIdsRef.current = new Set(snapshot.docs.map((snap) => snap.id))
+        seenPointSnapshotInitializedRef.current = true
+        return
+      }
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" && !seenPointIdsRef.current.has(change.doc.id)) {
+          const data = change.doc.data() as { amount?: number; type?: string; note?: string }
           const amount = Number(data.amount || 0)
           if (amount > 0) {
             toast.success(`You earned +${amount.toLocaleString()} points`)
           }
         }
       })
-      seenPointIdsRef.current = currentIds
+      seenPointIdsRef.current = new Set(snapshot.docs.map((snap) => snap.id))
     })
 
     return () => unsub()

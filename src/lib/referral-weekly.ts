@@ -59,10 +59,10 @@ export function getReferralTierFromCount(count: number): ReferralTier | null {
 }
 
 export function getReferralTierLabel(tier: ReferralTier | null) {
-  if (tier === 'bronze') return 'Bronze Star'
-  if (tier === 'silver') return 'Silver Star'
-  if (tier === 'gold') return 'Gold Star'
-  if (tier === 'elite') return 'Elite Stars'
+  if (tier === 'bronze') return 'Bronze'
+  if (tier === 'silver') return 'Silver'
+  if (tier === 'gold') return 'Gold'
+  if (tier === 'elite') return 'Elite'
   return 'No star yet'
 }
 
@@ -75,7 +75,7 @@ export function getReferralTierOrder(tier: ReferralTier | null) {
 }
 
 export function getReferralTierDescription(tier: ReferralTier | null) {
-  if (tier === 'bronze') return '5-19 activated referrals this week'
+  if (tier === 'bronze') return '5-19 activated users this week'
   if (tier === 'silver') return '20-49 activated referrals this week'
   if (tier === 'gold') return '50-99 activated referrals this week'
   if (tier === 'elite') return '100+ activated referrals this week'

@@ -152,7 +152,7 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
           </p>
           <p className="mt-1 text-sm text-stone-600">
             {eligible
-              ? `You are currently in the ${userTierLabel}. ${getReferralTierDescription(userTier)}.`
+              ? `You are currently in the ${userTierLabel} tier. ${getReferralTierDescription(userTier)}.`
               : "You need at least 5 activated referrals this week to enter the recognition tiers."}
           </p>
           {userTier ? (
@@ -171,14 +171,11 @@ export default function WeeklyReferralRecognition({ role, userId, displayName }:
                 card.userWon ? "border-amber-300 bg-amber-50/80" : "border-stone-200 bg-white"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
                 <div>
                   <p className="text-sm font-semibold text-stone-900">{card.label}</p>
                   <p className="text-xs text-stone-500">{card.description}</p>
                 </div>
-                <Badge variant="outline" className="border-stone-200 bg-white text-stone-700">
-                  {card.topCount.toLocaleString()}
-                </Badge>
               </div>
               <div className="mt-3 space-y-2">
                 <p className="text-sm text-stone-700">

@@ -165,7 +165,22 @@ export default function CampaignDetailsPage() {
             earnerDisputeReason: submissionDoc.data().earnerDisputeReason ? String(submissionDoc.data().earnerDisputeReason) : null,
           }))
 
-          const userIds = [...new Set(rawSubmissions.map((submission) => submission.userId).filter(Boolean))]
+          const statusPriority = (status: string) => {
+            const normalized = status.trim().toLowerCase()
+            if (normalized === "pending") return 0
+            if (normalized === "in review") return 1
+            if (normalized === "verified" || normalized === "completed" || normalized === "approved") return 2
+            if (normalized === "rejected") return 3
+            return 4
+          }
+
+          const sortedSubmissions = [...rawSubmissions].sort((a, b) => {
+            const priorityDiff = statusPriority(a.status) - statusPriority(b.status)
+            if (priorityDiff !== 0) return priorityDiff
+            return (new Date(b.createdAt || 0).getTime()) - (new Date(a.createdAt || 0).getTime())
+          })
+
+          const userIds = [...new Set(sortedSubmissions.map((submission) => submission.userId).filter(Boolean))]
           const userNames = new Map<string, string>()
 
           await Promise.all(
@@ -186,7 +201,7 @@ export default function CampaignDetailsPage() {
           )
 
           setSubmissions(
-            rawSubmissions.map((submission) => ({
+            sortedSubmissions.map((submission) => ({
               ...submission,
               userName: submission.userId
                 ? userNames.get(submission.userId) || submission.userId
