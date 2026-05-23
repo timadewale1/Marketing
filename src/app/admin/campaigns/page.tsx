@@ -75,56 +75,57 @@ export default function CampaignsPage() {
     if (cached) {
       setCampaigns(cached.campaigns);
       setSubmissions(cached.submissions);
-      setLoading(false);
-      return;
     }
 
     const load = async () => {
-      setLoading(true);
-      const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
-        getDocs(
-          query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(ADMIN_CAMPAIGN_PAGE_LIMIT))
-        ),
-        getDocs(
-          query(
-            collection(db, "earnerSubmissions"),
-            where("status", "==", "Pending"),
-            orderBy("createdAt", "desc"),
-            limit(1000)
-          )
-        ),
-      ]);
+      if (!cached) setLoading(true);
+      try {
+        const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
+          getDocs(
+            query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(ADMIN_CAMPAIGN_PAGE_LIMIT))
+          ),
+          getDocs(
+            query(
+              collection(db, "earnerSubmissions"),
+              where("status", "==", "Pending"),
+              orderBy("createdAt", "desc"),
+              limit(1000)
+            )
+          ),
+        ]);
 
-      setCampaigns(
-        campaignSnap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            title: String(data.title || "Untitled campaign"),
-            advertiserName: String(data.advertiserName || "Unknown advertiser"),
-            category: String(data.category || "Unknown"),
-            status: String(data.status || "Unknown"),
-            budget: Number(data.budget || 0),
-            reservedBudget: Number(data.reservedBudget || 0),
-            earnerPrice: Number(data.earnerPrice || data.costPerLead || 0),
-            generatedLeads: Number(data.generatedLeads || data.completedLeads || 0),
-            targetLeads: Number(data.targetLeads || data.estimatedLeads || 0),
-            description: String(data.description || ""),
-            createdAtMs: toMillis(data.createdAt),
-          };
-        })
-      );
-      setSubmissions(
-        pendingSubmissionSnap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            campaignId: String(data.campaignId || ""),
-            status: String(data.status || ""),
-          };
-        })
-      );
-      setLoading(false);
+        setCampaigns(
+          campaignSnap.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              title: String(data.title || "Untitled campaign"),
+              advertiserName: String(data.advertiserName || "Unknown advertiser"),
+              category: String(data.category || "Unknown"),
+              status: String(data.status || "Unknown"),
+              budget: Number(data.budget || 0),
+              reservedBudget: Number(data.reservedBudget || 0),
+              earnerPrice: Number(data.earnerPrice || data.costPerLead || 0),
+              generatedLeads: Number(data.generatedLeads || data.completedLeads || 0),
+              targetLeads: Number(data.targetLeads || data.estimatedLeads || 0),
+              description: String(data.description || ""),
+              createdAtMs: toMillis(data.createdAt),
+            };
+          })
+        );
+        setSubmissions(
+          pendingSubmissionSnap.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              campaignId: String(data.campaignId || ""),
+              status: String(data.status || ""),
+            };
+          })
+        );
+      } finally {
+        if (!cached) setLoading(false);
+      }
     };
 
     load().catch((error) => {

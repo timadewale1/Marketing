@@ -72,41 +72,42 @@ export default function SubmissionManagementSubmissionsPage() {
     );
     if (cached) {
       setSubmissions(cached.submissions);
-      setLoading(false);
-      return;
     }
 
     const load = async () => {
-      setLoading(true);
-      const snap = await getDocs(
-        query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_SUBMISSION_LIMIT))
-      );
-      setSubmissions(
-        snap.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            userId: String(data.userId || ""),
-            campaignId: String(data.campaignId || ""),
-            campaignTitle: String(data.campaignTitle || ""),
-            category: String(data.category || ""),
-            note: String(data.note || ""),
-            proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
-            status: String(data.status || ""),
-            earnerPrice: Number(data.earnerPrice || 0),
-            createdAtMs: toMillis(data.createdAt),
-            advertiserFlagStatus: String(data.advertiserFlagStatus || "none"),
-            advertiserFlagReason: String(data.advertiserFlagReason || ""),
-            advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
-            rejectionReason: String(data.rejectionReason || ""),
-            advertiserDecisionStatus: String(data.advertiserDecisionStatus || ""),
-            advertiserDecisionReason: String(data.advertiserDecisionReason || ""),
-            advertiserDecisionAtMs: toMillis(data.advertiserDecisionAt),
-            earnerDisputeReason: String(data.earnerDisputeReason || ""),
-          };
-        })
-      );
-      setLoading(false);
+      if (!cached) setLoading(true);
+      try {
+        const snap = await getDocs(
+          query(collection(db, "earnerSubmissions"), orderBy("createdAt", "desc"), limit(SUBMISSION_MANAGEMENT_SUBMISSION_LIMIT))
+        );
+        setSubmissions(
+          snap.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              userId: String(data.userId || ""),
+              campaignId: String(data.campaignId || ""),
+              campaignTitle: String(data.campaignTitle || ""),
+              category: String(data.category || ""),
+              note: String(data.note || ""),
+              proofUrls: getProofUrls(data as { proofUrl?: unknown; proofUrls?: unknown }),
+              status: String(data.status || ""),
+              earnerPrice: Number(data.earnerPrice || 0),
+              createdAtMs: toMillis(data.createdAt),
+              advertiserFlagStatus: String(data.advertiserFlagStatus || "none"),
+              advertiserFlagReason: String(data.advertiserFlagReason || ""),
+              advertiserFlagReviewDueAtMs: toMillis(data.advertiserFlagReviewDueAt),
+              rejectionReason: String(data.rejectionReason || ""),
+              advertiserDecisionStatus: String(data.advertiserDecisionStatus || ""),
+              advertiserDecisionReason: String(data.advertiserDecisionReason || ""),
+              advertiserDecisionAtMs: toMillis(data.advertiserDecisionAt),
+              earnerDisputeReason: String(data.earnerDisputeReason || ""),
+            };
+          })
+        );
+      } finally {
+        if (!cached) setLoading(false);
+      }
     };
 
     load().catch((error) => {

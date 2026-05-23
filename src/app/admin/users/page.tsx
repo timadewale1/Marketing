@@ -395,7 +395,6 @@ export default function UsersPage() {
       setHasMoreAdvertisers(cached.hasMoreAdvertisers);
       setSuspendedHasMoreEarners(cached.suspendedHasMoreEarners);
       setSuspendedHasMoreAdvertisers(cached.suspendedHasMoreAdvertisers);
-      setLoading(false);
       void Promise.all([
         restoreCursorDoc("earners", cached.lastVisibleEarnerId),
         restoreCursorDoc("advertisers", cached.lastVisibleAdvertiserId),
@@ -406,15 +405,13 @@ export default function UsersPage() {
         setLastVisibleAdvertiser(advertiserCursor);
         setSuspendedLastVisibleEarner(suspendedEarnerCursor);
         setSuspendedLastVisibleAdvertiser(suspendedAdvertiserCursor);
-      }).catch((error) => {
-        console.error("Failed to restore cached admin user cursors:", error);
-      });
-      return;
+        }).catch((error) => {
+          console.error("Failed to restore cached admin user cursors:", error);
+        });
     }
 
     const load = async () => {
-      setLoading(true);
-
+      if (!cached) setLoading(true);
       try {
         const [
           earnersCountSnap,
@@ -444,7 +441,7 @@ export default function UsersPage() {
         console.error("Error fetching users:", error);
         toast.error("Failed to load admin users");
       } finally {
-        setLoading(false);
+        if (!cached) setLoading(false);
       }
     };
 

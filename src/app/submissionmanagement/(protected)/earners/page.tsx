@@ -295,22 +295,19 @@ export default function SubmissionManagementEarnersPage() {
       setSuspendedLoadedCount(cached.suspendedLoadedCount);
       setHasMore(cached.hasMore);
       setSuspendedHasMore(cached.suspendedHasMore);
-      setLoading(false);
       void Promise.all([
         restoreCursorDoc(cached.lastVisibleId),
         restoreCursorDoc(cached.suspendedLastVisibleId),
       ]).then(([cursor, suspendedCursor]) => {
         setLastVisible(cursor);
         setSuspendedLastVisible(suspendedCursor);
-      }).catch((error) => {
-        console.error("Failed to restore cached submission management earners cursors:", error);
-      });
-      return;
+        }).catch((error) => {
+          console.error("Failed to restore cached submission management earners cursors:", error);
+        });
     }
 
     const load = async () => {
-      setLoading(true);
-
+      if (!cached) setLoading(true);
       try {
         const [totalCountSnap, activatedCountSnap, suspendedCountSnap] = await Promise.all([
           getCountFromServer(collection(db, "earners")),
@@ -329,7 +326,7 @@ export default function SubmissionManagementEarnersPage() {
         console.error("Error fetching submission management earners:", error);
         toast.error("Failed to load earners");
       } finally {
-        setLoading(false);
+        if (!cached) setLoading(false);
       }
     };
 
