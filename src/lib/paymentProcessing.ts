@@ -8,6 +8,16 @@ export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
 
+function normalizeReferenceSet(values: unknown[]) {
+  return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
+}
+
+function referencesOverlap(left: string[], right: string[]) {
+  if (left.length === 0 || right.length === 0) return false
+  const rightSet = new Set(right)
+  return left.some((value) => rightSet.has(value))
+}
+
 export async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
   admin: typeof import('firebase-admin'),
@@ -287,58 +297,72 @@ export async function processWalletFundingWithRetry(
   const adminDb = dbAdmin as AdminFirestore
   const collectionName = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions'
   const userCollection = userType === 'advertiser' ? 'advertisers' : 'earners'
-  const referenceCandidates = [...new Set([reference, ...extraReferences].map((value) => String(value || '').trim()).filter(Boolean))]
+  const referenceCandidates = normalizeReferenceSet([reference, ...extraReferences])
   const primaryReference = referenceCandidates[0] || String(reference || '').trim()
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[wallet-funding][retry] attempt ${attempt} for ${userType} ${userId}, amount: ${amount}`)
 
-      let existingTxDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
-      for (const candidateReference of referenceCandidates) {
-        const existingTxSnap = await adminDb.collection(collectionName)
-          .where('userId', '==', userId)
-          .where('reference', '==', candidateReference)
-          .where('type', '==', 'wallet_funding')
-          .where('status', '==', 'completed')
-          .limit(1)
-          .get()
+      const userFundingSnap = await adminDb.collection(collectionName)
+        .where('userId', '==', userId)
+        .where('type', '==', 'wallet_funding')
+        .get()
 
-        if (!existingTxSnap.empty) {
-          existingTxDoc = existingTxSnap.docs[0]
+      let existingTxDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+      let pendingDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+
+      for (const doc of userFundingSnap.docs) {
+        const data = doc.data()
+        const docReferences = normalizeReferenceSet([
+          data.reference,
+          ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+        ])
+
+        if (!referencesOverlap(referenceCandidates, docReferences)) continue
+
+        if (String(data.status || '').toLowerCase() === 'completed') {
+          existingTxDoc = doc
           break
+        }
+
+        if (!pendingDoc && String(data.status || '').toLowerCase() === 'pending') {
+          pendingDoc = doc
         }
       }
 
       if (existingTxDoc) {
+        const existingData = existingTxDoc.data()
+        const mergedReferences = normalizeReferenceSet([
+          existingData.reference,
+          ...(Array.isArray(existingData.referenceCandidates) ? existingData.referenceCandidates : []),
+          ...referenceCandidates,
+        ])
+
+        await existingTxDoc.ref.set({
+          provider: existingData.provider || provider,
+          reference: String(existingData.reference || primaryReference),
+          referenceCandidates: mergedReferences,
+          completedAt: existingData.completedAt || admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true })
         console.log(`[wallet-funding][retry] already processed for ${userId}`)
         return { success: true, alreadyProcessed: true }
-      }
-
-      let pendingDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
-      for (const candidateReference of referenceCandidates) {
-        const pendingTxSnap = await adminDb.collection(collectionName)
-          .where('userId', '==', userId)
-          .where('reference', '==', candidateReference)
-          .where('type', '==', 'wallet_funding')
-          .where('status', '==', 'pending')
-          .limit(1)
-          .get()
-
-        if (!pendingTxSnap.empty) {
-          pendingDoc = pendingTxSnap.docs[0]
-          break
-        }
       }
 
       let txId = ''
       if (pendingDoc) {
         txId = pendingDoc.id
+        const pendingData = pendingDoc.data()
+        const mergedReferences = normalizeReferenceSet([
+          pendingData.reference,
+          ...(Array.isArray(pendingData.referenceCandidates) ? pendingData.referenceCandidates : []),
+          ...referenceCandidates,
+        ])
         await pendingDoc.ref.update({
           amount,
           provider,
-          reference: String(pendingDoc.data().reference || primaryReference),
-          referenceCandidates,
+          reference: String(pendingData.reference || primaryReference),
+          referenceCandidates: mergedReferences,
           status: 'completed',
           note: `Wallet funded via ${provider}`,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
