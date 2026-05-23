@@ -46,8 +46,10 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { readSessionPageCache, writeSessionPageCache } from "@/lib/session-page-cache";
 
 const ADMIN_USER_PAGE_SIZE = 50;
+const ADMIN_USERS_CACHE_KEY = "admin:users-page";
 
 type AdminUser = {
   id: string;
@@ -216,6 +218,15 @@ export default function UsersPage() {
       ? query(collection(db, collectionName), orderBy("createdAt", "desc"), startAfter(cursor), limit(ADMIN_USER_PAGE_SIZE))
       : query(collection(db, collectionName), orderBy("createdAt", "desc"), limit(ADMIN_USER_PAGE_SIZE)), []);
 
+  const restoreCursorDoc = useCallback(async (
+    collectionName: "earners" | "advertisers",
+    id: string | null | undefined
+  ) => {
+    if (!id) return null;
+    const snap = await getDoc(doc(db, collectionName, id));
+    return snap.exists() ? (snap as QueryDocumentSnapshot<DocumentData>) : null;
+  }, []);
+
   const loadUserPages = useCallback(async ({
     earnersCursor,
     advertisersCursor,
@@ -358,6 +369,49 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
+    const cached = readSessionPageCache<{
+      users: AdminUser[];
+      summaryCounts: typeof summaryCounts;
+      loadedCount: number;
+      suspendedUsers: AdminUser[];
+      suspendedLoadedCount: number;
+      hasMoreEarners: boolean;
+      hasMoreAdvertisers: boolean;
+      suspendedHasMoreEarners: boolean;
+      suspendedHasMoreAdvertisers: boolean;
+      lastVisibleEarnerId: string | null;
+      lastVisibleAdvertiserId: string | null;
+      suspendedLastVisibleEarnerId: string | null;
+      suspendedLastVisibleAdvertiserId: string | null;
+    }>(ADMIN_USERS_CACHE_KEY);
+
+    if (cached) {
+      setUsers(cached.users);
+      setSummaryCounts(cached.summaryCounts);
+      setLoadedCount(cached.loadedCount);
+      setSuspendedUsers(cached.suspendedUsers);
+      setSuspendedLoadedCount(cached.suspendedLoadedCount);
+      setHasMoreEarners(cached.hasMoreEarners);
+      setHasMoreAdvertisers(cached.hasMoreAdvertisers);
+      setSuspendedHasMoreEarners(cached.suspendedHasMoreEarners);
+      setSuspendedHasMoreAdvertisers(cached.suspendedHasMoreAdvertisers);
+      setLoading(false);
+      void Promise.all([
+        restoreCursorDoc("earners", cached.lastVisibleEarnerId),
+        restoreCursorDoc("advertisers", cached.lastVisibleAdvertiserId),
+        restoreCursorDoc("earners", cached.suspendedLastVisibleEarnerId),
+        restoreCursorDoc("advertisers", cached.suspendedLastVisibleAdvertiserId),
+      ]).then(([earnerCursor, advertiserCursor, suspendedEarnerCursor, suspendedAdvertiserCursor]) => {
+        setLastVisibleEarner(earnerCursor);
+        setLastVisibleAdvertiser(advertiserCursor);
+        setSuspendedLastVisibleEarner(suspendedEarnerCursor);
+        setSuspendedLastVisibleAdvertiser(suspendedAdvertiserCursor);
+      }).catch((error) => {
+        console.error("Failed to restore cached admin user cursors:", error);
+      });
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
 
@@ -395,7 +449,7 @@ export default function UsersPage() {
     };
 
     load();
-  }, [loadUserPages]);
+  }, [loadUserPages, restoreCursorDoc]);
 
   useEffect(() => {
     if (search.trim() || statusFilter !== "suspended") {
@@ -499,6 +553,41 @@ export default function UsersPage() {
       window.clearTimeout(timeoutId);
     };
   }, [directSearchUsers, search]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    writeSessionPageCache(ADMIN_USERS_CACHE_KEY, {
+      users,
+      summaryCounts,
+      loadedCount,
+      suspendedUsers,
+      suspendedLoadedCount,
+      hasMoreEarners,
+      hasMoreAdvertisers,
+      suspendedHasMoreEarners,
+      suspendedHasMoreAdvertisers,
+      lastVisibleEarnerId: lastVisibleEarner?.id ?? null,
+      lastVisibleAdvertiserId: lastVisibleAdvertiser?.id ?? null,
+      suspendedLastVisibleEarnerId: suspendedLastVisibleEarner?.id ?? null,
+      suspendedLastVisibleAdvertiserId: suspendedLastVisibleAdvertiser?.id ?? null,
+    });
+  }, [
+    hasMoreAdvertisers,
+    hasMoreEarners,
+    lastVisibleAdvertiser,
+    lastVisibleEarner,
+    loadedCount,
+    loading,
+    summaryCounts,
+    suspendedHasMoreAdvertisers,
+    suspendedHasMoreEarners,
+    suspendedLastVisibleAdvertiser,
+    suspendedLastVisibleEarner,
+    suspendedLoadedCount,
+    suspendedUsers,
+    users,
+  ]);
 
   const handleLoadMoreUsers = useCallback(async () => {
     if ((!hasMoreEarners && !hasMoreAdvertisers) || loadingMore) {

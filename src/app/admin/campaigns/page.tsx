@@ -22,6 +22,7 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { readSessionPageCache, writeSessionPageCache } from "@/lib/session-page-cache";
 
 type Campaign = {
   id: string;
@@ -45,6 +46,7 @@ type SubmissionProgressRecord = {
 };
 
 const ADMIN_CAMPAIGN_PAGE_LIMIT = 200;
+const ADMIN_CAMPAIGNS_CACHE_KEY = "admin:campaigns-page";
 
 function toMillis(value: unknown) {
   if (!value) return 0;
@@ -67,6 +69,16 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    const cached = readSessionPageCache<{ campaigns: Campaign[]; submissions: SubmissionProgressRecord[] }>(
+      ADMIN_CAMPAIGNS_CACHE_KEY
+    );
+    if (cached) {
+      setCampaigns(cached.campaigns);
+      setSubmissions(cached.submissions);
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
@@ -120,6 +132,11 @@ export default function CampaignsPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    writeSessionPageCache(ADMIN_CAMPAIGNS_CACHE_KEY, { campaigns, submissions });
+  }, [campaigns, loading, submissions]);
 
   const categories = useMemo(
     () => Array.from(new Set(campaigns.map((campaign) => campaign.category))).filter(Boolean),

@@ -16,6 +16,7 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { readSessionPageCache, writeSessionPageCache } from "@/lib/session-page-cache";
 
 type Campaign = {
   id: string;
@@ -38,6 +39,7 @@ type SubmissionProgressRecord = {
 };
 
 const SUBMISSION_MANAGEMENT_CAMPAIGN_LIMIT = 200;
+const SUBMISSION_MANAGEMENT_CAMPAIGNS_CACHE_KEY = "submissionmanagement:campaigns-page";
 
 function currency(amount: number) {
   return `₦${amount.toLocaleString()}`;
@@ -52,6 +54,16 @@ export default function SubmissionManagementCampaignsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    const cached = readSessionPageCache<{ campaigns: Campaign[]; submissions: SubmissionProgressRecord[] }>(
+      SUBMISSION_MANAGEMENT_CAMPAIGNS_CACHE_KEY
+    );
+    if (cached) {
+      setCampaigns(cached.campaigns);
+      setSubmissions(cached.submissions);
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
@@ -105,6 +117,11 @@ export default function SubmissionManagementCampaignsPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    writeSessionPageCache(SUBMISSION_MANAGEMENT_CAMPAIGNS_CACHE_KEY, { campaigns, submissions });
+  }, [campaigns, loading, submissions]);
 
   const categories = useMemo(() => Array.from(new Set(campaigns.map((campaign) => campaign.category))).filter(Boolean), [campaigns]);
 

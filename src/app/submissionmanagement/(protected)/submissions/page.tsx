@@ -20,8 +20,10 @@ import {
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
 import { getProofUrls } from "@/lib/proofs";
+import { readSessionPageCache, writeSessionPageCache } from "@/lib/session-page-cache";
 
 const SUBMISSION_MANAGEMENT_SUBMISSION_LIMIT = 250;
+const SUBMISSION_MANAGEMENT_SUBMISSIONS_CACHE_KEY = "submissionmanagement:submissions-page";
 
 type Submission = {
   id: string;
@@ -65,6 +67,15 @@ export default function SubmissionManagementSubmissionsPage() {
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const cached = readSessionPageCache<{ submissions: Submission[] }>(
+      SUBMISSION_MANAGEMENT_SUBMISSIONS_CACHE_KEY
+    );
+    if (cached) {
+      setSubmissions(cached.submissions);
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       const snap = await getDocs(
@@ -104,6 +115,11 @@ export default function SubmissionManagementSubmissionsPage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    writeSessionPageCache(SUBMISSION_MANAGEMENT_SUBMISSIONS_CACHE_KEY, { submissions });
+  }, [loading, submissions]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();

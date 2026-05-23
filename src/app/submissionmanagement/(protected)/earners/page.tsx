@@ -44,8 +44,10 @@ import {
   SectionCard,
   StatusBadge,
 } from "@/app/admin/_components/admin-primitives";
+import { readSessionPageCache, writeSessionPageCache } from "@/lib/session-page-cache";
 
 const SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE = 50;
+const SUBMISSION_MANAGEMENT_EARNERS_CACHE_KEY = "submissionmanagement:earners-page";
 
 type EarnerUser = {
   id: string;
@@ -180,6 +182,12 @@ export default function SubmissionManagementEarnersPage() {
           limit(SUBMISSION_MANAGEMENT_EARNER_PAGE_SIZE)
         ), []);
 
+  const restoreCursorDoc = useCallback(async (id: string | null | undefined) => {
+    if (!id) return null;
+    const snap = await getDoc(doc(db, "earners", id));
+    return snap.exists() ? (snap as QueryDocumentSnapshot<DocumentData>) : null;
+  }, []);
+
   const loadMoreEarners = useCallback(async ({
     cursor,
     append,
@@ -267,6 +275,39 @@ export default function SubmissionManagementEarnersPage() {
   }, []);
 
   useEffect(() => {
+    const cached = readSessionPageCache<{
+      earners: EarnerUser[];
+      summaryCounts: typeof summaryCounts;
+      loadedCount: number;
+      suspendedEarners: EarnerUser[];
+      suspendedLoadedCount: number;
+      hasMore: boolean;
+      suspendedHasMore: boolean;
+      lastVisibleId: string | null;
+      suspendedLastVisibleId: string | null;
+    }>(SUBMISSION_MANAGEMENT_EARNERS_CACHE_KEY);
+
+    if (cached) {
+      setEarners(cached.earners);
+      setSummaryCounts(cached.summaryCounts);
+      setLoadedCount(cached.loadedCount);
+      setSuspendedEarners(cached.suspendedEarners);
+      setSuspendedLoadedCount(cached.suspendedLoadedCount);
+      setHasMore(cached.hasMore);
+      setSuspendedHasMore(cached.suspendedHasMore);
+      setLoading(false);
+      void Promise.all([
+        restoreCursorDoc(cached.lastVisibleId),
+        restoreCursorDoc(cached.suspendedLastVisibleId),
+      ]).then(([cursor, suspendedCursor]) => {
+        setLastVisible(cursor);
+        setSuspendedLastVisible(suspendedCursor);
+      }).catch((error) => {
+        console.error("Failed to restore cached submission management earners cursors:", error);
+      });
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
 
@@ -293,7 +334,7 @@ export default function SubmissionManagementEarnersPage() {
     };
 
     load();
-  }, [loadMoreEarners]);
+  }, [loadMoreEarners, restoreCursorDoc]);
 
   useEffect(() => {
     if (search.trim() || statusFilter !== "suspended") {
@@ -383,6 +424,33 @@ export default function SubmissionManagementEarnersPage() {
       window.clearTimeout(timeoutId);
     };
   }, [directSearchEarners, search]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    writeSessionPageCache(SUBMISSION_MANAGEMENT_EARNERS_CACHE_KEY, {
+      earners,
+      summaryCounts,
+      loadedCount,
+      suspendedEarners,
+      suspendedLoadedCount,
+      hasMore,
+      suspendedHasMore,
+      lastVisibleId: lastVisible?.id ?? null,
+      suspendedLastVisibleId: suspendedLastVisible?.id ?? null,
+    });
+  }, [
+    earners,
+    hasMore,
+    lastVisible,
+    loadedCount,
+    loading,
+    summaryCounts,
+    suspendedEarners,
+    suspendedHasMore,
+    suspendedLastVisible,
+    suspendedLoadedCount,
+  ]);
 
   const filteredEarners = useMemo(() => {
     if (search.trim()) {
