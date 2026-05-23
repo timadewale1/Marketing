@@ -4,7 +4,6 @@ import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 import { confirmMonnifyPaymentWithRetries } from '@/lib/monnify-confirmation'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
-import { runRecoverySweep } from '@/lib/recovery-sweep'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 
@@ -235,12 +234,6 @@ export async function POST(req: NextRequest) {
         })
         return NextResponse.json({ success: false, message: 'Failed to record transaction' }, { status: 500 })
       }
-    }
-
-    try {
-      await runRecoverySweep()
-    } catch (error) {
-      console.error('Recovery sweep after verify-payment failed:', error)
     }
 
     return NextResponse.json({ success: true, completed: true })

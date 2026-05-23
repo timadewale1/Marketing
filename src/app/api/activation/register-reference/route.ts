@@ -44,6 +44,8 @@ export async function POST(req: Request) {
       pendingActivationReferences: admin.firestore.FieldValue.arrayUnion(reference),
       pendingActivationProvider: provider,
       activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+      recoveryDisposition: admin.firestore.FieldValue.delete(),
     })
     await recordActivationAttempt({
       userId,

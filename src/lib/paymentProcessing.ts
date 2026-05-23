@@ -344,6 +344,13 @@ export async function processWalletFundingWithRetry(
           reference: String(existingData.reference || primaryReference),
           referenceCandidates: mergedReferences,
           completedAt: existingData.completedAt || admin.firestore.FieldValue.serverTimestamp(),
+          recoveryRetryCount: admin.firestore.FieldValue.delete(),
+          lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+          lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryDisposition: admin.firestore.FieldValue.delete(),
+          recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+          recoveryEscalationReason: admin.firestore.FieldValue.delete(),
         }, { merge: true })
         console.log(`[wallet-funding][retry] already processed for ${userId}`)
         return { success: true, alreadyProcessed: true }
@@ -366,6 +373,13 @@ export async function processWalletFundingWithRetry(
           status: 'completed',
           note: `Wallet funded via ${provider}`,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          recoveryRetryCount: admin.firestore.FieldValue.delete(),
+          lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+          lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryDisposition: admin.firestore.FieldValue.delete(),
+          recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+          recoveryEscalationReason: admin.firestore.FieldValue.delete(),
         })
       } else {
         const txRef = adminDb.collection(collectionName).doc()

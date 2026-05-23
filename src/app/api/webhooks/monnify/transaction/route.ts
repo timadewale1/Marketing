@@ -4,7 +4,6 @@ import { getActivationAttemptDocId } from '@/lib/activation-attempts'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { extractMonnifyReferenceCandidates, processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
-import { runRecoverySweep } from '@/lib/recovery-sweep'
 
 /**
  * Monnify Transaction Webhook Handler
@@ -380,12 +379,6 @@ export async function POST(req: NextRequest) {
         status,
         amount,
       })
-
-      try {
-        await runRecoverySweep()
-      } catch (error) {
-        console.error('[webhook][monnify][transaction] recovery sweep failed after webhook:', error)
-      }
     }
 
     return NextResponse.json({ success: true, message: 'Webhook processed' })

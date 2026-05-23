@@ -141,6 +141,13 @@ export async function POST(req: Request) {
         references: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
         status: 'pending',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        recoveryRetryCount: 0,
+        lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+        lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+        nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+        recoveryDisposition: admin.firestore.FieldValue.delete(),
+        recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+        recoveryEscalationReason: admin.firestore.FieldValue.delete(),
       }, { merge: true })
 
       if (!confirmation.confirmed) {

@@ -6,6 +6,25 @@ import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnif
 type PaymentProvider = "monnify" | "paystack"
 type VerificationState = "paid" | "manual_check" | "unverified"
 
+const TX_ONLY_MAX_AUTO_RETRIES = 3
+const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
+const TX_ONLY_RETRY_INTERVALS_MS = [
+  60 * 60 * 1000,
+  3 * 60 * 60 * 1000,
+  8 * 60 * 60 * 1000,
+]
+
+const MONNIFY_MAX_AUTO_RETRIES = 6
+const MONNIFY_MAX_AUTO_AGE_MS = 36 * 60 * 60 * 1000
+const MONNIFY_RETRY_INTERVALS_MS = [
+  15 * 60 * 1000,
+  60 * 60 * 1000,
+  3 * 60 * 60 * 1000,
+  6 * 60 * 60 * 1000,
+  12 * 60 * 60 * 1000,
+  12 * 60 * 60 * 1000,
+]
+
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
     return ((value as { toDate: () => Date }).toDate()).toISOString()
@@ -14,12 +33,59 @@ function serializeDate(value: unknown) {
   return value ?? null
 }
 
+function asDate(value: unknown) {
+  if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
+    return ((value as { toDate: () => Date }).toDate())
+  }
+  if (value instanceof Date) return value
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  return null
+}
+
 function normalizeProvider(value: unknown): PaymentProvider | null {
   return String(value || "").toLowerCase() === "paystack" ? "paystack" : String(value || "").toLowerCase() === "monnify" ? "monnify" : null
 }
 
 function normalizeReferences(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
+}
+
+function hasFinalMonnifyReference(references: string[]) {
+  return references.some((reference) => reference.toUpperCase().startsWith("MNFY|"))
+}
+
+function hasOnlyTxLikeReferences(references: string[]) {
+  return references.length > 0 && references.every((reference) => reference.toUpperCase().startsWith("TX_"))
+}
+
+function getRetryIntervalMs(references: string[], retryCount: number) {
+  const intervals = hasFinalMonnifyReference(references)
+    ? MONNIFY_RETRY_INTERVALS_MS
+    : TX_ONLY_RETRY_INTERVALS_MS
+  const index = Math.max(0, Math.min(retryCount, intervals.length - 1))
+  return intervals[index]
+}
+
+function shouldEscalateToManualReview({
+  references,
+  retryCount,
+  firstSeenAt,
+}: {
+  references: string[]
+  retryCount: number
+  firstSeenAt: Date
+}) {
+  const ageMs = Date.now() - firstSeenAt.getTime()
+  if (hasFinalMonnifyReference(references)) {
+    return retryCount >= MONNIFY_MAX_AUTO_RETRIES || ageMs >= MONNIFY_MAX_AUTO_AGE_MS
+  }
+  if (hasOnlyTxLikeReferences(references)) {
+    return retryCount >= TX_ONLY_MAX_AUTO_RETRIES || ageMs >= TX_ONLY_MAX_AUTO_AGE_MS
+  }
+  return retryCount >= TX_ONLY_MAX_AUTO_RETRIES || ageMs >= TX_ONLY_MAX_AUTO_AGE_MS
 }
 
 async function verifyPaystackPayment(reference: string) {
@@ -127,15 +193,19 @@ export async function runRecoverySweep() {
 
   const [pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(500).get(),
-    dbAdmin.collection("activationAttempts").limit(500).get(),
+    dbAdmin.collection("activationAttempts").where("status", "==", "pending").limit(500).get(),
   ])
 
   const activationAttemptsByUser = new Map<string, {
+    docId: string
     references: string[]
     providerHint: string | null
     activationAttemptedAt: string | null
     name: string
     email: string
+    retryCount: number
+    nextCheckAt: Date | null
+    disposition: string | null
   }>()
 
   for (const doc of activationAttemptsSnap.docs) {
@@ -143,7 +213,7 @@ export async function runRecoverySweep() {
     const userId = String(data.userId || "")
     const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
     if (!userId || !role) continue
-    if (String(data.status || "").toLowerCase() === "completed") continue
+    if (String(data.recoveryDisposition || "").toLowerCase() === "manual_review") continue
 
     const key = `${role}:${userId}`
     const previous = activationAttemptsByUser.get(key)
@@ -151,6 +221,7 @@ export async function runRecoverySweep() {
     if (references.length === 0 && !previous) continue
 
     activationAttemptsByUser.set(key, {
+      docId: doc.id,
       references: normalizeReferences([...(previous?.references || []), ...references]),
       providerHint: String(data.provider || previous?.providerHint || "") || null,
       activationAttemptedAt:
@@ -160,6 +231,12 @@ export async function runRecoverySweep() {
         null,
       name: String(data.name || previous?.name || ""),
       email: String(data.email || previous?.email || "").trim().toLowerCase(),
+      retryCount: Math.max(
+        Number(previous?.retryCount || 0),
+        Number(data.recoveryRetryCount || 0),
+      ),
+      nextCheckAt: previous?.nextCheckAt || asDate(data.nextRecoveryCheckAt),
+      disposition: String(data.recoveryDisposition || previous?.disposition || "") || null,
     })
   }
 
@@ -211,6 +288,10 @@ export async function runRecoverySweep() {
           references,
           provider: String(data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || "monnify"),
           verificationState,
+          attemptDocId: attemptInfo?.docId || null,
+          retryCount: Number(attemptInfo?.retryCount || 0),
+          nextCheckAt: attemptInfo?.nextCheckAt || null,
+          attemptedAt: asDate(data.activationAttemptedAt) || asDate(attemptInfo?.activationAttemptedAt),
         }
       })
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
@@ -235,12 +316,22 @@ export async function runRecoverySweep() {
         reference: references[0] || "",
         references,
         verificationState,
+        retryCount: Number(data.recoveryRetryCount || 0),
+        nextCheckAt: asDate(data.nextRecoveryCheckAt),
+        createdAt: asDate(data.createdAt),
+        disposition: String(data.recoveryDisposition || "") || null,
       }
     })
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
 
   let activationRecovered = 0
+  let activationChecked = 0
+  let activationDeferred = 0
+  let activationEscalated = 0
   for (const candidate of activationCandidates) {
+    if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
+    if (!candidate.attemptDocId) continue
+    activationChecked += 1
     if (candidate.verificationState !== "paid") continue
     try {
       await logPaymentLifecycle({
@@ -281,8 +372,43 @@ export async function runRecoverySweep() {
     }
   }
 
+  for (const candidate of activationCandidates) {
+    if (candidate.verificationState === "paid") continue
+    if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
+    if (!candidate.attemptDocId) continue
+
+    const attemptRef = dbAdmin.collection("activationAttempts").doc(candidate.attemptDocId)
+    const nextRetryCount = candidate.retryCount + 1
+    const firstSeenAt = candidate.attemptedAt || new Date()
+    const escalate = shouldEscalateToManualReview({
+      references: candidate.references,
+      retryCount: nextRetryCount,
+      firstSeenAt,
+    })
+
+    await attemptRef.set({
+      lastRecoveryCheckedAt: new Date(),
+      lastRecoveryVerificationState: candidate.verificationState,
+      recoveryRetryCount: nextRetryCount,
+      recoveryDisposition: escalate ? "manual_review" : "scheduled",
+      nextRecoveryCheckAt: escalate ? null : new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      recoveryEscalatedAt: escalate ? new Date() : null,
+      recoveryEscalationReason: escalate ? "Activation payment remained unresolved after automatic retries" : null,
+      updatedAt: new Date(),
+    }, { merge: true })
+
+    if (escalate) activationEscalated += 1
+    else activationDeferred += 1
+  }
+
   let walletRecovered = 0
+  let walletChecked = 0
+  let walletDeferred = 0
+  let walletEscalated = 0
   for (const candidate of walletCandidates) {
+    if (candidate.disposition === "manual_review") continue
+    if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
+    walletChecked += 1
     if (candidate.verificationState !== "paid") continue
     try {
       await logPaymentLifecycle({
@@ -329,6 +455,35 @@ export async function runRecoverySweep() {
     }
   }
 
+  for (const candidate of walletCandidates) {
+    if (candidate.verificationState === "paid") continue
+    if (candidate.disposition === "manual_review") continue
+    if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
+
+    const txRef = dbAdmin.collection("advertiserTransactions").doc(candidate.id)
+    const nextRetryCount = candidate.retryCount + 1
+    const firstSeenAt = candidate.createdAt || new Date()
+    const escalate = shouldEscalateToManualReview({
+      references: candidate.references,
+      retryCount: nextRetryCount,
+      firstSeenAt,
+    })
+
+    await txRef.set({
+      lastRecoveryCheckedAt: new Date(),
+      lastRecoveryVerificationState: candidate.verificationState,
+      verificationState: candidate.verificationState,
+      recoveryRetryCount: nextRetryCount,
+      recoveryDisposition: escalate ? "manual_review" : "scheduled",
+      nextRecoveryCheckAt: escalate ? null : new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      recoveryEscalatedAt: escalate ? new Date() : null,
+      recoveryEscalationReason: escalate ? "Wallet funding remained unresolved after automatic retries" : null,
+    }, { merge: true })
+
+    if (escalate) walletEscalated += 1
+    else walletDeferred += 1
+  }
+
   await logPaymentLifecycle({
     scope: "recovery",
     status: "retry_completed",
@@ -336,8 +491,12 @@ export async function runRecoverySweep() {
     details: {
       activationRecovered,
       walletRecovered,
-      activationChecked: activationCandidates.length,
-      walletChecked: walletCandidates.length,
+      activationChecked,
+      walletChecked,
+      activationDeferred,
+      walletDeferred,
+      activationEscalated,
+      walletEscalated,
     },
   })
 
@@ -345,8 +504,16 @@ export async function runRecoverySweep() {
     activationRecovered,
     walletRecovered,
     checked: {
-      activation: activationCandidates.length,
-      wallet: walletCandidates.length,
+      activation: activationChecked,
+      wallet: walletChecked,
+    },
+    deferred: {
+      activation: activationDeferred,
+      wallet: walletDeferred,
+    },
+    escalated: {
+      activation: activationEscalated,
+      wallet: walletEscalated,
     },
   }
 }

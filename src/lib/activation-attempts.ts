@@ -56,6 +56,13 @@ export async function recordActivationAttempt({
     pendingReference: primaryReference,
     attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    recoveryRetryCount: 0,
+    lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+    lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+    nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+    recoveryDisposition: admin.firestore.FieldValue.delete(),
+    recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+    recoveryEscalationReason: admin.firestore.FieldValue.delete(),
   }, { merge: true })
 }
 
@@ -90,5 +97,12 @@ export async function markActivationAttemptCompleted({
     completedReference: primaryReference,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    recoveryRetryCount: admin.firestore.FieldValue.delete(),
+    lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+    lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+    nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+    recoveryDisposition: admin.firestore.FieldValue.delete(),
+    recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+    recoveryEscalationReason: admin.firestore.FieldValue.delete(),
   }, { merge: true })
 }
