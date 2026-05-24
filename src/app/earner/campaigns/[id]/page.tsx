@@ -60,8 +60,9 @@ type EarnerData = {
 
 const MAX_PROOF_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 const MAX_TOTAL_PROOF_SIZE_BYTES = 40 * 1024 * 1024;
-const PROOF_UPLOAD_TIMEOUT_MS = 2 * 60 * 1000;
-const SUBMISSION_REQUEST_TIMEOUT_MS = 60 * 1000;
+const PROOF_UPLOAD_TIMEOUT_MS = 3 * 60 * 1000;
+const SUBMISSION_REQUEST_TIMEOUT_MS = 2 * 60 * 1000;
+const SLOW_NETWORK_WARNING_MS = 60 * 1000;
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024 * 1024) {
@@ -85,6 +86,8 @@ export default function CampaignDetailPage() {
   const [socialHandle, setSocialHandle] = useState("");
   const [proofSlots, setProofSlots] = useState<Array<File | null>>([null]);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionPhase, setSubmissionPhase] = useState<"idle" | "uploading" | "submitting">("idle");
+  const [slowNetworkNotice, setSlowNetworkNotice] = useState<string | null>(null);
 
   // Helper function to validate data sync
   const validateDataSync = async (userId: string, campaignId: string) => {
@@ -191,7 +194,7 @@ export default function CampaignDetailPage() {
   }, [id, router]);
 
   useEffect(() => {
-    if (!submitting || typeof window === "undefined") return;
+    if (!submitting || typeof window === "undefined" || submissionPhase === "idle") return;
 
     const lockedUrl = window.location.href;
 
@@ -225,7 +228,27 @@ export default function CampaignDetailPage() {
       window.removeEventListener("popstate", handlePopState);
       document.removeEventListener("click", handleAnchorClick, true);
     };
-  }, [submitting]);
+  }, [submitting, submissionPhase]);
+
+  useEffect(() => {
+    if (submissionPhase === "idle") {
+      setSlowNetworkNotice(null);
+      return;
+    }
+
+    setSlowNetworkNotice(null);
+    const timeoutId = window.setTimeout(() => {
+      setSlowNetworkNotice(
+        submissionPhase === "uploading"
+          ? "Slow network detected. Please stay on this page while your proof files finish uploading."
+          : "Slow network detected. Please stay on this page while your submission is being sent."
+      );
+    }, SLOW_NETWORK_WARNING_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [submissionPhase]);
 
   const handleFileSelect = (index: number, selectedFile: File | null) => {
     if (!selectedFile) return;
@@ -366,6 +389,7 @@ export default function CampaignDetailPage() {
       if (files.length > 0) {
         console.log("Uploading proof files...");
         try {
+          setSubmissionPhase("uploading");
           proofUrls = await Promise.all(files.map((proofFile) => uploadProofFile(proofFile, user.uid)));
           console.log("Files uploaded successfully:", proofUrls);
         } catch (uploadErr) {
@@ -426,6 +450,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
 
       console.log("Creating submission document...");
       try {
+        setSubmissionPhase("submitting");
         const idToken = await user.getIdToken()
         const controller = new AbortController()
         const timeoutId = window.setTimeout(() => controller.abort(), SUBMISSION_REQUEST_TIMEOUT_MS)
@@ -465,6 +490,8 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
         toast.error("Failed to submit participation");
       }
     } finally {
+      setSubmissionPhase("idle");
+      setSlowNetworkNotice(null);
       setSubmitting(false);
     }
   };
@@ -930,6 +957,11 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                 Submitted participations can take up to 24 hours to be reviewed and approved.
               </p>
             </div>
+            {slowNetworkNotice ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm text-amber-900">{slowNetworkNotice}</p>
+              </div>
+            ) : null}
             {!earnerActivated ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <div className="space-y-3">
