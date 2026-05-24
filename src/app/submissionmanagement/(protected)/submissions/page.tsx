@@ -72,6 +72,7 @@ export default function SubmissionManagementSubmissionsPage() {
     );
     if (cached) {
       setSubmissions(cached.submissions);
+      setLoading(false);
     }
 
     const load = async () => {
@@ -106,7 +107,7 @@ export default function SubmissionManagementSubmissionsPage() {
           })
         );
       } finally {
-        if (!cached) setLoading(false);
+        setLoading(false);
       }
     };
 

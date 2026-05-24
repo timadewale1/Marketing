@@ -295,6 +295,7 @@ export default function SubmissionManagementEarnersPage() {
       setSuspendedLoadedCount(cached.suspendedLoadedCount);
       setHasMore(cached.hasMore);
       setSuspendedHasMore(cached.suspendedHasMore);
+      setLoading(false);
       void Promise.all([
         restoreCursorDoc(cached.lastVisibleId),
         restoreCursorDoc(cached.suspendedLastVisibleId),
@@ -326,7 +327,7 @@ export default function SubmissionManagementEarnersPage() {
         console.error("Error fetching submission management earners:", error);
         toast.error("Failed to load earners");
       } finally {
-        if (!cached) setLoading(false);
+        setLoading(false);
       }
     };
 

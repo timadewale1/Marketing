@@ -75,6 +75,7 @@ export default function CampaignsPage() {
     if (cached) {
       setCampaigns(cached.campaigns);
       setSubmissions(cached.submissions);
+      setLoading(false);
     }
 
     const load = async () => {
@@ -124,7 +125,7 @@ export default function CampaignsPage() {
           })
         );
       } finally {
-        if (!cached) setLoading(false);
+        setLoading(false);
       }
     };
 

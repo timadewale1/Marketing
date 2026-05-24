@@ -395,6 +395,7 @@ export default function UsersPage() {
       setHasMoreAdvertisers(cached.hasMoreAdvertisers);
       setSuspendedHasMoreEarners(cached.suspendedHasMoreEarners);
       setSuspendedHasMoreAdvertisers(cached.suspendedHasMoreAdvertisers);
+      setLoading(false);
       void Promise.all([
         restoreCursorDoc("earners", cached.lastVisibleEarnerId),
         restoreCursorDoc("advertisers", cached.lastVisibleAdvertiserId),
@@ -441,7 +442,7 @@ export default function UsersPage() {
         console.error("Error fetching users:", error);
         toast.error("Failed to load admin users");
       } finally {
-        if (!cached) setLoading(false);
+        setLoading(false);
       }
     };
 

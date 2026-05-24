@@ -77,6 +77,7 @@ export default function SubmissionsPage() {
     const cached = readSessionPageCache<{ submissions: Submission[] }>(ADMIN_SUBMISSIONS_CACHE_KEY);
     if (cached) {
       setSubmissions(cached.submissions);
+      setLoading(false);
     }
 
     const load = async () => {
@@ -112,7 +113,7 @@ export default function SubmissionsPage() {
           })
         );
       } finally {
-        if (!cached) setLoading(false);
+        setLoading(false);
       }
     };
 
