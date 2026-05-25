@@ -8,7 +8,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { collection, getCountFromServer, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import { collection, count, getAggregateFromServer, getCountFromServer, getDocs, limit, orderBy, query, where, sum } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,7 +83,7 @@ export default function Page() {
           pendingSubmissionsSnap,
           pendingWithdrawalsSnap,
           unreadMessagesSnap,
-          advertiserTransactionsSnap,
+          advertiserTransactionsAggregateSnap,
         ] = await Promise.all([
           getCountFromServer(collection(db, "earners")),
           getCountFromServer(collection(db, "advertisers")),
@@ -91,13 +91,17 @@ export default function Page() {
           getCountFromServer(query(collection(db, "earnerSubmissions"), where("status", "==", "Pending"))),
           getCountFromServer(query(collection(db, "earnerWithdrawals"), where("status", "==", "pending"))),
           getCountFromServer(query(collection(db, "contactMessages"), where("status", "==", "unread"))),
-          getDocs(query(collection(db, "advertiserTransactions"), where("type", "==", "campaign_payment"), limit(500))),
+          getAggregateFromServer(
+            query(collection(db, "advertiserTransactions"), where("type", "==", "campaign_payment")),
+            {
+              spendCount: count(),
+              totalSpend: sum("amount"),
+            }
+          ),
         ]);
 
-        const totalTrackedSpend = advertiserTransactionsSnap.docs.reduce((sum, docItem) => {
-          const amount = Number(docItem.data().amount || 0);
-          return sum + Math.abs(amount);
-        }, 0);
+        const advertiserTransactionsData = advertiserTransactionsAggregateSnap.data();
+        const totalTrackedSpend = Math.abs(Number(advertiserTransactionsData.totalSpend || 0));
 
         setStats({
           totalUsers: earnersCountSnap.data().count + advertisersCountSnap.data().count,

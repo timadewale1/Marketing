@@ -46,7 +46,14 @@ export async function GET() {
       .filter((ad) => ad.mediaUrl && (!ad.expiresAtMs || ad.expiresAtMs > now))
       .sort((a, b) => (a.createdAtMs < b.createdAtMs ? 1 : -1))
 
-    return NextResponse.json({ success: true, ads })
+    return NextResponse.json(
+      { success: true, ads },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    )
   } catch (error) {
     console.error('Homepage direct ads load error:', error)
     return NextResponse.json({ success: false, message: 'Failed to load homepage direct ads' }, { status: 500 })

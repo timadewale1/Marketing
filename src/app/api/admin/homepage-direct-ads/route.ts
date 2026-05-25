@@ -46,7 +46,14 @@ export async function GET() {
       })
       .sort((a, b) => (a.createdAtMs < b.createdAtMs ? 1 : -1))
 
-    return NextResponse.json({ success: true, ads })
+    return NextResponse.json(
+      { success: true, ads },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=120",
+        },
+      }
+    )
   } catch (error) {
     console.error('Admin homepage direct ads load error:', error)
     return NextResponse.json({ success: false, message: 'Failed to load homepage direct ads' }, { status: 500 })

@@ -11,6 +11,7 @@ import {
   doc,
   getCountFromServer,
   getDoc,
+  getDocs,
   limit,
   onSnapshot,
   query,
@@ -135,7 +136,7 @@ export default function EarnerDashboard() {
         return
       }
       // Profile and stats
-          const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
+      const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
         if (snap.exists()) {
           const d = snap.data()
           setUserName(d.fullName || d.name || "User")
@@ -167,62 +168,52 @@ export default function EarnerDashboard() {
         }
       })
 
-      // Withdrawals
-      const unsubWithdraws = onSnapshot(
-        query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150)),
-        (snap) => {
-          const data = snap.docs.map((d) => {
-            const dat = d.data() as Partial<WithdrawRecord>;
-            return {
-              id: d.id,
-              amount: dat.amount || 0,
-              createdAt: dat.createdAt,
-              status: dat.status,
-            } as WithdrawRecord;
-          })
-          setWithdrawHistory(data as WithdrawRecord[])
-        }
-      )
+      void Promise.all([
+        getDocs(query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150))),
+        getDocs(query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250))),
+        getDocs(query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250))),
+      ]).then(([withdrawSnap, submissionsSnap, txSnap]) => {
+        const withdrawData = withdrawSnap.docs.map((d) => {
+          const dat = d.data() as Partial<WithdrawRecord>
+          return {
+            id: d.id,
+            amount: dat.amount || 0,
+            createdAt: dat.createdAt,
+            status: dat.status,
+          } as WithdrawRecord
+        })
+        setWithdrawHistory(withdrawData as WithdrawRecord[])
 
-      // Campaign submissions (use earnerSubmissions collection to reflect actual submitted/approved/rejected statuses)
-      const unsubSubmissions = onSnapshot(
-        query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250)),
-        (snap) => {
-          type Sub = { id: string; status?: string }
-          const subs: Sub[] = snap.docs.map((d) => {
-            const data = d.data() as Sub
-            return { id: d.id, status: data.status }
-          })
-          const submitted = subs.length
-          const pending = subs.filter((s) => s.status === "Pending" || s.status === "In Review").length
-          const rejected = subs.filter((s) => s.status === "Rejected").length
-          const approved = subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length
+        type Sub = { id: string; status?: string }
+        const subs: Sub[] = submissionsSnap.docs.map((d) => {
+          const data = d.data() as Sub
+          return { id: d.id, status: data.status }
+        })
+        const submitted = subs.length
+        const pending = subs.filter((s) => s.status === "Pending" || s.status === "In Review").length
+        const rejected = subs.filter((s) => s.status === "Rejected").length
+        const approved = subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length
 
-          setStats((prev) => ({
-            ...prev,
-            campaignSubmitted: submitted,
-            campaignPending: pending,
-            campaignRejected: rejected,
-            campaignApproved: approved,
-          }))
-        }
-      )
+        setStats((prev) => ({
+          ...prev,
+          campaignSubmitted: submitted,
+          campaignPending: pending,
+          campaignRejected: rejected,
+          campaignApproved: approved,
+        }))
 
-      // Transactions (compute total earned from earnerTransactions)
-      const unsubTx = onSnapshot(
-        query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250)),
-        (snap) => {
-          type Tx = { id: string; amount?: number; type?: string }
-          const txs: Tx[] = snap.docs.map((d) => {
-            const data = d.data() as Tx
-            return { id: d.id, amount: data.amount, type: data.type }
-          })
-          const earned = txs.reduce((s, t) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0)
-          const paidLeads = txs.filter((t) => t.type === "lead" || t.type === "payment").length
-          setTotalEarned(earned)
-          setStats((prev) => ({ ...prev, leadsPaidFor: paidLeads || prev.leadsPaidFor }))
-        }
-      )
+        type Tx = { id: string; amount?: number; type?: string }
+        const txs: Tx[] = txSnap.docs.map((d) => {
+          const data = d.data() as Tx
+          return { id: d.id, amount: data.amount, type: data.type }
+        })
+        const earned = txs.reduce((s, t) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0)
+        const paidLeads = txs.filter((t) => t.type === "lead" || t.type === "payment").length
+        setTotalEarned(earned)
+        setStats((prev) => ({ ...prev, leadsPaidFor: paidLeads || prev.leadsPaidFor }))
+      }).catch((error) => {
+        console.error("Failed to load earner dashboard data", error)
+      })
 
       // Referrals
       void Promise.all([
@@ -238,9 +229,8 @@ export default function EarnerDashboard() {
         console.error("Failed to load dashboard referral counts", error)
       })
 
-      const unsubReferrals = onSnapshot(
-        query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250)),
-        (snap) => {
+      void getDocs(query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250)))
+        .then((snap) => {
           let completedReferrals = 0
           let pendingBonuses = 0
           let earnings = 0
@@ -260,15 +250,13 @@ export default function EarnerDashboard() {
             pendingBonuses,
             totalReferralEarnings: earnings,
           }))
-        }
-      )
+        })
+        .catch((error) => {
+          console.error("Failed to load referral list", error)
+        })
 
       return () => {
         unsubProfile()
-        unsubWithdraws()
-        unsubSubmissions()
-        unsubTx()
-        unsubReferrals()
       }
     })
     return () => unsub()

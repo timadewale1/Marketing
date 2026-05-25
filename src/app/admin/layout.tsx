@@ -25,7 +25,7 @@ import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
 import { auth, db } from "@/lib/firebase";
 import { normalizeAdminLoginEmail } from "@/lib/admin-auth";
-import { collection, query, where, onSnapshot, orderBy, limit, Timestamp, updateDoc, doc, writeBatch, getCountFromServer } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, Timestamp, updateDoc, doc, writeBatch, getCountFromServer, getDocs } from "firebase/firestore";
 import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
@@ -190,22 +190,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [authenticated, firebaseAuthReady, firebaseUserPresent]);
 
-  // Load unread count with an aggregation query so the admin shell does not
-  // listen to every unread notification document on every page.
+  // Load unread count and a short recent list without keeping a live listener
+  // alive across every admin page.
   useEffect(() => {
     if (authenticated !== true) {
       return;
     }
 
     const unreadQ = query(collection(db, "adminNotifications"), where("read", "==", false));
-    void getCountFromServer(unreadQ)
-      .then((snap) => setUnreadCount(snap.data().count || 0))
-      .catch((err) => console.error('adminNotifications count failed', err));
-
-    // Also keep a small recent list for the bell dropdown
     const recentQ = query(collection(db, "adminNotifications"), orderBy("createdAt", "desc"), limit(6));
-    const unsubRecent = onSnapshot(recentQ, (snap) => setRecentNotes(snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) } as AdminNotification))), (err) => console.error('adminNotifications recent listen failed', err));
-    return () => { unsubRecent(); };
+
+    void Promise.all([
+      getCountFromServer(unreadQ),
+      getDocs(recentQ),
+    ])
+      .then(([countSnap, recentSnap]) => {
+        setUnreadCount(countSnap.data().count || 0)
+        setRecentNotes(recentSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) } as AdminNotification)))
+      })
+      .catch((err) => console.error('adminNotifications load failed', err));
   }, [authenticated]);
 
   // close dropdown on outside click

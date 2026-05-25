@@ -37,7 +37,7 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
           }
         }
 
-        const response = await fetch("/api/homepage-direct-ads", { cache: "no-store" });
+        const response = await fetch("/api/homepage-direct-ads");
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) return;
         const nextAds = result.ads || [];
