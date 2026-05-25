@@ -257,7 +257,7 @@ export default function SubmissionsPage() {
       </SectionCard>
 
       <SectionCard title="Submission cards" description={`${filtered.length} submission${filtered.length === 1 ? "" : "s"} matched the current filters.`}>
-        {loading ? (
+        {loading && filtered.length === 0 ? (
           <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
         ) : filtered.length === 0 ? (
           <EmptyState title="No submissions" description="No submissions matched the selected filters." />

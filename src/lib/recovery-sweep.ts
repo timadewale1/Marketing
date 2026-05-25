@@ -8,6 +8,7 @@ type VerificationState = "paid" | "manual_check" | "unverified"
 
 const TX_ONLY_MAX_AUTO_RETRIES = 3
 const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
+const RECOVERY_SWEEP_BATCH_LIMIT = 50
 const TX_ONLY_RETRY_INTERVALS_MS = [
   60 * 60 * 1000,
   3 * 60 * 60 * 1000,
@@ -192,9 +193,35 @@ export async function runRecoverySweep() {
   })
 
   const [pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(500).get(),
-    dbAdmin.collection("activationAttempts").where("status", "==", "pending").limit(500).get(),
+    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
+    dbAdmin.collection("activationAttempts").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
   ])
+
+  if (pendingWalletSnap.empty && activationAttemptsSnap.empty) {
+    await logPaymentLifecycle({
+      scope: "recovery",
+      status: "retry_completed",
+      source: "recovery-sweep",
+      details: {
+        activationRecovered: 0,
+        walletRecovered: 0,
+        activationChecked: 0,
+        walletChecked: 0,
+        activationDeferred: 0,
+        walletDeferred: 0,
+        activationEscalated: 0,
+        walletEscalated: 0,
+      },
+    })
+
+    return {
+      activationRecovered: 0,
+      walletRecovered: 0,
+      checked: { activation: 0, wallet: 0 },
+      deferred: { activation: 0, wallet: 0 },
+      escalated: { activation: 0, wallet: 0 },
+    }
+  }
 
   const activationAttemptsByUser = new Map<string, {
     docId: string

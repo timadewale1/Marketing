@@ -614,7 +614,7 @@ export default function SubmissionManagementEarnersPage() {
             ? `${filteredEarners.length} suspended earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${suspendedLoadedCount} suspended earners are currently loaded.`
             : `${filteredEarners.length} loaded earner${filteredEarners.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalEarners} earners are currently loaded.`}
       >
-        {loading || loadingSuspended ? (
+        {(loading || loadingSuspended) && filteredEarners.length === 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="h-48 animate-pulse rounded-3xl bg-stone-100" />

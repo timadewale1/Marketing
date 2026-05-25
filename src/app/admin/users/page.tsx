@@ -776,7 +776,7 @@ export default function UsersPage() {
             ? `${filteredUsers.length} suspended account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${suspendedLoadedCount} suspended users are currently loaded.`
             : `${filteredUsers.length} loaded account${filteredUsers.length === 1 ? "" : "s"} match the current filters. ${loadedCount} of ${stats.totalUsers} users are currently loaded.`}
       >
-        {loading || loadingSuspended ? (
+        {(loading || loadingSuspended) && filteredUsers.length === 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div

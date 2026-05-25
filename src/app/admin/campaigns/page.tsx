@@ -247,7 +247,7 @@ export default function CampaignsPage() {
         title="Campaign list"
         description={`${filteredCampaigns.length} campaign${filteredCampaigns.length === 1 ? "" : "s"} matched the current filters.`}
       >
-        {loading ? (
+        {loading && filteredCampaigns.length === 0 ? (
           <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
         ) : filteredCampaigns.length === 0 ? (
           <EmptyState
