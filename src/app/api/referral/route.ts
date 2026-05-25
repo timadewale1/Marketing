@@ -160,24 +160,6 @@ export async function PUT(req: Request) {
       const referrerData = (earnerSnap.exists ? earnerSnap.data() : advertiserSnap.data()) as
         | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
         | undefined
-      await recordWeeklyReferralActivationInTransaction({
-        adminDb,
-        admin,
-        transaction,
-        role: earnerSnap.exists ? 'earner' : 'advertiser',
-        userId: referral.referrerId,
-        name: String(
-          referrerData?.fullName ||
-            referrerData?.name ||
-            referrerData?.businessName ||
-            referrerData?.companyName ||
-            referrerData?.email ||
-            ''
-        ).trim(),
-        email: referrerData?.email || null,
-        referredId: referral.referredId,
-        referralId,
-      })
       await awardPointsInTransaction({
         adminDb,
         admin,
@@ -229,6 +211,43 @@ export async function PUT(req: Request) {
       })
 
       return { success: true }
+    })
+
+    await adminDb.runTransaction(async (weeklyTransaction) => {
+      const referralRef = adminDb.collection('referrals').doc(referralId)
+      const referralSnap = await weeklyTransaction.get(referralRef)
+      if (!referralSnap.exists) return
+      const referral = referralSnap.data()
+      if (!referral || !referral.bonusPaid) return
+
+      const earnerRef = adminDb.collection('earners').doc(referral.referrerId)
+      const advertiserRef = adminDb.collection('advertisers').doc(referral.referrerId)
+      const [earnerSnap, advertiserSnap] = await Promise.all([
+        weeklyTransaction.get(earnerRef),
+        weeklyTransaction.get(advertiserRef),
+      ])
+      const referrerData = (earnerSnap.exists ? earnerSnap.data() : advertiserSnap.data()) as
+        | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
+        | undefined
+
+      await recordWeeklyReferralActivationInTransaction({
+        adminDb,
+        admin,
+        transaction: weeklyTransaction,
+        role: earnerSnap.exists ? 'earner' : 'advertiser',
+        userId: referral.referrerId,
+        name: String(
+          referrerData?.fullName ||
+            referrerData?.name ||
+            referrerData?.businessName ||
+            referrerData?.companyName ||
+            referrerData?.email ||
+            ''
+        ).trim(),
+        email: referrerData?.email || null,
+        referredId: referral.referredId,
+        referralId,
+      })
     })
 
     return NextResponse.json({ success: true, message: 'Referral reward processed' })

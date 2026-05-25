@@ -54,24 +54,6 @@ export async function processPendingActivationReferrals(
         const referrerData = (advSnap.exists ? advSnap.data() : earnerSnap.data()) as
           | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
           | undefined
-        await recordWeeklyReferralActivationInTransaction({
-          adminDb,
-          admin,
-          transaction: t,
-          role: advSnap.exists ? 'advertiser' : 'earner',
-          userId: referrerId,
-          name: String(
-            referrerData?.fullName ||
-              referrerData?.name ||
-              referrerData?.businessName ||
-              referrerData?.companyName ||
-              referrerData?.email ||
-              ''
-          ).trim(),
-          email: referrerData?.email || null,
-          referredId: userId,
-          referralId: rDoc.id,
-        })
         await awardPointsInTransaction({
           adminDb,
           admin,
@@ -121,11 +103,43 @@ export async function processPendingActivationReferrals(
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           })
           t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-        }
-      })
-    } catch (e) {
-      console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
-    }
+          }
+        })
+
+        await adminDb.runTransaction(async (weeklyTransaction) => {
+          const weeklyAdvRef = adminDb.collection('advertisers').doc(referrerId)
+          const weeklyEarnerRef = adminDb.collection('earners').doc(referrerId)
+          const [weeklyAdvSnap, weeklyEarnerSnap] = await Promise.all([
+            weeklyTransaction.get(weeklyAdvRef),
+            weeklyTransaction.get(weeklyEarnerRef),
+          ])
+          if (!weeklyAdvSnap.exists && !weeklyEarnerSnap.exists) return
+          const weeklyRole = weeklyAdvSnap.exists ? 'advertiser' : 'earner'
+          const weeklyReferrerData = (weeklyAdvSnap.exists ? weeklyAdvSnap.data() : weeklyEarnerSnap.data()) as
+            | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
+            | undefined
+          await recordWeeklyReferralActivationInTransaction({
+            adminDb,
+            admin,
+            transaction: weeklyTransaction,
+            role: weeklyRole,
+            userId: referrerId,
+            name: String(
+              weeklyReferrerData?.fullName ||
+                weeklyReferrerData?.name ||
+                weeklyReferrerData?.businessName ||
+                weeklyReferrerData?.companyName ||
+                weeklyReferrerData?.email ||
+                ''
+            ).trim(),
+            email: weeklyReferrerData?.email || null,
+            referredId: userId,
+            referralId: rDoc.id,
+          })
+        })
+      } catch (e) {
+        console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
+      }
   }
 }
 

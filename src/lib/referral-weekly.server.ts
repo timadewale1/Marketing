@@ -56,6 +56,19 @@ export async function recordWeeklyReferralActivationInTransaction({
   const tier = getReferralTierFromCount(nextCount)
   const rewardField = tier ? REFERRAL_WEEKLY_REWARD_FIELD_BY_TIER[tier] : null
   const rewardAlreadyGranted = rewardField ? Boolean(statSnap.data()?.[rewardField]) : false
+  const statUpdate: Record<string, unknown> = {
+    userId,
+    role,
+    name: name || null,
+    email: email || null,
+    weekKey,
+    weeklyActivatedReferrals: FieldValue.increment(1),
+    lastActivatedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    lastReferredUserId: referredId || null,
+    lastReferralId: referralId || null,
+    ...(tier && !rewardAlreadyGranted ? { [rewardField!]: FieldValue.serverTimestamp() } : {}),
+  }
 
   if (tier && !rewardAlreadyGranted) {
     await awardPointsInTransaction({
@@ -84,19 +97,7 @@ export async function recordWeeklyReferralActivationInTransaction({
 
   transaction.set(
     statRef,
-    {
-      userId,
-      role,
-      name: name || null,
-      email: email || null,
-      weekKey,
-      weeklyActivatedReferrals: FieldValue.increment(1),
-      lastActivatedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      lastReferredUserId: referredId || null,
-      lastReferralId: referralId || null,
-      ...(tier && !rewardAlreadyGranted ? { [rewardField!]: FieldValue.serverTimestamp() } : {}),
-    },
+    statUpdate,
     { merge: true }
   )
 }
