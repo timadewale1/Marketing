@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { getPointsUserCollection, getPointsEventId, redeemPointsInTransaction, POINTS_REDEEM_MINIMUM, type PointsRedeemTarget } from '@/lib/points'
+import { getPointsUserCollection, getPointsEventId, redeemPointsInTransaction, POINTS_REDEEM_MINIMUM, pointsToNaira, type PointsRedeemTarget } from '@/lib/points'
 
 function normalizeTarget(target: unknown): PointsRedeemTarget | null {
   const value = String(target || '').trim().toLowerCase()
@@ -96,6 +96,7 @@ export async function POST(req: Request) {
       success: true,
       message: 'Points redeemed successfully',
       ...outcome,
+      walletAmount: pointsToNaira(amount),
       minimumRedeemable: POINTS_REDEEM_MINIMUM,
     })
   } catch (error) {

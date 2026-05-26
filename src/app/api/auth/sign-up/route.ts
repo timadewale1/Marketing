@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { buildCustomFirebaseActionLink } from "@/lib/firebase-action-links"
 import { sendVerificationEmail } from "@/lib/mailer"
-import { REFERRAL_CREATED_POINTS, awardPointsOnce, getPointsEventId } from "@/lib/points"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
 
@@ -124,26 +123,11 @@ export async function POST(req: Request) {
 
     if (referralId && referrerExists) {
       const referrerCollection = referrerAdvertiserSnap?.exists ? 'advertisers' : 'earners'
-      await awardPointsOnce({
-        adminDb: dbAdmin,
-        admin,
-        userCollection: referrerCollection,
-        userId: referralId,
-        amount: REFERRAL_CREATED_POINTS,
-        eventId: getPointsEventId('referral-created', referralId, createdUid),
-        type: 'referral_created',
-        note: `Referral signup bonus for inviting ${createdUid}`,
-        referenceId: createdUid,
-        extraUserUpdates: {
-          pointsReferralCount: admin.firestore.FieldValue.increment(1),
-          pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        extraLedgerData: {
-          referredUserId: createdUid,
-          referredUserType: action,
-        },
-      }).catch((error) => {
-        console.error('[signup] referral points award failed', error)
+      await dbAdmin.collection(referrerCollection).doc(referralId).set({
+        pointsReferralCount: admin.firestore.FieldValue.increment(1),
+        pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true }).catch((error) => {
+        console.error('[signup] referral counter update failed', error)
       })
     }
 

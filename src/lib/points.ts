@@ -1,10 +1,10 @@
 import type { Firestore as AdminFirestore, Transaction } from 'firebase-admin/firestore'
 
 export const POINTS_REDEEM_MINIMUM = 2500
+export const POINT_VALUE_IN_NAIRA = 0.5
 export const DAILY_LOGIN_POINTS = 10
 export const TASK_APPROVAL_POINTS = 10
 export const BILL_PAYMENT_POINTS = 5
-export const REFERRAL_CREATED_POINTS = 5
 export const REFERRAL_ACTIVATED_POINTS = 50
 export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000
@@ -47,6 +47,10 @@ export function getPointsBadgeClass(activatedReferralCount: number) {
 export function getRedeemablePoints(pointsBalance: number) {
   const balance = Math.max(0, Number(pointsBalance || 0))
   return Math.floor(balance / POINTS_REDEEM_MINIMUM) * POINTS_REDEEM_MINIMUM
+}
+
+export function pointsToNaira(points: number) {
+  return Math.max(0, Number(points || 0)) * POINT_VALUE_IN_NAIRA
 }
 
 export function getLagosDayKey(date = new Date()) {
@@ -187,6 +191,7 @@ export async function redeemPointsInTransaction({
   if (safeAmount % POINTS_REDEEM_MINIMUM !== 0) {
     throw new Error(`Redemption must be in multiples of ${POINTS_REDEEM_MINIMUM} points`)
   }
+  const walletAmount = pointsToNaira(safeAmount)
 
   const ledgerRef = adminDb.collection('pointsRedemptions').doc(eventId)
   const userRef = adminDb.collection(userCollection).doc(userId)
@@ -209,12 +214,13 @@ export async function redeemPointsInTransaction({
   }
 
   const currentWalletBalance = Number(userSnap.data()?.balance || 0)
-  const walletBalanceAfter = currentWalletBalance + safeAmount
+  const walletBalanceAfter = currentWalletBalance + walletAmount
 
   transaction.set(ledgerRef, {
     userId,
     userType: userCollection.slice(0, -1),
     amount: safeAmount,
+    walletAmount,
     target,
     note,
     balanceBefore: currentPoints,
@@ -232,7 +238,7 @@ export async function redeemPointsInTransaction({
     pointsLastRedeemedAt: admin.firestore.FieldValue.serverTimestamp(),
     pointsLastRedeemedTarget: target,
     pointsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    balance: admin.firestore.FieldValue.increment(safeAmount),
+    balance: admin.firestore.FieldValue.increment(walletAmount),
   }, { merge: true })
 
   return { duplicate: false as const, balanceAfter: walletBalanceAfter }

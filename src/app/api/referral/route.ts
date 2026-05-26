@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
-import { REFERRAL_ACTIVATED_POINTS, REFERRAL_CREATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 
 // Handle referral processing for both earners and advertisers
@@ -48,26 +48,14 @@ export async function POST(req: Request) {
       ])
       const referrerCollection = referrerAdvertiserSnap.exists ? 'advertisers' : referrerEarnerSnap.exists ? 'earners' : null
       if (referrerCollection) {
-        await awardPointsInTransaction({
-          adminDb,
-          admin,
-          transaction,
-          userCollection: referrerCollection,
-          userId: referrerId,
-          amount: REFERRAL_CREATED_POINTS,
-          eventId: getPointsEventId('referral-created', referrerId, referredId),
-          type: 'referral_created',
-          note: `Referral signup bonus for inviting ${referredId}`,
-          referenceId: referredId,
-          extraUserUpdates: {
+        transaction.set(
+          adminDb.collection(referrerCollection).doc(referrerId),
+          {
             pointsReferralCount: admin.firestore.FieldValue.increment(1),
             pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
           },
-          extraLedgerData: {
-            referredUserId: referredId,
-            referredUserType: userType,
-          },
-        })
+          { merge: true }
+        )
       }
 
       if (userType === 'earner') {

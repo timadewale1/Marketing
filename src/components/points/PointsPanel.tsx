@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Gift } from "lucide-react"
-import { getRedeemablePoints, POINTS_REDEEM_MINIMUM } from "@/lib/points"
+import { getRedeemablePoints, POINTS_REDEEM_MINIMUM, pointsToNaira } from "@/lib/points"
 
 type Role = "earner" | "advertiser"
 
@@ -77,6 +77,7 @@ export function PointsPanel({
   const seenPointSnapshotInitializedRef = useRef(false)
   const loginAwardAttemptedRef = useRef(false)
   const redeemablePoints = useMemo(() => getRedeemablePoints(pointsBalance), [pointsBalance])
+  const redeemableNairaValue = useMemo(() => pointsToNaira(redeemablePoints), [redeemablePoints])
   const totalUserPoints = Math.max(0, Number(pointsBalance || 0))
 
   useEffect(() => {
@@ -237,16 +238,16 @@ export function PointsPanel({
                   <h3 className="text-sm text-stone-600 font-medium">Points Balance</h3>
                   <p className="text-xs text-stone-500">{displayName}</p>
                   <p className="text-3xl font-bold text-stone-900">{totalUserPoints.toLocaleString()} points</p>
+                  <p className="text-xs font-medium text-stone-500">1 point = ₦0.50 naira</p>
                 </div>
               </div>
               <p className="text-sm text-stone-600 max-w-2xl">
-                Earn points for daily logins, referrals, completed tasks, bills, and high-value tasks. Redeem starts at {POINTS_REDEEM_MINIMUM.toLocaleString()} points.
+                Earn points for daily logins, completed tasks, bills, and high-value tasks. Redeem starts at {POINTS_REDEEM_MINIMUM.toLocaleString()} points, which equals ₦{pointsToNaira(POINTS_REDEEM_MINIMUM).toLocaleString()}.
               </p>
               <div className="flex flex-wrap gap-2 text-xs text-stone-500">
                 <span>Daily login: +10</span>
                 <span>Approved task: +10</span>
                 <span>Bills: +5 for bills of ₦200 and above</span>
-                <span>Referral: +5</span>
                 <span>Referral activation: +50</span>
                 <span>High-value task: +200</span>
               </div>
@@ -275,7 +276,7 @@ export function PointsPanel({
                 ))}
               </div>
               <p className="text-xs text-stone-500">
-                Redeemable now: {redeemablePoints.toLocaleString()} points
+                Redeemable now: {redeemablePoints.toLocaleString()} points (₦{redeemableNairaValue.toLocaleString()})
               </p>
             </div>
           </div>
@@ -319,7 +320,7 @@ export function PointsPanel({
           <DialogHeader>
             <DialogTitle>Redeem Points</DialogTitle>
             <DialogDescription>
-              Redeem in batches of {POINTS_REDEEM_MINIMUM.toLocaleString()} points. You can convert them to wallet balance and then use them for the selected action.
+              Redeem in batches of {POINTS_REDEEM_MINIMUM.toLocaleString()} points. At 1 point = ₦0.50, that minimum equals ₦{pointsToNaira(POINTS_REDEEM_MINIMUM).toLocaleString()}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
