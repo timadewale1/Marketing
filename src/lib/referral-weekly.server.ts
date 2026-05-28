@@ -2,20 +2,11 @@ import { FieldValue, type Firestore as AdminFirestore, type Transaction } from '
 
 import {
   REFERRAL_WEEKLY_STATS_COLLECTION,
-  REFERRAL_WEEKLY_REWARD_POINTS,
   getCurrentLagosWeekKey,
   getReferralWeeklyStatId,
   getReferralTierFromCount,
   type ReferralRole,
 } from './referral-weekly'
-import { awardPointsInTransaction, getPointsEventId } from './points'
-
-const REFERRAL_WEEKLY_REWARD_FIELD_BY_TIER = {
-  bronze: 'bronzeReferralRewardGrantedAt',
-  silver: 'silverReferralRewardGrantedAt',
-  gold: 'goldReferralRewardGrantedAt',
-  elite: 'eliteReferralRewardGrantedAt',
-} as const
 
 export function getReferralWeeklyStatDocRef(
   adminDb: AdminFirestore,
@@ -28,7 +19,6 @@ export function getReferralWeeklyStatDocRef(
 
 export async function recordWeeklyReferralActivationInTransaction({
   adminDb,
-  admin,
   transaction,
   role,
   userId,
@@ -40,7 +30,6 @@ export async function recordWeeklyReferralActivationInTransaction({
 }: {
   adminDb: AdminFirestore
   transaction: Transaction
-  admin: typeof import('firebase-admin')
   role: ReferralRole
   userId: string
   name?: string | null
@@ -54,8 +43,6 @@ export async function recordWeeklyReferralActivationInTransaction({
   const currentCount = Number(statSnap.data()?.weeklyActivatedReferrals || 0)
   const nextCount = currentCount + 1
   const tier = getReferralTierFromCount(nextCount)
-  const rewardField = tier ? REFERRAL_WEEKLY_REWARD_FIELD_BY_TIER[tier] : null
-  const rewardAlreadyGranted = rewardField ? Boolean(statSnap.data()?.[rewardField]) : false
   const statUpdate: Record<string, unknown> = {
     userId,
     role,
@@ -67,32 +54,6 @@ export async function recordWeeklyReferralActivationInTransaction({
     updatedAt: FieldValue.serverTimestamp(),
     lastReferredUserId: referredId || null,
     lastReferralId: referralId || null,
-    ...(tier && !rewardAlreadyGranted ? { [rewardField!]: FieldValue.serverTimestamp() } : {}),
-  }
-
-  if (tier && !rewardAlreadyGranted) {
-    await awardPointsInTransaction({
-      adminDb,
-      admin,
-      transaction,
-      userCollection: role === 'earner' ? 'earners' : 'advertisers',
-      userId,
-      amount: REFERRAL_WEEKLY_REWARD_POINTS[tier],
-      eventId: getPointsEventId('referral-weekly-reward', weekKey, role, userId, tier),
-      type: 'referral_weekly_reward',
-      note: `Weekly referral reward for reaching ${tier} tier`,
-      referenceId: referredId || null,
-      extraUserUpdates: {
-        pointsWeeklyReferralRewardTotal: FieldValue.increment(REFERRAL_WEEKLY_REWARD_POINTS[tier]),
-        pointsLastWeeklyReferralRewardAt: FieldValue.serverTimestamp(),
-        pointsLastWeeklyReferralRewardTier: tier,
-      },
-      extraLedgerData: {
-        weekKey,
-        tier,
-        weeklyActivatedReferrals: nextCount,
-      },
-    })
   }
 
   transaction.set(

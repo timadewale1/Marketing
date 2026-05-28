@@ -31,22 +31,22 @@ const REFERRAL_CATEGORY_GUIDE = [
   {
     label: "Bronze",
     requirement: "5 activated users",
-    reward: "250 points",
+    note: "Recognition only",
   },
   {
     label: "Silver",
     requirement: "20 activated users",
-    reward: "1,000 points",
+    note: "Recognition only",
   },
   {
     label: "Gold",
     requirement: "50 activated users",
-    reward: "2,500 points",
+    note: "Recognition only",
   },
   {
     label: "Elite",
     requirement: "100 activated users and above",
-    reward: "5,000 points",
+    note: "Recognition only",
   },
 ]
 
@@ -285,28 +285,28 @@ export function PointsPanel({
 
       <Card className="bg-white/75 backdrop-blur border-none shadow-md mt-6">
         <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <Gift className="h-5 w-5 text-amber-600" />
-            <div>
-              <h3 className="text-lg font-semibold text-stone-900">Referral category guide</h3>
-              <p className="text-sm text-stone-600">See the badge level, referral target, and reward for each category.</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Badge</TableHead>
-                  <TableHead>Requirement</TableHead>
-                  <TableHead className="text-right">Reward</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+              <div className="flex items-center gap-3">
+                <Gift className="h-5 w-5 text-amber-600" />
+                <div>
+                  <h3 className="text-lg font-semibold text-stone-900">Referral category guide</h3>
+                  <p className="text-sm text-stone-600">See the badge level and referral target for each category. These tiers are for recognition only.</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Badge</TableHead>
+                      <TableHead>Requirement</TableHead>
+                      <TableHead className="text-right">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                 {REFERRAL_CATEGORY_GUIDE.map((row) => (
                   <TableRow key={row.label}>
                     <TableCell className="font-medium text-stone-900">{row.label}</TableCell>
                     <TableCell className="text-stone-600">{row.requirement}</TableCell>
-                    <TableCell className="text-right font-semibold text-amber-700">{row.reward}</TableCell>
+                    <TableCell className="text-right font-semibold text-amber-700">{row.note}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

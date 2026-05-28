@@ -120,7 +120,6 @@ export async function processPendingActivationReferrals(
             | undefined
           await recordWeeklyReferralActivationInTransaction({
             adminDb,
-            admin,
             transaction: weeklyTransaction,
             role: weeklyRole,
             userId: referrerId,
