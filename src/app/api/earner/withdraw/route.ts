@@ -191,6 +191,7 @@ export async function POST(req: Request) {
           narration: `Withdrawal for ${recipientName}`,
           destinationBankCode: bank.bankCode!,
           destinationAccountNumber: bank.accountNumber!,
+          destinationAccountName: String(bank.accountName || recipientName || 'Pamba User').trim(),
         })
         
         console.log('[withdraw][earner] monnify disbursement initiated', disbursementResponse)

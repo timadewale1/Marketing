@@ -716,12 +716,14 @@ export async function initiateDisbursement({
   narration,
   destinationBankCode,
   destinationAccountNumber,
+  destinationAccountName,
 }: {
   amount: number // In Naira
   reference: string // Unique reference ID
   narration: string // Description
   destinationBankCode: string // 3-digit bank code
   destinationAccountNumber: string
+  destinationAccountName: string
 }) {
   const token = await getAuthToken()
 
@@ -731,6 +733,7 @@ export async function initiateDisbursement({
     narration,
     destinationBankCode,
     destinationAccountNumber,
+    destinationAccountName,
     currency: 'NGN',
     sourceAccountNumber: MONNIFY_WALLET_ACCOUNT,
   }
