@@ -12,6 +12,8 @@ interface MonnifyVerificationResponse {
   }
 }
 
+const ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS = [0, 3000, 10000, 25000, 60000, 120000]
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -26,6 +28,7 @@ export async function POST(req: Request) {
       : [reference]
 
     let paidAmount = 0
+    let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
 
     if (provider === 'monnify') {
       await logPaymentLifecycle({
@@ -60,13 +63,17 @@ export async function POST(req: Request) {
         }
 
         try {
-          const confirmation = await confirmMonnifyPaymentWithRetries(reference, referenceCandidates)
-          referenceCandidates = confirmation.references
-          if (!confirmation.confirmed) {
-            console.warn('Monnify server verification not yet confirmed, keeping activation pending:', confirmation.paymentStatus)
+          monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
+            reference,
+            referenceCandidates,
+            ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS
+          )
+          referenceCandidates = monnifyConfirmation.references
+          if (!monnifyConfirmation.confirmed) {
+            console.warn('Monnify server verification not yet confirmed, keeping activation pending:', monnifyConfirmation.paymentStatus)
           } else {
             console.log('Monnify server verification successful')
-            const responseBody = confirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
+            const responseBody = monnifyConfirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
             paidAmount = Number(responseBody?.amount || 2000)
           }
         } catch (verifyError) {
@@ -121,7 +128,11 @@ export async function POST(req: Request) {
 
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     if (provider === 'monnify') {
-      const confirmation = await confirmMonnifyPaymentWithRetries(reference, referenceCandidates)
+      const confirmation = monnifyConfirmation || await confirmMonnifyPaymentWithRetries(
+        reference,
+        referenceCandidates,
+        ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS
+      )
       referenceCandidates = confirmation.references
 
       const { admin, dbAdmin } = await initFirebaseAdmin()
