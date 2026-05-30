@@ -12,7 +12,9 @@ interface MonnifyVerificationResponse {
   }
 }
 
-const ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS = [0, 3000, 10000, 25000, 60000, 120000]
+// Fast activation lane: keep trying for just under 5 minutes so fresh successful
+// payments can settle without falling back to the slower background recovery.
+const ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS = [0, 2000, 5000, 10000, 20000, 40000, 60000, 150000]
 
 export async function POST(req: Request) {
   try {
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
     const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
     const userId = body?.userId as string | undefined
     if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
+    if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     let referenceCandidates = provider === 'monnify'
       ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
       : [reference]
@@ -43,6 +46,32 @@ export async function POST(req: Request) {
         amount: 2000,
       })
       try {
+        const { admin, dbAdmin } = await initFirebaseAdmin()
+        if (!admin || !dbAdmin) {
+          return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
+        }
+
+        await dbAdmin.collection('advertisers').doc(userId).set({
+          pendingActivationReference: referenceCandidates[0] || reference,
+          pendingActivationReferences: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
+          pendingActivationProvider: 'monnify',
+          activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true })
+
+        await dbAdmin.collection('activationAttempts').doc(`advertiser_${userId}`).set({
+          reference: referenceCandidates[0] || reference,
+          references: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
+          status: 'pending',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          recoveryRetryCount: 0,
+          lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+          lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryDisposition: admin.firestore.FieldValue.delete(),
+          recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+          recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+        }, { merge: true })
+
         // For Monnify SDK payments, trust the onComplete callback
         // The SDK only fires onComplete after successful payment
         console.log('Monnify SDK activation verification - trusting SDK callback')
@@ -134,32 +163,6 @@ export async function POST(req: Request) {
         ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS
       )
       referenceCandidates = confirmation.references
-
-      const { admin, dbAdmin } = await initFirebaseAdmin()
-      if (!admin || !dbAdmin) {
-        return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
-      }
-
-      await dbAdmin.collection('advertisers').doc(userId).set({
-        pendingActivationReference: referenceCandidates[0] || reference,
-        pendingActivationReferences: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
-        pendingActivationProvider: 'monnify',
-        activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true })
-
-      await dbAdmin.collection('activationAttempts').doc(`advertiser_${userId}`).set({
-        reference: referenceCandidates[0] || reference,
-        references: admin.firestore.FieldValue.arrayUnion(...referenceCandidates),
-        status: 'pending',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        recoveryRetryCount: 0,
-        lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
-        lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
-        nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
-        recoveryDisposition: admin.firestore.FieldValue.delete(),
-        recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
-        recoveryEscalationReason: admin.firestore.FieldValue.delete(),
-      }, { merge: true })
 
       if (!confirmation.confirmed) {
         await logPaymentLifecycle({

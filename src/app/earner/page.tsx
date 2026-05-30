@@ -49,7 +49,7 @@ import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
 import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
 
-const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/CItU3jY1oP2GF6wOZA2eKC"
+const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/GnxIXIyfkEmFlrsVhwOHgR"
 const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
 
 type WithdrawRecord = {
