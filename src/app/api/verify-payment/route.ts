@@ -7,6 +7,8 @@ import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 
+const WALLET_FUNDING_CONFIRMATION_RETRY_DELAYS_MS = [0, 2000, 5000, 10000, 20000, 40000, 60000, 150000]
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -51,7 +53,11 @@ export async function POST(req: NextRequest) {
             )
           }
         }
-        const confirmation = await confirmMonnifyPaymentWithRetries(String(reference), referenceCandidates)
+        const confirmation = await confirmMonnifyPaymentWithRetries(
+          String(reference),
+          referenceCandidates,
+          WALLET_FUNDING_CONFIRMATION_RETRY_DELAYS_MS
+        )
         referenceCandidates = confirmation.references
         monnifyConfirmed = confirmation.confirmed
 

@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
+import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
 type UserRole = "earner" | "advertiser"
 type VerificationState = "paid" | "manual_check" | "unverified"
@@ -83,6 +84,46 @@ function resolveLightVerificationState(
   })
 
   return hasMonnifyLike ? "manual_check" : "unverified"
+}
+
+function extractMonnifyPaymentStatus(payload: Record<string, unknown> | null | undefined) {
+  const responseBody = payload?.responseBody as Record<string, unknown> | undefined
+  return String(responseBody?.paymentStatus || responseBody?.status || "").toUpperCase()
+}
+
+async function resolveWalletFundingVerificationState(
+  references: string[],
+  providerHint: unknown,
+  successfulWebhookReferences?: Set<string>,
+) {
+  const localState = resolveLightVerificationState(references, providerHint, successfulWebhookReferences)
+  if (localState === "paid") {
+    return "paid" as const
+  }
+
+  const provider = String(providerHint || "monnify").toLowerCase()
+  if (provider !== "monnify") {
+    return localState
+  }
+
+  for (const reference of references) {
+    try {
+      const payload = await verifyMonnifyTransaction(reference)
+      if (payload?.requestSuccessful) {
+        const status = extractMonnifyPaymentStatus(payload as Record<string, unknown> | null)
+        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL") {
+          return "paid" as const
+        }
+        if (status === "PENDING" || status === "PROCESSING" || status === "INITIATED" || status === "IN_PROGRESS") {
+          return "manual_check" as const
+        }
+      }
+    } catch (error) {
+      console.warn("[admin][recovery] Monnify direct verification failed", { reference, error })
+    }
+  }
+
+  return localState
 }
 
 export async function GET(): Promise<Response> {
@@ -369,7 +410,7 @@ export async function POST(req: Request) {
         tx.reference,
         ...(Array.isArray(tx.referenceCandidates) ? tx.referenceCandidates : []),
       ])
-      const verificationState = resolveLightVerificationState(
+      const verificationState = await resolveWalletFundingVerificationState(
         txReferences,
         tx.provider || "monnify",
         undefined,
