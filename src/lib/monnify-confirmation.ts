@@ -15,6 +15,46 @@ function isConfirmedPaymentStatus(value: unknown) {
   return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
 }
 
+function getMonnifyResponseBody(source: Record<string, unknown> | null | undefined) {
+  if (!source || typeof source !== "object") return null
+  const nestedData = source && typeof source.data === "object" && source.data !== null
+    ? (source.data as Record<string, unknown>)
+    : null
+
+  if (source.responseBody && typeof source.responseBody === "object") {
+    return source.responseBody as Record<string, unknown>
+  }
+
+  if (nestedData && (nestedData.paymentStatus || nestedData.status)) {
+    return nestedData
+  }
+
+  return source
+}
+
+function getIntrinsicMonnifyReferences(source: Record<string, unknown> | null | undefined) {
+  if (!source || typeof source !== "object") return []
+
+  const nestedData = source && typeof source.data === "object" && source.data !== null
+    ? (source.data as Record<string, unknown>)
+    : null
+
+  return [...new Set([
+    source.transactionReference,
+    source.reference,
+    source.paymentReference,
+    nestedData?.transactionReference,
+    nestedData?.reference,
+    nestedData?.paymentReference,
+  ].map((value) => typeof value === "string" ? value.trim() : "").filter(Boolean))]
+}
+
+export function isMonnifyImmediateSuccessResponse(source: Record<string, unknown> | null | undefined) {
+  const responseBody = getMonnifyResponseBody(source)
+  const paymentStatus = String(responseBody?.paymentStatus || responseBody?.status || source?.paymentStatus || source?.status || "").toUpperCase()
+  return isConfirmedPaymentStatus(paymentStatus) && getIntrinsicMonnifyReferences(source).length > 0
+}
+
 export async function confirmMonnifyPaymentWithRetries(
   reference: string,
   initialReferences: string[] = [],

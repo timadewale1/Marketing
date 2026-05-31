@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { extractMonnifyReferenceCandidates, runFullActivationFlow } from '@/lib/paymentProcessing'
-import { confirmMonnifyPaymentWithRetries } from '@/lib/monnify-confirmation'
+import { confirmMonnifyPaymentWithRetries, isMonnifyImmediateSuccessResponse } from '@/lib/monnify-confirmation'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
 
     let paidAmount = 0
     let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
+    const monnifyImmediateSuccess = provider === 'monnify' && Boolean(monnifyResponse) && isMonnifyImmediateSuccessResponse(monnifyResponse)
 
     if (provider === 'monnify') {
       await logPaymentLifecycle({
@@ -92,18 +93,29 @@ export async function POST(req: Request) {
         }
 
         try {
-          monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
-            reference,
-            referenceCandidates,
-            ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS
-          )
-          referenceCandidates = monnifyConfirmation.references
-          if (!monnifyConfirmation.confirmed) {
-            console.warn('Monnify server verification not yet confirmed, keeping activation pending:', monnifyConfirmation.paymentStatus)
+          if (monnifyImmediateSuccess) {
+            monnifyConfirmation = {
+              confirmed: true,
+              references: referenceCandidates,
+              paymentStatus: 'PAID',
+              verificationResult: null,
+            }
+            paidAmount = 2000
+            console.log('Monnify SDK reported immediate success, activating without waiting for retry window')
           } else {
-            console.log('Monnify server verification successful')
-            const responseBody = monnifyConfirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
-            paidAmount = Number(responseBody?.amount || 2000)
+            monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
+              reference,
+              referenceCandidates,
+              ACTIVATION_CONFIRMATION_RETRY_DELAYS_MS
+            )
+            referenceCandidates = monnifyConfirmation.references
+            if (!monnifyConfirmation.confirmed) {
+              console.warn('Monnify server verification not yet confirmed, keeping activation pending:', monnifyConfirmation.paymentStatus)
+            } else {
+              console.log('Monnify server verification successful')
+              const responseBody = monnifyConfirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
+              paidAmount = Number(responseBody?.amount || 2000)
+            }
           }
         } catch (verifyError) {
           console.warn('Monnify server verification failed, keeping activation pending:', verifyError)

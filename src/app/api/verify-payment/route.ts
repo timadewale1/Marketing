@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
-import { confirmMonnifyPaymentWithRetries } from '@/lib/monnify-confirmation'
+import { confirmMonnifyPaymentWithRetries, isMonnifyImmediateSuccessResponse } from '@/lib/monnify-confirmation'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       : [String(reference)]
 
     let monnifyConfirmed = provider !== 'monnify'
+    let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
+    const monnifyImmediateSuccess = provider === 'monnify' && Boolean(monnifyResponse) && isMonnifyImmediateSuccessResponse(monnifyResponse)
 
     if (provider === 'monnify') {
       await logPaymentLifecycle({
@@ -53,18 +55,29 @@ export async function POST(req: NextRequest) {
             )
           }
         }
-        const confirmation = await confirmMonnifyPaymentWithRetries(
-          String(reference),
-          referenceCandidates,
-          WALLET_FUNDING_CONFIRMATION_RETRY_DELAYS_MS
-        )
-        referenceCandidates = confirmation.references
-        monnifyConfirmed = confirmation.confirmed
-
-        if (!confirmation.confirmed) {
-          console.warn('Monnify payment not yet confirmed:', confirmation.paymentStatus)
+        if (monnifyImmediateSuccess) {
+          monnifyConfirmed = true
+          monnifyConfirmation = {
+            confirmed: true,
+            references: referenceCandidates,
+            paymentStatus: 'PAID',
+            verificationResult: null,
+          }
+          console.log('Monnify SDK reported immediate success, proceeding without waiting for retry window')
         } else {
-          console.log('Monnify payment confirmed server-side')
+          monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
+            String(reference),
+            referenceCandidates,
+            WALLET_FUNDING_CONFIRMATION_RETRY_DELAYS_MS
+          )
+          referenceCandidates = monnifyConfirmation.references
+          monnifyConfirmed = monnifyConfirmation.confirmed
+
+          if (!monnifyConfirmation.confirmed) {
+            console.warn('Monnify payment not yet confirmed:', monnifyConfirmation.paymentStatus)
+          } else {
+            console.log('Monnify payment confirmed server-side')
+          }
         }
       } catch (e) {
         console.error('Monnify verification failed:', e)
@@ -149,7 +162,7 @@ export async function POST(req: NextRequest) {
 
     if (type === 'wallet_funding' && userId && amount > 0) {
       if (provider === 'monnify') {
-        const confirmation = await confirmMonnifyPaymentWithRetries(String(reference), referenceCandidates)
+        const confirmation = monnifyConfirmation || await confirmMonnifyPaymentWithRetries(String(reference), referenceCandidates)
         referenceCandidates = confirmation.references
 
         const pendingSnap = await adminDb.collection('advertiserTransactions')
