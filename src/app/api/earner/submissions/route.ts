@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       campaignId,
       proofUrl,
       proofUrls,
+      proofHashes,
       note,
       socialHandle,
     } = body || {}
@@ -48,9 +49,18 @@ export async function POST(req: Request) {
       : String(proofUrl || '').trim()
         ? [String(proofUrl).trim()]
         : []
+    const normalizedProofHashes = Array.isArray(proofHashes)
+      ? proofHashes.map((value: unknown) => String(value || '').trim().toLowerCase()).filter(Boolean).slice(0, 5)
+      : []
 
     if (!campaignId || normalizedProofUrls.length === 0) {
       return NextResponse.json({ success: false, message: 'Missing submission details' }, { status: 400 })
+    }
+    if (normalizedProofHashes.length > 0 && normalizedProofHashes.length !== normalizedProofUrls.length) {
+      return NextResponse.json({ success: false, message: 'Proof file metadata is incomplete' }, { status: 400 })
+    }
+    if (new Set(normalizedProofHashes).size !== normalizedProofHashes.length) {
+      return NextResponse.json({ success: false, message: 'Duplicate proof files are not allowed' }, { status: 400 })
     }
 
     const { admin, dbAdmin } = await initFirebaseAdmin()
@@ -157,6 +167,16 @@ export async function POST(req: Request) {
         throw new Error('Insufficient campaign budget to reserve funds')
       }
 
+      if (normalizedProofHashes.length > 0) {
+        for (const proofHash of normalizedProofHashes) {
+          const fingerprintRef = db.collection('proofFingerprints').doc(proofHash)
+          const fingerprintSnap = await transaction.get(fingerprintRef)
+          if (fingerprintSnap.exists) {
+            throw new Error('One or more proof files have already been used on another task')
+          }
+        }
+      }
+
       const submissionRef = db.collection('earnerSubmissions').doc()
       createdSubmissionId = submissionRef.id
 
@@ -188,7 +208,18 @@ export async function POST(req: Request) {
         advertiserFlaggedAt: null,
         advertiserFlagReviewDueAt: null,
         advertiserFlagWindowEndsAt: flagWindowEndsAt,
+        proofHashes: normalizedProofHashes,
       })
+
+      for (const proofHash of normalizedProofHashes) {
+        transaction.set(db.collection('proofFingerprints').doc(proofHash), {
+          proofHash,
+          userId,
+          submissionId: submissionRef.id,
+          campaignId: String(campaignId),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
 
       const noteRef = db.collection('adminNotifications').doc()
       transaction.set(noteRef, {

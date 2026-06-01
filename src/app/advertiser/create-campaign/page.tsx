@@ -137,6 +137,9 @@ export default function CreateCampaignPage() {
   const [priorityBudget, setPriorityBudget] = useState<number | "">("")
   const [priorityEnabled, setPriorityEnabled] = useState(false)
   const [priorityMultiplier, setPriorityMultiplier] = useState(1)
+  const [taskDurationEnabled, setTaskDurationEnabled] = useState(false)
+  const [taskDurationValue, setTaskDurationValue] = useState<number | "">("")
+  const [taskDurationUnit, setTaskDurationUnit] = useState<"hours" | "days">("hours")
 
   // derived values
   const activeBudget = priorityEnabled ? priorityBudget : budget
@@ -383,6 +386,8 @@ const compressed = await imageCompression(file, options)
       participationProofSampleUrls: participationProofSampleSlots
         .map((slot) => slot.url)
         .filter(Boolean),
+      taskDurationValue: taskDurationEnabled && Number(taskDurationValue || 0) > 0 ? Number(taskDurationValue) : null,
+      taskDurationUnit: taskDurationEnabled && Number(taskDurationValue || 0) > 0 ? taskDurationUnit : null,
       status: "Active",
       createdAt: serverTimestamp(),
     }
@@ -950,6 +955,44 @@ const getEmbeddedVideo = (url: string) => {
                     </div>
                   ) : null}
                 </div>
+                <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-stone-800">Task duration (optional)</p>
+                      <p className="text-xs text-stone-500">
+                        Choose how long the task should stay open before it expires automatically.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={taskDurationEnabled ? "default" : "outline"}
+                      className={taskDurationEnabled ? "bg-amber-500 text-stone-900 hover:bg-amber-600" : "rounded-full"}
+                      onClick={() => setTaskDurationEnabled((current) => !current)}
+                    >
+                      {taskDurationEnabled ? "Duration on" : "Add duration"}
+                    </Button>
+                  </div>
+                  {taskDurationEnabled ? (
+                    <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        placeholder="Enter duration"
+                        value={taskDurationValue}
+                        onChange={(e) => setTaskDurationValue(e.target.value === "" ? "" : Number(e.target.value))}
+                      />
+                      <select
+                        value={taskDurationUnit}
+                        onChange={(event) => setTaskDurationUnit(event.target.value === "days" ? "days" : "hours")}
+                        className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800"
+                      >
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                      </select>
+                    </div>
+                  ) : null}
+                </div>
                 {numericBudget > 0 && !isBudgetMultiple ? (
                   <p className="mt-2 text-xs text-rose-600">
                     This task type only allows multiples of ₦{effectiveCPL.toLocaleString()}. Try ₦{nextValidBudget.toLocaleString()} instead.
@@ -963,6 +1006,11 @@ const getEmbeddedVideo = (url: string) => {
                   <div>
                     <div className="font-medium">Summary</div>
                     <div className="text-sm text-stone-600">Budget: ₦{numericBudget.toLocaleString() || 0} • Estimated leads: {estimatedLeads}</div>
+                    {taskDurationEnabled && Number(taskDurationValue || 0) > 0 ? (
+                      <div className="text-xs text-stone-500">
+                        Duration: {Number(taskDurationValue).toLocaleString()} {taskDurationUnit}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>

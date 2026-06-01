@@ -100,7 +100,7 @@ export async function POST(req: Request) {
               paymentStatus: 'PAID',
               verificationResult: null,
             }
-            paidAmount = 2000
+            paidAmount = Number((monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.responseBody?.amount || (monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.data?.amount || 2000)
             console.log('Monnify SDK reported immediate success, activating without waiting for retry window')
           } else {
             monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
@@ -202,13 +202,13 @@ export async function POST(req: Request) {
       paidAmount = Number(responseBody?.amount || 2000)
     }
 
-    if (paidAmount < 2000) {
+    if (paidAmount <= 0) {
       return NextResponse.json({ success: false, message: 'Insufficient payment amount' }, { status: 400 })
     }
 
     // Process activation with retry mechanism
     try {
-      const result = await runFullActivationFlow(userId, reference, provider, 'advertiser', referenceCandidates)
+      const result = await runFullActivationFlow(userId, reference, provider, 'advertiser', referenceCandidates, paidAmount)
       
       if (result && result.success) {
         await logPaymentLifecycle({

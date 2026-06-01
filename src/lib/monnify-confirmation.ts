@@ -38,11 +38,21 @@ function getIntrinsicMonnifyReferences(source: Record<string, unknown> | null | 
   const nestedData = source && typeof source.data === "object" && source.data !== null
     ? (source.data as Record<string, unknown>)
     : null
+  const responseBody = getMonnifyResponseBody(source)
+  const responseBodyData = responseBody && typeof responseBody.data === "object" && responseBody.data !== null
+    ? (responseBody.data as Record<string, unknown>)
+    : null
 
   return [...new Set([
     source.transactionReference,
     source.reference,
     source.paymentReference,
+    responseBody?.transactionReference,
+    responseBody?.reference,
+    responseBody?.paymentReference,
+    responseBodyData?.transactionReference,
+    responseBodyData?.reference,
+    responseBodyData?.paymentReference,
     nestedData?.transactionReference,
     nestedData?.reference,
     nestedData?.paymentReference,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
-import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
+import { extractMonnifyReferenceCandidates, processWalletFundingWithRetry, awardAdvertiserFirstTaskReferralBonusInTransaction } from '@/lib/paymentProcessing'
 import { confirmMonnifyPaymentWithRetries, isMonnifyImmediateSuccessResponse } from '@/lib/monnify-confirmation'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
@@ -126,11 +126,32 @@ export async function POST(req: NextRequest) {
           userId ||
           'Advertiser'
         ).trim()
+        const taskDurationValue = Number(campaignData.taskDurationValue || 0)
+        const taskDurationUnit = String(campaignData.taskDurationUnit || '').toLowerCase() === 'days' ? 'days' : 'hours'
 
         await campaignRef.set({
           ...campaignData,
           paymentRef: reference,
+          taskDurationValue: taskDurationValue > 0 ? taskDurationValue : null,
+          taskDurationUnit: taskDurationValue > 0 ? taskDurationUnit : null,
+          expiresAt:
+            taskDurationValue > 0
+              ? admin.firestore.Timestamp.fromMillis(
+                  Date.now() + taskDurationValue * (taskDurationUnit === 'days' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000)
+                )
+              : null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+        await dbAdmin.runTransaction(async (t) => {
+          await awardAdvertiserFirstTaskReferralBonusInTransaction(
+            adminDb,
+            admin,
+            t,
+            String(userId || ''),
+            campaignRef.id,
+            Number(campaignData?.budget || 0),
+            campaignTitle
+          )
         })
         await notifyAdminOfTaskCreated({
           advertiserId: String(userId || ''),

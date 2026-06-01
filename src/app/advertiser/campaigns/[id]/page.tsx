@@ -78,6 +78,9 @@ type Submission = {
   advertiserDecisionStatus?: string
   advertiserDecisionReason?: string | null
   advertiserDecisionAt?: string | null
+  resubmissionRequestedAt?: string | null
+  resubmissionDueAt?: string | null
+  resubmissionSubmittedAt?: string | null
   earnerDisputeReason?: string | null
 }
 
@@ -161,6 +164,15 @@ export default function CampaignDetailsPage() {
             advertiserDecisionReason: submissionDoc.data().advertiserDecisionReason ? String(submissionDoc.data().advertiserDecisionReason) : null,
             advertiserDecisionAt: submissionDoc.data().advertiserDecisionAt?.toDate
               ? submissionDoc.data().advertiserDecisionAt.toDate().toISOString()
+              : null,
+            resubmissionRequestedAt: submissionDoc.data().resubmissionRequestedAt?.toDate
+              ? submissionDoc.data().resubmissionRequestedAt.toDate().toISOString()
+              : null,
+            resubmissionDueAt: submissionDoc.data().resubmissionDueAt?.toDate
+              ? submissionDoc.data().resubmissionDueAt.toDate().toISOString()
+              : null,
+            resubmissionSubmittedAt: submissionDoc.data().resubmissionSubmittedAt?.toDate
+              ? submissionDoc.data().resubmissionSubmittedAt.toDate().toISOString()
               : null,
             earnerDisputeReason: submissionDoc.data().earnerDisputeReason ? String(submissionDoc.data().earnerDisputeReason) : null,
           }))
@@ -338,12 +350,12 @@ export default function CampaignDetailsPage() {
     }
   }
 
-  const handleAdvertiserReview = async (submission: Submission, action: "Verified" | "Rejected") => {
+  const handleAdvertiserReview = async (submission: Submission, action: "Verified" | "Rejected" | "RequestResubmission") => {
     const user = auth.currentUser
     if (!user) return toast.error("Please sign in again to continue")
-    const reason = action === "Rejected" ? (flagReasons[submission.id] || "").trim() : ""
-    if (action === "Rejected" && reason.length < 10) {
-      return toast.error("Please add a clear reason before rejecting this proof.")
+    const reason = action === "Verified" ? "" : (flagReasons[submission.id] || "").trim()
+    if (action !== "Verified" && reason.length < 10) {
+      return toast.error("Please add a clear reason before sending this request.")
     }
 
     setFlaggingSubmissionId(submission.id)
@@ -362,7 +374,13 @@ export default function CampaignDetailsPage() {
         throw new Error(data.message || "Failed to review submission")
       }
       setFlagReasons((current) => ({ ...current, [submission.id]: "" }))
-      toast.success(action === "Verified" ? "Proof approved" : "Proof rejected")
+      toast.success(
+        action === "Verified"
+          ? "Proof approved"
+          : action === "Rejected"
+            ? "Proof rejected"
+            : "Proof sent back for resubmission"
+      )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to review submission")
     } finally {
@@ -752,6 +770,9 @@ export default function CampaignDetailsPage() {
                       advertiserReason={submission.advertiserDecisionReason || submission.advertiserFlagReason}
                       advertiserReviewAt={submission.advertiserDecisionAt}
                       advertiserReviewDueAt={submission.advertiserFlagReviewDueAt}
+                      resubmissionRequestedAt={submission.resubmissionRequestedAt}
+                      resubmissionDueAt={submission.resubmissionDueAt}
+                      resubmissionSubmittedAt={submission.resubmissionSubmittedAt}
                       earnerDisputeReason={submission.earnerDisputeReason}
                     />
                     {submission.status === "Pending" && !["approved", "rejected", "auto_verified", "upheld", "overruled"].includes(
@@ -759,8 +780,8 @@ export default function CampaignDetailsPage() {
                     ) ? (
                       <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-3">
                         <p className="text-sm font-semibold text-stone-800">Advertiser review</p>
-                        <p className="text-xs text-stone-500">
-                          Approve to accept this proof or reject it with a clear reason. You can only make one decision.
+                      <p className="text-xs text-stone-500">
+                          Approve to accept this proof, reject it with a clear reason, or request a resubmission if the proof needs another try.
                         </p>
                         <Textarea
                           value={flagReasons[submission.id] || ""}
@@ -776,17 +797,25 @@ export default function CampaignDetailsPage() {
                           >
                             {flaggingSubmissionId === submission.id ? "Saving..." : "Approve"}
                           </Button>
-                          <Button
-                            variant="outline"
-                            className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-                            disabled={flaggingSubmissionId === submission.id}
-                            onClick={() => void handleAdvertiserReview(submission, "Rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                          disabled={flaggingSubmissionId === submission.id}
+                          onClick={() => void handleAdvertiserReview(submission, "Rejected")}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                          disabled={flaggingSubmissionId === submission.id}
+                          onClick={() => void handleAdvertiserReview(submission, "RequestResubmission")}
+                        >
+                          Request resubmission
+                        </Button>
                       </div>
-                    ) : null}
+                    </div>
+                  ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(submission.proofUrls || []).length > 0 ? (

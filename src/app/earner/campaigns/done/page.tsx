@@ -27,6 +27,9 @@ type Submission = {
   advertiserDecisionStatus?: string;
   advertiserDecisionReason?: string | null;
   advertiserDecisionAt?: string | null;
+  resubmissionRequestedAt?: string | null;
+  resubmissionDueAt?: string | null;
+  resubmissionSubmittedAt?: string | null;
   advertiserFlagStatus?: string;
   earnerDisputeReason?: string | null;
 };
@@ -95,6 +98,9 @@ export default function DoneCampaignsPage() {
           advertiserDecisionStatus: String(data.advertiserDecisionStatus || data.advertiserFlagStatus || ""),
           advertiserDecisionReason: data.advertiserDecisionReason ? String(data.advertiserDecisionReason) : null,
           advertiserDecisionAt: getTimestampLikeDate(data.advertiserDecisionAt as Submission["createdAt"])?.toISOString() || null,
+          resubmissionRequestedAt: getTimestampLikeDate(data.resubmissionRequestedAt as Submission["createdAt"])?.toISOString() || null,
+          resubmissionDueAt: getTimestampLikeDate(data.resubmissionDueAt as Submission["createdAt"])?.toISOString() || null,
+          resubmissionSubmittedAt: getTimestampLikeDate(data.resubmissionSubmittedAt as Submission["createdAt"])?.toISOString() || null,
           earnerDisputeReason: data.earnerDisputeReason ? String(data.earnerDisputeReason) : null,
         } as Submission;
       });
@@ -120,7 +126,11 @@ export default function DoneCampaignsPage() {
       files.map(async (file) => {
         const storageRef = ref(storage, `earnerSubmissions/${user.uid}/resubmits/${submissionId}/${Date.now()}-${file.name}`);
         await uploadBytes(storageRef, file);
-        return getDownloadURL(storageRef);
+        const url = await getDownloadURL(storageRef);
+        const bytes = await file.arrayBuffer();
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        const hash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+        return { url, hash };
       })
     );
   };
@@ -144,7 +154,10 @@ export default function DoneCampaignsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ proofUrls: uploadedProofs }),
+        body: JSON.stringify({
+          proofUrls: uploadedProofs.map((item) => item.url),
+          proofHashes: uploadedProofs.map((item) => item.hash),
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {
@@ -266,6 +279,9 @@ export default function DoneCampaignsPage() {
                         advertiserStatus={s.advertiserDecisionStatus}
                         advertiserReason={s.advertiserDecisionReason || s.rejectionReason || null}
                         advertiserReviewAt={s.advertiserDecisionAt}
+                        resubmissionRequestedAt={s.resubmissionRequestedAt}
+                        resubmissionDueAt={s.resubmissionDueAt}
+                        resubmissionSubmittedAt={s.resubmissionSubmittedAt}
                         earnerDisputeReason={s.earnerDisputeReason}
                         className="mt-3"
                       />

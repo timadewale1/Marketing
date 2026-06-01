@@ -9,7 +9,6 @@ import toast from "react-hot-toast"
 import { auth } from '@/lib/firebase'
 import Image from "next/image"
 import { registerWalletFundingReference } from "@/lib/wallet-funding-client"
-import { extractMonnifyReferenceCandidates } from "@/lib/monnify-reference"
 
 export type FundWalletModalProps = {
   open: boolean
@@ -186,12 +185,10 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
             email={email || ""}
             fullName={auth.currentUser?.displayName || 'Customer'}
             open={monnifyOpen}
-            onSuccess={async (response: Record<string, unknown>) => {
+            onSuccess={async (response: Record<string, unknown>, reference: string) => {
               setMonnifyOpen(false)
               setIsLoading(false)
               try {
-                // Extract reference from the response object
-                const reference = extractMonnifyReferenceCandidates("", response)[0] || response
                 const verifyUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/verify-payment` : '/api/verify-payment'
                 const res = await fetch(verifyUrl, {
                   method: 'POST',

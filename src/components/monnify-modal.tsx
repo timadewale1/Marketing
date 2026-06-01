@@ -100,7 +100,7 @@ interface MonnifyModalProps {
   description?: string
   open: boolean
   onClose: () => void
-  onSuccess: (response: MonnifyResponse) => void
+  onSuccess: (response: MonnifyResponse, reference: string) => void
   onReferenceCreated?: (reference: string) => Promise<void> | void
 }
 
@@ -166,7 +166,7 @@ export default function MonnifyModal({
             // Reset the flag after payment completes
             paymentInitiatedRef.current = false
             // Pass the full response to onSuccess
-            onSuccess(response)
+            onSuccess(response, txRef)
           },
           onClose: () => {
             // Reset the flag when modal closes

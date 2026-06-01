@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
-import { sendEarnerStrikeEmail } from '@/lib/mailer'
+import { sendEarnerStrikeEmail, sendProofResubmissionRequestedEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
@@ -43,6 +43,7 @@ function normalizeAction(action: unknown) {
   const value = String(action || '').trim().toLowerCase()
   if (value === 'verified' || value === 'approve' || value === 'approved') return 'Verified' as const
   if (value === 'rejected' || value === 'reject') return 'Rejected' as const
+  if (value === 'requestresubmission' || value === 'request_resubmission' || value === 'resubmission') return 'RequestResubmission' as const
   return null
 }
 
@@ -64,9 +65,9 @@ export async function POST(req: Request) {
     if (!action) {
       return NextResponse.json({ success: false, message: 'A valid review action is required' }, { status: 400 })
     }
-    if (action === 'Rejected' && normalizedReason.length < 10) {
+    if ((action === 'Rejected' || action === 'RequestResubmission') && normalizedReason.length < 10) {
       return NextResponse.json(
-        { success: false, message: 'Please explain clearly why this proof should be rejected.' },
+        { success: false, message: 'Please explain clearly why this proof should be rejected or resubmitted.' },
         { status: 400 }
       )
     }
@@ -94,9 +95,12 @@ export async function POST(req: Request) {
     }
 
     const reviewStatus = String(submission.advertiserDecisionStatus || '').trim().toLowerCase()
-    if (reviewStatus === 'approved' || reviewStatus === 'rejected') {
+    if (reviewStatus === 'approved' || reviewStatus === 'rejected' || reviewStatus === 'resubmission_requested') {
       if ((reviewStatus === 'approved' && action === 'Verified') || (reviewStatus === 'rejected' && action === 'Rejected')) {
         return NextResponse.json({ success: true, message: 'This submission was already reviewed' })
+      }
+      if (reviewStatus === 'resubmission_requested' && action === 'RequestResubmission') {
+        return NextResponse.json({ success: true, message: 'This submission already has a resubmission request' })
       }
       return NextResponse.json({ success: false, message: 'This submission has already been reviewed and cannot be changed' }, { status: 400 })
     }
@@ -120,6 +124,8 @@ export async function POST(req: Request) {
     const earnerEmail = String(earnerData?.email || '').trim()
     const earnerName = String(earnerData?.fullName || earnerData?.name || '').trim() || undefined
     const strikeEmailPayload: { current?: StrikeEmailPayload } = {}
+    let resubmissionEmailPayload: { email: string; name?: string; taskTitle: string; reason: string; dueAt: Date } | null = null
+    const resubmissionDueAt = new Date(now.getTime() + 8 * 60 * 60 * 1000)
 
     await db.runTransaction(async (t) => {
       const campaignId = String(submission.campaignId || '')
@@ -283,6 +289,36 @@ export async function POST(req: Request) {
           advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
         }
         t.update(advertiserRef, advertiserUpdates)
+      } else if (action === 'RequestResubmission') {
+        const finalReason = normalizedReason
+        t.update(submissionRef, {
+          status: 'Pending',
+          reviewedAt: now,
+          reviewedBy: advertiserId,
+          rejectionReason: null,
+          advertiserDecisionStatus: 'resubmission_requested',
+          advertiserDecisionReason: finalReason,
+          advertiserDecisionAt: now,
+          advertiserDecisionBy: advertiserId,
+          advertiserDecisionSource: 'advertiser',
+          resubmissionRequestedAt: now,
+          resubmissionDueAt,
+          resubmissionStatus: 'pending',
+          updatedAt: now,
+          finalDecisionAt: now,
+          finalDecisionBy: advertiserId,
+          finalDecisionSource: 'advertiser',
+        })
+
+        if (earnerEmail) {
+          resubmissionEmailPayload = {
+            email: earnerEmail,
+            name: earnerName,
+            taskTitle: String(submission.campaignTitle || 'your task'),
+            reason: finalReason,
+            dueAt: resubmissionDueAt,
+          }
+        }
       } else {
         const finalRejectionReason = normalizedReason
         const nextStrikeCount = currentStrikeCount + 1
@@ -301,7 +337,7 @@ export async function POST(req: Request) {
         }
         if (shouldSuspend) {
           earnerUpdates.status = 'suspended'
-          earnerUpdates.suspensionReason = 'Reached 5 rejected submission strikes'
+          earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
           earnerUpdates.suspendedAt = now
           earnerUpdates.suspensionCount = suspension.suspensionCount
           earnerUpdates.suspensionIndefinite = suspension.indefinite
@@ -362,6 +398,12 @@ export async function POST(req: Request) {
     })
 
     await runSubmissionProofCleanupIfDue(admin, dbAdmin)
+
+    if (resubmissionEmailPayload) {
+      sendProofResubmissionRequestedEmail(resubmissionEmailPayload).catch((error) => {
+        console.error('Failed to send resubmission request email', error)
+      })
+    }
 
     if (strikeEmailPayload.current) {
       sendEarnerStrikeEmail(strikeEmailPayload.current).catch((error) => {

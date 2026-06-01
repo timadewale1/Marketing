@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { toDateFromTimestampLike } from '@/lib/earner-suspension'
 
 interface Submission {
   status?: string
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
     }
 
     let verified = 0
+    let autoRejected = 0
     let skippedFlagged = 0
     let skippedMissingCampaign = 0
     let failed = 0
@@ -75,6 +77,14 @@ export async function GET(request: Request) {
         const preview = sDoc.data() as Submission
         const advertiserDecisionStatus = String(preview.advertiserDecisionStatus || '').toLowerCase()
         const legacyAdvertiserFlagStatus = String(preview.advertiserFlagStatus || '').toLowerCase()
+        const previewResubmissionStatus = String(preview.resubmissionStatus || '').toLowerCase()
+        const previewResubmissionDueAt = toDateFromTimestampLike((preview as { resubmissionDueAt?: unknown }).resubmissionDueAt)
+        if (preview.advertiserDecisionStatus === 'resubmission_requested' || previewResubmissionStatus === 'pending') {
+          if (!previewResubmissionDueAt || previewResubmissionDueAt.getTime() > Date.now()) {
+            skippedFlagged += 1
+            continue
+          }
+        }
         if (
           advertiserDecisionStatus === 'pending' ||
           legacyAdvertiserFlagStatus === 'pending' ||
@@ -137,11 +147,18 @@ export async function GET(request: Request) {
           const fullAmount = earnerAmount * 2
           const reservedAmount = Number(submission.reservedAmount || 0)
           const advertiserId = String(submission.advertiserId || campaign.ownerId || '')
+          const submissionUserId = String(submission.userId || '')
 
           let reservedBudgetAdjustment = 0
           let reservedToConsume = 0
           let budgetToConsume = 0
           let remainingToCover = 0
+          const now = new Date()
+          const resubmissionDueAt = toDateFromTimestampLike((submission as { resubmissionDueAt?: unknown }).resubmissionDueAt)
+          const resubmissionExpired =
+            String(submission.advertiserDecisionStatus || '').toLowerCase() === 'resubmission_requested' &&
+            Boolean(resubmissionDueAt) &&
+            resubmissionDueAt!.getTime() <= Date.now()
 
           if (reservedAmount > 0) {
             const pendingSnap = await t.get(
@@ -169,6 +186,137 @@ export async function GET(request: Request) {
             remainingToCover = Math.max(0, fullAmount - budgetToConsume)
           }
 
+          if (resubmissionExpired) {
+            const finalRejectionReason = 'The requested resubmission was not received within 8 hours.'
+            if (!submissionUserId) throw new Error('Submission missing userId')
+            const earnerRef = adminDb.collection('earners').doc(submissionUserId)
+            const earnerSnapshot = await t.get(earnerRef)
+            const currentStrikeCount = Number(earnerSnapshot.data()?.strikeCount || 0)
+            const nextStrikeCount = currentStrikeCount + 1
+            const shouldSuspend = nextStrikeCount >= 20
+            const suspension = shouldSuspend
+              ? {
+                  suspensionCount: Number(earnerSnapshot.data()?.suspensionCount || 0) + 1,
+                  durationDays: 3,
+                  releaseAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+                  indefinite: false,
+                }
+              : null
+
+            t.update(subRef, {
+              status: 'Rejected',
+              reviewedAt: now,
+              reviewedBy: 'system-auto-resubmission-timeout',
+              rejectionReason: finalRejectionReason,
+              advertiserDecisionStatus: 'rejected',
+              advertiserDecisionReason: finalRejectionReason,
+              advertiserDecisionAt: now,
+              advertiserDecisionBy: 'system-auto-resubmission-timeout',
+              advertiserDecisionSource: 'system_auto_resubmission_timeout',
+              updatedAt: now,
+              finalDecisionAt: now,
+              finalDecisionBy: 'system-auto-resubmission-timeout',
+              finalDecisionSource: 'system_auto_resubmission_timeout',
+            })
+
+            const earnerUpdates: Record<string, unknown> = {
+              strikeCount: nextStrikeCount,
+              lastStrikeUpdatedAt: now,
+            }
+            if (shouldSuspend && suspension) {
+              earnerUpdates.status = 'suspended'
+              earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
+              earnerUpdates.suspendedAt = now
+              earnerUpdates.suspensionCount = suspension.suspensionCount
+              earnerUpdates.suspensionIndefinite = false
+              earnerUpdates.suspensionReleaseAt = suspension.releaseAt
+              earnerUpdates.suspensionDurationDays = suspension.durationDays
+            }
+            t.set(earnerRef, earnerUpdates, { merge: true })
+
+            if (!campaignId) throw new Error('Submission missing campaignId')
+            if (advertiserId) {
+              const earnerRevRef = adminDb.collection('earnerTransactions').doc()
+              t.set(earnerRevRef, {
+                userId: submissionUserId,
+                campaignId,
+                type: 'reversal',
+                amount: -earnerAmount,
+                status: 'completed',
+                note: `Auto rejection after resubmission timeout for ${submission.campaignTitle}`,
+                createdAt: now,
+              })
+              t.update(adminDb.collection('earners').doc(submissionUserId), {
+                balance: admin.firestore.FieldValue.increment(-earnerAmount),
+                leadsPaidFor: admin.firestore.FieldValue.increment(-1),
+                totalEarned: admin.firestore.FieldValue.increment(-earnerAmount),
+              })
+
+              const advRef = adminDb.collection('advertisers').doc(advertiserId)
+              const advTxRef = adminDb.collection('advertiserTransactions').doc()
+              t.set(advTxRef, {
+                userId: advertiserId,
+                campaignId,
+                type: 'refund',
+                amount: fullAmount,
+                status: 'completed',
+                note: `Auto refund after resubmission timeout for ${submission.campaignTitle}`,
+                createdAt: now,
+              })
+              t.update(advRef, {
+                totalSpent: admin.firestore.FieldValue.increment(-fullAmount),
+                leadsGenerated: admin.firestore.FieldValue.increment(-1),
+              })
+            }
+
+            if (campaignSnap.exists) {
+              const reservedAmt = Number(submission.reservedAmount || 0)
+              if (reservedAmt > 0) {
+                if (campaign.status === 'Deleted') {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                  if (advertiserId) {
+                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
+                      balance: admin.firestore.FieldValue.increment(reservedAmt),
+                    })
+                  }
+                } else {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
+                    budget: admin.firestore.FieldValue.increment(reservedAmt),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                }
+              } else {
+                if (campaign.status === 'Deleted') {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                  if (advertiserId) {
+                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
+                      balance: admin.firestore.FieldValue.increment(fullAmount),
+                    })
+                  }
+                } else {
+                  t.update(campaignRef, {
+                    generatedLeads: admin.firestore.FieldValue.increment(-1),
+                    budget: admin.firestore.FieldValue.increment(fullAmount),
+                    completedLeads: admin.firestore.FieldValue.increment(-1),
+                  })
+                }
+              }
+            }
+
+            outcome.value = 'skipped_stale'
+            autoRejected += 1
+            return
+          }
+
           let advertiserBalance = 0
           if (remainingToCover > 0 && advertiserId) {
             const advertiserRef = adminDb.collection('advertisers').doc(advertiserId)
@@ -180,7 +328,7 @@ export async function GET(request: Request) {
             throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
           }
 
-          const now = new Date()
+          const reviewNow = new Date()
           const userId = String(submission.userId || '')
           if (!userId) throw new Error('Submission missing userId')
 
@@ -207,16 +355,16 @@ export async function GET(request: Request) {
 
           t.update(subRef, {
             status: 'Verified',
-            reviewedAt: now,
+            reviewedAt: reviewNow,
             reviewedBy: 'system-auto-verify',
             rejectionReason: null,
             advertiserDecisionStatus: 'auto_verified',
             advertiserDecisionReason: null,
-            advertiserDecisionAt: now,
+            advertiserDecisionAt: reviewNow,
             advertiserDecisionBy: 'system-auto-verify',
             advertiserDecisionSource: 'system_auto_verify',
-            updatedAt: now,
-            finalDecisionAt: now,
+            updatedAt: reviewNow,
+            finalDecisionAt: reviewNow,
             finalDecisionBy: 'system-auto-verify',
             finalDecisionSource: 'system_auto_verify',
             autoVerified: true,
@@ -228,10 +376,10 @@ export async function GET(request: Request) {
           const campaignUpdates: Record<string, unknown> = {
             generatedLeads: admin.firestore.FieldValue.increment(1),
             completedLeads: admin.firestore.FieldValue.increment(1),
-            lastLeadAt: now,
+            lastLeadAt: reviewNow,
             completionRate,
             dailySubmissionCount: admin.firestore.FieldValue.increment(1),
-            lastUpdated: now,
+            lastUpdated: reviewNow,
           }
           if (reservedBudgetAdjustment !== 0 || reservedToConsume > 0) {
             campaignUpdates.reservedBudget = admin.firestore.FieldValue.increment(reservedBudgetAdjustment - reservedToConsume)
@@ -259,12 +407,12 @@ export async function GET(request: Request) {
           t.set(earnerTxRef, {
             userId,
             campaignId,
-            type: 'credit',
-            amount: earnerAmount,
-            status: 'completed',
-            note: `Payment for ${submission.campaignTitle}`,
-            createdAt: now,
-          })
+              type: 'credit',
+              amount: earnerAmount,
+              status: 'completed',
+              note: `Payment for ${submission.campaignTitle}`,
+              createdAt: reviewNow,
+            })
 
           if (shouldAutoActivate) {
             const activationTxRef = adminDb.collection('earnerTransactions').doc()
@@ -275,7 +423,7 @@ export async function GET(request: Request) {
               amount: -activationDeduction,
               status: 'completed',
               note: 'Automatic account activation from wallet earnings',
-              createdAt: now,
+              createdAt: reviewNow,
             })
             autoActivatedUserIds.add(userId)
           }
@@ -284,11 +432,11 @@ export async function GET(request: Request) {
             balance: admin.firestore.FieldValue.increment(netEarning),
             leadsPaidFor: admin.firestore.FieldValue.increment(1),
             totalEarned: admin.firestore.FieldValue.increment(earnerAmount),
-            lastEarnedAt: now,
+            lastEarnedAt: reviewNow,
           }
           if (shouldAutoActivate) {
             earnerUpdates.activated = true
-            earnerUpdates.activatedAt = now
+            earnerUpdates.activatedAt = reviewNow
             earnerUpdates.activationPaymentProvider = 'wallet_auto'
             earnerUpdates.pendingActivationProvider = admin.firestore.FieldValue.delete()
             earnerUpdates.pendingActivationReference = admin.firestore.FieldValue.delete()
@@ -305,12 +453,12 @@ export async function GET(request: Request) {
               amount: fullAmount,
               status: 'completed',
               note: `Payment for lead in ${submission.campaignTitle}`,
-              createdAt: now,
+              createdAt: reviewNow,
             })
             const advertiserUpdates: Record<string, unknown> = {
               totalSpent: admin.firestore.FieldValue.increment(fullAmount),
               leadsGenerated: admin.firestore.FieldValue.increment(1),
-              lastLeadAt: now,
+              lastLeadAt: reviewNow,
             }
             if (remainingToCover > 0) {
               advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
@@ -342,14 +490,61 @@ export async function GET(request: Request) {
       }
     }
 
+    let expiredCampaigns = 0
+    const nowTs = admin.firestore.Timestamp.fromMillis(Date.now())
+    const expiredCampaignSnap = await adminDb
+      .collection('campaigns')
+      .where('status', '==', 'Active')
+      .where('expiresAt', '<=', nowTs)
+      .limit(AUTO_VERIFY_BATCH_LIMIT)
+      .get()
+
+    for (const campaignDoc of expiredCampaignSnap.docs) {
+      try {
+        await adminDb.runTransaction(async (t) => {
+          const campaignRef = campaignDoc.ref
+          const campaignSnap = await t.get(campaignRef)
+          if (!campaignSnap.exists) return
+
+          const campaign = campaignSnap.data() as Campaign
+          if (String(campaign.status || '') !== 'Active') return
+          const expiresAt = (campaign as { expiresAt?: { toDate?: () => Date; seconds?: number } | Date | null }).expiresAt
+          const expiresAtDate = toDateFromTimestampLike(expiresAt)
+          if (!expiresAtDate || expiresAtDate.getTime() > Date.now()) return
+
+          const ownerId = String(campaign.ownerId || '')
+          const refundAmount = Math.max(0, Math.floor(Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)))
+
+          t.update(campaignRef, {
+            status: 'Expired',
+            budget: 0,
+            reservedBudget: 0,
+            expiredAt: nowTs,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+
+          if (ownerId && refundAmount > 0) {
+            t.update(adminDb.collection('advertisers').doc(ownerId), {
+              balance: admin.firestore.FieldValue.increment(refundAmount),
+            })
+          }
+        })
+        expiredCampaigns += 1
+      } catch (error) {
+        console.error('[internal][auto-verify-submissions] failed to expire campaign', campaignDoc.id, error)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       processed: snap.size,
       verified,
+      autoRejected,
       skippedFlagged,
       skippedMissingCampaign,
       failed,
       autoActivated: autoActivatedUserIds.size,
+      expiredCampaigns,
     })
   } catch (error) {
     console.error('[internal][auto-verify-submissions] route failed', error)

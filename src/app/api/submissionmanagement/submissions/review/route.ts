@@ -336,7 +336,7 @@ export async function POST(req: Request): Promise<Response> {
         if (shouldSuspend) {
           const suspension = buildNextEarnerSuspension(earnerData, now)
           earnerUpdates.status = 'suspended'
-          earnerUpdates.suspensionReason = 'Reached 5 rejected submission strikes'
+          earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
           earnerUpdates.suspendedAt = now
           earnerUpdates.suspensionCount = suspension.suspensionCount
           earnerUpdates.suspensionIndefinite = suspension.indefinite

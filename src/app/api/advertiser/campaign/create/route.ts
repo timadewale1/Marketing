@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { HIGH_VALUE_TASK_POINTS, HIGH_VALUE_TASK_THRESHOLD, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { awardAdvertiserFirstTaskReferralBonusInTransaction } from '@/lib/paymentProcessing'
 
 export async function POST(req: Request) {
   try {
@@ -81,6 +82,8 @@ export async function POST(req: Request) {
     ).trim()
     const campaignTitle = String(campaignData.title || 'Untitled')
     const availableSlots = Number(campaignData.estimatedLeads || campaignData.targetLeads || 0)
+    const taskDurationValue = Number(campaignData.taskDurationValue || 0)
+    const taskDurationUnit = String(campaignData.taskDurationUnit || '').toLowerCase() === 'days' ? 'days' : 'hours'
 
     // Run transaction: create campaign, deduct balance, record transaction
     await db.runTransaction(async (t) => {
@@ -128,8 +131,26 @@ export async function POST(req: Request) {
         status: 'Active',
         originalBudget: budget,
         reservedBudget: 0,
+        taskDurationValue: taskDurationValue > 0 ? taskDurationValue : null,
+        taskDurationUnit: taskDurationValue > 0 ? taskDurationUnit : null,
+        expiresAt:
+          taskDurationValue > 0
+            ? admin.firestore.Timestamp.fromMillis(
+                Date.now() + taskDurationValue * (taskDurationUnit === 'days' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000)
+              )
+            : null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
+
+      await awardAdvertiserFirstTaskReferralBonusInTransaction(
+        db,
+        admin,
+        t,
+        verifiedUid,
+        campaignRef.id,
+        budget,
+        campaignTitle
+      )
 
       // Deduct advertiser balance
       t.update(advertiserRef, {

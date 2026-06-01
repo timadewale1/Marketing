@@ -1,6 +1,7 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
-export const EARNER_STRIKE_SUSPENSION_THRESHOLD = 5
+export const EARNER_STRIKE_SUSPENSION_THRESHOLD = 20
+const SUSPENSION_DURATION_DAYS = 3
 
 type TimestampLike =
   | Date
@@ -21,9 +22,7 @@ export function getEarnerSuspensionCount(record: EarnerSuspensionRecord | null |
 }
 
 export function getSuspensionDurationDaysForCount(suspensionCount: number) {
-  if (suspensionCount <= 1) return 7
-  if (suspensionCount === 2) return 14
-  return null
+  return suspensionCount > 0 ? SUSPENSION_DURATION_DAYS : null
 }
 
 export function buildNextEarnerSuspension(record: EarnerSuspensionRecord | null | undefined, now = new Date()) {
@@ -35,11 +34,11 @@ export function buildNextEarnerSuspension(record: EarnerSuspensionRecord | null 
     suspensionCount,
     durationDays,
     releaseAt,
-    indefinite: durationDays === null,
+    indefinite: false,
   }
 }
 
-export function toDateFromTimestampLike(value: TimestampLike) {
+export function toDateFromTimestampLike(value: unknown) {
   if (!value) return null
   if (value instanceof Date) return value
   if (typeof value === "number") {
@@ -51,11 +50,12 @@ export function toDateFromTimestampLike(value: TimestampLike) {
     return Number.isNaN(date.getTime()) ? null : date
   }
   if (typeof value === "object") {
-    if (typeof value.toDate === "function") {
-      return value.toDate()
+    const timestampValue = value as { toDate?: () => Date; seconds?: number }
+    if (typeof timestampValue.toDate === "function") {
+      return timestampValue.toDate()
     }
-    if (typeof value.seconds === "number") {
-      return new Date(value.seconds * 1000)
+    if (typeof timestampValue.seconds === "number") {
+      return new Date(timestampValue.seconds * 1000)
     }
   }
   return null
@@ -65,7 +65,7 @@ export function shouldAutoUnsuspendEarner(record: EarnerSuspensionRecord | null 
   if (String(record?.status || "").toLowerCase() !== "suspended") return false
 
   const suspensionCount = getEarnerSuspensionCount(record)
-  if (suspensionCount < 1 || suspensionCount >= 3) return false
+  if (suspensionCount < 1) return false
 
   const releaseAt = toDateFromTimestampLike(record?.suspensionReleaseAt)
   if (!releaseAt) return false

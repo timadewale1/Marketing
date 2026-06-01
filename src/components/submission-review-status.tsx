@@ -7,6 +7,9 @@ type SubmissionReviewStatusProps = {
   advertiserReason?: string | null;
   advertiserReviewAt?: string | null;
   advertiserReviewDueAt?: string | null;
+  resubmissionRequestedAt?: string | null;
+  resubmissionDueAt?: string | null;
+  resubmissionSubmittedAt?: string | null;
   earnerDisputeReason?: string | null;
   className?: string;
 };
@@ -20,6 +23,9 @@ export function SubmissionReviewStatus({
   advertiserReason,
   advertiserReviewAt,
   advertiserReviewDueAt,
+  resubmissionRequestedAt,
+  resubmissionDueAt,
+  resubmissionSubmittedAt,
   earnerDisputeReason,
   className,
 }: SubmissionReviewStatusProps) {
@@ -32,10 +38,12 @@ export function SubmissionReviewStatus({
       ? "Advertiser approved this proof."
       : status === "rejected"
         ? "Advertiser rejected this proof."
-        : status === "auto_verified"
+      : status === "auto_verified"
           ? "Automatically verified after 24 hours without advertiser review."
           : status === "pending"
             ? "Advertiser review is pending."
+            : status === "resubmission_requested"
+              ? "Advertiser requested a proof resubmission."
             : status === "upheld"
               ? "Advertiser rejection was upheld by admin."
               : status === "overruled"
@@ -69,6 +77,21 @@ export function SubmissionReviewStatus({
           {advertiserReviewDueAt && status === "pending" ? (
             <p className="mt-2 text-xs uppercase tracking-[0.18em] opacity-80">
               Auto review target: {new Date(advertiserReviewDueAt).toLocaleString()}
+            </p>
+          ) : null}
+          {resubmissionRequestedAt ? (
+            <p className="mt-2 text-xs uppercase tracking-[0.18em] opacity-80">
+              Resubmission requested at: {new Date(resubmissionRequestedAt).toLocaleString()}
+            </p>
+          ) : null}
+          {resubmissionDueAt ? (
+            <p className="mt-2 text-xs uppercase tracking-[0.18em] opacity-80">
+              Resubmission due by: {new Date(resubmissionDueAt).toLocaleString()}
+            </p>
+          ) : null}
+          {resubmissionSubmittedAt ? (
+            <p className="mt-2 text-xs uppercase tracking-[0.18em] opacity-80">
+              Earner resubmitted at: {new Date(resubmissionSubmittedAt).toLocaleString()}
             </p>
           ) : null}
         </div>

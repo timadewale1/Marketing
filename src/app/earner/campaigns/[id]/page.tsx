@@ -295,6 +295,12 @@ export default function CampaignDetailPage() {
     });
   };
 
+  const hashProofFile = async (file: File) => {
+    const bytes = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  };
+
   const submitParticipation = async () => {
     const user = auth.currentUser;
     if (!user) return toast.error("You must be logged in to participate");
@@ -386,11 +392,19 @@ export default function CampaignDetailPage() {
       }
 
       let proofUrls: string[] = [];
+      let proofHashes: string[] = [];
       if (files.length > 0) {
         console.log("Uploading proof files...");
         try {
           setSubmissionPhase("uploading");
-          proofUrls = await Promise.all(files.map((proofFile) => uploadProofFile(proofFile, user.uid)));
+          const uploadedProofs = await Promise.all(
+            files.map(async (proofFile) => ({
+              url: await uploadProofFile(proofFile, user.uid),
+              hash: await hashProofFile(proofFile),
+            }))
+          );
+          proofUrls = uploadedProofs.map((item) => item.url);
+          proofHashes = uploadedProofs.map((item) => item.hash);
           console.log("Files uploaded successfully:", proofUrls);
         } catch (uploadErr) {
           console.error("File upload error:", uploadErr);
@@ -464,6 +478,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
             campaignId: campaign.id,
             proofUrl: proofUrls[0],
             proofUrls,
+            proofHashes,
             note: note || null,
             socialHandle: socialHandle || null,
           }),

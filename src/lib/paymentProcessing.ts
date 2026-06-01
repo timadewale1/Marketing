@@ -31,29 +31,26 @@ export async function processPendingActivationReferrals(
   console.log(`[activation][retry] processing ${refsSnap.size} referrals for ${userId}`)
 
   for (const rDoc of refsSnap.docs) {
-    const r = rDoc.data()
-    const bonus = Number(r.amount || 0)
-    const referrerId = r.referrerId
+    const referral = rDoc.data() as {
+      amount?: number | string
+      referrerId?: string
+    }
+    const bonus = Number(referral.amount || 0)
+    const referrerId = String(referral.referrerId || '').trim()
+    if (!referrerId || bonus <= 0) continue
 
     try {
       await adminDb.runTransaction(async (t) => {
         const referralRef = adminDb.collection('referrals').doc(rDoc.id)
         const snap = await t.get(referralRef)
         if (!snap.exists || snap.data()?.status !== 'pending') return
-        if (!referrerId || bonus <= 0) return
 
         const advRef = adminDb.collection('advertisers').doc(referrerId)
         const earnerRef = adminDb.collection('earners').doc(referrerId)
+        const [advSnap, earnerSnap] = await Promise.all([t.get(advRef), t.get(earnerRef)])
+        const referrerCollection = advSnap.exists ? 'advertisers' : earnerSnap.exists ? 'earners' : null
+        if (!referrerCollection) return
 
-        const [advSnap, earnerSnap] = await Promise.all([
-          t.get(advRef),
-          t.get(earnerRef)
-        ])
-
-        const referrerCollection = advSnap.exists ? 'advertisers' : 'earners'
-        const referrerData = (advSnap.exists ? advSnap.data() : earnerSnap.data()) as
-          | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
-          | undefined
         await awardPointsInTransaction({
           adminDb,
           admin,
@@ -83,63 +80,153 @@ export async function processPendingActivationReferrals(
           paidAmount: bonus,
         })
 
-        if (advSnap.exists) {
-          t.set(adminDb.collection('advertiserTransactions').doc(), {
-            userId: referrerId,
-            type: 'referral_bonus',
-            amount: bonus,
-            status: 'completed',
-            note: `Referral bonus for referring ${userId}`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          })
-          t.update(advRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-        } else if (earnerSnap.exists) {
-          t.set(adminDb.collection('earnerTransactions').doc(), {
-            userId: referrerId,
-            type: 'referral_bonus',
-            amount: bonus,
-            status: 'completed',
-            note: `Referral bonus for referring ${userId}`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          })
-          t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(bonus) })
-          }
+        const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+        t.set(adminDb.collection(referrerTxCollection).doc(), {
+          userId: referrerId,
+          type: 'referral_bonus',
+          amount: bonus,
+          status: 'completed',
+          note: `Referral bonus for referring ${userId}`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })
+        t.update(referrerCollection === 'advertisers' ? advRef : earnerRef, {
+          balance: admin.firestore.FieldValue.increment(bonus),
+        })
+      })
 
-        await adminDb.runTransaction(async (weeklyTransaction) => {
-          const weeklyAdvRef = adminDb.collection('advertisers').doc(referrerId)
-          const weeklyEarnerRef = adminDb.collection('earners').doc(referrerId)
-          const [weeklyAdvSnap, weeklyEarnerSnap] = await Promise.all([
-            weeklyTransaction.get(weeklyAdvRef),
-            weeklyTransaction.get(weeklyEarnerRef),
-          ])
-          if (!weeklyAdvSnap.exists && !weeklyEarnerSnap.exists) return
-          const weeklyRole = weeklyAdvSnap.exists ? 'advertiser' : 'earner'
-          const weeklyReferrerData = (weeklyAdvSnap.exists ? weeklyAdvSnap.data() : weeklyEarnerSnap.data()) as
-            | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
-            | undefined
-          await recordWeeklyReferralActivationInTransaction({
-            adminDb,
-            transaction: weeklyTransaction,
-            role: weeklyRole,
-            userId: referrerId,
-            name: String(
-              weeklyReferrerData?.fullName ||
-                weeklyReferrerData?.name ||
-                weeklyReferrerData?.businessName ||
-                weeklyReferrerData?.companyName ||
-                weeklyReferrerData?.email ||
-                ''
-            ).trim(),
-            email: weeklyReferrerData?.email || null,
-            referredId: userId,
-            referralId: rDoc.id,
-          })
+      await adminDb.runTransaction(async (weeklyTransaction) => {
+        const weeklyAdvRef = adminDb.collection('advertisers').doc(referrerId)
+        const weeklyEarnerRef = adminDb.collection('earners').doc(referrerId)
+        const [weeklyAdvSnap, weeklyEarnerSnap] = await Promise.all([
+          weeklyTransaction.get(weeklyAdvRef),
+          weeklyTransaction.get(weeklyEarnerRef),
+        ])
+        if (!weeklyAdvSnap.exists && !weeklyEarnerSnap.exists) return
+        const weeklyRole = weeklyAdvSnap.exists ? 'advertiser' : 'earner'
+        const weeklyReferrerData = (weeklyAdvSnap.exists ? weeklyAdvSnap.data() : weeklyEarnerSnap.data()) as
+          | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
+          | undefined
+        await recordWeeklyReferralActivationInTransaction({
+          adminDb,
+          transaction: weeklyTransaction,
+          role: weeklyRole,
+          userId: referrerId,
+          name: String(
+            weeklyReferrerData?.fullName ||
+              weeklyReferrerData?.name ||
+              weeklyReferrerData?.businessName ||
+              weeklyReferrerData?.companyName ||
+              weeklyReferrerData?.email ||
+              ''
+          ).trim(),
+          email: weeklyReferrerData?.email || null,
+          referredId: userId,
+          referralId: rDoc.id,
         })
-      } catch (e) {
-        console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
-      }
+      })
+    } catch (e) {
+      console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
+    }
   }
+}
+
+export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
+  adminDb: AdminFirestore,
+  admin: typeof import('firebase-admin'),
+  transaction: FirebaseFirestore.Transaction,
+  advertiserId: string,
+  campaignId: string,
+  campaignBudget: number,
+  campaignTitle?: string | null
+) {
+  const safeBudget = Math.max(0, Math.floor(Number(campaignBudget || 0)))
+  const bonusAmount = Math.floor(safeBudget * 0.1)
+  if (!advertiserId || bonusAmount <= 0) {
+    return { awarded: false, bonusAmount: 0, referralId: null as string | null }
+  }
+
+  const advertiserRef = adminDb.collection('advertisers').doc(advertiserId)
+  const advertiserSnap = await transaction.get(advertiserRef)
+  if (!advertiserSnap.exists) {
+    return { awarded: false, bonusAmount, referralId: null as string | null }
+  }
+
+  const campaignsCreated = Number(advertiserSnap.data()?.campaignsCreated || 0)
+  if (campaignsCreated > 0) {
+    return { awarded: false, bonusAmount, referralId: null as string | null }
+  }
+
+  const referralQuery = adminDb
+    .collection('referrals')
+    .where('referredId', '==', advertiserId)
+    .where('userType', '==', 'advertiser')
+    .limit(1)
+
+  const referralSnap = await transaction.get(referralQuery)
+  if (referralSnap.empty) {
+    return { awarded: false, bonusAmount, referralId: null as string | null }
+  }
+
+  const referralDoc = referralSnap.docs[0]
+  const referral = referralDoc.data() as {
+    referrerId?: string
+    firstTaskBonusPaid?: boolean
+    firstTaskBonusAmount?: number
+  }
+
+  if (referral.firstTaskBonusPaid) {
+    return { awarded: false, bonusAmount, referralId: referralDoc.id }
+  }
+
+  const referrerId = String(referral.referrerId || '').trim()
+  if (!referrerId) {
+    return { awarded: false, bonusAmount, referralId: referralDoc.id }
+  }
+
+  const referrerEarnerRef = adminDb.collection('earners').doc(referrerId)
+  const referrerAdvertiserRef = adminDb.collection('advertisers').doc(referrerId)
+  const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+    transaction.get(referrerEarnerRef),
+    transaction.get(referrerAdvertiserRef),
+  ])
+
+  const referrerCollection = referrerAdvertiserSnap.exists ? 'advertisers' : referrerEarnerSnap.exists ? 'earners' : null
+  if (!referrerCollection) {
+    return { awarded: false, bonusAmount, referralId: referralDoc.id }
+  }
+
+  const referrerRef = adminDb.collection(referrerCollection).doc(referrerId)
+  const referrerTransactionRef = adminDb.collection(
+    referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+  ).doc(getPointsEventId('referral-first-task', referralDoc.id, campaignId))
+  const existingTxSnap = await transaction.get(referrerTransactionRef)
+  if (existingTxSnap.exists) {
+    return { awarded: false, bonusAmount, referralId: referralDoc.id }
+  }
+
+  transaction.set(referrerTransactionRef, {
+    userId: referrerId,
+    type: 'referral_bonus',
+    amount: bonusAmount,
+    status: 'completed',
+    note: `10% bonus from the first task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
+    campaignId,
+    referralId: referralDoc.id,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  })
+
+  transaction.update(referrerRef, {
+    balance: admin.firestore.FieldValue.increment(bonusAmount),
+  })
+
+  transaction.set(referralDoc.ref, {
+    firstTaskBonusPaid: true,
+    firstTaskBonusAmount: bonusAmount,
+    firstTaskBonusPaidAt: admin.firestore.FieldValue.serverTimestamp(),
+    firstTaskBonusCampaignId: campaignId,
+  }, { merge: true })
+
+  return { awarded: true, bonusAmount, referralId: referralDoc.id }
 }
 
 export async function processActivationWithRetry(
@@ -147,7 +234,8 @@ export async function processActivationWithRetry(
   reference: string,
   provider: string = 'monnify',
   maxRetries: number = 3,
-  extraReferences: string[] = []
+  extraReferences: string[] = [],
+  activationPaymentAmount = 2000
 ) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
@@ -213,12 +301,34 @@ export async function processActivationWithRetry(
         references: activationReferences,
       })
 
+      const activationFeeAmount = 2000
+      const normalizedPaidAmount = Math.max(0, Math.min(activationFeeAmount, Math.floor(Number(activationPaymentAmount || 0))))
+      const userBalanceBeforeActivation = Number(userDoc.data()?.balance || 0)
+      const walletOffsetAmount = Math.min(
+        userBalanceBeforeActivation,
+        Math.max(0, activationFeeAmount - normalizedPaidAmount)
+      )
+      const walletOffsetBalanceAfter = userBalanceBeforeActivation - walletOffsetAmount
+
+      if (walletOffsetAmount > 0) {
+        await adminDb.collection(userType).doc(userId).set({
+          balance: walletOffsetBalanceAfter,
+          activationWalletOffsetAmount: walletOffsetAmount,
+          activationWalletOffsetAt: admin.firestore.FieldValue.serverTimestamp(),
+          activationPaymentAmount: normalizedPaidAmount,
+          activationFeeAmount,
+        }, { merge: true })
+      }
+
       // Create activation fee transaction record (platform revenue; not credited to user)
       const collectionName = userType === 'earners' ? 'earnerTransactions' : 'advertiserTransactions'
       await adminDb.collection(collectionName).doc().set({
         userId,
         type: 'activation_fee',
-        amount: -2000,
+        amount: -activationFeeAmount,
+        paidAmount: normalizedPaidAmount,
+        walletOffsetAmount,
+        activationFeeAmount,
         provider,
         reference: primaryReference,
         status: 'completed',
@@ -251,7 +361,8 @@ export async function runFullActivationFlow(
   reference: string,
   provider: string = 'monnify',
   role?: UserRole,
-  extraReferences: string[] = []
+  extraReferences: string[] = [],
+  activationPaymentAmount = 2000
 ) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
@@ -292,7 +403,7 @@ export async function runFullActivationFlow(
     references: activationReferences,
   })
 
-  return processActivationWithRetry(userId, primaryReference, provider, 3, activationReferences)
+  return processActivationWithRetry(userId, primaryReference, provider, 3, activationReferences, activationPaymentAmount)
 }
 
 export async function processWalletFundingWithRetry(

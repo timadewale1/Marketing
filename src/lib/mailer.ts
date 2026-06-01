@@ -586,6 +586,62 @@ export async function sendEarnerStrikeRemovedEmail({
   })
 }
 
+export async function sendProofResubmissionRequestedEmail({
+  email,
+  name,
+  taskTitle,
+  reason,
+  dueAt,
+}: {
+  email: string
+  name?: string
+  taskTitle: string
+  reason: string
+  dueAt?: Date | string | null
+}) {
+  const dueText = dueAt ? new Date(dueAt).toLocaleString() : 'within 8 hours'
+  await sendEmail({
+    to: email,
+    subject: `Update your proof for ${taskTitle}`,
+    html: wrapEmail(
+      'Proof update requested',
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>The advertiser has requested an updated proof for <strong>${taskTitle}</strong>.</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p>Please log in and upload your updated proof before <strong>${dueText}</strong>. If you do not respond in time, the submission may be rejected automatically.</p>
+      `,
+      "Open my dashboard",
+      `${APP_URL}/earner/campaigns/done`
+    ),
+  })
+}
+
+export async function sendProofResubmissionSubmittedEmail({
+  email,
+  name,
+  taskTitle,
+}: {
+  email: string
+  name?: string
+  taskTitle: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: `Proof updated for ${taskTitle}`,
+    html: wrapEmail(
+      'Proof resubmitted',
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>The earner has uploaded an updated proof for <strong>${taskTitle}</strong>.</p>
+        <p>Please log in to review the new proof and continue with the decision.</p>
+      `,
+      "Open campaign review",
+      `${APP_URL}/advertiser/campaigns`
+    ),
+  })
+}
+
 export async function sendAdminActionEmail({
   subject,
   title,

@@ -266,7 +266,7 @@ export async function POST(req: NextRequest) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, Number(amount || 2000))
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates)
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, Number(amount || 2000))
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -327,7 +327,8 @@ export async function POST(req: NextRequest) {
                           referenceCandidates[0] || String(reference || ''),
                           'monnify',
                           3,
-                          referenceCandidates
+                          referenceCandidates,
+                          Number(amount || 2000)
                         )
 
                         await dbAdmin.collection('activationAttempts').doc(getActivationAttemptDocId(attemptedRole, attemptedUserId)).set({

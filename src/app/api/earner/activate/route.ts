@@ -22,6 +22,7 @@ export async function POST(req: Request) {
     ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
     : [reference]
   let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
+  let paidAmount = 0
   const monnifyImmediateSuccess = provider === 'monnify' && Boolean(monnifyResponse) && isMonnifyImmediateSuccessResponse(monnifyResponse)
 
     if (provider === 'monnify') {
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
               paymentStatus: 'PAID',
               verificationResult: null,
             }
+            paidAmount = Number((monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.responseBody?.amount || (monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.data?.amount || 2000)
             console.log('Monnify SDK reported immediate success, activating without waiting for retry window')
           } else {
             monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
@@ -100,6 +102,8 @@ export async function POST(req: Request) {
               console.warn('Monnify server verification not yet confirmed, keeping activation pending:', monnifyConfirmation.paymentStatus)
             } else {
               console.log('Monnify server verification successful')
+              const responseBody = monnifyConfirmation.verificationResult?.responseBody as { amount?: number } | undefined
+              paidAmount = Number(responseBody?.amount || 2000)
             }
           }
         } catch (verifyError) {
@@ -162,7 +166,7 @@ export async function POST(req: Request) {
 
     // Process activation with retry mechanism
     try {
-      const result = await runFullActivationFlow(userId, reference, provider, 'earner', referenceCandidates)
+      const result = await runFullActivationFlow(userId, reference, provider, 'earner', referenceCandidates, paidAmount)
       
       if (result && result.success) {
         await logPaymentLifecycle({
