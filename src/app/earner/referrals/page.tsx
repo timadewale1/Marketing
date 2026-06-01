@@ -127,7 +127,14 @@ export default function ReferralsPage() {
                     Paid when the referred earner completes activation.
                   </div>
                 </div>
-                {/* Advertiser activation referral bonus is temporarily hidden. */}
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="px-3 py-1 bg-stone-100 text-stone-700 rounded-full text-sm font-medium w-fit">
+                    10% of first task budget
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    Earn this when you refer an advertiser and they create their first task.
+                  </div>
+                </div>
               </div>
             </div>
 

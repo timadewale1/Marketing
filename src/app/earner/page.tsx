@@ -358,6 +358,9 @@ export default function EarnerDashboard() {
               {getPointsStarLabel(referralStats.completedReferrals)}
             </Badge>
           </div>
+          <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
+            Refer an advertiser and you can also earn 10% of their first task budget when they publish their first task.
+          </p>
         </div>
   {/* Top Cards */}
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">

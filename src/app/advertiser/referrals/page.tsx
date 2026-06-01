@@ -119,7 +119,14 @@ export default function AdvertiserReferralsPage() {
             <div className="bg-stone-50 p-4 rounded-lg space-y-3">
               <h3 className="font-medium text-stone-800">Earn by referring others:</h3>
               <div className="flex flex-col gap-2">
-                {/* Advertiser activation referral bonus is temporarily hidden. */}
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="px-3 py-1 bg-stone-100 text-stone-700 rounded-full text-sm font-medium w-fit">
+                    10% of first task budget
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    Earn this when you refer an advertiser and they create their first task.
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium w-fit">
                     ₦500 per activated earner
