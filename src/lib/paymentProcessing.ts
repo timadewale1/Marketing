@@ -170,12 +170,6 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
   const referralDoc = referralSnap.docs[0]
   const referral = referralDoc.data() as {
     referrerId?: string
-    firstTaskBonusPaid?: boolean
-    firstTaskBonusAmount?: number
-  }
-
-  if (referral.firstTaskBonusPaid) {
-    return { awarded: false, bonusAmount, referralId: referralDoc.id }
   }
 
   const referrerId = String(referral.referrerId || '').trim()
@@ -209,7 +203,7 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     type: 'referral_bonus',
     amount: bonusAmount,
     status: 'completed',
-    note: `10% bonus from the first task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
+    note: `10% bonus from a task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
     campaignId,
     referralId: referralDoc.id,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -218,13 +212,6 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
   transaction.update(referrerRef, {
     balance: admin.firestore.FieldValue.increment(bonusAmount),
   })
-
-  transaction.set(referralDoc.ref, {
-    firstTaskBonusPaid: true,
-    firstTaskBonusAmount: bonusAmount,
-    firstTaskBonusPaidAt: admin.firestore.FieldValue.serverTimestamp(),
-    firstTaskBonusCampaignId: campaignId,
-  }, { merge: true })
 
   return { awarded: true, bonusAmount, referralId: referralDoc.id }
 }

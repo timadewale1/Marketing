@@ -467,7 +467,7 @@ export default function AdvertiserDashboard() {
             </Badge>
           </div>
           <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
-            Refer an advertiser and you can earn 10% of their first task budget when they launch their first task.
+            Refer an advertiser and you can earn 10% of every task budget they create.
           </p>
         </div>
         {/* Top Cards */}
