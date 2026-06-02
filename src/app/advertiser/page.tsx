@@ -469,6 +469,9 @@ export default function AdvertiserDashboard() {
           <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
             Refer an advertiser and you can earn 10% of every task budget they create.
           </p>
+          <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
+            For wallet funding issues, contact us on WhatsApp: 07062991664
+          </p>
         </div>
         {/* Top Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
