@@ -143,15 +143,19 @@ export async function POST(req: NextRequest) {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })
         await dbAdmin.runTransaction(async (t) => {
-          await awardAdvertiserFirstTaskReferralBonusInTransaction(
-            adminDb,
-            admin,
-            t,
-            String(userId || ''),
-            campaignRef.id,
-            Number(campaignData?.budget || 0),
-            campaignTitle
-          )
+          try {
+            await awardAdvertiserFirstTaskReferralBonusInTransaction(
+              adminDb,
+              admin,
+              t,
+              String(userId || ''),
+              campaignRef.id,
+              Number(campaignData?.budget || 0),
+              campaignTitle
+            )
+          } catch (bonusError) {
+            console.warn('[verify-payment] advertiser referral bonus skipped after non-fatal error:', bonusError)
+          }
         })
         await notifyAdminOfTaskCreated({
           advertiserId: String(userId || ''),

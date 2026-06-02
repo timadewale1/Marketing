@@ -443,6 +443,9 @@ const compressed = await imageCompression(file, options)
       campaignData.advertiserName = String(advertiserProfile['fullName'] || advertiserProfile['businessName'] || advertiserProfile['name'] || user.email)
     }
 
+    const advertiserWalletBalance = Number(advertiserProfile?.balance || 0)
+    const hasEnoughWalletBalance = Number.isFinite(advertiserWalletBalance) && advertiserWalletBalance >= numericBudget
+
     // If product campaign, attach face capture URL (preferred) and address
     if (category === "Share my Product") {
       if (!faceImageUrl) {
@@ -458,6 +461,19 @@ const compressed = await imageCompression(file, options)
         city: city || "",
         state: stateRegion || "",
       }
+    }
+
+    const openMonnifyPaymentSelector = () => {
+      setPendingCampaignForPayment(campaignData)
+      setShowPaymentSelector(true)
+      setLoading(false)
+      payInFlightRef.current = false
+    }
+
+    if (!hasEnoughWalletBalance) {
+      toast('Your wallet balance is not enough for this task. Continue with Monnify to complete payment.')
+      openMonnifyPaymentSelector()
+      return
     }
 
       // Attempt to create the campaign using wallet funds first
@@ -480,23 +496,20 @@ const compressed = await imageCompression(file, options)
 
       const data = await res.json().catch(() => ({}))
       if (res.status === 402 || /insufficient/i.test(String(data?.message || ''))) {
-        toast.error('Insufficient wallet balance - please fund wallet to continue')
+        toast.error('Wallet balance changed before payment could complete. Please refresh and try again.')
         setLoading(false)
         payInFlightRef.current = false
-        setTimeout(() => router.push('/advertiser/wallet'), 700)
         return
       }
 
-      // Show payment selector for payment via card
-      setPendingCampaignForPayment(campaignData)
-      setShowPaymentSelector(true)
+      toast.error(data?.message || 'Task creation failed. Please try again.')
       setLoading(false)
       payInFlightRef.current = false
     } catch (err) {
       console.error('Wallet create error', err)
       setLoading(false)
       payInFlightRef.current = false
-      toast.error('Failed to create campaign. Please try again.')
+      toast.error('Task creation failed. Please try again.')
     }
   }
 

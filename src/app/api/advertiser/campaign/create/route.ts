@@ -118,6 +118,20 @@ export async function POST(req: Request) {
         })
       }
 
+      try {
+        await awardAdvertiserFirstTaskReferralBonusInTransaction(
+          db,
+          admin,
+          t,
+          verifiedUid,
+          campaignRef.id,
+          budget,
+          campaignTitle
+        )
+      } catch (bonusError) {
+        console.warn('[campaign-create] advertiser referral bonus skipped after non-fatal error:', bonusError)
+      }
+
       // Preserve original budget as the advertiser-entered total so advertiser views
       // always show the original task amount (originalBudget). Also initialize reservedBudget.
       t.set(campaignRef, {
@@ -141,16 +155,6 @@ export async function POST(req: Request) {
             : null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
-
-      await awardAdvertiserFirstTaskReferralBonusInTransaction(
-        db,
-        admin,
-        t,
-        verifiedUid,
-        campaignRef.id,
-        budget,
-        campaignTitle
-      )
 
       // Deduct advertiser balance
       t.update(advertiserRef, {
