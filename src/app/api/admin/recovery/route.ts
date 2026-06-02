@@ -58,8 +58,8 @@ async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Fires
   return new Set(
     processedWebhookSnap.docs
       .filter((doc) => {
-        const status = String(doc.data().status || "").toUpperCase()
-        return status === "SUCCESS" || status === "SUCCESSFUL"
+        const status = String(doc.data().status || doc.data().paymentStatus || "").toUpperCase()
+        return status === "SUCCESS" || status === "SUCCESSFUL" || status === "PAID"
       })
       .flatMap((doc) => getProcessedWebhookReferences(doc.data()))
   )

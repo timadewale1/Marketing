@@ -493,6 +493,9 @@ export default function EarnerDashboard() {
                       <p className="text-xs text-stone-600 mt-1">
                         Pending bonuses: ₦{referralStats.pendingBonuses}
                       </p>
+                      <p className="text-xs text-stone-600 mt-1">
+                        For activation issues, call 07062991664
+                      </p>
                     </div>
                   </motion.div>
                 )}
@@ -530,7 +533,7 @@ export default function EarnerDashboard() {
                   {strikeCount}
                 </p>
                 <p className={`text-xs mt-1 ${accountStatus === 'suspended' ? 'text-red-600' : strikeCount > 0 ? 'text-amber-600' : 'text-stone-500'}`}>
-                  {accountStatus === 'suspended' ? 'Account suspended' : 'Suspends at 5 strikes'}
+                  {accountStatus === 'suspended' ? 'Account suspended' : `Strikes: ${strikeCount}`}
                 </p>
               </div>
             </CardContent>

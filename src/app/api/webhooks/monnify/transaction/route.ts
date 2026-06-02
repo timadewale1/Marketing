@@ -96,6 +96,23 @@ async function findActivationAttemptByReferences(
   return null
 }
 
+function normalizeWebhookText(value: unknown) {
+  return String(value || '').trim().toUpperCase()
+}
+
+function isSuccessfulMonnifyCollection(eventType: unknown, eventData: Record<string, unknown> | null | undefined) {
+  const normalizedEventType = normalizeWebhookText(eventType)
+  const paymentStatus = normalizeWebhookText(eventData?.paymentStatus || eventData?.status)
+
+  return (
+    normalizedEventType === 'SUCCESSFUL_TRANSACTION' ||
+    normalizedEventType === 'TRANSACTION_COMPLETION' ||
+    paymentStatus === 'PAID' ||
+    paymentStatus === 'SUCCESS' ||
+    paymentStatus === 'SUCCESSFUL'
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()
@@ -108,10 +125,13 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = JSON.parse(body)
+    const eventType = payload.eventType
+    const eventData = payload.eventData || {}
+    const normalizedEventType = normalizeWebhookText(eventType)
     console.log('[webhook][monnify][transaction] received event', {
-      eventType: payload.eventType,
-      reference: payload.eventData?.reference,
-      status: payload.eventData?.status,
+      eventType: normalizedEventType,
+      reference: eventData?.reference,
+      status: eventData?.status || eventData?.paymentStatus,
     })
 
     // Initialize Firebase admin for processing
@@ -121,10 +141,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 })
     }
 
-    const { eventType, eventData } = payload
-
-    if (eventType === 'TRANSACTION_COMPLETION') {
+    if (isSuccessfulMonnifyCollection(eventType, eventData)) {
       const { reference, status, amount, transactionReference } = eventData
+      const paymentStatus = normalizeWebhookText(eventData?.paymentStatus || status)
       const customerEmail = String(
         (eventData?.customer && typeof eventData.customer === 'object'
           ? (eventData.customer as Record<string, unknown>).email
@@ -175,7 +194,9 @@ export async function POST(req: NextRequest) {
             reference: referenceCandidates[0] || String(reference || ''),
             referenceCandidates,
             eventType: 'TRANSACTION_COMPLETION',
-            status,
+            sourceEventType: normalizedEventType,
+            status: paymentStatus || normalizeWebhookText(status) || null,
+            paymentStatus: paymentStatus || null,
             amount,
             transactionReference: transactionReference || null,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
