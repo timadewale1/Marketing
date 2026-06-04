@@ -1,3 +1,4 @@
+import * as admin from "firebase-admin"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
 import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
@@ -15,22 +16,11 @@ type ProcessedWebhookRecord = {
 const TX_ONLY_MAX_AUTO_RETRIES = 3
 const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
 const RECOVERY_SWEEP_BATCH_LIMIT = 50
-const TX_ONLY_RETRY_INTERVALS_MS = [
-  60 * 60 * 1000,
-  3 * 60 * 60 * 1000,
-  8 * 60 * 60 * 1000,
-]
 
 const MONNIFY_MAX_AUTO_RETRIES = 6
 const MONNIFY_MAX_AUTO_AGE_MS = 36 * 60 * 60 * 1000
-const MONNIFY_RETRY_INTERVALS_MS = [
-  15 * 60 * 1000,
-  60 * 60 * 1000,
-  3 * 60 * 60 * 1000,
-  6 * 60 * 60 * 1000,
-  12 * 60 * 60 * 1000,
-  12 * 60 * 60 * 1000,
-]
+const RECOVERY_AUTO_CHECK_LIMIT = 4
+const RECOVERY_AUTO_RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
@@ -90,14 +80,6 @@ function hasFinalMonnifyReference(references: string[]) {
 
 function hasOnlyTxLikeReferences(references: string[]) {
   return references.length > 0 && references.every((reference) => reference.toUpperCase().startsWith("TX_"))
-}
-
-function getRetryIntervalMs(references: string[], retryCount: number) {
-  const intervals = hasFinalMonnifyReference(references)
-    ? MONNIFY_RETRY_INTERVALS_MS
-    : TX_ONLY_RETRY_INTERVALS_MS
-  const index = Math.max(0, Math.min(retryCount, intervals.length - 1))
-  return intervals[index]
 }
 
 function shouldEscalateToManualReview({
@@ -269,6 +251,7 @@ export async function runRecoverySweep() {
     retryCount: number
     nextCheckAt: Date | null
     disposition: string | null
+    autoChecksLocked: boolean
   }>()
 
   for (const doc of activationAttemptsSnap.docs) {
@@ -281,25 +264,26 @@ export async function runRecoverySweep() {
     const references = normalizeReferences([data.reference, ...(Array.isArray(data.references) ? data.references : [])])
     if (references.length === 0 && !previous) continue
 
-    activationAttemptsByUser.set(key, {
-      docId: doc.id,
-      references: normalizeReferences([...(previous?.references || []), ...references]),
-      providerHint: String(data.provider || previous?.providerHint || "") || null,
-      activationAttemptedAt:
+      activationAttemptsByUser.set(key, {
+        docId: doc.id,
+        references: normalizeReferences([...(previous?.references || []), ...references]),
+        providerHint: String(data.provider || previous?.providerHint || "") || null,
+        activationAttemptedAt:
         (serializeDate(data.attemptedAt) as string | null) ||
         (serializeDate(data.updatedAt) as string | null) ||
         previous?.activationAttemptedAt ||
         null,
       name: String(data.name || previous?.name || ""),
       email: String(data.email || previous?.email || "").trim().toLowerCase(),
-      retryCount: Math.max(
-        Number(previous?.retryCount || 0),
-        Number(data.recoveryRetryCount || 0),
-      ),
-      nextCheckAt: previous?.nextCheckAt || asDate(data.nextRecoveryCheckAt),
-      disposition: String(data.recoveryDisposition || previous?.disposition || "") || null,
-    })
-  }
+        retryCount: Math.max(
+          Number(previous?.retryCount || 0),
+          Number(data.recoveryRetryCount || 0),
+        ),
+        nextCheckAt: previous?.nextCheckAt || asDate(data.nextRecoveryCheckAt),
+        disposition: String(data.recoveryDisposition || previous?.disposition || "") || null,
+        autoChecksLocked: Boolean(data.recoveryAutoChecksLocked || previous?.autoChecksLocked || false),
+      })
+    }
 
   const verificationCache = new Map<string, Promise<VerificationState>>()
 
@@ -355,6 +339,7 @@ export async function runRecoverySweep() {
           nextCheckAt: attemptInfo?.nextCheckAt || null,
           attemptedAt: asDate(data.activationAttemptedAt) || asDate(attemptInfo?.activationAttemptedAt),
           disposition: attemptInfo?.disposition || null,
+          autoChecksLocked: Boolean(data.recoveryAutoChecksLocked || attemptInfo?.autoChecksLocked || false),
         }
       })
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
@@ -384,6 +369,7 @@ export async function runRecoverySweep() {
         nextCheckAt: asDate(data.nextRecoveryCheckAt),
         createdAt: asDate(data.createdAt),
         disposition: String(data.recoveryDisposition || "") || null,
+        autoChecksLocked: Boolean(data.recoveryAutoChecksLocked || false),
       }
     })
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
@@ -393,6 +379,7 @@ export async function runRecoverySweep() {
   let activationDeferred = 0
   let activationEscalated = 0
   for (const candidate of activationCandidates) {
+    if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     if (!candidate.attemptDocId) continue
     activationChecked += 1
@@ -445,6 +432,7 @@ export async function runRecoverySweep() {
     const nextRetryCount = candidate.retryCount + 1
     const firstSeenAt = candidate.attemptedAt || new Date()
     const isManualReview = candidate.disposition === "manual_review"
+    const autoChecksLocked = nextRetryCount >= RECOVERY_AUTO_CHECK_LIMIT
     const escalate = !isManualReview && shouldEscalateToManualReview({
       references: candidate.references,
       retryCount: nextRetryCount,
@@ -456,9 +444,10 @@ export async function runRecoverySweep() {
       lastRecoveryVerificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
       recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
-      nextRecoveryCheckAt: new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      nextRecoveryCheckAt: autoChecksLocked ? admin.firestore.FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Activation payment remained unresolved after automatic retries" : null,
+      recoveryAutoChecksLocked: autoChecksLocked,
       updatedAt: new Date(),
     }, { merge: true })
 
@@ -471,6 +460,7 @@ export async function runRecoverySweep() {
   let walletDeferred = 0
   let walletEscalated = 0
   for (const candidate of walletCandidates) {
+    if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     walletChecked += 1
     if (candidate.verificationState !== "paid") continue
@@ -527,6 +517,7 @@ export async function runRecoverySweep() {
     const nextRetryCount = candidate.retryCount + 1
     const firstSeenAt = candidate.createdAt || new Date()
     const isManualReview = candidate.disposition === "manual_review"
+    const autoChecksLocked = nextRetryCount >= RECOVERY_AUTO_CHECK_LIMIT
     const escalate = !isManualReview && shouldEscalateToManualReview({
       references: candidate.references,
       retryCount: nextRetryCount,
@@ -539,9 +530,10 @@ export async function runRecoverySweep() {
       verificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
       recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
-      nextRecoveryCheckAt: new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      nextRecoveryCheckAt: autoChecksLocked ? admin.firestore.FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Wallet funding remained unresolved after automatic retries" : null,
+      recoveryAutoChecksLocked: autoChecksLocked,
     }, { merge: true })
 
     if (escalate) walletEscalated += 1

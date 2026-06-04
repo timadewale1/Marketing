@@ -71,6 +71,7 @@ export async function POST(req: Request) {
           recoveryDisposition: admin.firestore.FieldValue.delete(),
           recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
           recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
         }, { merge: true })
 
         // For Monnify SDK payments, trust the onComplete callback

@@ -462,6 +462,7 @@ export async function processWalletFundingWithRetry(
           recoveryDisposition: admin.firestore.FieldValue.delete(),
           recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
           recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
         }, { merge: true })
         console.log(`[wallet-funding][retry] already processed for ${userId}`)
         return { success: true, alreadyProcessed: true }
@@ -491,6 +492,7 @@ export async function processWalletFundingWithRetry(
           recoveryDisposition: admin.firestore.FieldValue.delete(),
           recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
           recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
         })
       } else {
         const txRef = adminDb.collection(collectionName).doc()

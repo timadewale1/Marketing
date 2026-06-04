@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       activationAttemptedAt: admin.firestore.FieldValue.serverTimestamp(),
       nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
       recoveryDisposition: admin.firestore.FieldValue.delete(),
+      recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
     })
     await recordActivationAttempt({
       userId,

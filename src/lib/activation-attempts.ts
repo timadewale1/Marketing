@@ -63,6 +63,7 @@ export async function recordActivationAttempt({
     recoveryDisposition: admin.firestore.FieldValue.delete(),
     recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
     recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+    recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
   }, { merge: true })
 }
 
@@ -104,5 +105,6 @@ export async function markActivationAttemptCompleted({
     recoveryDisposition: admin.firestore.FieldValue.delete(),
     recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
     recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+    recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
   }, { merge: true })
 }
