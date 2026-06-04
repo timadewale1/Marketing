@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Your account is suspended. Please contact admin for review.' }, { status: 403 })
     }
     if (!earner?.activated) {
-      return NextResponse.json({ success: false, message: 'Please activate your account before performing tasks.' }, { status: 403 })
+      return NextResponse.json({ success: false, message: 'Please pay your one-time membership fee before performing tasks.' }, { status: 403 })
     }
 
     const campaignRef = db.collection('campaigns').doc(String(campaignId))

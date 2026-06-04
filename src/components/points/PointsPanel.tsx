@@ -163,7 +163,7 @@ export function PointsPanel({
         return
       }
       if (role === "earner" && !activated && redeemTarget !== "wallet") {
-        toast.error("Please activate your account before redeeming points to this option.")
+        toast.error("Please pay your one-time membership fee before redeeming points to this option.")
         return
       }
 
@@ -248,7 +248,7 @@ export function PointsPanel({
                 <span>Daily login: +10</span>
                 <span>Approved task: +10</span>
                 <span>Bills: +5 for bills of ₦200 and above</span>
-                <span>Referral activation: +50</span>
+                <span>Referral membership bonus: +50</span>
                 <span>High-value task: +200</span>
               </div>
             </div>

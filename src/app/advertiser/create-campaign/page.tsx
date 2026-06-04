@@ -526,7 +526,7 @@ const compressed = await imageCompression(file, options)
       toast.error('You must be logged in to activate')
       return
     }
-    // Show payment selector for activation fee
+    // Show payment selector for membership fee
     setPendingCampaign(campaignAfter || null)
     setShowActivationPaymentSelector(true)
   }
@@ -1287,11 +1287,11 @@ const getEmbeddedVideo = (url: string) => {
           <div className="col-span-full rounded-[24px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-semibold text-stone-800">Account Not Activated</div>
-                <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+                <div className="font-semibold text-stone-800">Membership fee required</div>
+                <div className="text-sm text-stone-600">You must pay your one-time membership fee (₦2,000) before creating tasks.</div>
               </div>
               <div>
-                <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Activate Now</Button>
+                <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Pay Membership Fee</Button>
               </div>
             </div>
           </div>
@@ -1388,14 +1388,14 @@ const getEmbeddedVideo = (url: string) => {
         />
       )}
 
-      {/* Payment selector for account activation */}
+      {/* Payment selector for membership fee */}
       {showActivationPaymentSelector && (
         <PaymentSelector
           open={showActivationPaymentSelector}
           amount={2000}
           email={auth.currentUser?.email || undefined}
           fullName={auth.currentUser?.displayName || 'Advertiser'}
-          description="Advertiser Account Activation"
+          description="Advertiser Membership Fee"
           onMonnifyReferenceCreated={async (reference: string) => {
             await registerActivationReference({ role: 'advertiser', reference, provider: 'monnify' })
           }}
@@ -1414,9 +1414,9 @@ const getEmbeddedVideo = (url: string) => {
               const data = await res.json()
               if (res.ok && data.success) {
                 if (data.pendingConfirmation) {
-                  toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                  toast.success('Payment received. Your membership will be confirmed after Monnify confirms it.')
                 } else {
-                  toast.success('Activation successful')
+                  toast.success('Membership fee confirmed successfully')
                   setShowActivatePrompt(false)
                   if (pendingCampaign) {
                     setTimeout(() => {
@@ -1425,11 +1425,11 @@ const getEmbeddedVideo = (url: string) => {
                   }
                 }
               } else {
-                toast.error(data?.message || 'Activation failed')
+                toast.error(data?.message || 'Membership fee payment failed')
               }
             } catch (err) {
-              console.error('Activation error', err)
-              toast.error('Activation request failed')
+              console.error('Membership fee error', err)
+              toast.error('Membership fee request failed')
             }
           }}
         />

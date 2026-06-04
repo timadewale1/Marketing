@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
       })
 
       // Handle transaction completion - process activation and wallet funding
-      if (status === 'SUCCESSFUL' || status === 'SUCCESS') {
+      if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESSFUL' || paymentStatus === 'SUCCESS') {
         try {
           // Check if already processed (idempotency)
           for (const candidateReference of referenceCandidates) {

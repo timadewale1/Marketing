@@ -314,7 +314,7 @@ export default function CampaignDetailPage() {
       return;
     }
     if (!earnerData.activated) {
-      toast.error("Please activate your account before performing tasks.");
+      toast.error("Please pay your one-time membership fee before performing tasks.");
       router.push("/earner/transactions");
       return;
     }
@@ -981,7 +981,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                 <div className="space-y-3">
                   <p className="text-sm text-amber-900">
-                    Please activate your account before performing tasks. Non-activated earners cannot submit participation, withdraw funds, or use wallet balance for bills.
+                    Please pay your one-time membership fee before performing tasks. Non-membership earners cannot submit participation, withdraw funds, or use wallet balance for bills.
                   </p>
                   <Button
                     type="button"
@@ -989,7 +989,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                     onClick={() => router.push("/earner/transactions")}
                     className="border-amber-300 text-amber-900 hover:bg-amber-100"
                   >
-                    Activate Account
+                    Pay Membership Fee
                   </Button>
                 </div>
               </div>

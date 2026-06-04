@@ -5,6 +5,12 @@ import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnif
 
 type PaymentProvider = "monnify" | "paystack"
 type VerificationState = "paid" | "manual_check" | "unverified"
+type ProcessedWebhookRecord = {
+  reference?: unknown
+  referenceCandidates?: unknown
+  status?: unknown
+  paymentStatus?: unknown
+}
 
 const TX_ONLY_MAX_AUTO_RETRIES = 3
 const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
@@ -52,6 +58,30 @@ function normalizeProvider(value: unknown): PaymentProvider | null {
 
 function normalizeReferences(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))]
+}
+
+function getProcessedWebhookReferences(data: ProcessedWebhookRecord) {
+  return normalizeReferences([
+    data.reference,
+    ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+  ])
+}
+
+async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Firestore) {
+  const processedWebhookSnap = await dbAdmin
+    .collection("processedWebhooks")
+    .where("eventType", "==", "TRANSACTION_COMPLETION")
+    .limit(1000)
+    .get()
+
+  return new Set(
+    processedWebhookSnap.docs
+      .filter((doc) => {
+        const status = String(doc.data().status || doc.data().paymentStatus || "").toUpperCase()
+        return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
+      })
+      .flatMap((doc) => getProcessedWebhookReferences(doc.data() as ProcessedWebhookRecord))
+  )
 }
 
 function hasFinalMonnifyReference(references: string[]) {
@@ -145,9 +175,14 @@ async function resolveRecoveryVerificationState(
   references: string[],
   providerHint: unknown,
   verificationCache: Map<string, Promise<VerificationState>>,
+  successfulWebhookReferences?: Set<string>,
 ): Promise<VerificationState> {
   const uniqueReferences = [...new Set(references.map((value) => String(value || "").trim()).filter(Boolean))]
   if (uniqueReferences.length === 0) return "unverified"
+
+  if (successfulWebhookReferences && uniqueReferences.some((reference) => successfulWebhookReferences.has(reference))) {
+    return "paid"
+  }
 
   const hintedProvider = normalizeProvider(providerHint)
   const providersToTry: PaymentProvider[] = hintedProvider
@@ -192,9 +227,10 @@ export async function runRecoverySweep() {
     source: "recovery-sweep",
   })
 
-  const [pendingWalletSnap, activationAttemptsSnap] = await Promise.all([
+  const [pendingWalletSnap, activationAttemptsSnap, successfulWebhookReferences] = await Promise.all([
     dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
     dbAdmin.collection("activationAttempts").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
+    buildSuccessfulWebhookReferences(dbAdmin),
   ])
 
   if (pendingWalletSnap.empty && activationAttemptsSnap.empty) {
@@ -240,8 +276,6 @@ export async function runRecoverySweep() {
     const userId = String(data.userId || "")
     const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
     if (!userId || !role) continue
-    if (String(data.recoveryDisposition || "").toLowerCase() === "manual_review") continue
-
     const key = `${role}:${userId}`
     const previous = activationAttemptsByUser.get(key)
     const references = normalizeReferences([data.reference, ...(Array.isArray(data.references) ? data.references : [])])
@@ -307,6 +341,7 @@ export async function runRecoverySweep() {
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || attemptInfo?.providerHint || null,
           verificationCache,
+          successfulWebhookReferences,
         )
 
         return {
@@ -319,6 +354,7 @@ export async function runRecoverySweep() {
           retryCount: Number(attemptInfo?.retryCount || 0),
           nextCheckAt: attemptInfo?.nextCheckAt || null,
           attemptedAt: asDate(data.activationAttemptedAt) || asDate(attemptInfo?.activationAttemptedAt),
+          disposition: attemptInfo?.disposition || null,
         }
       })
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
@@ -333,6 +369,7 @@ export async function runRecoverySweep() {
         references,
         data.provider || "monnify",
         verificationCache,
+        successfulWebhookReferences,
       )
 
       return {
@@ -401,6 +438,7 @@ export async function runRecoverySweep() {
 
   for (const candidate of activationCandidates) {
     if (candidate.verificationState === "paid") continue
+    if (candidate.disposition === "manual_review") continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     if (!candidate.attemptDocId) continue
 
@@ -433,7 +471,6 @@ export async function runRecoverySweep() {
   let walletDeferred = 0
   let walletEscalated = 0
   for (const candidate of walletCandidates) {
-    if (candidate.disposition === "manual_review") continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     walletChecked += 1
     if (candidate.verificationState !== "paid") continue

@@ -307,7 +307,7 @@ export async function processActivationWithRetry(
         }, { merge: true })
       }
 
-      // Create activation fee transaction record (platform revenue; not credited to user)
+      // Create membership fee transaction record (platform revenue; not credited to user)
       const collectionName = userType === 'earners' ? 'earnerTransactions' : 'advertiserTransactions'
       await adminDb.collection(collectionName).doc().set({
         userId,
@@ -319,7 +319,7 @@ export async function processActivationWithRetry(
         provider,
         reference: primaryReference,
         status: 'completed',
-        note: `Activation fee payment`,
+        note: `Membership fee payment`,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       })

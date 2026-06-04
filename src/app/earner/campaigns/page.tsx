@@ -113,7 +113,7 @@ export default function AvailableCampaignsPage() {
           !activationReloadedRef.current
         ) {
           activationReloadedRef.current = true;
-          toast.success("Your account is now activated. Refreshing this page...");
+          toast.success("Your membership is now confirmed. Refreshing this page...");
           setTimeout(() => window.location.reload(), 700);
         }
 
@@ -213,17 +213,17 @@ export default function AvailableCampaignsPage() {
   const activationRequiredCard = (
     <Card className="border border-amber-200 bg-amber-50 p-6 shadow-sm">
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Activation required</p>
-        <h3 className="text-2xl font-semibold text-stone-900">Activate your earner account before performing tasks</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Membership fee required</p>
+        <h3 className="text-2xl font-semibold text-stone-900">Pay your one-time membership fee before performing tasks</h3>
         <p className="max-w-2xl text-sm leading-6 text-amber-900">
-          Non-activated earners cannot participate in tasks, withdraw funds, or use wallet balance for bills until the activation fee has been paid successfully.
+          Non-activated earners cannot participate in tasks, withdraw funds, or use wallet balance for bills until the one-time membership fee has been paid successfully.
         </p>
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => router.push("/earner/transactions")}
             className="bg-amber-500 hover:bg-amber-600 text-stone-900"
           >
-            Activate Account
+            Pay Membership Fee
           </Button>
           <Button variant="outline" onClick={() => router.push("/earner")}>
             Back to dashboard
@@ -363,7 +363,7 @@ export default function AvailableCampaignsPage() {
                                   return;
                                 }
                                 if (!activated) {
-                                  toast.error("Please activate your account before performing tasks.");
+                                  toast.error("Please pay your one-time membership fee before performing tasks.");
                                   router.push("/earner/transactions");
                                   return;
                                 }

@@ -160,7 +160,7 @@ export default function EarnerDashboard() {
             !activationReloadedRef.current
           ) {
             activationReloadedRef.current = true
-            toast.success("Your account is now activated. Refreshing your dashboard...")
+            toast.success("Your membership is now confirmed. Refreshing your dashboard...")
             setTimeout(() => window.location.reload(), 700)
           }
 
@@ -282,7 +282,7 @@ export default function EarnerDashboard() {
       return
     }
     if (!activated) {
-      toast.error('Please activate your account before performing tasks.')
+      toast.error('Please pay your one-time membership fee before performing tasks.')
       router.push("/earner/transactions")
       return
     }
@@ -348,7 +348,7 @@ export default function EarnerDashboard() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
             {activated
               ? "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning."
-              : "Activate your account to unlock task participation, withdrawals, and wallet spending across the platform."}
+              : "Pay your one-time membership fee to unlock task participation, withdrawals, and wallet spending across the platform."}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Badge
@@ -362,7 +362,7 @@ export default function EarnerDashboard() {
             Refer an advertiser and you can also earn 10% of every task budget they create.
           </p>
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
-            For activation issues, contact us on WhatsApp: 07062991664
+            For membership fee issues, contact us on WhatsApp: 07062991664
           </p>
         </div>
   {/* Top Cards */}
@@ -380,7 +380,7 @@ export default function EarnerDashboard() {
                 </p>
                 {!activated ? (
                   <p className="mt-2 text-xs leading-5 text-stone-600">
-                    Your account must be activated before you can perform tasks, withdraw funds, or use your wallet balance for bills.
+                    Your account must pay the one-time membership fee before you can perform tasks, withdraw funds, or use your wallet balance for bills.
                   </p>
                 ) : null}
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -398,7 +398,7 @@ export default function EarnerDashboard() {
                         className="flex-none"
                         onClick={() => router.push("/earner/transactions")}
                       >
-                        Activate Account
+                        Pay Membership Fee
                       </Button>
                     ) : null}
                     <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
@@ -626,7 +626,7 @@ export default function EarnerDashboard() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Earner menu</p>
                     <h3 className="mt-2 text-lg font-bold text-stone-800">{userName}</h3>
-                    <p className="mt-1 text-xs text-stone-500">{activated ? "Account active" : "Activation required"}</p>
+                    <p className="mt-1 text-xs text-stone-500">{activated ? "Membership confirmed" : "Membership fee required"}</p>
                   </div>
                   <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
                     {profilePic ? (

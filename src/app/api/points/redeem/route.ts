@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
       const activated = Boolean(userSnap.data()?.activated)
       if (userCollection === 'earners' && !activated && target !== 'wallet') {
-        throw new Error('Please activate your account before redeeming points to bills, tasks, or withdrawals.')
+        throw new Error('Please pay your one-time membership fee before redeeming points to bills, tasks, or withdrawals.')
       }
 
       const targetWalletPath = target === 'withdraw'

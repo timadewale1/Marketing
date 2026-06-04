@@ -83,7 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
         return NextResponse.json(
           {
             status: false,
-            message: 'Your first N2,000 earned will be used to activate your account automatically before wallet spending is allowed.',
+            message: 'Your first N2,000 earned will be used to pay your one-time membership fee automatically before wallet spending is allowed.',
           },
           { status: 400 }
         );

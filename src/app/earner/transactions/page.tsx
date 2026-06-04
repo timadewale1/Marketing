@@ -112,7 +112,7 @@ export default function TransactionsPage() {
       return;
     }
     if (!activated) {
-      toast.error("Please activate your account before making withdrawals");
+      toast.error("Please pay your one-time membership fee before making withdrawals");
       return;
     }
 
@@ -163,7 +163,7 @@ export default function TransactionsPage() {
               </p>
               {!activated ? (
                 <p className="text-sm text-stone-600 mt-1">
-                  Please activate your account before withdrawals and wallet bill purchases are available.
+                  Please pay your one-time membership fee before withdrawals and wallet bill purchases are available.
                 </p>
               ) : null}
             </div>
@@ -181,7 +181,7 @@ export default function TransactionsPage() {
                   onClick={() => setShowActivationPaymentSelector(true)}
                   className="min-w-[150px]"
                 >
-                  Activate Account
+                  Pay Membership Fee
                 </Button>
               ) : null}
             </div>
@@ -329,7 +329,7 @@ export default function TransactionsPage() {
             amount={2000}
             email={auth.currentUser?.email || undefined}
             fullName={auth.currentUser?.displayName || "Earner"}
-            description="Earner Account Activation"
+            description="Earner Membership Fee"
             onMonnifyReferenceCreated={async (reference: string) => {
               await registerActivationReference({ role: "earner", reference, provider: "monnify" });
             }}
@@ -345,17 +345,17 @@ export default function TransactionsPage() {
                 const data = await res.json().catch(() => ({}));
                 if (res.ok && data?.success) {
                   if (data.pendingConfirmation) {
-                    toast.success("Payment received. Your account will activate after Monnify confirms it.");
+                    toast.success("Payment received. Your membership will be confirmed after Monnify confirms it.");
                   } else {
-                    toast.success("Activation successful");
+                    toast.success("Membership fee confirmed successfully");
                     setActivated(true);
                   }
                 } else {
-                  toast.error(data?.message || "Activation failed");
+                  toast.error(data?.message || "Membership fee payment failed");
                 }
               } catch (err) {
-                console.error("Activation error", err);
-                toast.error("Activation request failed");
+                console.error("Membership fee error", err);
+                toast.error("Membership fee request failed");
               }
             }}
           />

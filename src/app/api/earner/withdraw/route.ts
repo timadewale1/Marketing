@@ -79,7 +79,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Your first N2,000 earned will be used to activate your account automatically before withdrawals are allowed.',
+          message: 'Your first N2,000 earned will be used to pay your one-time membership fee automatically before withdrawals are allowed.',
         },
         { status: 400 }
       )

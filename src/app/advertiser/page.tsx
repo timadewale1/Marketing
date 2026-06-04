@@ -157,7 +157,7 @@ export default function AdvertiserDashboard() {
           !activationReloadedRef.current
         ) {
           activationReloadedRef.current = true
-          toast.success("Your advertiser account is now activated. Refreshing your dashboard...")
+          toast.success("Your membership is now confirmed. Refreshing your dashboard...")
           setTimeout(() => window.location.reload(), 700)
         }
 
@@ -314,11 +314,11 @@ export default function AdvertiserDashboard() {
       <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-semibold text-stone-800">Account Not Activated</div>
-            <div className="text-sm text-stone-600">You must activate your advertiser account (₦2,000) before creating tasks.</div>
+            <div className="font-semibold text-stone-800">Membership fee required</div>
+            <div className="text-sm text-stone-600">You must pay your one-time membership fee (N2,000) before creating tasks.</div>
           </div>
           <div>
-            <Button className="bg-amber-500 text-stone-900" onClick={handleActivation}>Activate Account</Button>
+            <Button className="bg-amber-500 text-stone-900" onClick={handleActivation}>Pay Membership Fee</Button>
           </div>
         </div>
       </div>
@@ -397,7 +397,7 @@ export default function AdvertiserDashboard() {
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Advertiser menu</p>
                 <h2 className="mt-2 text-lg font-semibold text-stone-800">{name}</h2>
                 <p className="mt-1 text-xs text-stone-500">
-                  {activated ? "Ready to launch campaigns" : "Activation needed before task creation"}
+                  {activated ? "Ready to launch campaigns" : "Membership fee needed before task creation"}
                 </p>
               </div>
               <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
@@ -536,7 +536,7 @@ export default function AdvertiserDashboard() {
             amount={2000}
             email={auth.currentUser?.email || undefined}
             fullName={auth.currentUser?.displayName || 'Advertiser'}
-            description="Advertiser Account Activation"
+            description="Advertiser Membership Fee"
             onClose={() => setShowActivationPaymentSelector(false)}
             onMonnifyReferenceCreated={async (reference: string) => {
               await registerActivationReference({ role: 'advertiser', reference, provider: 'monnify' })
@@ -552,17 +552,17 @@ export default function AdvertiserDashboard() {
                 const data = await res.json().catch(() => ({}))
                 if (res.ok && data?.success) {
                   if (data.pendingConfirmation) {
-                    toast.success('Payment received. Your account will activate after Monnify confirms it.')
+                    toast.success('Payment received. Your membership will be confirmed after Monnify confirms it.')
                   } else {
-                    toast.success('Activation successful')
+                    toast.success('Membership fee confirmed successfully')
                     setActivated(true)
                   }
                 } else {
-                  toast.error(data?.message || 'Activation failed')
+                  toast.error(data?.message || 'Membership fee payment failed')
                 }
               } catch (err) {
-                console.error('Activation error', err)
-                toast.error('Activation request failed')
+                console.error('Membership fee error', err)
+                toast.error('Membership fee request failed')
               }
             }}
           />
@@ -706,3 +706,4 @@ export default function AdvertiserDashboard() {
     </div>
   )
 }
+

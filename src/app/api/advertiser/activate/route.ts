@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         // The SDK only fires onComplete after successful payment
         console.log('Monnify SDK activation verification - trusting SDK callback')
         
-        // Set paidAmount to 2000 (activation fee)
+        // Set paidAmount to 2000 (membership fee)
         paidAmount = 2000
         
         // If monnifyResponse was provided, validate it has the expected structure
@@ -223,9 +223,9 @@ export async function POST(req: Request) {
           amount: paidAmount || 2000,
         })
         if (result.alreadyActivated) {
-          return NextResponse.json({ success: true, completed: true, message: 'Already activated' })
+          return NextResponse.json({ success: true, completed: true, message: 'Membership already confirmed' })
         }
-        return NextResponse.json({ success: true, completed: true, message: 'Activation successful' })
+        return NextResponse.json({ success: true, completed: true, message: 'Membership fee confirmed successfully' })
       }
     } catch (activationError) {
       console.error('Activation processing failed:', activationError)
