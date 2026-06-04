@@ -438,14 +438,14 @@ export async function runRecoverySweep() {
 
   for (const candidate of activationCandidates) {
     if (candidate.verificationState === "paid") continue
-    if (candidate.disposition === "manual_review") continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     if (!candidate.attemptDocId) continue
 
     const attemptRef = dbAdmin.collection("activationAttempts").doc(candidate.attemptDocId)
     const nextRetryCount = candidate.retryCount + 1
     const firstSeenAt = candidate.attemptedAt || new Date()
-    const escalate = shouldEscalateToManualReview({
+    const isManualReview = candidate.disposition === "manual_review"
+    const escalate = !isManualReview && shouldEscalateToManualReview({
       references: candidate.references,
       retryCount: nextRetryCount,
       firstSeenAt,
@@ -455,8 +455,8 @@ export async function runRecoverySweep() {
       lastRecoveryCheckedAt: new Date(),
       lastRecoveryVerificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
-      recoveryDisposition: escalate ? "manual_review" : "scheduled",
-      nextRecoveryCheckAt: escalate ? null : new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
+      nextRecoveryCheckAt: new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Activation payment remained unresolved after automatic retries" : null,
       updatedAt: new Date(),
@@ -521,13 +521,13 @@ export async function runRecoverySweep() {
 
   for (const candidate of walletCandidates) {
     if (candidate.verificationState === "paid") continue
-    if (candidate.disposition === "manual_review") continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
 
     const txRef = dbAdmin.collection("advertiserTransactions").doc(candidate.id)
     const nextRetryCount = candidate.retryCount + 1
     const firstSeenAt = candidate.createdAt || new Date()
-    const escalate = shouldEscalateToManualReview({
+    const isManualReview = candidate.disposition === "manual_review"
+    const escalate = !isManualReview && shouldEscalateToManualReview({
       references: candidate.references,
       retryCount: nextRetryCount,
       firstSeenAt,
@@ -538,8 +538,8 @@ export async function runRecoverySweep() {
       lastRecoveryVerificationState: candidate.verificationState,
       verificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
-      recoveryDisposition: escalate ? "manual_review" : "scheduled",
-      nextRecoveryCheckAt: escalate ? null : new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
+      recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
+      nextRecoveryCheckAt: new Date(Date.now() + getRetryIntervalMs(candidate.references, candidate.retryCount)),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Wallet funding remained unresolved after automatic retries" : null,
     }, { merge: true })

@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/scheduler";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
@@ -47,4 +48,28 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
 
 export const retryPendingMonnifyPayments = onSchedule("every 6 hours", async () => {
   await callInternalRoute("/api/internal/recovery-sweep");
+});
+
+async function wakeRecoverySweepIfNeeded(beforeData: Record<string, unknown> | undefined, afterData: Record<string, unknown> | undefined) {
+  const beforeDisposition = String(beforeData?.recoveryDisposition || "").toLowerCase();
+  const afterDisposition = String(afterData?.recoveryDisposition || "").toLowerCase();
+  if (afterDisposition !== "manual_review" || beforeDisposition === "manual_review") {
+    return;
+  }
+
+  await callInternalRoute("/api/internal/recovery-sweep");
+}
+
+export const wakeRecoveryOnActivationReview = onDocumentUpdated("activationAttempts/{attemptId}", async (event) => {
+  await wakeRecoverySweepIfNeeded(
+    event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined,
+    event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : undefined
+  );
+});
+
+export const wakeRecoveryOnWalletReview = onDocumentUpdated("advertiserTransactions/{transactionId}", async (event) => {
+  await wakeRecoverySweepIfNeeded(
+    event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined,
+    event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : undefined
+  );
 });
