@@ -126,6 +126,41 @@ async function resolveWalletFundingVerificationState(
   return localState
 }
 
+async function resolveActivationVerificationState(
+  references: string[],
+  providerHint: unknown,
+  successfulWebhookReferences?: Set<string>,
+) {
+  const localState = resolveLightVerificationState(references, providerHint, successfulWebhookReferences)
+  if (localState === "paid") {
+    return "paid" as const
+  }
+
+  const provider = String(providerHint || "monnify").toLowerCase()
+  if (provider !== "monnify") {
+    return localState
+  }
+
+  for (const reference of references) {
+    try {
+      const payload = await verifyMonnifyTransaction(reference)
+      if (payload?.requestSuccessful) {
+        const status = extractMonnifyPaymentStatus(payload as Record<string, unknown> | null)
+        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL") {
+          return "paid" as const
+        }
+        if (status === "PENDING" || status === "PROCESSING" || status === "INITIATED" || status === "IN_PROGRESS") {
+          return "manual_check" as const
+        }
+      }
+    } catch (error) {
+      console.warn("[admin][recovery] Monnify activation verification failed", { reference, error })
+    }
+  }
+
+  return localState
+}
+
 export async function GET(): Promise<Response> {
   const adminSession = await requireAdminSession()
   if ("errorResponse" in adminSession) {
@@ -351,19 +386,22 @@ export async function POST(req: Request) {
 
       if (completedActivationTxSnap.empty) {
         const successfulWebhookReferences = await buildSuccessfulWebhookReferences(dbAdmin)
-        const verificationState = resolveLightVerificationState(
+        const verificationState = await resolveActivationVerificationState(
           references,
           data.pendingActivationProvider || data.activationPaymentProvider || attemptData?.provider || null,
           successfulWebhookReferences,
         )
 
         if (verificationState !== "paid") {
-          console.warn("[admin][recovery] proceeding with manual activation despite unverified payment", {
-            userId,
-            role,
-            references,
-            verificationState,
-          })
+          return NextResponse.json(
+            {
+              success: false,
+              message: verificationState === "manual_check"
+                ? "Activation payment is still pending and needs manual check"
+                : "Activation payment has not been verified as successful",
+            },
+            { status: 400 }
+          )
         }
       }
 
