@@ -109,7 +109,8 @@ function isSuccessfulMonnifyCollection(eventType: unknown, eventData: Record<str
     normalizedEventType === 'TRANSACTION_COMPLETION' ||
     paymentStatus === 'PAID' ||
     paymentStatus === 'SUCCESS' ||
-    paymentStatus === 'SUCCESSFUL'
+    paymentStatus === 'SUCCESSFUL' ||
+    paymentStatus === 'COMPLETED'
   )
 }
 
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
       })
 
       // Handle transaction completion - process activation and wallet funding
-      if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESSFUL' || paymentStatus === 'SUCCESS') {
+      if (paymentStatus === 'PAID' || paymentStatus === 'SUCCESSFUL' || paymentStatus === 'SUCCESS' || paymentStatus === 'COMPLETED') {
         try {
           // Check if already processed (idempotency)
           for (const candidateReference of referenceCandidates) {

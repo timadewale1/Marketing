@@ -12,7 +12,7 @@ const DEFAULT_RETRY_DELAYS_MS = [0, 4000, 12000]
 
 function isConfirmedPaymentStatus(value: unknown) {
   const status = String(value || "").toUpperCase()
-  return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
+  return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED"
 }
 
 function getMonnifyResponseBody(source: Record<string, unknown> | null | undefined) {

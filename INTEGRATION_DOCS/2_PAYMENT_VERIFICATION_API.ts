@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
         const result = await processWalletFundingWithRetry(userId, reference, amount, provider, userType)
 
         if (result && result.success) {
-          if (result.alreadyProcessed) {
+          if ((result as { alreadyProcessed?: boolean }).alreadyProcessed) {
             return NextResponse.json({ success: true, message: 'Wallet already funded' })
           }
           return NextResponse.json({ success: true, message: 'Wallet funded successfully' })

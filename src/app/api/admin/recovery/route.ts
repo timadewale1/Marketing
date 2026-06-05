@@ -111,7 +111,7 @@ async function resolveWalletFundingVerificationState(
       const payload = await verifyMonnifyTransaction(reference)
       if (payload?.requestSuccessful) {
         const status = extractMonnifyPaymentStatus(payload as Record<string, unknown> | null)
-        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL") {
+        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED") {
           return "paid" as const
         }
         if (status === "PENDING" || status === "PROCESSING" || status === "INITIATED" || status === "IN_PROGRESS") {
@@ -146,7 +146,7 @@ async function resolveActivationVerificationState(
       const payload = await verifyMonnifyTransaction(reference)
       if (payload?.requestSuccessful) {
         const status = extractMonnifyPaymentStatus(payload as Record<string, unknown> | null)
-        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL") {
+        if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED") {
           return "paid" as const
         }
         if (status === "PENDING" || status === "PROCESSING" || status === "INITIATED" || status === "IN_PROGRESS") {

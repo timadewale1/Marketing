@@ -127,7 +127,7 @@ function resolveMonnifyVerificationState(payload: unknown): VerificationState {
     : undefined
   const paymentStatus = String(responseBody?.paymentStatus || responseBody?.status || "").toUpperCase()
 
-  if (paymentStatus === "PAID" || paymentStatus === "SUCCESS" || paymentStatus === "SUCCESSFUL") {
+  if (paymentStatus === "PAID" || paymentStatus === "SUCCESS" || paymentStatus === "SUCCESSFUL" || paymentStatus === "COMPLETED") {
     return "paid"
   }
 

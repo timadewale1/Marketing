@@ -133,7 +133,7 @@ function parseMonnifyDate(value: unknown) {
 
 function isSuccessfulMonnifyTransaction(transaction: MonnifyTransactionRecord) {
   const status = String(transaction.paymentStatus || transaction.status || '').toUpperCase()
-  return status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL'
+  return status === 'PAID' || status === 'SUCCESS' || status === 'SUCCESSFUL' || status === 'COMPLETED'
 }
 
 function getMonnifyTransactionEmail(transaction: MonnifyTransactionRecord) {

@@ -420,8 +420,9 @@ export async function processWalletFundingWithRetry(
         .where('type', '==', 'wallet_funding')
         .get()
 
-      let existingTxDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
-      let pendingDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+      const matchingDocs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = []
+      const completedDocs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = []
+      const pendingDocs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = []
 
       for (const doc of userFundingSnap.docs) {
         const data = doc.data()
@@ -432,25 +433,55 @@ export async function processWalletFundingWithRetry(
 
         if (!referencesOverlap(referenceCandidates, docReferences)) continue
 
+        matchingDocs.push(doc)
         if (String(data.status || '').toLowerCase() === 'completed') {
-          existingTxDoc = doc
-          break
-        }
-
-        if (!pendingDoc && String(data.status || '').toLowerCase() === 'pending') {
-          pendingDoc = doc
+          completedDocs.push(doc)
+        } else if (String(data.status || '').toLowerCase() === 'pending') {
+          pendingDocs.push(doc)
         }
       }
 
-      if (existingTxDoc) {
-        const existingData = existingTxDoc.data()
-        const mergedReferences = normalizeReferenceSet([
-          existingData.reference,
-          ...(Array.isArray(existingData.referenceCandidates) ? existingData.referenceCandidates : []),
-          ...referenceCandidates,
-        ])
+      if (matchingDocs.length === 0) {
+        const txRef = adminDb.collection(collectionName).doc()
+        const txId = txRef.id
+        await txRef.set({
+          userId,
+          type: 'wallet_funding',
+          amount,
+          provider,
+          reference: primaryReference,
+          referenceCandidates,
+          status: 'completed',
+          note: `Wallet funded via ${provider}`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
 
-        await existingTxDoc.ref.set({
+        await adminDb.collection(userCollection).doc(userId).update({
+          balance: admin.firestore.FieldValue.increment(amount),
+        })
+
+        console.log(`[wallet-funding][retry] success for ${userType} ${userId}`)
+        return { success: true, attempt, txId }
+      }
+
+      const mergedReferences = normalizeReferenceSet([
+        ...matchingDocs.flatMap((doc) => {
+          const data = doc.data()
+          return [
+            data.reference,
+            ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+          ]
+        }),
+        ...referenceCandidates,
+      ])
+
+      const primaryPendingDoc = pendingDocs.find((doc) => Number(doc.data().amount || 0) === amount) || pendingDocs[0] || null
+      const primaryCompletedDoc = completedDocs[0] || null
+
+      if (primaryCompletedDoc) {
+        const existingData = primaryCompletedDoc.data()
+        await primaryCompletedDoc.ref.set({
           provider: existingData.provider || provider,
           reference: String(existingData.reference || primaryReference),
           referenceCandidates: mergedReferences,
@@ -464,23 +495,15 @@ export async function processWalletFundingWithRetry(
           recoveryEscalationReason: admin.firestore.FieldValue.delete(),
           recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
         }, { merge: true })
-        console.log(`[wallet-funding][retry] already processed for ${userId}`)
-        return { success: true, alreadyProcessed: true }
       }
 
-      let txId = ''
-      if (pendingDoc) {
-        txId = pendingDoc.id
-        const pendingData = pendingDoc.data()
-        const mergedReferences = normalizeReferenceSet([
-          pendingData.reference,
-          ...(Array.isArray(pendingData.referenceCandidates) ? pendingData.referenceCandidates : []),
-          ...referenceCandidates,
-        ])
-        await pendingDoc.ref.update({
+      const docsToClose = pendingDocs.filter((doc) => !primaryCompletedDoc || doc.id !== primaryCompletedDoc.id)
+      if (primaryPendingDoc && !primaryCompletedDoc) {
+        const primaryData = primaryPendingDoc.data()
+        await primaryPendingDoc.ref.update({
           amount,
           provider,
-          reference: String(pendingData.reference || primaryReference),
+          reference: String(primaryData.reference || primaryReference),
           referenceCandidates: mergedReferences,
           status: 'completed',
           note: `Wallet funded via ${provider}`,
@@ -494,29 +517,36 @@ export async function processWalletFundingWithRetry(
           recoveryEscalationReason: admin.firestore.FieldValue.delete(),
           recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
         })
-      } else {
-        const txRef = adminDb.collection(collectionName).doc()
-        txId = txRef.id
-        await txRef.set({
-          userId,
-          type: 'wallet_funding',
-          amount,
-          provider,
-          reference: primaryReference,
-          referenceCandidates,
+      }
+
+      for (const duplicateDoc of docsToClose) {
+        const duplicateData = duplicateDoc.data()
+        await duplicateDoc.ref.set({
+          provider: duplicateData.provider || provider,
+          reference: String(duplicateData.reference || primaryReference),
+          referenceCandidates: mergedReferences,
           status: 'completed',
-          note: `Wallet funded via ${provider}`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          note: 'Duplicate wallet funding record reconciled',
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          recoveryRetryCount: admin.firestore.FieldValue.delete(),
+          lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
+          lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryDisposition: admin.firestore.FieldValue.delete(),
+          recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
+          recoveryEscalationReason: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
+        }, { merge: true })
+      }
+
+      if (!primaryCompletedDoc) {
+        await adminDb.collection(userCollection).doc(userId).update({
+          balance: admin.firestore.FieldValue.increment(amount),
         })
       }
 
-      // Update balance
-      await adminDb.collection(userCollection).doc(userId).update({
-        balance: admin.firestore.FieldValue.increment(amount),
-      })
-
-      console.log(`[wallet-funding][retry] success for ${userType} ${userId}`)
+      const txId = primaryPendingDoc?.id || primaryCompletedDoc?.id || matchingDocs[0].id
+      console.log(`[wallet-funding][retry] success for ${userType} ${userId}, reconciled ${Math.max(0, docsToClose.length)} duplicate(s)`)
       return { success: true, attempt, txId }
 
     } catch (error) {
