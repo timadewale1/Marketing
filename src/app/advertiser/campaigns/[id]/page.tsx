@@ -14,7 +14,8 @@ import {
 } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
-import { auth, db } from "@/lib/firebase"
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage"
+import { auth, db, storage } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,6 +85,11 @@ type Submission = {
   earnerDisputeReason?: string | null
 }
 
+type ProofSampleSlot = {
+  url: string | null
+  fileName: string | null
+}
+
 export default function CampaignDetailsPage() {
   const params = useParams<{ id: string | string[] }>()
   const id = params?.id
@@ -98,6 +104,8 @@ export default function CampaignDetailsPage() {
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
+  const [proofSampleSlots, setProofSampleSlots] = useState<ProofSampleSlot[]>([{ url: null, fileName: null }])
+  const [proofSampleUploading, setProofSampleUploading] = useState(false)
   const [flaggingSubmissionId, setFlaggingSubmissionId] = useState<string | null>(null)
   const [flagReasons, setFlagReasons] = useState<Record<string, string>>({})
 
@@ -110,6 +118,12 @@ export default function CampaignDetailsPage() {
         setCampaign(nextCampaign)
         setDraftTitle(nextCampaign.title || "")
         setDraftDescription(nextCampaign.description || "")
+        const existingProofSamples = getCampaignProofSampleUrls(nextCampaign)
+        setProofSampleSlots(
+          existingProofSamples.length > 0
+            ? existingProofSamples.map((url, index) => ({ url, fileName: `Sample ${index + 1}` }))
+            : [{ url: null, fileName: null }]
+        )
       } else {
         setCampaign(null)
       }
@@ -333,6 +347,7 @@ export default function CampaignDetailsPage() {
           campaignId: campaign.id,
           title: draftTitle.trim(),
           description: draftDescription.trim(),
+          participationProofSampleUrls: proofSampleSlots.map((slot) => slot.url).filter((value): value is string => Boolean(value)),
         }),
       })
 
@@ -348,6 +363,61 @@ export default function CampaignDetailsPage() {
     } finally {
       setSavingDetails(false)
     }
+  }
+
+  const uploadProofSample = async (index: number, file: File) => {
+    const user = auth.currentUser
+    if (!user || !campaign) {
+      toast.error("Please sign in again to continue")
+      return
+    }
+    setProofSampleUploading(true)
+    try {
+      const safeName = file.name.replace(/\s+/g, "-")
+      const path = `campaignProofSamples/${user.uid}/${campaign.id}/proof-sample-${Date.now()}-${index}-${safeName}`
+      const storageRef = ref(storage, path)
+      const uploadTask = uploadBytesResumable(storageRef, file)
+
+      uploadTask.on(
+        "state_changed",
+        () => undefined,
+        (error) => {
+          console.error("Participation proof sample upload error", error)
+          toast.error("Failed to upload participation proof sample")
+          setProofSampleUploading(false)
+        },
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref)
+          setProofSampleSlots((current) =>
+            current.map((slot, slotIndex) =>
+              slotIndex === index
+                ? { url, fileName: file.name }
+                : slot
+            )
+          )
+          setProofSampleUploading(false)
+          toast.success(`Proof sample ${index + 1} uploaded`)
+        }
+      )
+    } catch (error) {
+      console.error("Participation proof sample upload error", error)
+      toast.error("Failed to upload participation proof sample")
+      setProofSampleUploading(false)
+    }
+  }
+
+  const addProofSampleSlot = () => {
+    setProofSampleSlots((current) => {
+      if (current.length >= 5) return current
+      return [...current, { url: null, fileName: null }]
+    })
+  }
+
+  const removeProofSampleSlot = (index: number) => {
+    setProofSampleSlots((current) => {
+      const next = current.filter((_, slotIndex) => slotIndex !== index)
+      return next.length > 0 ? next : [{ url: null, fileName: null }]
+    })
   }
 
   const handleAdvertiserReview = async (submission: Submission, action: "Verified" | "Rejected" | "RequestResubmission") => {
@@ -491,6 +561,123 @@ export default function CampaignDetailsPage() {
               <p className="mt-3 text-sm leading-6 text-stone-700">
                 {campaign.description?.trim() || "No description was added for this task."}
               </p>
+            )}
+          </div>
+          <div className="rounded-2xl bg-white/70 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Participation proof samples</p>
+              {!isEditingDetails && participationProofSamples.length > 0 ? (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                  {participationProofSamples.length} sample{participationProofSamples.length === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+            {isEditingDetails ? (
+              <div className="mt-4 space-y-4">
+                {proofSampleSlots.map((slot, index) => {
+                  const inputId = `campaign-proof-sample-${index}`
+                  return (
+                    <div key={inputId} className="rounded-2xl border border-dashed border-stone-300 bg-white p-4">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-stone-800">Sample {index + 1}</p>
+                            <p className="text-xs text-stone-500">Upload or replace the proof example earners should follow.</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label
+                              htmlFor={inputId}
+                              className="inline-flex cursor-pointer items-center justify-center rounded-full bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
+                            >
+                              {slot.url ? "Replace" : "Upload"}
+                            </label>
+                            <input
+                              id={inputId}
+                              type="file"
+                              accept="image/*,video/*"
+                              className="sr-only"
+                              disabled={proofSampleUploading}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (!file) return
+                                await uploadProofSample(index, file)
+                                e.currentTarget.value = ""
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={proofSampleUploading}
+                              onClick={() => removeProofSampleSlot(index)}
+                              className="rounded-full border-stone-300 bg-white text-stone-700"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                        {slot.fileName ? (
+                          <p className="text-xs text-stone-500">Current file: {slot.fileName}</p>
+                        ) : (
+                          <p className="text-xs text-stone-400">No file uploaded yet.</p>
+                        )}
+                        {slot.url ? (
+                          /\.(mp4|mov|webm|ogg)$/i.test(slot.url) ? (
+                            <video
+                              src={slot.url}
+                              controls
+                              className="mt-2 h-40 w-full rounded-2xl border border-stone-200 bg-stone-950 object-cover"
+                            />
+                          ) : (
+                            <div className="relative mt-2 h-44 w-full overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+                              <Image
+                                src={slot.url}
+                                alt={`Proof sample ${index + 1}`}
+                                fill
+                                className="object-contain"
+                              />
+                            </div>
+                          )
+                        ) : null}
+                      </div>
+                    </div>
+                  )
+                })}
+                {proofSampleSlots.length < 5 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addProofSampleSlot}
+                    className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                    disabled={proofSampleUploading}
+                  >
+                    Add more proof samples
+                  </Button>
+                ) : null}
+                {proofSampleUploading ? (
+                  <div className="text-sm text-amber-600">Uploading proof sample...</div>
+                ) : null}
+              </div>
+            ) : participationProofSamples.length > 0 ? (
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+                {participationProofSamples.map((sampleUrl, index) => (
+                  <a
+                    key={`${sampleUrl}-${index}`}
+                    href={sampleUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={sampleUrl}
+                      alt={`Proof sample ${index + 1}`}
+                      className="h-28 w-full object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-stone-500">No proof samples added yet.</p>
             )}
           </div>
           {isEditingDetails ? (

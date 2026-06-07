@@ -9,10 +9,13 @@ export async function POST(req: Request) {
     }
 
     const token = authHeader.slice(7)
-    const { campaignId, title, description } = await req.json()
+    const { campaignId, title, description, participationProofSampleUrls } = await req.json()
     const normalizedCampaignId = String(campaignId || '').trim()
     const normalizedTitle = String(title || '').trim()
     const normalizedDescription = String(description || '').trim()
+    const normalizedProofSampleUrls = Array.isArray(participationProofSampleUrls)
+      ? participationProofSampleUrls.map((value) => String(value || '').trim()).filter(Boolean)
+      : []
 
     if (!normalizedCampaignId) {
       return NextResponse.json({ success: false, message: 'Campaign is required' }, { status: 400 })
@@ -50,6 +53,8 @@ export async function POST(req: Request) {
       transaction.update(campaignRef, {
         title: normalizedTitle,
         description: normalizedDescription,
+        participationProofSampleUrls: normalizedProofSampleUrls,
+        participationProofSampleUrl: normalizedProofSampleUrls[0] || null,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
       })
     })
