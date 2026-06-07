@@ -151,11 +151,6 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     return { awarded: false, bonusAmount, referralId: null as string | null }
   }
 
-  const campaignsCreated = Number(advertiserSnap.data()?.campaignsCreated || 0)
-  if (campaignsCreated > 0) {
-    return { awarded: false, bonusAmount, referralId: null as string | null }
-  }
-
   const referralQuery = adminDb
     .collection('referrals')
     .where('referredId', '==', advertiserId)

@@ -177,9 +177,12 @@ export async function POST(req: Request) {
 
         const effectiveReservedBudget = campaignReservedBudget + reservedBudgetAdjustment
         if (effectiveReservedBudget < reservedAmount) {
-          throw new Error('Reserved funds for this submission are no longer available')
+          const shortage = reservedAmount - effectiveReservedBudget
+          budgetToConsume = Math.min(campaignBudget, shortage)
+          remainingToCover = Math.max(0, shortage - budgetToConsume)
+        } else {
+          reservedToConsume = reservedAmount
         }
-        reservedToConsume = reservedAmount
       } else {
         budgetToConsume = Math.min(campaignBudget, fullAmount)
         remainingToCover = Math.max(0, fullAmount - budgetToConsume)

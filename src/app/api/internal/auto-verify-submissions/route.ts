@@ -176,15 +176,18 @@ export async function GET(request: Request) {
               reservedBudgetAdjustment = expectedReservedBudget - campaignReservedBudget
             }
 
-            const effectiveReservedBudget = campaignReservedBudget + reservedBudgetAdjustment
-            if (effectiveReservedBudget < reservedAmount) {
-              throw new Error('Reserved funds for this submission are no longer available')
-            }
-            reservedToConsume = reservedAmount
+          const effectiveReservedBudget = campaignReservedBudget + reservedBudgetAdjustment
+          if (effectiveReservedBudget < reservedAmount) {
+            const shortage = reservedAmount - effectiveReservedBudget
+            budgetToConsume = Math.min(campaignBudget, shortage)
+            remainingToCover = Math.max(0, shortage - budgetToConsume)
           } else {
-            budgetToConsume = Math.min(campaignBudget, fullAmount)
-            remainingToCover = Math.max(0, fullAmount - budgetToConsume)
+            reservedToConsume = reservedAmount
           }
+        } else {
+          budgetToConsume = Math.min(campaignBudget, fullAmount)
+          remainingToCover = Math.max(0, fullAmount - budgetToConsume)
+        }
 
           if (resubmissionExpired) {
             const finalRejectionReason = 'The requested resubmission was not received within 8 hours.'
