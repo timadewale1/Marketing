@@ -13,7 +13,7 @@ import {
   where,
 } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
-import { ArrowLeft, ExternalLink, FileText, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, ImageIcon, Link as LinkIcon, UserCircle2 } from "lucide-react"
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage"
 import { auth, db, storage } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
@@ -104,6 +104,8 @@ export default function CampaignDetailsPage() {
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [draftTitle, setDraftTitle] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
+  const [draftExternalLink, setDraftExternalLink] = useState("")
+  const [draftMediaUrl, setDraftMediaUrl] = useState("")
   const [proofSampleSlots, setProofSampleSlots] = useState<ProofSampleSlot[]>([{ url: null, fileName: null }])
   const [proofSampleUploading, setProofSampleUploading] = useState(false)
   const [flaggingSubmissionId, setFlaggingSubmissionId] = useState<string | null>(null)
@@ -118,6 +120,8 @@ export default function CampaignDetailsPage() {
         setCampaign(nextCampaign)
         setDraftTitle(nextCampaign.title || "")
         setDraftDescription(nextCampaign.description || "")
+        setDraftExternalLink(nextCampaign.externalLink || "")
+        setDraftMediaUrl(nextCampaign.mediaUrl || "")
         const existingProofSamples = getCampaignProofSampleUrls(nextCampaign)
         setProofSampleSlots(
           existingProofSamples.length > 0
@@ -347,6 +351,8 @@ export default function CampaignDetailsPage() {
           campaignId: campaign.id,
           title: draftTitle.trim(),
           description: draftDescription.trim(),
+          externalLink: draftExternalLink.trim(),
+          mediaUrl: draftMediaUrl.trim(),
           participationProofSampleUrls: proofSampleSlots.map((slot) => slot.url).filter((value): value is string => Boolean(value)),
         }),
       })
@@ -558,10 +564,62 @@ export default function CampaignDetailsPage() {
                 placeholder="Add or update your task description"
               />
             ) : (
-              <p className="mt-3 text-sm leading-6 text-stone-700">
+              <p className="mt-3 text-sm leading-6 text-stone-700 whitespace-pre-wrap">
                 {campaign.description?.trim() || "No description was added for this task."}
               </p>
             )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2">
+                <LinkIcon size={14} className="text-stone-500" />
+                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Task link</p>
+              </div>
+              {isEditingDetails ? (
+                <Input
+                  value={draftExternalLink}
+                  onChange={(e) => setDraftExternalLink(e.target.value)}
+                  className="mt-3 bg-white"
+                  placeholder="https://example.com"
+                />
+              ) : campaign.externalLink ? (
+                <a
+                  href={campaign.externalLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
+                >
+                  Open link <ExternalLink size={14} />
+                </a>
+              ) : (
+                <p className="mt-3 text-sm text-stone-500">No external link attached.</p>
+              )}
+            </div>
+            <div className="rounded-2xl bg-white/70 p-4">
+              <div className="flex items-center gap-2">
+                <ImageIcon size={14} className="text-stone-500" />
+                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Task media</p>
+              </div>
+              {isEditingDetails ? (
+                <Input
+                  value={draftMediaUrl}
+                  onChange={(e) => setDraftMediaUrl(e.target.value)}
+                  className="mt-3 bg-white"
+                  placeholder="https://example.com/media.jpg"
+                />
+              ) : campaign.mediaUrl ? (
+                <a
+                  href={campaign.mediaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
+                >
+                  View attached media <ExternalLink size={14} />
+                </a>
+              ) : (
+                <p className="mt-3 text-sm text-stone-500">No media attachment added.</p>
+              )}
+            </div>
           </div>
           <div className="rounded-2xl bg-white/70 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -696,6 +754,8 @@ export default function CampaignDetailsPage() {
                 onClick={() => {
                   setDraftTitle(campaign.title || "")
                   setDraftDescription(campaign.description || "")
+                  setDraftExternalLink(campaign.externalLink || "")
+                  setDraftMediaUrl(campaign.mediaUrl || "")
                   setIsEditingDetails(false)
                 }}
                 disabled={savingDetails}
@@ -762,46 +822,7 @@ export default function CampaignDetailsPage() {
         </Card>
 
         <Card className="space-y-4 bg-gradient-to-br from-stone-100 to-amber-50 p-6 shadow-md">
-          <h2 className="text-lg font-semibold text-stone-800">Materials</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-white/70 p-4">
-              <div className="flex items-center gap-2 text-stone-800">
-                <LinkIcon size={16} />
-                <p className="text-sm font-medium">External Link</p>
-              </div>
-              {campaign.externalLink ? (
-                <a
-                  href={campaign.externalLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
-                >
-                  Open link <ExternalLink size={14} />
-                </a>
-              ) : (
-                <p className="mt-3 text-sm text-stone-500">No external link attached.</p>
-              )}
-            </div>
-            <div className="rounded-2xl bg-white/70 p-4">
-              <div className="flex items-center gap-2 text-stone-800">
-                <FileText size={16} />
-                <p className="text-sm font-medium">Media</p>
-              </div>
-              {campaign.mediaUrl ? (
-                <a
-                  href={campaign.mediaUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"
-                >
-                  View attached media <ExternalLink size={14} />
-                </a>
-              ) : (
-                <p className="mt-3 text-sm text-stone-500">No media attachment added.</p>
-              )}
-            </div>
-          </div>
-
+          <h2 className="text-lg font-semibold text-stone-800">Uploaded Images</h2>
           {(campaign.productImages?.length ?? 0) > 0 && (
             <div className="rounded-2xl bg-white/70 p-4">
               <div className="flex items-center gap-2 text-stone-800">
@@ -863,6 +884,9 @@ export default function CampaignDetailsPage() {
                 ))}
               </div>
             </div>
+          )}
+          {(campaign.productImages?.length ?? 0) === 0 && (
+            <p className="text-sm text-stone-500">No uploaded images found for this task.</p>
           )}
 
           {campaign.advertiserFaceImage && (

@@ -554,7 +554,7 @@ export default function ClientCampaignDetail({ id }: Props) {
             </div>
             <div className="rounded-2xl bg-stone-50 p-4 md:col-span-2">
               <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Description</p>
-              <p className="mt-3 text-sm leading-6 text-stone-700">
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-700">
                 {campaign.description || "No campaign description recorded."}
               </p>
             </div>

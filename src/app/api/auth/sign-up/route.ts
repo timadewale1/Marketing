@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { buildCustomFirebaseActionLink } from "@/lib/firebase-action-links"
 import { sendVerificationEmail } from "@/lib/mailer"
+import { getReferralActivationBonusAmount } from "@/lib/referral-rewards"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
 
@@ -110,7 +111,7 @@ export async function POST(req: Request) {
           userType: action,
           email,
           name,
-          amount: 500,
+          amount: getReferralActivationBonusAmount(),
           status: "pending",
           bonusPaid: false,
           condition: "activation",

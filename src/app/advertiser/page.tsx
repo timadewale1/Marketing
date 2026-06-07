@@ -36,6 +36,7 @@ import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
 import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
+import { getReferralPromoCopy } from "@/lib/referral-rewards"
 
 const ADVERTISER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/G16JM8Fa8k94BOWI5bbeRP"
 const ADVERTISER_WHATSAPP_JOINED_KEY = "pamba-advertiser-whatsapp-joined"
@@ -84,6 +85,7 @@ export default function AdvertiserDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
+  const referralPromo = getReferralPromoCopy()
   const [showAdvertiserGroupPrompt, setShowAdvertiserGroupPrompt] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
@@ -313,10 +315,13 @@ export default function AdvertiserDashboard() {
     return (
       <div className="col-span-full bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-stone-800">Membership fee required</div>
-            <div className="text-sm text-stone-600">You must pay your one-time membership fee (N2,000) before creating tasks.</div>
+        <div>
+          <div className="font-semibold text-stone-800">Membership fee required</div>
+          <div className="text-sm text-stone-600">You must pay your one-time membership fee (N2,000) before creating tasks.</div>
+          <div className="mt-2 text-xs font-semibold text-stone-700">
+            Please choose Monnify, not Moniepoint, when sending money.
           </div>
+        </div>
           <div>
             <Button className="bg-amber-500 text-stone-900" onClick={handleActivation}>Pay Membership Fee</Button>
           </div>
@@ -467,7 +472,7 @@ export default function AdvertiserDashboard() {
             </Badge>
           </div>
           <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
-            Refer an advertiser and you can earn 10% of every task budget they create.
+            Refer an advertiser and you can earn {referralPromo.advertiserTask} when they create a task.
           </p>
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
             For wallet funding issues, contact us on WhatsApp: 09022319775

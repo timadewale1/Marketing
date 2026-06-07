@@ -9,10 +9,12 @@ export async function POST(req: Request) {
     }
 
     const token = authHeader.slice(7)
-    const { campaignId, title, description, participationProofSampleUrls } = await req.json()
+    const { campaignId, title, description, participationProofSampleUrls, externalLink, mediaUrl } = await req.json()
     const normalizedCampaignId = String(campaignId || '').trim()
     const normalizedTitle = String(title || '').trim()
     const normalizedDescription = String(description || '').trim()
+    const normalizedExternalLink = String(externalLink || '').trim()
+    const normalizedMediaUrl = String(mediaUrl || '').trim()
     const normalizedProofSampleUrls = Array.isArray(participationProofSampleUrls)
       ? participationProofSampleUrls.map((value) => String(value || '').trim()).filter(Boolean)
       : []
@@ -53,6 +55,8 @@ export async function POST(req: Request) {
       transaction.update(campaignRef, {
         title: normalizedTitle,
         description: normalizedDescription,
+        externalLink: normalizedExternalLink || null,
+        mediaUrl: normalizedMediaUrl || null,
         participationProofSampleUrls: normalizedProofSampleUrls,
         participationProofSampleUrl: normalizedProofSampleUrls[0] || null,
         lastUpdated: admin.firestore.FieldValue.serverTimestamp(),

@@ -72,6 +72,9 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
                 Amount: <span className="text-lg font-bold">₦{amount.toLocaleString()}</span>
               </p>
               {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
+              <p className="mt-2 text-xs font-semibold text-stone-700">
+                Please choose Monnify, not Moniepoint, when sending money.
+              </p>
             </div>
 
             {/* Paystack option disabled - using Monnify only */}

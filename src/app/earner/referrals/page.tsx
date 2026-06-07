@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Copy, CheckCheck } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { useRouter } from "next/navigation";
+import { getReferralActivationBonusAmount, getReferralPromoCopy } from "@/lib/referral-rewards";
 
 type Referral = {
   id: string;
@@ -25,6 +26,7 @@ type Referral = {
 
 export default function ReferralsPage() {
   const router = useRouter();
+  const referralPromo = getReferralPromoCopy();
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteLink, setInviteLink] = useState("");
@@ -121,7 +123,7 @@ export default function ReferralsPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium w-fit">
-                    ₦500 per activated earner
+                    {referralPromo.activation} per activated earner
                   </div>
                   <div className="text-xs text-stone-500">
                     Paid when the referred earner completes activation.
@@ -129,7 +131,7 @@ export default function ReferralsPage() {
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <div className="px-3 py-1 bg-stone-100 text-stone-700 rounded-full text-sm font-medium w-fit">
-                    10% of task budget
+                    {referralPromo.advertiserTask}
                   </div>
                   <div className="text-xs text-stone-500">
                     Earn this when you refer an advertiser and they create a task.
@@ -223,7 +225,7 @@ export default function ReferralsPage() {
                         {referral.status === "completed" ? "Completed" : "Pending"}
                       </div>
                       <div className="font-bold text-amber-600">
-                        ₦{(referral.amount || 500).toLocaleString()}
+                        ₦{(Number(referral.amount || getReferralActivationBonusAmount())).toLocaleString()}
                       </div>
                       <div className="text-xs text-stone-500 mt-1">
                         {referral.status === "completed" ? "Bonus paid" : "Awaiting activation"}

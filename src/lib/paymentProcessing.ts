@@ -4,6 +4,7 @@ import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/a
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
+import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel } from '@/lib/referral-rewards'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
@@ -140,7 +141,7 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
   campaignTitle?: string | null
 ) {
   const safeBudget = Math.max(0, Math.floor(Number(campaignBudget || 0)))
-  const bonusAmount = Math.floor(safeBudget * 0.1)
+  const bonusAmount = getAdvertiserTaskReferralBonusAmount(safeBudget)
   if (!advertiserId || bonusAmount <= 0) {
     return { awarded: false, bonusAmount: 0, referralId: null as string | null }
   }
@@ -198,7 +199,7 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     type: 'referral_bonus',
     amount: bonusAmount,
     status: 'completed',
-    note: `10% bonus from a task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
+    note: `${getAdvertiserTaskReferralLabel()} bonus from a task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
     campaignId,
     referralId: referralDoc.id,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),

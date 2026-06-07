@@ -48,6 +48,7 @@ import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
 import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
 import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
+import { getReferralPromoCopy } from "@/lib/referral-rewards"
 
 const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/GnxIXIyfkEmFlrsVhwOHgR"
 const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
@@ -66,6 +67,7 @@ export default function EarnerDashboard() {
   const [userName, setUserName] = useState("User")
   const [profilePic, setProfilePic] = useState("")
   const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
+  const referralPromo = getReferralPromoCopy()
   const [stats, setStats] = useState({
     balance: 0,
     pointsBalance: 0,
@@ -359,7 +361,7 @@ export default function EarnerDashboard() {
             </Badge>
           </div>
           <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
-            Refer an advertiser and you can also earn 10% of every task budget they create.
+            Refer an advertiser and you can also earn {referralPromo.advertiserTask} when they create a task.
           </p>
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
             For membership fee issues, contact us on WhatsApp: 09022319775
@@ -381,6 +383,11 @@ export default function EarnerDashboard() {
                 {!activated ? (
                   <p className="mt-2 text-xs leading-5 text-stone-600">
                     Your account must pay the one-time membership fee before you can perform tasks, withdraw funds, or use your wallet balance for bills.
+                  </p>
+                ) : null}
+                {!activated ? (
+                  <p className="mt-2 text-xs font-semibold leading-5 text-stone-700">
+                    Please choose Monnify, not Moniepoint, when sending money.
                   </p>
                 ) : null}
                   <div className="flex flex-wrap gap-2 mt-3">

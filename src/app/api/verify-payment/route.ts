@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
               t,
               String(userId || ''),
               campaignRef.id,
-              Number(campaignData?.budget || 0),
+              Number(campaignData?.originalBudget || campaignData?.budget || 0),
               campaignTitle
             )
           } catch (bonusError) {

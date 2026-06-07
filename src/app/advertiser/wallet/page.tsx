@@ -239,6 +239,9 @@ export default function WalletPage() {
                     View Transactions
                   </Button>
                 </div>
+                <p className="mb-6 text-xs font-semibold text-stone-700">
+                  Please choose Monnify, not Moniepoint, when sending money.
+                </p>
 
                 {/* Task Breakdown removed for now — wallet shows fund & withdraw only */}
               </>

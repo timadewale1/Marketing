@@ -1063,7 +1063,7 @@ const getEmbeddedVideo = (url: string) => {
                 </div>
               )}
 
-              <div className="text-sm text-stone-700 mt-2">{description}</div>
+              <div className="mt-2 whitespace-pre-wrap text-sm text-stone-700">{description}</div>
 
               {category === "Video" && videoLink && (() => {
   const embed = getEmbeddedVideo(videoLink)
