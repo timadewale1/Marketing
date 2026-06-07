@@ -364,7 +364,7 @@ export default function EarnerDashboard() {
             Refer an advertiser and you can also earn {referralPromo.advertiserTask} when they create a task.
           </p>
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
-            For membership fee issues, contact us on WhatsApp: 09022319775
+            For membership fee issues, contact us on WhatsApp: 07062991664
           </p>
         </div>
   {/* Top Cards */}
