@@ -134,7 +134,7 @@ export default function ContactPage() {
                 <Phone className="text-amber-600 mt-1" />
                 <div>
                   <h3 className="font-medium text-stone-800">Phone</h3>
-                  <p className="text-stone-600">+234 8120948834</p>
+                  <p className="text-stone-600">+234 09022319775</p>
                   <p className="text-xs text-stone-500 mt-1">
                     Mon-Fri 9am-5pm WAT
                   </p>
