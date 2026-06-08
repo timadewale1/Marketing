@@ -20,6 +20,7 @@ import {
   Mail,
   Award,
   Coins,
+  ReceiptText,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -78,6 +79,11 @@ const NAVIGATION = [
     name: "Monnify",
     href: "/admin/monnify",
     icon: Landmark,
+  },
+  {
+    name: "Payments",
+    href: "/admin/payments",
+    icon: ReceiptText,
   },
   {
     name: "Direct Ads",

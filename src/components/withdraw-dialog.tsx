@@ -46,7 +46,7 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-stone-800">Withdraw Funds</DialogTitle>
           <DialogDescription className="text-stone-600">
-            Enter amount to withdraw to your bank account.
+            Enter the amount you want to withdraw. Your request will wait for admin approval before any payout is sent.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,7 +125,7 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
               }
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 font-medium"
             >
-              {submitting ? "Processing..." : "Withdraw"}
+              {submitting ? "Submitting..." : "Request withdrawal"}
             </Button>
             <Button
               variant="outline"

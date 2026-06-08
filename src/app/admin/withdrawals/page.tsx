@@ -4,21 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Wallet } from "lucide-react";
 import {
-  addDoc,
   collection,
-  doc,
-  getDoc,
   getDocs,
-  increment,
   limit,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
-  where,
 } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,78 +133,33 @@ export default function WithdrawalsPage() {
   }, [search, statusFilter, withdrawals]);
 
   const stats = {
-    pending: withdrawals.filter((withdrawal) => withdrawal.status === "pending").length,
-    sent: withdrawals.filter((withdrawal) => withdrawal.status === "sent").length,
+    pending: withdrawals.filter((withdrawal) => withdrawal.status === "pending" || withdrawal.status === "pending_admin_approval" || withdrawal.status === "processing").length,
+    sent: withdrawals.filter((withdrawal) => withdrawal.status === "sent" || withdrawal.status === "completed").length,
     totalAmount: withdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0),
   };
 
-  const markAsSent = async (withdrawal: Withdrawal) => {
+  const approveWithdrawal = async (withdrawal: Withdrawal) => {
     try {
       setProcessingId(withdrawal.id);
-      const collectionName =
-        withdrawal.source === "advertiser" ? "advertiserWithdrawals" : "earnerWithdrawals";
-      const txCollection =
-        withdrawal.source === "advertiser" ? "advertiserTransactions" : "earnerTransactions";
-      const userCollection =
-        withdrawal.source === "advertiser" ? "advertisers" : "earners";
-
-      const refDoc = doc(db, collectionName, withdrawal.id);
-      const snap = await getDoc(refDoc);
-      if (!snap.exists()) throw new Error("Withdrawal request not found");
-
-      const data = snap.data();
-      await updateDoc(refDoc, {
-        status: "sent",
-        sentAt: serverTimestamp(),
-        processedBy: auth.currentUser?.uid || null,
+      const response = await fetch("/api/admin/withdrawals/approve", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withdrawalId: withdrawal.id, source: withdrawal.source }),
       });
-
-      const txsSnap = await getDocs(
-        query(
-          collection(db, txCollection),
-          where("userId", "==", data.userId),
-          where("type", "==", "withdrawal_request"),
-          where("requestedAmount", "==", data.amount),
-          where("status", "==", "pending")
-        )
-      );
-
-      if (!txsSnap.empty) {
-        await Promise.all(
-          txsSnap.docs.map((txDoc) =>
-            updateDoc(doc(db, txCollection, txDoc.id), {
-              amount: -Math.abs(data.amount),
-              status: "completed",
-              note: "Withdrawal processed by admin",
-              completedAt: serverTimestamp(),
-            })
-          )
-        );
-      } else {
-        await addDoc(collection(db, txCollection), {
-          userId: data.userId,
-          type: "withdrawal",
-          amount: -Math.abs(data.amount),
-          fee: data.fee || 0,
-          net: data.net || data.amount,
-          status: "completed",
-          note: "Withdrawal processed by admin",
-          createdAt: serverTimestamp(),
-        });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to approve withdrawal");
       }
-
-      await updateDoc(doc(db, userCollection, data.userId), {
-        totalWithdrawn: increment(Number(data.amount) || 0),
-      });
 
       setWithdrawals((current) =>
         current.map((item) =>
           item.id === withdrawal.id ? { ...item, status: "sent" } : item
         )
       );
-      toast.success("Marked as sent");
+      toast.success("Withdrawal approved and payout started");
     } catch (error) {
-      console.error("Failed to mark withdrawal as sent", error);
+      console.error("Failed to approve withdrawal", error);
       toast.error(error instanceof Error ? error.message : "Failed to update withdrawal");
     } finally {
       setProcessingId(null);
@@ -245,6 +193,7 @@ export default function WithdrawalsPage() {
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="pending_admin_approval">Waiting for admin approval</SelectItem>
               <SelectItem value="sent">Sent</SelectItem>
             </SelectContent>
           </Select>
@@ -267,7 +216,10 @@ export default function WithdrawalsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-stone-900">{currency(withdrawal.amount)}</p>
                       <StatusBadge label={withdrawal.source} tone={withdrawal.source === "earner" ? "amber" : "blue"} />
-                      <StatusBadge label={withdrawal.status} tone={withdrawal.status === "sent" ? "green" : "amber"} />
+                      <StatusBadge
+                        label={withdrawal.status === "pending_admin_approval" ? "waiting for admin approval" : withdrawal.status}
+                        tone={withdrawal.status === "sent" || withdrawal.status === "completed" ? "green" : "amber"}
+                      />
                     </div>
                     <p className="text-sm text-stone-500">
                       {withdrawal.bank.bankName} • {withdrawal.bank.accountNumber} • {withdrawal.bank.accountName}
@@ -282,9 +234,9 @@ export default function WithdrawalsPage() {
                         Open user
                       </Link>
                     </Button>
-                    {withdrawal.status !== "sent" ? (
-                      <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" disabled={processingId === withdrawal.id} onClick={() => markAsSent(withdrawal)}>
-                        Mark as sent
+                    {withdrawal.status !== "sent" && withdrawal.status !== "completed" ? (
+                      <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" disabled={processingId === withdrawal.id} onClick={() => approveWithdrawal(withdrawal)}>
+                        Approve & send
                       </Button>
                     ) : null}
                   </div>

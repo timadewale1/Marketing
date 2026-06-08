@@ -277,15 +277,19 @@ export default function WalletPage() {
                                 {(() => {
                               // treat legacy "sent" as completed for display purposes
                               const status = w.status === 'sent' ? 'completed' : w.status;
+                              const displayStatus =
+                                status === 'pending_admin_approval'
+                                  ? 'waiting for admin approval'
+                                  : status;
                               const colorClass =
-                                status === 'pending'
+                                status === 'pending' || status === 'pending_admin_approval' || status === 'processing'
                                   ? 'bg-amber-100 text-amber-700'
                                   : status === 'completed'
                                   ? 'bg-green-100 text-green-700'
                                   : 'bg-stone-100 text-stone-700';
                               return (
                                 <div className={`inline-block px-2 py-1 rounded-full text-xs ${colorClass}`}>
-                                  {status}
+                                  {displayStatus}
                                 </div>
                               );
                             })()}

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { getBankDetails } from '@/lib/bank-details'
-import { createTransferRecipient, initiateTransfer } from '@/services/paystack'
-import monnify from '@/services/monnify'
 import { sendAdminActionEmail } from '@/lib/mailer'
 import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
 
@@ -104,6 +102,18 @@ export async function POST(req: Request) {
     if (amount < 1000) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦1,000' }, { status: 400 })
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
 
+    const existingWithdrawalsSnap = await db.collection('earnerWithdrawals').where('userId', '==', userId).get()
+    const pendingWithdrawals = existingWithdrawalsSnap.docs.reduce((sum, snap) => {
+      const status = String(snap.data()?.status || '').toLowerCase()
+      if (status === 'pending' || status === 'pending_admin_approval' || status === 'processing') {
+        return sum + Number(snap.data()?.amount || 0)
+      }
+      return sum
+    }, 0)
+    if (pendingWithdrawals + amount > balance) {
+      return NextResponse.json({ success: false, message: 'You already have a pending withdrawal request waiting for admin approval' }, { status: 400 })
+    }
+
     // Check which payment provider was used for activation
     const activationPaymentProviderRaw =
       earnerSnap.data()?.activationPaymentProvider ||
@@ -115,7 +125,7 @@ export async function POST(req: Request) {
     const fee = Math.round(amount * 0.1)
     const net = amount - fee
 
-    // Create withdrawal request, decrement earner balance and attempt instant transfer
+    // Create withdrawal request and wait for admin approval before payout
     const withdrawalRef = db.collection('earnerWithdrawals').doc()
     const txRef = db.collection('earnerTransactions').doc()
     const earnerDisplayName = String(earner?.fullName || bank.accountName || 'Earner').trim()
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
       const currentBal = Number(snap.data()?.balance || 0)
       if (currentBal < amount) throw new Error('Insufficient balance')
 
-      // Create withdrawal request (processing while transfer is attempted)
+      // Create withdrawal request; admin will approve and send the payout later.
       t.set(withdrawalRef, {
         userId,
         amount,
@@ -152,8 +162,6 @@ export async function POST(req: Request) {
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(-amount) })
-
       // Notify admin
       const noteRef = db.collection('adminNotifications').doc()
       t.set(noteRef, {
@@ -177,84 +185,22 @@ export async function POST(req: Request) {
       console.error('Failed to send admin withdrawal email', error)
     })
 
-    // Attempt transfer via matched provider
+    await withdrawalRef.update({
+      status: 'pending_admin_approval',
+      approvalStatus: 'awaiting_admin',
+      initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
     try {
-      const recipientName = earner?.fullName || bank.accountName || 'Pamba User'
-      
-      if (activationPaymentProvider === 'monnify') {
-        // Handle Monnify withdrawal via Monnify disbursement API
-        console.log('[withdraw][earner] initiating monnify disbursement for', userId)
-        
-        const disbursementResponse = await monnify.initiateDisbursement({
-          amount: net,
-          reference: withdrawalRef.id,
-          narration: `Withdrawal for ${recipientName}`,
-          destinationBankCode: bank.bankCode!,
-          destinationAccountNumber: bank.accountNumber!,
-          destinationAccountName: String(bank.accountName || recipientName || 'Pamba User').trim(),
-        })
-        
-        console.log('[withdraw][earner] monnify disbursement initiated', disbursementResponse)
-        
-        // Map Monnify status to withdrawal status
-        const withdrawalStatus = disbursementResponse.status === 'SUCCESS' ? 'completed' : 'pending'
-        
-        await withdrawalRef.update({
-          status: withdrawalStatus, // Update main status field so it reflects immediately
-          monnifyReference: disbursementResponse.reference || withdrawalRef.id,
-          monnifyStatus: disbursementResponse.status || 'PENDING',
-          monnifyAmount: disbursementResponse.amount,
-          monnifyDestinationBank: disbursementResponse.destinationBankName,
-          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-
-        // when monnify reports a success we also update the transaction record so
-        // the UI doesn't continue showing the original request as pending
-        if (withdrawalStatus === 'completed') {
-          try {
-            await db.collection('earnerTransactions').doc(txRef.id).update({
-              status: 'completed',
-              note: 'Withdrawal processed via Monnify',
-              completedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-          } catch (e) {
-            console.warn('[withdraw][earner] failed to update tx after monnify success', e);
-          }
-        }
-      } else {
-        // Handle Paystack withdrawal (existing logic)
-        console.log('[withdraw][earner] creating paystack recipient for', userId, { name: recipientName, bank })
-        const recipientCode = await createTransferRecipient({ name: recipientName, accountNumber: bank.accountNumber!, bankCode: bank.bankCode!, currency: 'NGN' })
-        console.log('[withdraw][earner] recipient created', recipientCode)
-        await earnerRef.update({ paystackRecipientCode: recipientCode })
-
-        const amountToSend = net
-        console.log('[withdraw][earner] initiating transfer', recipientCode, amountToSend)
-        const transferData = await initiateTransfer({ recipient: String(recipientCode), amountKobo: Math.round(amountToSend * 100), reason: `Withdrawal for ${recipientName}` }) as { id?: string | number; reference?: string; transfer_code?: string; status?: string }
-        console.log('[withdraw][earner] transfer initiated', transferData)
-
-        await withdrawalRef.update({
-          paystackRecipient: recipientCode,
-          paystackTransferId: transferData.id || null,
-          paystackTransferReference: transferData.reference || transferData.transfer_code || null,
-          paystackStatus: transferData.status || null,
-          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-      }
-    } catch (payErr) {
-      console.error('Transfer initiation failed', payErr)
-      try { await withdrawalRef.update({ status: 'failed', transferError: (payErr as Error).message || String(payErr) }) } catch (e) { console.error('Failed to update withdrawal doc after transfer error', e) }
-      // Also mark the transaction record as failed
-      try { 
-        const txCollection = 'earnerTransactions'
-        await db.collection(txCollection).doc(txRef.id).update({ status: 'failed', error: (payErr as Error).message || String(payErr), updatedAt: new Date().toISOString() }) 
-      } catch (e) { console.error('Failed to update transaction doc after transfer error', e) }
-      // restore balance since transfer didn't start
-      try { await earnerRef.update({ balance: admin.firestore.FieldValue.increment(amount) }) } catch (e) { console.error('Failed to restore earner balance after transfer error', e) }
-      return NextResponse.json({ success: false, message: 'Withdrawal failed please wait for some minutes and try again' }, { status: 502 })
+      await db.collection('earnerTransactions').doc(txRef.id).update({
+        status: 'pending',
+        note: 'Withdrawal request waiting for admin approval',
+      })
+    } catch (e) {
+      console.warn('[withdraw][earner] failed to update withdrawal tx note', e)
     }
 
-    return NextResponse.json({ success: true, message: 'Withdrawal initiated — transfer in progress' })
+    return NextResponse.json({ success: true, message: 'Withdrawal request submitted and is waiting for admin approval' })
   } catch (err) {
     console.error('Withdrawal error', err)
     return NextResponse.json({ success: false, message: (err as Error).message || 'Server error' }, { status: 500 })

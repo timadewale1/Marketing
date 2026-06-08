@@ -247,7 +247,7 @@ export default function TransactionsPage() {
                             if (isW && tx.withdrawalId) {
                               statusToCheck = (withdrawalStatusMap[tx.withdrawalId] || statusToCheck) as string | undefined;
                             }
-                            const isPending = statusToCheck === 'pending' || statusToCheck === 'processing';
+                            const isPending = statusToCheck === 'pending' || statusToCheck === 'processing' || statusToCheck === 'pending_admin_approval';
                             const isCompleted = statusToCheck === 'completed';
 
                             if (isPending) {
