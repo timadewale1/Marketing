@@ -27,6 +27,13 @@ function toMillis(value: unknown) {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
+function compareDocsDesc(a: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>, b: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>) {
+  const aTime = toMillis(a.data().createdAt)
+  const bTime = toMillis(b.data().createdAt)
+  if (bTime !== aTime) return bTime - aTime
+  return b.id.localeCompare(a.id)
+}
+
 function isFulfilled(scope: PaymentScope, status: string) {
   const normalized = status.toLowerCase()
   if (scope === "activation") {
@@ -53,6 +60,7 @@ async function verifyReferencePaid(reference: string) {
 }
 
 async function getUserDetails(dbAdmin: FirebaseFirestore.Firestore, role: string, userId: string) {
+  if (!userId) return { name: "Unknown user", email: "" }
   const collectionName = role === "advertiser" ? "advertisers" : "earners"
   const snap = await dbAdmin.collection(collectionName).doc(userId).get()
   if (!snap.exists) return { name: userId, email: "" }
@@ -93,7 +101,8 @@ export async function GET(req: Request) {
         const rowStatus = String(data.status || "")
         const rowAmount = Number(data.amount || 0)
         const fulfilled = isFulfilled(rowScope, rowStatus)
-        const user = await getUserDetails(dbAdmin, String(data.role || ""), String(data.userId || ""))
+        const userId = String(data.userId || "").trim()
+        const user = await getUserDetails(dbAdmin, String(data.role || ""), userId)
         return {
           id: doc.id,
           scope: rowScope,
@@ -101,7 +110,7 @@ export async function GET(req: Request) {
           source: String(data.source || ""),
           provider: String(data.provider || ""),
           role: String(data.role || ""),
-          userId: String(data.userId || ""),
+          userId,
           name: user.name,
           email: user.email || String(data.email || ""),
           reference: String(data.reference || ""),
@@ -190,11 +199,37 @@ export async function GET(req: Request) {
       pagedQuery = pagedQuery.startAfter(new Date(cursorCreatedAt), cursorId)
     }
 
-    const snap = await pagedQuery.limit(pageSize + 20).get()
-    const confirmedDocs = await filterConfirmedLogs(snap.docs)
+    const batchSize = Math.max(pageSize, 20)
+    const confirmedDocs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = []
+    let lastScannedDoc: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData> | null = null
+    let hasMore = false
+    let scanQuery = pagedQuery
+    let batchesFetched = 0
+
+    while (confirmedDocs.length < pageSize && batchesFetched < 8) {
+      const snap = await scanQuery.limit(batchSize).get()
+      if (snap.empty) {
+        hasMore = false
+        break
+      }
+
+      batchesFetched += 1
+      lastScannedDoc = snap.docs[snap.docs.length - 1] || lastScannedDoc
+      hasMore = snap.docs.length === batchSize
+
+      const batchConfirmed = await filterConfirmedLogs(snap.docs)
+      confirmedDocs.push(...batchConfirmed)
+
+      if (!hasMore) {
+        break
+      }
+
+      scanQuery = pagedQuery.startAfter(lastScannedDoc)
+    }
+
+    confirmedDocs.sort(compareDocsDesc)
     const pageDocs = confirmedDocs.slice(0, pageSize)
-    const hasMore = snap.docs.length > pageSize
-    const lastDoc = pageDocs[pageDocs.length - 1]
+    const lastDoc = lastScannedDoc
 
     return NextResponse.json({
       success: true,
