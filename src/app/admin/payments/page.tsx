@@ -18,6 +18,7 @@ type PaymentLog = {
   provider: string;
   role: string;
   userId: string;
+  name: string;
   email: string;
   reference: string;
   references: string[];
@@ -237,7 +238,8 @@ export default function AdminPaymentsPage() {
                         <StatusBadge label={item.status || "unknown"} tone={item.fulfilled ? "green" : "stone"} />
                       </div>
                       <p className="text-lg font-semibold text-stone-900">{currency(item.amount)}</p>
-                      <p className="text-sm text-stone-600">{item.email || item.userId || "Unknown user"} • {item.reference || "No reference"}</p>
+                      <p className="text-sm text-stone-600">{item.name || "Unknown user"} • {item.email || "No email"}</p>
+                      <p className="text-xs text-stone-500">{item.reference || "No reference"}</p>
                       <p className="text-xs uppercase tracking-[0.24em] text-stone-400">{formatDate(item.createdAt)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">

@@ -30,12 +30,12 @@ function toMillis(value: unknown) {
 function isFulfilled(scope: PaymentScope, status: string) {
   const normalized = status.toLowerCase()
   if (scope === "activation") {
-    return ["completed", "matched", "webhook_processed", "webhook_received"].includes(normalized)
+    return ["completed", "matched"].includes(normalized)
   }
   if (scope === "wallet_funding") {
-    return ["completed", "webhook_processed", "webhook_received"].includes(normalized)
+    return ["completed"].includes(normalized)
   }
-  return ["completed", "webhook_processed"].includes(normalized)
+  return ["completed"].includes(normalized)
 }
 
 async function verifyReferencePaid(reference: string) {
@@ -49,6 +49,17 @@ async function verifyReferencePaid(reference: string) {
   } catch (error) {
     console.warn("[admin][payments] Monnify verification failed", { reference, error })
     return false
+  }
+}
+
+async function getUserDetails(dbAdmin: FirebaseFirestore.Firestore, role: string, userId: string) {
+  const collectionName = role === "advertiser" ? "advertisers" : "earners"
+  const snap = await dbAdmin.collection(collectionName).doc(userId).get()
+  if (!snap.exists) return { name: userId, email: "" }
+  const data = snap.data() || {}
+  return {
+    name: String(data.fullName || data.name || data.businessName || data.companyName || data.email || userId).trim(),
+    email: String(data.email || "").trim().toLowerCase(),
   }
 }
 
@@ -75,13 +86,14 @@ export async function GET(req: Request) {
     const baseRef = dbAdmin.collection("paymentReconciliationLogs")
     const actionQuery = baseRef.orderBy("createdAt", "desc")
 
-    const buildPayload = (docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]) => {
-      const items = docs.map((doc) => {
+    const buildPayload = async (docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]) => {
+      const items = await Promise.all(docs.map(async (doc) => {
         const data = doc.data()
         const rowScope = String(data.scope || "recovery") as PaymentScope
         const rowStatus = String(data.status || "")
         const rowAmount = Number(data.amount || 0)
         const fulfilled = isFulfilled(rowScope, rowStatus)
+        const user = await getUserDetails(dbAdmin, String(data.role || ""), String(data.userId || ""))
         return {
           id: doc.id,
           scope: rowScope,
@@ -90,7 +102,8 @@ export async function GET(req: Request) {
           provider: String(data.provider || ""),
           role: String(data.role || ""),
           userId: String(data.userId || ""),
-          email: String(data.email || ""),
+          name: user.name,
+          email: user.email || String(data.email || ""),
           reference: String(data.reference || ""),
           references: Array.isArray(data.references) ? data.references.map(String).filter(Boolean) : [],
           amount: rowAmount,
@@ -100,9 +113,33 @@ export async function GET(req: Request) {
           fulfilled,
           details: data.details || {},
         }
-      })
+      }))
 
       return items.sort((a, b) => b.createdAtMs - a.createdAtMs)
+    }
+
+    async function filterConfirmedLogs(docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[]) {
+      const seen = new Set<string>()
+      const confirmed: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = []
+
+      for (const doc of docs) {
+        const data = doc.data()
+        const rowScope = String(data.scope || "recovery").toLowerCase()
+        const rowStatus = String(data.status || "").toLowerCase()
+        const provider = String(data.provider || "monnify").toLowerCase().toLowerCase()
+        const reference = String(data.reference || "").trim()
+        if (!reference) continue
+        if (!["activation", "wallet_funding", "campaign_payment"].includes(rowScope)) continue
+        if (!["completed", "matched"].includes(rowStatus)) continue
+        if (provider !== "monnify") continue
+        if (seen.has(reference)) continue
+        const paid = await verifyReferencePaid(reference)
+        if (!paid) continue
+        seen.add(reference)
+        confirmed.push(doc)
+      }
+
+      return confirmed
     }
 
     if (search) {
@@ -125,17 +162,18 @@ export async function GET(req: Request) {
         if (statusFilter !== "all" && rowStatus !== statusFilter) return false
         return true
       })
+      const confirmedDocs = await filterConfirmedLogs(filteredDocs)
 
       return NextResponse.json({
         success: true,
-        items: buildPayload(filteredDocs).slice(0, pageSize),
+        items: (await buildPayload(confirmedDocs)).slice(0, pageSize),
         pageInfo: {
           hasMore: false,
           cursorCreatedAt: null,
           cursorId: null,
         },
         search,
-        total: filteredDocs.length,
+        total: confirmedDocs.length,
       })
     }
 
@@ -152,20 +190,21 @@ export async function GET(req: Request) {
       pagedQuery = pagedQuery.startAfter(new Date(cursorCreatedAt), cursorId)
     }
 
-    const snap = await pagedQuery.limit(pageSize + 1).get()
-    const pageDocs = snap.docs.slice(0, pageSize)
+    const snap = await pagedQuery.limit(pageSize + 20).get()
+    const confirmedDocs = await filterConfirmedLogs(snap.docs)
+    const pageDocs = confirmedDocs.slice(0, pageSize)
     const hasMore = snap.docs.length > pageSize
     const lastDoc = pageDocs[pageDocs.length - 1]
 
     return NextResponse.json({
       success: true,
-      items: buildPayload(pageDocs),
+      items: await buildPayload(pageDocs),
       pageInfo: {
         hasMore,
         cursorCreatedAt: lastDoc ? serializeDate(lastDoc.data().createdAt) : null,
         cursorId: lastDoc?.id || null,
       },
-      total: pageDocs.length,
+      total: confirmedDocs.length,
     })
   } catch (error) {
     console.error("[admin][payments] failed to load payment queue", error)
@@ -256,7 +295,6 @@ export async function POST(req: Request) {
 
     if (scope === "wallet_funding") {
       const txCollection = role === "earner" ? "earnerTransactions" : "advertiserTransactions"
-      const userCollection = role === "earner" ? "earners" : "advertisers"
       const txQuery = await dbAdmin.collection(txCollection)
         .where("userId", "==", userId)
         .where("type", "==", "wallet_funding")
