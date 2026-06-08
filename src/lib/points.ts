@@ -8,6 +8,7 @@ export const BILL_PAYMENT_POINTS = 5
 export const REFERRAL_ACTIVATED_POINTS = 50
 export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000
+export const POINTS_CREDITING_PAUSED = true
 
 export type PointsUserCollection = 'earners' | 'advertisers'
 export type PointsRedeemTarget = 'wallet' | 'withdraw' | 'bills' | 'tasks'
@@ -123,6 +124,10 @@ export async function awardPointsInTransaction({
   extraUserUpdates,
   extraLedgerData,
 }: AwardPointsArgs) {
+  if (POINTS_CREDITING_PAUSED) {
+    return false
+  }
+
   const safeAmount = Math.floor(Number(amount || 0))
   if (safeAmount <= 0) return false
 
@@ -165,6 +170,10 @@ export async function awardPointsInTransaction({
 }
 
 export async function awardPointsOnce(args: Omit<AwardPointsArgs, 'transaction'>) {
+  if (POINTS_CREDITING_PAUSED) {
+    return false
+  }
+
   return args.adminDb.runTransaction(async (transaction) => {
     return awardPointsInTransaction({
       ...args,
