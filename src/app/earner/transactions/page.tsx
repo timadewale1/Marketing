@@ -166,11 +166,6 @@ export default function TransactionsPage() {
                   Please pay your one-time membership fee before withdrawals and wallet bill purchases are available.
                 </p>
               ) : null}
-              {!activated ? (
-                <p className="mt-2 text-xs font-semibold text-stone-700">
-                  Please choose Monnify, not Moniepoint, when sending money.
-                </p>
-              ) : null}
             </div>
             <div className="flex flex-wrap gap-3">
               <Button

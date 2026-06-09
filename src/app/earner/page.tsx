@@ -387,7 +387,6 @@ export default function EarnerDashboard() {
                 ) : null}
                 {!activated ? (
                   <p className="mt-2 text-xs font-semibold leading-5 text-stone-700">
-                    Please choose Monnify, not Moniepoint, when sending money.
                   </p>
                 ) : null}
                   <div className="flex flex-wrap gap-2 mt-3">

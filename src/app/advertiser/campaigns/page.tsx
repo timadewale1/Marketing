@@ -312,7 +312,7 @@ export default function CampaignsPage() {
                 campaign.originalBudget ||
                   (Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0))
               )
-              const remainingSlots = Math.max(progress.target - progress.verified, 0)
+              const remainingSlots = progress.remainingSlots
 
               return (
                 <Link key={campaign.id} href={`/advertiser/campaigns/${campaign.id}`}>

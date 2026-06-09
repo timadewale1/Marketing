@@ -319,7 +319,6 @@ export default function AdvertiserDashboard() {
           <div className="font-semibold text-stone-800">Membership fee required</div>
           <div className="text-sm text-stone-600">You must pay your one-time membership fee (N2,000) before creating tasks.</div>
           <div className="mt-2 text-xs font-semibold text-stone-700">
-            Please choose Monnify, not Moniepoint, when sending money.
           </div>
         </div>
           <div>

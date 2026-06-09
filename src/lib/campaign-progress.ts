@@ -10,6 +10,7 @@ export type CampaignProgressSummary = {
   rejected: number;
   totalSubmissions: number;
   progressPercent: number;
+  remainingSlots: number;
 };
 
 function clampTarget(value: number) {
@@ -44,6 +45,7 @@ export function summarizeCampaignProgress({
       rejected: 0,
       totalSubmissions: verified,
       progressPercent: safeTarget > 0 ? Math.min((verified / safeTarget) * 100, 100) : 0,
+      remainingSlots: safeTarget > 0 ? Math.max(safeTarget - verified, 0) : 0,
     };
   }
 
@@ -64,5 +66,6 @@ export function summarizeCampaignProgress({
     rejected,
     totalSubmissions: submissions.length,
     progressPercent: safeTarget > 0 ? Math.min((verified / safeTarget) * 100, 100) : 0,
+    remainingSlots: safeTarget > 0 ? Math.max(safeTarget - verified, 0) : 0,
   };
 }

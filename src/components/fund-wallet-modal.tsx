@@ -78,9 +78,6 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
             <p className="text-xs text-primary-500 mt-1">
               Minimum amount: ₦100
             </p>
-            <p className="mt-2 text-xs font-semibold text-stone-700">
-              Please choose Monnify, not Moniepoint, when sending money.
-            </p>
           </div>
 
           <div>
