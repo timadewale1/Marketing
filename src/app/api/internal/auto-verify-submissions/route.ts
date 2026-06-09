@@ -237,49 +237,12 @@ export async function GET(request: Request) {
             }
             t.set(earnerRef, earnerUpdates, { merge: true })
 
-            if (!campaignId) throw new Error('Submission missing campaignId')
-            if (advertiserId) {
-              const earnerRevRef = adminDb.collection('earnerTransactions').doc()
-              t.set(earnerRevRef, {
-                userId: submissionUserId,
-                campaignId,
-                type: 'reversal',
-                amount: -earnerAmount,
-                status: 'completed',
-                note: `Auto rejection after resubmission timeout for ${submission.campaignTitle}`,
-                createdAt: now,
-              })
-              t.update(adminDb.collection('earners').doc(submissionUserId), {
-                balance: admin.firestore.FieldValue.increment(-earnerAmount),
-                leadsPaidFor: admin.firestore.FieldValue.increment(-1),
-                totalEarned: admin.firestore.FieldValue.increment(-earnerAmount),
-              })
-
-              const advRef = adminDb.collection('advertisers').doc(advertiserId)
-              const advTxRef = adminDb.collection('advertiserTransactions').doc()
-              t.set(advTxRef, {
-                userId: advertiserId,
-                campaignId,
-                type: 'refund',
-                amount: fullAmount,
-                status: 'completed',
-                note: `Auto refund after resubmission timeout for ${submission.campaignTitle}`,
-                createdAt: now,
-              })
-              t.update(advRef, {
-                totalSpent: admin.firestore.FieldValue.increment(-fullAmount),
-                leadsGenerated: admin.firestore.FieldValue.increment(-1),
-              })
-            }
-
             if (campaignSnap.exists) {
               const reservedAmt = Number(submission.reservedAmount || 0)
               if (reservedAmt > 0) {
                 if (campaign.status === 'Deleted') {
                   t.update(campaignRef, {
-                    generatedLeads: admin.firestore.FieldValue.increment(-1),
                     reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-                    completedLeads: admin.firestore.FieldValue.increment(-1),
                   })
                   if (advertiserId) {
                     t.update(adminDb.collection('advertisers').doc(advertiserId), {
@@ -288,28 +251,8 @@ export async function GET(request: Request) {
                   }
                 } else {
                   t.update(campaignRef, {
-                    generatedLeads: admin.firestore.FieldValue.increment(-1),
                     reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
                     budget: admin.firestore.FieldValue.increment(reservedAmt),
-                    completedLeads: admin.firestore.FieldValue.increment(-1),
-                  })
-                }
-              } else {
-                if (campaign.status === 'Deleted') {
-                  t.update(campaignRef, {
-                    generatedLeads: admin.firestore.FieldValue.increment(-1),
-                    completedLeads: admin.firestore.FieldValue.increment(-1),
-                  })
-                  if (advertiserId) {
-                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
-                      balance: admin.firestore.FieldValue.increment(fullAmount),
-                    })
-                  }
-                } else {
-                  t.update(campaignRef, {
-                    generatedLeads: admin.firestore.FieldValue.increment(-1),
-                    budget: admin.firestore.FieldValue.increment(fullAmount),
-                    completedLeads: admin.firestore.FieldValue.increment(-1),
                   })
                 }
               }
