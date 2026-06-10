@@ -34,22 +34,15 @@ async function findActivationUserByReferences(
   collectionName: 'advertisers' | 'earners',
   references: string[]
 ) {
-  const fields: Array<'pendingActivationReference' | 'pendingActivationReferences'> = [
-    'pendingActivationReference',
-    'pendingActivationReferences',
-  ]
+  const primaryReference = references[0]
+  if (!primaryReference) return null
 
-  for (const reference of references) {
-    for (const field of fields) {
-      const queryBuilder = field === 'pendingActivationReferences'
-        ? dbAdmin.collection(collectionName).where(field, 'array-contains', reference)
-        : dbAdmin.collection(collectionName).where(field, '==', reference)
-      const snap = await queryBuilder.limit(1).get()
-      if (!snap.empty) {
-        return snap.docs[0]
-      }
-    }
-  }
+  const snap = await dbAdmin.collection(collectionName)
+    .where('pendingActivationReference', '==', primaryReference)
+    .limit(1)
+    .get()
+
+  if (!snap.empty) return snap.docs[0]
 
   return null
 }
@@ -79,18 +72,16 @@ async function findActivationAttemptByReferences(
   dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>,
   references: string[]
 ) {
-  for (const reference of references) {
-    const snap = await dbAdmin.collection('activationAttempts')
-      .where('references', 'array-contains', reference)
-      .limit(1)
-      .get()
+  const primaryReference = references[0]
+  if (!primaryReference) return null
 
-    if (!snap.empty) {
-      const doc = snap.docs[0]
-      if (String(doc.data()?.status || '').toLowerCase() !== 'completed') {
-        return doc
-      }
-    }
+  const snap = await dbAdmin.collection('activationAttempts')
+    .where('reference', '==', primaryReference)
+    .limit(1)
+    .get()
+
+  if (!snap.empty && String(snap.docs[0].data()?.status || '').toLowerCase() !== 'completed') {
+    return snap.docs[0]
   }
 
   return null

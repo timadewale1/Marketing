@@ -70,7 +70,11 @@ async function buildSuccessfulWebhookReferences(dbAdmin: FirebaseFirestore.Fires
         const status = String(doc.data().status || doc.data().paymentStatus || "").toUpperCase()
         return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL"
       })
-      .flatMap((doc) => getProcessedWebhookReferences(doc.data() as ProcessedWebhookRecord))
+      .flatMap((doc) => {
+        const data = doc.data() as ProcessedWebhookRecord
+        const primaryReference = String(data.reference || "").trim()
+        return primaryReference ? [primaryReference] : getProcessedWebhookReferences(data).slice(0, 1)
+      })
   )
 }
 
