@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
+import { applyRecoveryAwareDebitInTransaction } from "@/lib/balance-recovery"
 
 type UserRole = "earner" | "advertiser"
 
@@ -49,10 +50,29 @@ async function reverseReferralBonusesForUser(
       const data = snap.data() || {}
       if (!data.bonusPaid) return
 
-      const advRef = referrerId ? dbAdmin.collection("advertisers").doc(referrerId) : null
-      const earnerRef = referrerId ? dbAdmin.collection("earners").doc(referrerId) : null
-      const advSnap = advRef ? await t.get(advRef) : null
-      const earnerSnap = earnerRef ? await t.get(earnerRef) : null
+      const advRef = dbAdmin.collection("advertisers").doc(referrerId)
+      const earnerRef = dbAdmin.collection("earners").doc(referrerId)
+      const [advSnap, earnerSnap] = await Promise.all([t.get(advRef), t.get(earnerRef)])
+      const userCollection = advSnap.exists ? "advertisers" : earnerSnap.exists ? "earners" : null
+      if (!userCollection) return
+
+      if (bonus > 0 && referrerId) {
+        await applyRecoveryAwareDebitInTransaction({
+          adminDb: dbAdmin,
+          admin,
+          transaction: t,
+          userCollection,
+          userId: referrerId,
+          amount: bonus,
+          transactionCollection: userCollection === "advertisers" ? "advertiserTransactions" : "earnerTransactions",
+          transactionType: "referral_bonus_reversal",
+          recoveryNote: `Reversal of referral bonus for ${userId}`,
+          transactionExtras: {
+            referralId: rDoc.id,
+            reversedForUserId: userId,
+          },
+        })
+      }
 
       t.update(referralRef, {
         status: "pending",
@@ -61,28 +81,6 @@ async function reverseReferralBonusesForUser(
         paidAmount: admin.firestore.FieldValue.delete(),
         completedAt: admin.firestore.FieldValue.delete(),
       })
-
-      if (bonus > 0 && referrerId && advRef && advSnap?.exists) {
-        t.set(dbAdmin.collection("advertiserTransactions").doc(), {
-          userId: referrerId,
-          type: "referral_bonus_reversal",
-          amount: -bonus,
-          status: "completed",
-          note: `Reversal of referral bonus for ${userId}`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-        t.update(advRef, { balance: admin.firestore.FieldValue.increment(-bonus) })
-      } else if (bonus > 0 && referrerId && earnerRef && earnerSnap?.exists) {
-        t.set(dbAdmin.collection("earnerTransactions").doc(), {
-          userId: referrerId,
-          type: "referral_bonus_reversal",
-          amount: -bonus,
-          status: "completed",
-          note: `Reversal of referral bonus for ${userId}`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-        t.update(earnerRef, { balance: admin.firestore.FieldValue.increment(-bonus) })
-      }
     })
   }
 }

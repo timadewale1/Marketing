@@ -4,6 +4,7 @@ import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 import { getReferralActivationBonusAmount } from '@/lib/referral-rewards'
+import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 
 // Handle referral processing for both earners and advertisers
 export async function POST(req: Request) {
@@ -171,21 +172,29 @@ export async function PUT(req: Request) {
       })
 
       // Credit the referrer (earner or advertiser)
-      if (earnerSnap.exists) {
-        transaction.update(earnerRef, {
-          balance: admin.firestore.FieldValue.increment(amount),
-        })
-      } else if (advertiserSnap.exists) {
-        transaction.update(advertiserRef, {
-          balance: admin.firestore.FieldValue.increment(amount),
-        })
-      }
+      const recoveryResult = await applyRecoveryAwareCreditInTransaction({
+        adminDb,
+        admin,
+        transaction,
+        userCollection: earnerSnap.exists ? 'earners' : 'advertisers',
+        userId: referral.referrerId,
+        amount,
+        transactionCollection: targetCollectionName as 'earnerTransactions' | 'advertiserTransactions',
+        recoveryNote: 'Automatic recovery deduction from a previous reversal',
+        transactionType: 'balance_recovery_deduction',
+        transactionExtras: {
+          referralId,
+          referredUserId: referral.referredId,
+        },
+      })
 
       // Log transaction in the correct transactions collection
       transaction.set(txRef, {
         userId: referral.referrerId,
         type: 'referral_bonus',
         amount,
+        netAmount: recoveryResult.netCredited,
+        recoveryOffsetApplied: recoveryResult.offsetApplied,
         status: 'completed',
         note: `Referral bonus for ${referral.referredId} ${action}`,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -5,6 +5,7 @@ import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel } from '@/lib/referral-rewards'
+import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
@@ -82,16 +83,33 @@ export async function processPendingActivationReferrals(
         })
 
         const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+        const recoveryResult = await applyRecoveryAwareCreditInTransaction({
+          adminDb,
+          admin,
+          transaction: t,
+          userCollection: referrerCollection,
+          userId: referrerId,
+          amount: bonus,
+          transactionCollection: referrerTxCollection,
+          recoveryNote: `Automatic recovery deduction from a previous reversal`,
+          transactionType: 'balance_recovery_deduction',
+          transactionExtras: {
+            referralId: rDoc.id,
+            referredUserId: userId,
+          },
+        })
+
         t.set(adminDb.collection(referrerTxCollection).doc(), {
           userId: referrerId,
           type: 'referral_bonus',
           amount: bonus,
+          netAmount: recoveryResult.netCredited,
+          recoveryOffsetApplied: recoveryResult.offsetApplied,
           status: 'completed',
           note: `Referral bonus for referring ${userId}`,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
-        t.update(referrerCollection === 'advertisers' ? advRef : earnerRef, {
-          balance: admin.firestore.FieldValue.increment(bonus),
+          referralId: rDoc.id,
+          referredUserId: userId,
         })
       })
 
@@ -185,7 +203,6 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     return { awarded: false, bonusAmount, referralId: referralDoc.id }
   }
 
-  const referrerRef = adminDb.collection(referrerCollection).doc(referrerId)
   const referrerTransactionRef = adminDb.collection(
     referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
   ).doc(getPointsEventId('referral-first-task', referralDoc.id, campaignId))
@@ -194,19 +211,33 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     return { awarded: false, bonusAmount, referralId: referralDoc.id }
   }
 
+  const recoveryResult = await applyRecoveryAwareCreditInTransaction({
+    adminDb,
+    admin,
+    transaction,
+    userCollection: referrerCollection,
+    userId: referrerId,
+    amount: bonusAmount,
+    transactionCollection: referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions',
+    recoveryNote: `Automatic recovery deduction from a previous reversal`,
+    transactionType: 'balance_recovery_deduction',
+    transactionExtras: {
+      referralId: referralDoc.id,
+      campaignId,
+    },
+  })
+
   transaction.set(referrerTransactionRef, {
     userId: referrerId,
     type: 'referral_bonus',
     amount: bonusAmount,
+    netAmount: recoveryResult.netCredited,
+    recoveryOffsetApplied: recoveryResult.offsetApplied,
     status: 'completed',
     note: `${getAdvertiserTaskReferralLabel()} bonus from a task created by referred advertiser ${advertiserId}${campaignTitle ? ` for ${campaignTitle}` : ''}`,
     campaignId,
     referralId: referralDoc.id,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  })
-
-  transaction.update(referrerRef, {
-    balance: admin.firestore.FieldValue.increment(bonusAmount),
   })
 
   return { awarded: true, bonusAmount, referralId: referralDoc.id }
@@ -536,8 +567,21 @@ export async function processWalletFundingWithRetry(
       }
 
       if (!primaryCompletedDoc) {
-        await adminDb.collection(userCollection).doc(userId).update({
-          balance: admin.firestore.FieldValue.increment(amount),
+        await adminDb.runTransaction(async (t) => {
+          await applyRecoveryAwareCreditInTransaction({
+            adminDb,
+            admin,
+            transaction: t,
+            userCollection,
+            userId,
+            amount,
+            transactionCollection: collectionName,
+            recoveryNote: `Automatic recovery deduction from a previous reversal`,
+            transactionType: 'balance_recovery_deduction',
+            transactionExtras: {
+              reference: primaryReference,
+            },
+          })
         })
       }
 
