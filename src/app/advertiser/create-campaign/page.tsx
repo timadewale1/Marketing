@@ -137,6 +137,8 @@ export default function CreateCampaignPage() {
   const [priorityBudget, setPriorityBudget] = useState<number | "">("")
   const [priorityEnabled, setPriorityEnabled] = useState(false)
   const [priorityMultiplier, setPriorityMultiplier] = useState(1)
+  const [customCostPerLead, setCustomCostPerLead] = useState<number | "">("")
+  const [useCustomPrice, setUseCustomPrice] = useState(false)
   const [taskDurationEnabled, setTaskDurationEnabled] = useState(false)
   const [taskDurationValue, setTaskDurationValue] = useState<number | "">("")
   const [taskDurationUnit, setTaskDurationUnit] = useState<"hours" | "days">("hours")
@@ -146,7 +148,16 @@ export default function CreateCampaignPage() {
   const numericBudget = typeof activeBudget === "number" ? activeBudget : Number(activeBudget || 0)
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
   const selectedMultiplier = priorityEnabled ? Math.min(10, Math.max(1, priorityMultiplier)) : 1
-  const effectiveCPL = currentCPL * selectedMultiplier
+  
+  // Use custom price if enabled, otherwise use multiplied base price
+  let effectiveCPL = currentCPL * selectedMultiplier
+  if (useCustomPrice && priorityEnabled) {
+    const numericCustomPrice = typeof customCostPerLead === "number" ? customCostPerLead : Number(customCostPerLead || 0)
+    if (numericCustomPrice > 0 && numericCustomPrice >= currentCPL) {
+      effectiveCPL = numericCustomPrice
+    }
+  }
+  
   const isBudgetMultiple =
     numericBudget > 0 && effectiveCPL > 0 ? numericBudget % effectiveCPL === 0 : false
   const estimatedLeads =
@@ -285,6 +296,10 @@ const compressed = await imageCompression(file, options)
           }
           return currentCPL * Math.max(2, priorityMultiplier)
         })
+      } else {
+        // Reset custom price when disabling priority
+        setUseCustomPrice(false)
+        setCustomCostPerLead("")
       }
       return next
     })
@@ -382,6 +397,7 @@ const compressed = await imageCompression(file, options)
       priorityEnabled,
       priorityMultiplier: selectedMultiplier,
       costPerLead: effectiveCPL,
+      customCostPerLead: useCustomPrice ? (typeof customCostPerLead === "number" ? customCostPerLead : Number(customCostPerLead || 0)) : null,
       earnerPrice: Math.round(effectiveCPL / 2),
       participationProofSampleUrls: participationProofSampleSlots
         .map((slot) => slot.url)
@@ -914,7 +930,11 @@ const getEmbeddedVideo = (url: string) => {
                       </div>
                       <div className="text-right text-xs text-stone-600">
                         <div>Base: ₦{currentCPL.toLocaleString()}</div>
-                        <div>Multiplier: x{selectedMultiplier}</div>
+                        {useCustomPrice ? (
+                          <div>Custom: ₦{(typeof customCostPerLead === "number" ? customCostPerLead : Number(customCostPerLead || currentCPL * selectedMultiplier)).toLocaleString()}</div>
+                        ) : (
+                          <div>Multiplier: x{selectedMultiplier}</div>
+                        )}
                         <div>Per lead: ₦{effectiveCPL.toLocaleString()}</div>
                       </div>
                     </div>
@@ -950,13 +970,18 @@ const getEmbeddedVideo = (url: string) => {
                     </Button>
                   </div>
                   {priorityEnabled ? (
+                    <>
                     <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
                       <div className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
                         Priority tasks can pay from x2 up to x10 of the base lead amount.
                       </div>
                       <select
                         value={priorityMultiplier}
-                        onChange={(event) => setPriorityMultiplier(Number(event.target.value))}
+                        onChange={(event) => {
+                          setPriorityMultiplier(Number(event.target.value))
+                          setUseCustomPrice(false)
+                          setCustomCostPerLead("")
+                        }}
                         className="rounded-2xl border border-amber-200 bg-white px-4 py-3 text-stone-800"
                       >
                         {Array.from({ length: 10 }, (_, index) => index + 1).map((multiplier) => (
@@ -966,6 +991,42 @@ const getEmbeddedVideo = (url: string) => {
                         ))}
                       </select>
                     </div>
+                    <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-medium text-stone-800">Custom price per lead (optional)</p>
+                          <p className="text-xs text-stone-500">Set your own price instead of using the multiplier. Minimum: ₦{currentCPL.toLocaleString()}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant={useCustomPrice ? "default" : "outline"}
+                          size="sm"
+                          className={useCustomPrice ? "bg-emerald-500 text-white hover:bg-emerald-600" : "rounded-full"}
+                          onClick={() => {
+                            setUseCustomPrice(!useCustomPrice)
+                            if (!useCustomPrice) {
+                              setCustomCostPerLead(currentCPL * selectedMultiplier)
+                            } else {
+                              setCustomCostPerLead("")
+                            }
+                          }}
+                        >
+                          {useCustomPrice ? "Custom on" : "Use custom"}
+                        </Button>
+                      </div>
+                      {useCustomPrice && (
+                        <Input
+                          type="number"
+                          placeholder={`Enter custom price (minimum ₦${currentCPL.toLocaleString()})`}
+                          value={customCostPerLead}
+                          min={currentCPL}
+                          step={100}
+                          onChange={(e) => setCustomCostPerLead(e.target.value === "" ? "" : Number(e.target.value))}
+                          className="rounded-2xl border border-emerald-200 bg-white"
+                        />
+                      )}
+                    </div>
+                    </>
                   ) : null}
                 </div>
                 <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4">

@@ -201,6 +201,26 @@ async function resolveRecoveryVerificationState(
   return "unverified"
 }
 
+/**
+ * Recovery sweep - processes pending payments that have been verified as PAID by the provider.
+ * 
+ * ⚠️ CRITICAL BEHAVIOR:
+ * - Only processes payments that have been VERIFIED as PAID/SUCCESS/COMPLETED by the payment provider
+ * - Does NOT process unverified, failed, or incomplete payments
+ * - Called immediately when pending payments are detected (via Firestore triggers)
+ * - Also runs on a scheduled basis as a fallback
+ * 
+ * Flow:
+ * 1. Collects all pending wallet funding and activation attempts
+ * 2. For each pending payment, verifies its status with the payment provider (Monnify/Paystack)
+ * 3. If verified as PAID: immediately processes activation or wallet funding
+ * 4. If NOT verified as PAID: defers for retry later or escalates to manual review
+ * 
+ * This ensures:
+ * - Users only get credited when payment is confirmed by the provider
+ * - No double-crediting or processing of unconfirmed payments
+ * - Immediate activation/funding once payment is confirmed
+ */
 export async function runRecoverySweep() {
   const { dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin) {
@@ -382,12 +402,24 @@ export async function runRecoverySweep() {
   let activationChecked = 0
   let activationDeferred = 0
   let activationEscalated = 0
+  // IMPORTANT: Only process activations verified as PAID by the payment provider
   for (const candidate of activationCandidates) {
     if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     if (!candidate.attemptDocId) continue
     activationChecked += 1
-    if (candidate.verificationState !== "paid") continue
+    // ⚠️ CRITICAL: Only process if payment provider confirms PAID status
+    if (candidate.verificationState !== "paid") {
+      console.log(`[recovery-sweep] Skipping activation ${candidate.id}: verification state is '${candidate.verificationState}' (not 'paid')`, {
+        references: candidate.references,
+        provider: candidate.provider,
+      })
+      continue
+    }
+    console.log(`[recovery-sweep] Processing verified PAID activation: ${candidate.id}`, {
+      references: candidate.references,
+      provider: candidate.provider,
+    })
     try {
       await logPaymentLifecycle({
         scope: "activation",
@@ -463,11 +495,25 @@ export async function runRecoverySweep() {
   let walletChecked = 0
   let walletDeferred = 0
   let walletEscalated = 0
+  // IMPORTANT: Only process wallet funding verified as PAID by the payment provider
   for (const candidate of walletCandidates) {
     if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     walletChecked += 1
-    if (candidate.verificationState !== "paid") continue
+    // ⚠️ CRITICAL: Only process if payment provider confirms PAID status
+    if (candidate.verificationState !== "paid") {
+      console.log(`[recovery-sweep] Skipping wallet funding ${candidate.id}: verification state is '${candidate.verificationState}' (not 'paid')`, {
+        references: candidate.references,
+        provider: candidate.provider,
+        amount: candidate.amount,
+      })
+      continue
+    }
+    console.log(`[recovery-sweep] Processing verified PAID wallet funding: ${candidate.id}`, {
+      references: candidate.references,
+      provider: candidate.provider,
+      amount: candidate.amount,
+    })
     try {
       await logPaymentLifecycle({
         scope: "wallet_funding",

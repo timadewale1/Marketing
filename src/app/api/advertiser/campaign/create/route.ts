@@ -46,18 +46,31 @@ export async function POST(req: Request) {
       ? Math.max(1, Math.min(10, Math.round(priorityMultiplierRaw)))
       : 1
     const priorityEnabled = Boolean(campaignData.priorityEnabled) && priorityMultiplier > 1
-    const costPerLead = Number(campaignData.costPerLead || 0) || baseCostPerLead * priorityMultiplier
+    
+    // Handle custom cost per lead if provided
+    let costPerLead = Number(campaignData.costPerLead || 0) || baseCostPerLead * priorityMultiplier
+    const customCostPerLeadRaw = Number(campaignData.customCostPerLead || 0)
+    if (priorityEnabled && customCostPerLeadRaw > 0) {
+      if (customCostPerLeadRaw < baseCostPerLead) {
+        return NextResponse.json({ 
+          success: false, 
+          message: `Custom price per lead cannot be lower than ₦${baseCostPerLead.toLocaleString()}` 
+        }, { status: 400 })
+      }
+      costPerLead = customCostPerLeadRaw
+    }
+    
     if (baseCostPerLead <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid task amount' }, { status: 400 })
     }
-    if (priorityEnabled && priorityMultiplier > 10) {
+    if (priorityEnabled && priorityMultiplier > 10 && !customCostPerLeadRaw) {
       return NextResponse.json({ success: false, message: 'Priority can only go up to 10x the base task amount' }, { status: 400 })
     }
-    if (costPerLead !== baseCostPerLead * priorityMultiplier) {
+    if (!customCostPerLeadRaw && costPerLead !== baseCostPerLead * priorityMultiplier) {
       return NextResponse.json({ success: false, message: 'Priority pricing is invalid' }, { status: 400 })
     }
     if (costPerLead > 0 && budget < costPerLead) {
-      return NextResponse.json({ success: false, message: `Budget cannot be less than â‚¦${costPerLead.toLocaleString()} for this task type` }, { status: 400 })
+      return NextResponse.json({ success: false, message: `Budget cannot be less than ₦${costPerLead.toLocaleString()} for this task type` }, { status: 400 })
     }
     if (costPerLead > 0 && budget % costPerLead !== 0) {
       return NextResponse.json({

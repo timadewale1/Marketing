@@ -60,6 +60,49 @@ async function wakeRecoverySweepIfNeeded(beforeData: Record<string, unknown> | u
   await callInternalRoute("/api/internal/recovery-sweep");
 }
 
+// Immediately trigger recovery when a pending wallet funding transaction is created or marked as pending
+export const wakeRecoveryOnPendingWalletFunding = onDocumentUpdated("advertiserTransactions/{transactionId}", async (event) => {
+  const beforeData = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined;
+  const afterData = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : undefined;
+
+  if (!afterData) return;
+
+  const beforeStatus = String(beforeData?.status || "").toLowerCase();
+  const afterStatus = String(afterData?.status || "").toLowerCase();
+  const type = String(afterData?.type || "").toLowerCase();
+
+  // If this is a wallet_funding transaction that just became pending, trigger recovery immediately
+  if (type === "wallet_funding" && afterStatus === "pending" && beforeStatus !== "pending") {
+    console.log(`[trigger] Detected new pending wallet funding: ${event.params.transactionId}, triggering immediate recovery`);
+    await callInternalRoute("/api/internal/recovery-sweep");
+    return;
+  }
+
+  // Also check for manual_review disposition change
+  await wakeRecoverySweepIfNeeded(beforeData, afterData);
+});
+
+// Immediately trigger recovery when an activation attempt is created or marked as pending
+export const wakeRecoveryOnPendingActivation = onDocumentUpdated("activationAttempts/{attemptId}", async (event) => {
+  const beforeData = event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined;
+  const afterData = event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : undefined;
+
+  if (!afterData) return;
+
+  const beforeStatus = String(beforeData?.status || "").toLowerCase();
+  const afterStatus = String(afterData?.status || "").toLowerCase();
+
+  // If this is an activation attempt that just became pending, trigger recovery immediately
+  if (afterStatus === "pending" && beforeStatus !== "pending") {
+    console.log(`[trigger] Detected new pending activation: ${event.params.attemptId}, triggering immediate recovery`);
+    await callInternalRoute("/api/internal/recovery-sweep");
+    return;
+  }
+
+  // Also check for manual_review disposition change
+  await wakeRecoverySweepIfNeeded(beforeData, afterData);
+});
+
 export const wakeRecoveryOnActivationReview = onDocumentUpdated("activationAttempts/{attemptId}", async (event) => {
   await wakeRecoverySweepIfNeeded(
     event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined,

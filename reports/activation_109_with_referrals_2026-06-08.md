@@ -1,0 +1,125 @@
+# Activation reconciliation with referral status
+
+- Source file labels this set as 109, but the current split file contains 110 unique activation rows.
+- Referral bonus already paid: 88
+- Referral bonus still pending or not found: 1
+- No referral record found: 21
+
+## normalActivation (82)
+
+- Dalhatu Haruna Muhammad <zazoodiamond@gmail.com> | userId: qxjvM5nohAOu07L8JYFeq30ls803 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Efe richard <richardeferi@gmail.com> | userId: 18IGL1UiryNmMex75MXww3P3yRn2 | referral bonus: no referral record found | referrer: ?
+- Nwafor Onyinyechi Maryann <onyinyechimaryannnwafor@gmail.com> | userId: MTFiA8EZ20VePJK4BV45v4golLy2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- ALAMU FOLAWE DANIEL <alamufolawe@gmail.com> | userId: JKMOFfyJITUOQMWKM41T9ntsycI2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Olawale Bello <olawalbell52@gmail.com> | userId: DnBM3gGDZddULo0Cmo0Plsf0wVz2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Ine Jonathan Jack <inejonathanjack@gmail.com> | userId: dKUTiYQ0pkhk2prNBcDMVeH92z12 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Sarah Olawuyi <susa12993@gmail.com> | userId: VeEXMfSibqT744fB6izm0zdxEx33 | referral bonus: no referral record found | referrer: ?
+- Ozoekwem Chiadika Anthony <ozoekwemchiadika@gmail.com> | userId: 3jV9uQ7HMQb3t31H0nGYwjSqrzw1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Goodness Taiwo <r55uwheine@gmail.com> | userId: EPY8AtDI1zUgpLVyZrRpiO1OZj72 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- PATIENCE CHIKODI NWOKENKWO <patiencenwokenkwo@gmail.com> | userId: F5N7W9cCF8O2soLqgocYIlrgzqA2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- oluwagbemiga ransom <oluwagbemigaransom14@gmail.com> | userId: M5QufzLQaOVn1FxYwNSawSQpbAz1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Abubakar Adamu <youngkalee0@gmail.com> | userId: utwGtATVKUWfa6SKRGhp1Gts0852 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Salami Comfort Titilope <hassanomotayo14@gmail.com> | userId: hC5KzWOiUahZxAkllWwI8cozQo62 | referral bonus: no referral record found | referrer: ?
+- Sobayo Samuel Abiodun <samuelsobayo67@gmail.com> | userId: tXNvI9mCmuOusPQkbrFX8eOPW8r1 | referral bonus: paid (?500) | referrer: Adegboyega Elijah Olamide <elijahoadegboyega@gmail.com>
+- Jabir Yusuf <jabiryusuf098@gmail.com> | userId: EREIOaBFKWTGggQiXp8pbhJ5gVx2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Endurance Otemeh <otemehendurance@gmail.com> | userId: Soxz1sg75JTqNBzaEg2jP0jcaOT2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Prosper Prince <coleethan636@gmail.com> | userId: YmqfcyMp83TvrqVpwcGjsVSWZ442 | referral bonus: no referral record found | referrer: ?
+- Peter Elizabeth Omomate <elizabethpeter079@gmail.com> | userId: HvmFkIB1Tqf1PYN600fOYUwfJW73 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Chidinma Iheanacho Favour <chidinmafavour784@gmail.com> | userId: 7fnhuADiaqT63Sq2qIujjmVn22z1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Mobolaji Olabisi <bjalash@gmail.com> | userId: OpC2myA2ljaLSqyAGaMu3rhiHCE2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- JAHSWILL UCHECHUKE ABRAHAM <abrahamjahswill020@gmail.com> | userId: 1kkQWINBTbQ5eyexvaCETrZrONL2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Chibueze Chibyke <joachimchibueze748@gmail.com> | userId: wZAGqjJdnIb2h8uXCSpmtQisKMv1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Azeez Rukayah <Abdulazeezrukky55@gmail.com> | userId: QB56Cv1lvdf7pA96oDnSGwegDgq2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Chigozie nwazuruike <doyouwantohear@gmail.com> | userId: Ol1PYmtcgXbgt4KCFPtuZZU0k6f1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Isah Yusuf Adomu <adomu2022@gmail.com> | userId: OZao77DKK9U5OdGn8IoM6psviuo1 | referral bonus: no referral record found | referrer: ?
+- Peter habila <habilapeter779@gmail.com> | userId: QjmLqWXaKgfnOOmDl5vCsh9DTgK2 | referral bonus: no referral record found | referrer: ?
+- Vitalis buka <ebukavitalis779@gmail.com> | userId: vzNbJeM81jRSpVHA7KdTZOECocs2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- DAMILOLA OMOTOSO <adewoledamilola87@gmail.com> | userId: b6ZJEnZHfeO4bPSZBwbOrUSEjJ23 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Bamidele Franck <franck.bams@gmail.com> | userId: MIr5HSVCtIMor3DfpjEF2bYhEVH3 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Bliss Harrison <ukaigwebliss2010@gmail.com> | userId: BllOVJ0rNTOXjDPCALJyifXaK8G2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Solomon Nworie <nworiesolomon65@gmail.com> | userId: xQvKoyDAOhb9WOVjfqruif4Vnd33 | referral bonus: paid (?500) | referrer: Teejay <doncrossayomi@gmail.com>
+- Pearl Diepreye Reuben <pearlistic2001@gmail.com> | userId: Ihbdru9bjVhHFnlN4SRNDLpNEs02 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Emem Jack <jackemem92@gmail.com> | userId: 1t9L7IhTbXN5NqRxTeBSJQbCXzm2 | referral bonus: no referral record found | referrer: ?
+- Hope Ndifreke <hopendifreke41@gmail.com> | userId: nIytc7O8tGaw914pf07z4CyVsGE2 | referral bonus: paid (?500) | referrer: Chinonso Nwakaeme <infolinksempire@gmail.com>
+- Enuesika Dennis Somadina <truckscompany954@gmail.com> | userId: 9iPpsRQ1jYWSLAB6gdYVzWIWego1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Joseph Enoch <festus119229881@gmail.com> | userId: uMJVWc1NTKVhvxZQT3dDfHhWSml2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Adaeze Divine <divineadaeze92@gmail.com> | userId: nTGoOAmwjNQKtWHTVWqb9Qr9QFs1 | referral bonus: paid (?500) | referrer: Isaac aklou <isaacelcapo24@gmail.com>
+- Balogun Korede <balogunkorede2222@gmail.com> | userId: beGSZ6oEO2NpRc48qCDMIDLg3u32 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Ekwulonu Helen Chimezirim <helchimex@yahoo.com> | userId: otUuwUaiAtcwXBsjaRg1mC0uwvC3 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Isiaka yomi olaoshebikan <abayomiadewale365@gmail.com> | userId: jfpdPYzxvDhPyyNzH9S0P85JzB93 | referral bonus: paid (?500) | referrer: Isaac aklou <isaacelcapo24@gmail.com>
+- Aregu, Agatha Danlami <areguagatha@gmail.com> | userId: o9AkKKbI3EVUT03PZ069qUbEg252 | referral bonus: paid (?500) | referrer: Emmanuel khol <cletuskhol@gmail.com>
+- Ganiyu Abdulmalik <abdulmalikayo287@gmail.com> | userId: F1tIPtPgxIantdbf5Xc5rvYudDa2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Abdulazeez Isah <abdulazizisah04@gmail.com> | userId: ssNlQe75AlM0OpKyinjPdgibKvg1 | referral bonus: paid (?500) | referrer: Ridwan Azeez <realonedigitals@gmail.com>
+- Grace Moronfade <alexbalogun593@gmail.com> | userId: DCzCfpAnFYP0vm0RNFnE8znLJAX2 | referral bonus: no referral record found | referrer: ?
+- Victor Nwachukwu <selenacampos017@gmail.com> | userId: j6D1Ef5biVTCcXdnOfPfOCoydiw1 | referral bonus: paid (?500) | referrer: Alfred Destiny <aicontentcreator002@gmail.com>
+- Ogunwumi ojo samuel <ojojames934@gmail.com> | userId: VyUTP4ZxX4Zxj9q4hC5H5ijh6Mg2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Godswill Jackson Monday <godswillmonday736@gmail.com> | userId: aFgB8nqlJob2bLWi9rgeefwBlix1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- chidera <onumonuchidera1@gmail.com> | userId: hkew6ysEMzO9SV5mLNIw1p3Uq2q2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Bei kem <munonyedic22@gmail.com> | userId: 1L49wh8rfnXvJrx48RnIY4wBc783 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Funkekeme Cameroon <funkekemecameroon247@gmail.com> | userId: AZb4jlDnnVaQ9ncYC8TJVzRB13G3 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Rebecca ishaya peni <beckyishaya31@gmail.com> | userId: iuyZnfaBYtOfpp8iucT7KHJpRbp1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- chibuike <chibuike4771@gmail.com> | userId: 9TfnSXEFTgXV7zLZO2ShuHg6gu12 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Adeyeye taiwo bosede <aygold988@gmail.com> | userId: 24KhQW2w4ATU7k0jYCEPJ5LofZr1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Precious John aneke <preciousemeka8499@gmail.com> | userId: 87pvneITv9fkIaoz8TuiglAHH6f1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Gift Ehi peter <pehi71355@gmail.com> | userId: 1jgkM57MpLP142yEAcdrO6o2okv2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Michael Adama <michaeladama482@gmail.com> | userId: G69jgXUXRHZKJfS7egsjzcs3mwG2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Akiode Daniel <slicerdcff@gmail.com> | userId: 11YVKYP055chqSYcVERFIqyG4r23 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Nweke Ifeoma Ụgbala <ifeyras44@gmail.com> | userId: 4csTHKK3U1hQAb4BKTQkjqDWXsl2 | referral bonus: paid (?500) | referrer: Ridwan Azeez <realonedigitals@gmail.com>
+- David George <davidjosephchigozie@gmail.com> | userId: 0kiuDaD0KANCjIbsUIPUNxyp0Js1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Goma Michael <joymargaret500@gmail.com> | userId: 2DxJevX90JcGcgzkhZRYrkScrTs2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Samuel Edet Etinefio <harrysamuel080@gmail.com> | userId: 5W1MnhNDEKRwjTLf5GJJh3jzdyz1 | referral bonus: no referral record found | referrer: ?
+- Aisha Ahmed <aishaahma002@gmail.com> | userId: C2fcp1F0frcaX9lCVqFfwkde8nl1 | referral bonus: paid (?500) | referrer: Aliyu Said <aliyusaee221@gmail.com>
+- Godwin samuel john <godorns6@gmail.com> | userId: 8ZtCk37VGUcm8yPgsjk8qeAGQMs2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Kpaama Seth Bariela <elasqueenunarrested@gmail.com> | userId: DmoM1slU75Mz6NHKOJ6BBUCfhnO2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Valentine Raymond <valentine00vbou@gmail.com> | userId: BojGCBWF0iaDH3XsqifTFiIuUjF2 | referral bonus: paid (?500) | referrer: Divine Emmanuel <de407943@gmail.com>
+- John wike <favour254123@gmail.com> | userId: C3Ld73Kp1rXHoxLA3sEviXXv6b53 | referral bonus: no referral record found | referrer: ?
+- Elijah Aniedi Patrick <elijahpatrick875@gmail.com> | userId: Dtxy1MSnTug3TUuuOHUPJjWXcvq2 | referral bonus: no referral record found | referrer: ?
+- Isaiah 7 <otina2298@gmail.com> | userId: Dvk1h0tr6adQeIWrKgIS208V1sf1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Afeez <oyekanmiafeez259@gmail.com> | userId: NM5uY38KKMda9DTdiDzXEtpLUcT2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Kasarachi Joseph <chijiokebetter@yahoo.com> | userId: UZ2pMaKKGkSLzi7MO52juvIKiMN2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Samuel nwabueze <samuelwilliams095@gmail.com> | userId: V7ViZPtepBeGWLRppX7AZibpno32 | referral bonus: no referral record found | referrer: ?
+- Godswill Anyak <angelojessemars@gmail.com> | userId: YvM8le4u5yf0hPTgMxBSIdXweRq2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Victor Nwakudu <vickkybrass@gmail.com> | userId: kqTaLlXtnwbh3K7cy9WEZXE91Wa2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Emi <ermiekeyzodosa5960@gmail.com> | userId: ktlKsK8OVVQo9n2UnmceX7hxX413 | referral bonus: paid (?500) | referrer: Moyosore Ayomide <moyospec@gmail.com>
+- ikechukwu  Oscar Ogbonna <oscaroike@gmail.com> | userId: rNMx8i9vj6Ml1Xcc87xrzbIAxpr1 | referral bonus: no referral record found | referrer: ?
+- Igwe Juliet <igwej7403@gmail.com> | userId: rn8OQwEik0V8MmCpDdSG2OGdxAk1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Christiana Asuquo <tinaenobong@gmail.com> | userId: sFFxAH6mLfgV8uSgcV5UgOekXno1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- OG billions <ukachukwuchijiokemartins@gmail.com> | userId: tlQi5wlTzjd2Noos9qKEgMjRzUF3 | referral bonus: no referral record found | referrer: ?
+- Chinaeme Anselm Nwabunwanne <chinaemeanselm01@gmail.com> | userId: trfIfAtlPaYahCNgdRYLyHTsOqs1 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Otukupe Peter Eze <ezepeter199531@gmail.com> | userId: vUuxLFeW2eOsx52SjPx9dWauO0N2 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Divine Okenna <divineokenna105@gmail.com> | userId: xIiHzy7OPfZGHCAmqXcrxQKj8v63 | referral bonus: paid (?500) | referrer: Solomon okon <solo36583@gmail.com>
+- Victory chy <victorychyjude@gmail.com> | userId: zz4yHxlFZsNlT8bHc5qWFWyBxHl2 | referral bonus: no referral record found | referrer: ?
+
+## laterReconciled (0)
+
+
+## noLabel (28)
+
+- Fvry <ayomikun370@gmail.com> | userId: spoaVilLJxVQRdSgnHPGCAN6RBv1 | referral bonus: pending (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Salihu <muhammadsalisumahammad@gmail.com> | userId: aspxvCb5S4fxuTU3MDWM6jcsn5x1 | referral bonus: no referral record found | referrer: ?
+- Wasiu Sodiq Ajibola <wasiuayinde1950@gmail.com> | userId: JNcBm6G6zhgQQKPb7oyxPZ4304p2 | referral bonus: no referral record found | referrer: ?
+- zakaria Muzamil <zakariamuzamil39@gmail.com> | userId: ZAAR0JW05uYHyQsWJeEH4gRsLXB3 | referral bonus: paid (?500) | referrer: Odah benjamin <odahbenjamin4@gmail.com>
+- Abdulsemiu Solihat <Abdulsemiusolihat@icloud.com> | userId: Wt4761TltffL8n8JthyynRK1BIo2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Joy Ikem <joypaulinus93@gmail.com> | userId: lKRnllfu3KWrcb0BSEdI9fFixiS2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Micheal okechukwu okereke <okechukwum46@gmail.com> | userId: sHq9tyGWIqSeruzmDJYIV1iqRsC2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Edet Jumbo okon <edeto3671@gmail.com> | userId: kUJpI5JiDnfqELG5ouNlQWWsq5y2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Johnisaac <isaacjohnassogba3@gmail.com> | userId: SbMkzhzdfMWKXq6zXpdZFaKH5Si1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Shola <sholatogbe@gmail.com> | userId: 5H2ORXUS4uUEW0rBtiWA8ljshs43 | referral bonus: no referral record found | referrer: ?
+- Olawumi Hanifat Olayinka <olawumihanifat23@gmail.com> | userId: iw7GX68fWheTvnsIwEILWz9RgeO2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Anthony Vera <azzzzma53@gmail.com> | userId: b9T1Yikx3gXewh4xoIZCuTvSd2I3 | referral bonus: no referral record found | referrer: ?
+- Abiodun Oluwaseyi kolapo <princeabiodun268@gmail.com> | userId: Xyw6hcVHl2NEJCEm0hG4l5sSP7n1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- FIDELIS NATHANIEL <fidelisnathaniel15@gmail.com> | userId: bkMECP7gDjWZuDI1dpKogYpKL6z2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Owojuyigbe Folakemi <folaowojuyigbe@gmail.com> | userId: pBIfJbTfKnbrsBZGxqqp3wLnM4b2 | referral bonus: no referral record found | referrer: ?
+- Honey drop <oladipupooyinkansola866@gmail.com> | userId: wIKztzEM5pN5WBrEr7xs6BJv8hh2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Abdulwasiu Ramat omolewa <abdulwasiuramatomolewa@gmail.com> | userId: R8wEADTQ2POqPnBg8dsG8cxNXCQ2 | referral bonus: paid (?500) | referrer: Wasiu Sodiq Ajibola <wasiuayinde1950@gmail.com>
+- PRAYER EZEDIALU <prayerezedialu914@gmail.com> | userId: ZZCKT6buZ3Nq1T2fE1wqkvAIhh83 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Joshua kamsi <joshuakamsi009@gmail.com> | userId: brtbF1TLFjWBZFsOQZlklCcoMLJ3 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Usman Muhammad <um578447@gmail.com> | userId: dl7vOGhuFnctqt8QpPZKR1R3EWl1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Godgift Obasiya <godgiftobasiya2@gmail.com> | userId: R2d6fhBcOZNixKLM8cFqmamhSsE2 | referral bonus: paid (?500) | referrer: Godspower James Ezekiel <jamepraise22@gmail.com>
+- Okedeji Femi Emmanuel <femiokedeji@gmail.com> | userId: 5RcgeVlCR9XVQAAWowPUsKjWdxT2 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Muhammad Usman Ahmad <mahmed3196@gmail.com> | userId: 9rPswAKo4Wg8hdZY06nhvHN2GWz1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Godday Osasere <goddayosasere@gmail.com> | userId: fJlyZAnODBMEeOEZ0lBA5AWWzDx1 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Olalekan Oludiran <kvngtushie@gmail.com> | userId: zeCvTpTXSsQc1sVptfzDheKpBSD2 | referral bonus: paid (?500) | referrer: Godspower James Ezekiel <jamepraise22@gmail.com>
+- Eddykesh <edwardfrancis866@gmail.com> | userId: 7s1IvAhWXpMKZrU1JxlB4eOOJwi2 | referral bonus: no referral record found | referrer: ?
+- Shittu Abdulbasit <shittubasit473@gmail.com> | userId: UHl7Iyhc7oZ0XdRXsTnTFQItpK52 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>
+- Charles M. Oloworaran <> | userId: 4axqBLoPW3S7RXnYOWmYShKNUK02 | referral bonus: paid (?500) | referrer: Selim Damilola <selimdamilolayt@gmail.com>

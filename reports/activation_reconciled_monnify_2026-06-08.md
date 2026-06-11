@@ -1,0 +1,119 @@
+# Monnify-backed activations that were missing from the export
+
+Count: 115
+
+- KILANKO FOLASAYO <kilankofola020@gmail.com> - TX_1775498873816_97854
+- Mabel Nebo <mabelnebo80@gmail.com> - TX_1775498537128_54697
+- Elisha Linus <elishalinus1@gmail.com> - TX_1775497751473_14391
+- Kayopa Woyengimiebifagha <miebikayopa@gmail.com> - TX_1775552597225_2033
+- Blessing Izikire <blessingizikire360@gmail.com> - TX_1775561455283_73909
+- Dalhatu Haruna Muhammad <zazoodiamond@gmail.com> - TX_1775562532053_4876
+- Efe richard <richardeferi@gmail.com> - TX_1775573256367_69783
+- Nwafor Onyinyechi Maryann <onyinyechimaryannnwafor@gmail.com> - TX_1775587341339_44507
+- ALAMU FOLAWE DANIEL <alamufolawe@gmail.com> - TX_1775587248761_53994
+- Olawale Bello <olawalbell52@gmail.com> - TX_1775586960099_75062
+- Fvry <ayomikun370@gmail.com> - TX_1775584233980_77090
+- Salihu <muhammadsalisumahammad@gmail.com> - TX_1775583594031_72433
+- Wasiu Sodiq Ajibola <wasiuayinde1950@gmail.com> - TX_1775581223854_39423
+- zakaria Muzamil <zakariamuzamil39@gmail.com> - TX_1775580690906_84848
+- Abdulsemiu Solihat <Abdulsemiusolihat@icloud.com> - TX_1775575484683_96782
+- Joy Ikem <joypaulinus93@gmail.com> - unknown
+- Micheal okechukwu okereke <okechukwum46@gmail.com> - TX_1775522632059_32044
+- Ine Jonathan Jack <inejonathanjack@gmail.com> - TX_1775641786601_54418
+- Sarah Olawuyi <susa12993@gmail.com> - TX_1775629055423_29908
+- Edet Jumbo okon <edeto3671@gmail.com> - TX_1775645399406_76788
+- Ozoekwem Chiadika Anthony <ozoekwemchiadika@gmail.com> - TX_1775605024153_59331
+- Goodness Taiwo <r55uwheine@gmail.com> - TX_1775675342746_54892
+- PATIENCE CHIKODI NWOKENKWO <patiencenwokenkwo@gmail.com> - TX_1775717137613_9350
+- Johnisaac <isaacjohnassogba3@gmail.com> - TX_1775494347284_41222
+- oluwagbemiga ransom <oluwagbemigaransom14@gmail.com> - TX_1775732147957_19170
+- Abubakar Adamu <youngkalee0@gmail.com> - TX_1775744838335_3638
+- Salami Comfort Titilope <hassanomotayo14@gmail.com> - TX_1775808904410_72431
+- Sobayo Samuel Abiodun <samuelsobayo67@gmail.com> - TX_1775826421677_14559
+- Jabir Yusuf <jabiryusuf098@gmail.com> - TX_1775842135986_41134
+- Endurance Otemeh <otemehendurance@gmail.com> - TX_1775851934977_66389
+- Prosper Prince <coleethan636@gmail.com> - TX_1775859340932_69905
+- Peter Elizabeth Omomate <elizabethpeter079@gmail.com> - MNFY|69|20260411080725|027292
+- Chidinma Iheanacho Favour <chidinmafavour784@gmail.com> - TX_1775925966535_22337
+- Mobolaji Olabisi <bjalash@gmail.com> - TX_1775972916272_93567
+- JAHSWILL UCHECHUKE ABRAHAM <abrahamjahswill020@gmail.com> - TX_1775952305726_79645
+- Chibueze Chibyke <joachimchibueze748@gmail.com> - TX_1775951481547_8165
+- Azeez Rukayah <Abdulazeezrukky55@gmail.com> - TX_1775947515439_19640
+- Chigozie nwazuruike <doyouwantohear@gmail.com> - TX_1775946236124_86737
+- Shola <sholatogbe@gmail.com> - TX_1775945169534_98334
+- Isah Yusuf Adomu <adomu2022@gmail.com> - TX_1775989031893_58040
+- Peter habila <habilapeter779@gmail.com> - TX_1775988915611_97359
+- Olawumi Hanifat Olayinka <olawumihanifat23@gmail.com> - TX_1776004782764_98860
+- Vitalis buka <ebukavitalis779@gmail.com> - TX_1776028108681_74104
+- Anthony Vera <azzzzma53@gmail.com> - TX_1776029537256_64314
+- DAMILOLA OMOTOSO <adewoledamilola87@gmail.com> - TX_1776061033580_71219
+- Abiodun Oluwaseyi kolapo <princeabiodun268@gmail.com> - TX_1776071067020_73568
+- FIDELIS NATHANIEL <fidelisnathaniel15@gmail.com> - TX_1776082978823_35187
+- Owojuyigbe Folakemi <folaowojuyigbe@gmail.com> - TX_1776084086339_15882
+- Honey drop <oladipupooyinkansola866@gmail.com> - TX_1776085690367_50965
+- Abdulwasiu Ramat omolewa <abdulwasiuramatomolewa@gmail.com> - TX_1776106079123_79961
+- PRAYER EZEDIALU <prayerezedialu914@gmail.com> - TX_1776108226106_36145
+- Joshua kamsi <joshuakamsi009@gmail.com> - TX_1776105927064_82812
+- Usman Muhammad <um578447@gmail.com> - TX_1776112434207_81141
+- Godgift Obasiya <godgiftobasiya2@gmail.com> - TX_1776144906434_9546
+- Okedeji Femi Emmanuel <femiokedeji@gmail.com> - TX_1776151346913_68621
+- Muhammad Usman Ahmad <mahmed3196@gmail.com> - TX_1776148719513_28631
+- Godday Osasere <goddayosasere@gmail.com> - TX_1776159412442_96285
+- Olalekan Oludiran <kvngtushie@gmail.com> - TX_1776149397186_74536
+- Eddykesh <edwardfrancis866@gmail.com> - TX_1776162659703_8514
+- Shittu Abdulbasit <shittubasit473@gmail.com> - TX_1776180771292_11030
+- Bamidele Franck <franck.bams@gmail.com> - TX_1776185219979_8322
+- Bliss Harrison <ukaigwebliss2010@gmail.com> - TX_1776188607063_97183
+- Solomon Nworie <nworiesolomon65@gmail.com> - TX_1776232788023_94601
+- Pearl Diepreye Reuben <pearlistic2001@gmail.com> - TX_1776707837182_44240
+- Emem Jack <jackemem92@gmail.com> - TX_1777883285182_96400
+- Hope Ndifreke <hopendifreke41@gmail.com> - TX_1778592508723_27974
+- Enuesika Dennis Somadina <truckscompany954@gmail.com> - TX_1778607383717_11763
+- Joseph Enoch <festus119229881@gmail.com> - TX_1778821443265_39137
+- Adaeze Divine <divineadaeze92@gmail.com> - TX_1779166476137_82222
+- Balogun Korede <balogunkorede2222@gmail.com> - TX_1779179518985_90324
+- Ekwulonu Helen Chimezirim <helchimex@yahoo.com> - TX_1779188070895_3041
+- Isiaka yomi olaoshebikan <abayomiadewale365@gmail.com> - TX_1779196317461_97623
+- Aregu, Agatha Danlami <areguagatha@gmail.com> - TX_1779213012414_84028
+- Ganiyu Abdulmalik <abdulmalikayo287@gmail.com> - TX_1779219515099_16921
+- Abdulazeez Isah <abdulazizisah04@gmail.com> - TX_1779223940096_88412
+- Grace Moronfade <alexbalogun593@gmail.com> - TX_1779227231148_99759
+- Victor Nwachukwu <selenacampos017@gmail.com> - TX_1779228416325_3131
+- Ogunwumi ojo samuel <ojojames934@gmail.com> - TX_1779274095761_83651
+- Godswill Jackson Monday <godswillmonday736@gmail.com> - TX_1779279527948_77357
+- chidera <onumonuchidera1@gmail.com> - TX_1779281370860_89555
+- Bei kem <munonyedic22@gmail.com> - TX_1779286247957_27198
+- Funkekeme Cameroon <funkekemecameroon247@gmail.com> - TX_1779346226698_21734
+- Rebecca ishaya peni <beckyishaya31@gmail.com> - TX_1779346215105_56364
+- chibuike <chibuike4771@gmail.com> - TX_1779357508782_5819
+- Adeyeye taiwo bosede <aygold988@gmail.com> - TX_1779394939167_89233
+- Precious John aneke <preciousemeka8499@gmail.com> - TX_1779438306959_25540
+- Gift Ehi peter <pehi71355@gmail.com> - TX_1779548422291_24810
+- Michael Adama <michaeladama482@gmail.com> - TX_1779566131695_22626
+- Akiode Daniel <slicerdcff@gmail.com> - TX_1779797982595_81103
+- Nweke Ifeoma Ụgbala <ifeyras44@gmail.com> - TX_1779870705686_95220
+- David George <davidjosephchigozie@gmail.com> - TX_1779999753864_29324
+- Charles M. Oloworaran <> - TX_1780002102205_33361
+- Goma Michael <joymargaret500@gmail.com> - TX_1780160525827_41466
+- Samuel Edet Etinefio <harrysamuel080@gmail.com> - TX_1780432956262_68559
+- Aisha Ahmed <aishaahma002@gmail.com> - TX_1780442084393_79295
+- Godwin samuel john <godorns6@gmail.com> - TX_1780563837204_19233
+- Kpaama Seth Bariela <elasqueenunarrested@gmail.com> - TX_1780569277812_47053
+- Valentine Raymond <valentine00vbou@gmail.com> - TX_1780338571740_39713
+- John wike <favour254123@gmail.com> - TX_1780563383277_83466
+- Elijah Aniedi Patrick <elijahpatrick875@gmail.com> - TX_1780003398624_23244
+- Isaiah 7 <otina2298@gmail.com> - TX_1779964503615_20904
+- Afeez <oyekanmiafeez259@gmail.com> - TX_1780162542635_17066
+- Kasarachi Joseph <chijiokebetter@yahoo.com> - TX_1779956985959_76271
+- Samuel nwabueze <samuelwilliams095@gmail.com> - TX_1780041119553_82800
+- Godswill Anyak <angelojessemars@gmail.com> - TX_1780487242561_89021
+- Victor Nwakudu <vickkybrass@gmail.com> - TX_1780114938684_36617
+- Emi <ermiekeyzodosa5960@gmail.com> - TX_1780333298460_61673
+- ikechukwu  Oscar Ogbonna <oscaroike@gmail.com> - TX_1780079517975_34987
+- Igwe Juliet <igwej7403@gmail.com> - TX_1780313438024_62378
+- Christiana Asuquo <tinaenobong@gmail.com> - TX_1780199647628_53158
+- OG billions <ukachukwuchijiokemartins@gmail.com> - TX_1780253482905_39232
+- Chinaeme Anselm Nwabunwanne <chinaemeanselm01@gmail.com> - TX_1780241753680_59928
+- Otukupe Peter Eze <ezepeter199531@gmail.com> - TX_1779981068261_6510
+- Divine Okenna <divineokenna105@gmail.com> - TX_1779794025115_76958
+- Victory chy <victorychyjude@gmail.com> - TX_1780340974931_49130

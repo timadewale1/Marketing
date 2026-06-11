@@ -1,0 +1,4513 @@
+{
+  "generatedAt": "2026-06-04T21:47:44.942Z",
+  "cutoff": "2026-05-21T21:47:44.942Z",
+  "activationsRecovered": [
+    {
+      "role": "earner",
+      "userId": "BojGCBWF0iaDH3XsqifTFiIuUjF2",
+      "reference": "TX_1780338571740_39713",
+      "references": [
+        "TX_1780338571740_39713",
+        "TX_1780338289546_16130",
+        "TX_1780338377373_85410",
+        "MNFY|44|20260601192451|066059"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "C3Ld73Kp1rXHoxLA3sEviXXv6b53",
+      "reference": "TX_1780563383277_83466",
+      "references": [
+        "TX_1780563383277_83466",
+        "TX_1779872200264_72449",
+        "TX_1779872462596_91363",
+        "TX_1779872668810_18130",
+        "TX_1779873518679_18249",
+        "TX_1779874451286_7911",
+        "TX_1779876967475_17784",
+        "TX_1779878833403_64961",
+        "TX_1779879504975_7366",
+        "TX_1779882274796_57121",
+        "TX_1779888391269_98290",
+        "TX_1779902514828_90298",
+        "TX_1779913350410_29191",
+        "TX_1779947180970_81337",
+        "TX_1779961983125_8885",
+        "TX_1780175091911_51759",
+        "MNFY|48|20260527100107|071627"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "Dtxy1MSnTug3TUuuOHUPJjWXcvq2",
+      "reference": "TX_1780003398624_23244",
+      "references": [
+        "TX_1780003398624_23244",
+        "TX_1779987248069_76459",
+        "TX_1779987342997_3385",
+        "MNFY|22|20260528175410|132688"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "Dvk1h0tr6adQeIWrKgIS208V1sf1",
+      "reference": "TX_1779964503615_20904",
+      "references": [
+        "TX_1779964503615_20904",
+        "TX_1779957247628_30854",
+        "TX_1779963783670_20911",
+        "TX_1779963832103_67845",
+        "TX_1779964004274_6896",
+        "MNFY|26|20260528112354|119498"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "NM5uY38KKMda9DTdiDzXEtpLUcT2",
+      "reference": "TX_1780162542635_17066",
+      "references": [
+        "TX_1780162542635_17066",
+        "TX_1779793731605_92759",
+        "TX_1779793789611_59098",
+        "TX_1779793838210_92545",
+        "MNFY|14|20260526120953|029941",
+        "TX_1779794098048_52240",
+        "TX_1779990110296_59458",
+        "TX_1779990325853_70757",
+        "TX_1779991026150_19181",
+        "TX_1779991194059_89723",
+        "TX_1779991330016_55000",
+        "TX_1780047640105_57771",
+        "MNFY|88|20260528185708|130223"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "V7ViZPtepBeGWLRppX7AZibpno32",
+      "reference": "TX_1780041119553_82800",
+      "references": [
+        "TX_1780041119553_82800",
+        "TX_1780000479480_53565",
+        "TX_1780000699652_83871",
+        "TX_1780040003558_74524",
+        "MNFY|14|20260528213441|135671"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "UZ2pMaKKGkSLzi7MO52juvIKiMN2",
+      "reference": "TX_1779956985959_76271",
+      "references": [
+        "TX_1779956985959_76271",
+        "TX_1779956713671_43385",
+        "MNFY|88|20260528092516|112293"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "YvM8le4u5yf0hPTgMxBSIdXweRq2",
+      "reference": "TX_1780487242561_89021",
+      "references": [
+        "TX_1780487242561_89021",
+        "TX_1780474517575_6212",
+        "TX_1780474863893_8158",
+        "TX_1780474971298_95012",
+        "MNFY|68|20260603091519|023856"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "kqTaLlXtnwbh3K7cy9WEZXE91Wa2",
+      "reference": "TX_1780114938684_36617",
+      "references": [
+        "TX_1780114938684_36617",
+        "TX_1780114115686_36704",
+        "TX_1780114340360_2865",
+        "TX_1780114449916_94153",
+        "TX_1780114720545_40890",
+        "TX_1780114809563_71639",
+        "TX_1780114910997_71467",
+        "MNFY|35|20260530050838|020909"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "ktlKsK8OVVQo9n2UnmceX7hxX413",
+      "reference": "TX_1780333298460_61673",
+      "references": [
+        "TX_1780333298460_61673",
+        "TX_1780329689990_79150",
+        "TX_1780330084371_84083",
+        "TX_1780330284099_4844",
+        "TX_1780330755658_53165",
+        "MNFY|48|20260601170133|060836"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "rNMx8i9vj6Ml1Xcc87xrzbIAxpr1",
+      "reference": "TX_1780079517975_34987",
+      "references": [
+        "TX_1780079517975_34987",
+        "TX_1780078769620_43379",
+        "TX_1780079022822_92350",
+        "MNFY|07|20260529191932|005644"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "rn8OQwEik0V8MmCpDdSG2OGdxAk1",
+      "reference": "TX_1780313438024_62378",
+      "references": [
+        "TX_1780313438024_62378",
+        "TX_1780308363363_74888",
+        "TX_1780308507697_52210",
+        "TX_1780308664710_63039",
+        "MNFY|43|20260601110605|063640"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "sFFxAH6mLfgV8uSgcV5UgOekXno1",
+      "reference": "TX_1780199647628_53158",
+      "references": [
+        "TX_1780199647628_53158",
+        "TX_1780199363960_83210",
+        "TX_1780199562095_2863",
+        "MNFY|44|20260531044926|011354"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "tlQi5wlTzjd2Noos9qKEgMjRzUF3",
+      "reference": "TX_1780253482905_39232",
+      "references": [
+        "TX_1780253482905_39232",
+        "TX_1780225018931_83120",
+        "TX_1780252674395_91174",
+        "MNFY|73|20260531193757|030251"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "trfIfAtlPaYahCNgdRYLyHTsOqs1",
+      "reference": "TX_1780241753680_59928",
+      "references": [
+        "TX_1780241753680_59928",
+        "TX_1779794487099_96266",
+        "TX_1779827918483_14705",
+        "TX_1779875228714_87619",
+        "TX_1779875435207_76075",
+        "TX_1780074658925_31126",
+        "MNFY|34|20260527104711|071149"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "vUuxLFeW2eOsx52SjPx9dWauO0N2",
+      "reference": "TX_1779981068261_6510",
+      "references": [
+        "TX_1779981068261_6510",
+        "TX_1779891271091_18307",
+        "TX_1779891452323_24910",
+        "TX_1779891537840_24987",
+        "TX_1779891635358_61692",
+        "MNFY|34|20260527151438|079685"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "xIiHzy7OPfZGHCAmqXcrxQKj8v63",
+      "reference": "TX_1779794025115_76958",
+      "references": [
+        "TX_1779794025115_76958",
+        "TX_1779793532161_93655",
+        "TX_1779793733923_76400",
+        "TX_1779793991830_99144",
+        "MNFY|14|20260526120536|029819"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "role": "earner",
+      "userId": "zz4yHxlFZsNlT8bHc5qWFWyBxHl2",
+      "reference": "TX_1780340974931_49130",
+      "references": [
+        "TX_1780340974931_49130",
+        "TX_1780008973693_79221",
+        "TX_1780009425077_5557",
+        "TX_1780009953297_31272",
+        "TX_1780010487590_6633",
+        "TX_1780033492745_2411",
+        "TX_1780057865237_29424",
+        "TX_1780062721867_69496",
+        "TX_1780065060648_68427",
+        "TX_1780120324710_47169",
+        "MNFY|70|20260528235617|141544"
+      ],
+      "source": "monnify-verified-backfill"
+    }
+  ],
+  "walletRecovered": [
+    {
+      "transactionId": "rt4YyftFRWTIA8UeTMrS",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "reference": "TX_1780519556441_54861",
+      "references": [
+        "TX_1780519556441_54861",
+        "MNFY|68|20260603214559|043288"
+      ],
+      "source": "monnify-verified-backfill"
+    }
+  ],
+  "referralsCompleted": [
+    {
+      "referralId": "1ymKFD2xe3O0XajziUmbx2lN5Ss2-BojGCBWF0iaDH3XsqifTFiIuUjF2",
+      "referredId": "BojGCBWF0iaDH3XsqifTFiIuUjF2",
+      "referrerId": "1ymKFD2xe3O0XajziUmbx2lN5Ss2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "onkluWVRJ3WN0FP7wnJAudRmRTg1-Dvk1h0tr6adQeIWrKgIS208V1sf1",
+      "referredId": "Dvk1h0tr6adQeIWrKgIS208V1sf1",
+      "referrerId": "onkluWVRJ3WN0FP7wnJAudRmRTg1",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-NM5uY38KKMda9DTdiDzXEtpLUcT2",
+      "referredId": "NM5uY38KKMda9DTdiDzXEtpLUcT2",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "onkluWVRJ3WN0FP7wnJAudRmRTg1-UZ2pMaKKGkSLzi7MO52juvIKiMN2",
+      "referredId": "UZ2pMaKKGkSLzi7MO52juvIKiMN2",
+      "referrerId": "onkluWVRJ3WN0FP7wnJAudRmRTg1",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-YvM8le4u5yf0hPTgMxBSIdXweRq2",
+      "referredId": "YvM8le4u5yf0hPTgMxBSIdXweRq2",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-kqTaLlXtnwbh3K7cy9WEZXE91Wa2",
+      "referredId": "kqTaLlXtnwbh3K7cy9WEZXE91Wa2",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "JG9I6pRYYsVud6oNpUK2wa9ZE4t1-ktlKsK8OVVQo9n2UnmceX7hxX413",
+      "referredId": "ktlKsK8OVVQo9n2UnmceX7hxX413",
+      "referrerId": "JG9I6pRYYsVud6oNpUK2wa9ZE4t1",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-rn8OQwEik0V8MmCpDdSG2OGdxAk1",
+      "referredId": "rn8OQwEik0V8MmCpDdSG2OGdxAk1",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-sFFxAH6mLfgV8uSgcV5UgOekXno1",
+      "referredId": "sFFxAH6mLfgV8uSgcV5UgOekXno1",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-trfIfAtlPaYahCNgdRYLyHTsOqs1",
+      "referredId": "trfIfAtlPaYahCNgdRYLyHTsOqs1",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-vUuxLFeW2eOsx52SjPx9dWauO0N2",
+      "referredId": "vUuxLFeW2eOsx52SjPx9dWauO0N2",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-xIiHzy7OPfZGHCAmqXcrxQKj8v63",
+      "referredId": "xIiHzy7OPfZGHCAmqXcrxQKj8v63",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "referralId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2-EacV92g9aiWmAD0mgr5CDtEuFXx1",
+      "referredId": "EacV92g9aiWmAD0mgr5CDtEuFXx1",
+      "referrerId": "ZxtyNflwhhWVNKtGSnHlmGMEh6B2",
+      "amount": 500,
+      "source": "referral-backfill-activated-user"
+    },
+    {
+      "referralId": "fwgOUw2GTxYee48kFQ6aVFvjWa73-jQPYUn6AiLfxGr6kFk0NhnYsurB2",
+      "referredId": "jQPYUn6AiLfxGr6kFk0NhnYsurB2",
+      "referrerId": "fwgOUw2GTxYee48kFQ6aVFvjWa73",
+      "amount": 500,
+      "source": "referral-backfill-activated-user"
+    }
+  ],
+  "activationStillPending": [
+    {
+      "role": "earner",
+      "userId": "0s4nEVBoWdYFLqbXwQ9UeJEx0Q72",
+      "references": [
+        "TX_1780257586950_14035"
+      ],
+      "attemptedAt": "2026-05-31T19:59:47.980Z"
+    },
+    {
+      "role": "earner",
+      "userId": "0hALM54OhUSLM9htzwhUvkW4EcS2",
+      "references": [
+        "TX_1779814159001_81857"
+      ],
+      "attemptedAt": "2026-05-26T16:49:21.009Z"
+    },
+    {
+      "role": "earner",
+      "userId": "00uBas8CPWNj91oPmuuZPSONVEn1",
+      "references": [
+        "TX_1779981942701_76145"
+      ],
+      "attemptedAt": "2026-05-28T15:25:44.607Z"
+    },
+    {
+      "role": "earner",
+      "userId": "0FjEraZJIxPdAPMjfbmwC6gJPFc2",
+      "references": [
+        "TX_1780104031036_323"
+      ],
+      "attemptedAt": "2026-05-30T01:20:32.549Z"
+    },
+    {
+      "role": "earner",
+      "userId": "0ot3r9HZmuXqJltkSP0tiPdmb5U2",
+      "references": [
+        "TX_1780572229504_17707"
+      ],
+      "attemptedAt": "2026-06-04T11:23:45.653Z"
+    },
+    {
+      "role": "earner",
+      "userId": "0qy9z1klbzcDioFPbMMDIt3LHvy2",
+      "references": [
+        "TX_1779580577482_55999"
+      ],
+      "attemptedAt": "2026-05-23T23:56:19.042Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1R1tKZX3iscPYMH1SlVL06zxpKo2",
+      "references": [
+        "TX_1780099719816_63675"
+      ],
+      "attemptedAt": "2026-05-30T00:08:41.374Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1JzVCCv1xkOPrIuAU1dpEQLvOtW2",
+      "references": [
+        "TX_1780425055527_27555"
+      ],
+      "attemptedAt": "2026-06-02T18:30:57.275Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1TjPwgFFg7e2EtooIckWlhf8vFD3",
+      "references": [
+        "TX_1780324542007_18271"
+      ],
+      "attemptedAt": "2026-06-01T14:35:43.453Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1eKHyBV3rqVZPV75NuIW6dWjw5d2",
+      "references": [
+        "TX_1780239457102_15641"
+      ],
+      "attemptedAt": "2026-05-31T14:57:43.950Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1f1eYO35ZVbzvVPLk5HsyAiSQbz2",
+      "references": [
+        "TX_1779798763536_2857"
+      ],
+      "attemptedAt": "2026-05-26T12:32:45.851Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1jcDOzQhGxXQkUZpMgVoLWikcdI3",
+      "references": [
+        "TX_1779898158034_2592"
+      ],
+      "attemptedAt": "2026-05-27T16:09:19.771Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1pdLVLsru9VP9rnuspXyNwcdmKO2",
+      "references": [
+        "TX_1779521901103_1051"
+      ],
+      "attemptedAt": "2026-05-23T07:38:22.634Z"
+    },
+    {
+      "role": "earner",
+      "userId": "1riiHGztkBa5vRmK3xCsJARwwcs2",
+      "references": [
+        "TX_1780122226047_90308"
+      ],
+      "attemptedAt": "2026-05-30T06:23:47.526Z"
+    },
+    {
+      "role": "earner",
+      "userId": "2YI1EAoWo2ScHZQK9FUnR8F4e8G3",
+      "references": [
+        "TX_1780482535624_76457"
+      ],
+      "attemptedAt": "2026-06-03T10:28:57.208Z"
+    },
+    {
+      "role": "earner",
+      "userId": "24DuYYPgc1g4h1YBEU2Ja4dnaM42",
+      "references": [
+        "TX_1779809751356_73877",
+        "TX_1779804450726_80710"
+      ],
+      "attemptedAt": "2026-05-26T15:35:53.645Z"
+    },
+    {
+      "role": "earner",
+      "userId": "2tdf0XwpRFOeso9DBhqxqXSE1LN2",
+      "references": [
+        "TX_1780133807603_34041"
+      ],
+      "attemptedAt": "2026-05-30T09:36:48.869Z"
+    },
+    {
+      "role": "earner",
+      "userId": "3CFJNzsBECbkCkxu8cp14iamgtB3",
+      "references": [
+        "TX_1780152912718_94407"
+      ],
+      "attemptedAt": "2026-05-30T14:55:13.805Z"
+    },
+    {
+      "role": "earner",
+      "userId": "2vYsruK90aM3KVg4WvP1Z70c6th2",
+      "references": [
+        "TX_1780584581833_77941"
+      ],
+      "attemptedAt": "2026-06-04T14:49:44.445Z"
+    },
+    {
+      "role": "earner",
+      "userId": "3fHLZwj0z7fMvzOIuKoreYrB41K2",
+      "references": [
+        "TX_1779481260881_3421"
+      ],
+      "attemptedAt": "2026-05-22T20:21:02.177Z"
+    },
+    {
+      "role": "earner",
+      "userId": "3non2hRvmObNpISZd34QfqGMAzf1",
+      "references": [
+        "TX_1779613564715_43045"
+      ],
+      "attemptedAt": "2026-05-24T09:06:05.238Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4GEdYpBHIjMyqPeTVOAdeIghX722",
+      "references": [
+        "TX_1779696067655_7334"
+      ],
+      "attemptedAt": "2026-05-25T08:01:08.809Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4HhJ8hwJWxT2tsGp7FIBILgigTt1",
+      "references": [
+        "TX_1780599639967_82269"
+      ],
+      "attemptedAt": "2026-06-04T19:00:41.793Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4WVE9YXmVoXBmnKTqT2I8nIFHd02",
+      "references": [
+        "TX_1780060722289_38601"
+      ],
+      "attemptedAt": "2026-05-29T13:18:44.028Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4hcF1zc5wXOCpl1mEydWq1qahPf1",
+      "references": [
+        "TX_1779457410580_78245"
+      ],
+      "attemptedAt": "2026-05-22T13:43:33.352Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4hdicJ18DBg3Zdz9NeFYec7Cxcn2",
+      "references": [
+        "TX_1779898400757_43200"
+      ],
+      "attemptedAt": "2026-05-27T16:13:22.893Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4qEmqpfZeRNWqrRgXxdN04LTVCP2",
+      "references": [
+        "TX_1779732346274_34364"
+      ],
+      "attemptedAt": "2026-05-25T18:05:47.610Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4v8S3Ywu3GPgPFpuuOJ57UDzMmq1",
+      "references": [
+        "TX_1779441748386_33941"
+      ],
+      "attemptedAt": "2026-05-22T09:22:28.745Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4XgaxaPpLrVnPAbFqJFs1l8UXa02",
+      "references": [
+        "TX_1780436888293_41768",
+        "TX_1779826809490_32018",
+        "TX_1780436530075_88522"
+      ],
+      "attemptedAt": "2026-06-02T21:48:08.885Z"
+    },
+    {
+      "role": "earner",
+      "userId": "58lh03L3kPMYvZxZafFWP9eAZCd2",
+      "references": [
+        "TX_1779485360007_46867"
+      ],
+      "attemptedAt": "2026-05-22T21:29:22.173Z"
+    },
+    {
+      "role": "earner",
+      "userId": "3oPyA3u9mggC2yQ3Tuz80UnZGKs2",
+      "references": [
+        "TX_1780326512133_23204",
+        "TX_1780269893721_11927",
+        "TX_1780326303359_44317",
+        "TX_1780326415160_44933",
+        "TX_1780326453468_24462"
+      ],
+      "attemptedAt": "2026-06-01T15:08:33.329Z"
+    },
+    {
+      "role": "earner",
+      "userId": "50qmmy9hc4XtQUtFYvQw9aaB1Dd2",
+      "references": [
+        "TX_1779980461073_17944",
+        "TX_1779978612520_2076"
+      ],
+      "attemptedAt": "2026-05-28T15:01:01.952Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5DdCJyi4E4XOwURhJjtYX0b5Jgg1",
+      "references": [
+        "TX_1779454021515_71132"
+      ],
+      "attemptedAt": "2026-05-22T12:47:03.515Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5GLxdxyfJZbgDuYCUo1QqsA8M3c2",
+      "references": [
+        "TX_1779814694409_49513"
+      ],
+      "attemptedAt": "2026-05-26T16:58:15.692Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5IZYnuRmeuaJqvVL0MJl1LB1Ub32",
+      "references": [
+        "TX_1779830188042_4129"
+      ],
+      "attemptedAt": "2026-05-26T21:16:30.587Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5jDLxYJcGcNB2LZdr8Lr788IUnr2",
+      "references": [
+        "TX_1780076672977_10665"
+      ],
+      "attemptedAt": "2026-05-29T17:44:34.107Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5rQawR1qsubUAX10PkXLfIwJI2p1",
+      "references": [
+        "TX_1780142548899_26970"
+      ],
+      "attemptedAt": "2026-05-30T12:02:30.202Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5vwI3zKKbJeWyjnqCPnSu8L2zqy2",
+      "references": [
+        "TX_1780072756768_62560"
+      ],
+      "attemptedAt": "2026-05-29T16:39:16.535Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5dvsS3gEHXWCwrcEmefCEDckDTa2",
+      "references": [
+        "TX_1780332011814_28875",
+        "TX_1780279403657_41755"
+      ],
+      "attemptedAt": "2026-06-01T16:40:12.420Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5xeMqeGztSgQQ3xgRenj4ROZAYA2",
+      "references": [
+        "TX_1779697869523_59008"
+      ],
+      "attemptedAt": "2026-05-25T08:31:10.598Z"
+    },
+    {
+      "role": "earner",
+      "userId": "5ztHFlwUKYM4My5trvS6Rp0DAEv1",
+      "references": [
+        "TX_1780501275997_33641"
+      ],
+      "attemptedAt": "2026-06-03T15:41:43.418Z"
+    },
+    {
+      "role": "earner",
+      "userId": "6BdTb9jA5SRVlFQATqfYb3E2q3J3",
+      "references": [
+        "TX_1780009668042_73528"
+      ],
+      "attemptedAt": "2026-05-28T23:07:50.953Z"
+    },
+    {
+      "role": "earner",
+      "userId": "6Q4FMjNZoNQEfE9R6ckzccdFjvs2",
+      "references": [
+        "TX_1780253222105_7434"
+      ],
+      "attemptedAt": "2026-05-31T18:47:03.205Z"
+    },
+    {
+      "role": "earner",
+      "userId": "6R0ATnGF4SQKYm6c8Jpg1bUJfj42",
+      "references": [
+        "TX_1779657645850_83749"
+      ],
+      "attemptedAt": "2026-05-24T21:20:49.247Z"
+    },
+    {
+      "role": "earner",
+      "userId": "6vQUJ7bIdIhk2nBvetilg3nIMVI3",
+      "references": [
+        "TX_1779809452419_38308"
+      ],
+      "attemptedAt": "2026-05-26T15:30:53.772Z"
+    },
+    {
+      "role": "earner",
+      "userId": "2qSNVfETsBM8UqkplQQPnjksMva2",
+      "references": [
+        "TX_1780592878642_83530",
+        "TX_1780162715176_26738",
+        "TX_1780162840088_43728",
+        "TX_1780163022121_42903",
+        "TX_1780163128582_5914",
+        "TX_1780164652746_36051",
+        "TX_1780165066552_50325",
+        "TX_1780189003766_30173",
+        "TX_1780189341210_60341",
+        "TX_1780229482110_94933",
+        "TX_1780303562376_32942"
+      ],
+      "attemptedAt": "2026-06-04T17:07:59.761Z"
+    },
+    {
+      "role": "earner",
+      "userId": "798Hz61qsYhtHQIDvMlbknXsXZY2",
+      "references": [
+        "TX_1780252649438_6358"
+      ],
+      "attemptedAt": "2026-05-31T18:37:31.067Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7BidwT5AJgVHkwCxMMjebGE4zfD2",
+      "references": [
+        "TX_1780045115200_2883"
+      ],
+      "attemptedAt": "2026-05-29T08:58:36.273Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7C3ZHGoEvIQYAITbxlEqoCmQzVx2",
+      "references": [
+        "TX_1779948915500_49002"
+      ],
+      "attemptedAt": "2026-05-28T06:15:16.143Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7Xvu0ktLrqVpfIhew5tWk5Ipxym1",
+      "references": [
+        "TX_1780394957583_93418"
+      ],
+      "attemptedAt": "2026-06-02T10:09:20.129Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7IFzuC268dQXH2ho4oVwOn4EyHJ3",
+      "references": [
+        "TX_1780087552964_53971"
+      ],
+      "attemptedAt": "2026-05-29T20:45:54.227Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7YLDtov959WIve5j8jm7CVXCMjL2",
+      "references": [
+        "TX_1780589641203_95987"
+      ],
+      "attemptedAt": "2026-06-04T16:14:02.907Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7R7o0t3M0fS7nE7lZwiGVfKd3B72",
+      "references": [
+        "TX_1779961177266_58610",
+        "TX_1779960924348_91556"
+      ],
+      "attemptedAt": "2026-05-28T09:39:37.865Z"
+    },
+    {
+      "role": "earner",
+      "userId": "85kUlKcjEvX5JmV8EZcUWTwvXwE3",
+      "references": [
+        "TX_1780219141261_91764"
+      ],
+      "attemptedAt": "2026-05-31T09:19:02.371Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7uJE0kpasHZcvMGxxCm9JRmFUsl2",
+      "references": [
+        "TX_1780127235545_36024"
+      ],
+      "attemptedAt": "2026-05-30T07:47:16.954Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8U4GxxJyraXG14haQaS7fOvXZT42",
+      "references": [
+        "TX_1780297174068_92670"
+      ],
+      "attemptedAt": "2026-06-01T06:59:36.828Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8MHDIPKoYzT3SL2o5KzQK9YlM3e2",
+      "references": [
+        "TX_1779828679236_65424"
+      ],
+      "attemptedAt": "2026-05-26T20:51:21.413Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8o53JZvkV6TCafJ4fqMHJJMUCA92",
+      "references": [
+        "TX_1779547371954_50008"
+      ],
+      "attemptedAt": "2026-05-23T14:42:53.568Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8ye7HONYZBgg6IzmoaWGYAEBkD52",
+      "references": [
+        "TX_1780407751254_23806"
+      ],
+      "attemptedAt": "2026-06-02T13:42:34.196Z"
+    },
+    {
+      "role": "earner",
+      "userId": "92TZdo1Samd5SD68sxi5uhVfsfx1",
+      "references": [
+        "TX_1779797561420_35382"
+      ],
+      "attemptedAt": "2026-05-26T12:12:43.071Z"
+    },
+    {
+      "role": "earner",
+      "userId": "7hnOHsywnkaV0vZtXmW645hlaO03",
+      "references": [
+        "TX_1780234978629_52610",
+        "TX_1780207734533_68602",
+        "TX_1780213692721_56047",
+        "TX_1780230842611_39602"
+      ],
+      "attemptedAt": "2026-05-31T13:43:37.168Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8oqUVF9MSafgrnThhv89eEGUjdb2",
+      "references": [
+        "TX_1780430566932_21251",
+        "TX_1780430469811_51314"
+      ],
+      "attemptedAt": "2026-06-02T20:03:05.529Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9gVV4yMxAMXKf3Aaw6jUMaPGrdC2",
+      "references": [
+        "TX_1779990204129_53595"
+      ],
+      "attemptedAt": "2026-05-28T17:43:25.213Z"
+    },
+    {
+      "role": "earner",
+      "userId": "8XVn0o9fJzY6qJaO8PwVKKZUwv53",
+      "references": [
+        "TX_1780589895924_89399",
+        "TX_1780589805279_53384",
+        "TX_1780589879689_42424"
+      ],
+      "attemptedAt": "2026-06-04T16:18:16.372Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9ineUQGvXFgGqWoCHCjfUR0Hhpi1",
+      "references": [
+        "TX_1780151939338_56946"
+      ],
+      "attemptedAt": "2026-05-30T14:39:01.415Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9nBbLmO3HCbrvqpp4WrfPLtyJno2",
+      "references": [
+        "TX_1779431814234_46723"
+      ],
+      "attemptedAt": "2026-05-22T06:36:54.959Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9pjrtTUAggYr2arhdaqAregPBil2",
+      "references": [
+        "TX_1779962460479_56372"
+      ],
+      "attemptedAt": "2026-05-28T10:01:01.312Z"
+    },
+    {
+      "role": "earner",
+      "userId": "A0ABThxvvbYZzhnZunpeDVBnaPh1",
+      "references": [
+        "TX_1780504763315_62956"
+      ],
+      "attemptedAt": "2026-06-03T16:39:23.939Z"
+    },
+    {
+      "role": "earner",
+      "userId": "A5AJ5USjjxb2izi02rmeFF8I4AE3",
+      "references": [
+        "TX_1780582738765_3555"
+      ],
+      "attemptedAt": "2026-06-04T14:19:00.620Z"
+    },
+    {
+      "role": "earner",
+      "userId": "A7TobljfatNm3tlQUodVpS3WMl73",
+      "references": [
+        "TX_1780593154183_49018"
+      ],
+      "attemptedAt": "2026-06-04T17:12:34.026Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AIjWirYt2IOcyhidre3Jj0oRCXF2",
+      "references": [
+        "TX_1780045239166_71830"
+      ],
+      "attemptedAt": "2026-05-29T09:00:41.008Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ALRZprKtOCUBYAw0IKQMHMEo0602",
+      "references": [
+        "TX_1780074916601_59613"
+      ],
+      "attemptedAt": "2026-05-29T17:15:17.943Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AQp8QyhNstbfBFuKon7tXSX5D633",
+      "references": [
+        "TX_1779434903763_88377"
+      ],
+      "attemptedAt": "2026-05-22T07:28:24.520Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ASgbZMXtG2OWVdrKgNnvEFMgjMR2",
+      "references": [
+        "TX_1779827463652_11960"
+      ],
+      "attemptedAt": "2026-05-26T20:31:05.153Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AevAyZrulCZshV5KTXC1ZeZMVDD2",
+      "references": [
+        "TX_1780156911284_99235"
+      ],
+      "attemptedAt": "2026-05-30T16:01:52.166Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AmoQsXr14uSTNo6GiDeYdNIlvbf1",
+      "references": [
+        "TX_1780584775843_42155"
+      ],
+      "attemptedAt": "2026-06-04T14:52:58.629Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AoqLsecVKreAThYMCkhnv9YO05p1",
+      "references": [
+        "TX_1780593342129_39626"
+      ],
+      "attemptedAt": "2026-06-04T17:15:43.167Z"
+    },
+    {
+      "role": "earner",
+      "userId": "AtDqai1MfDea2CkVp9STFd8GByt1",
+      "references": [
+        "TX_1779968539198_61820"
+      ],
+      "attemptedAt": "2026-05-28T11:42:21.057Z"
+    },
+    {
+      "role": "earner",
+      "userId": "B1UAczHUw9UUXMgHFMcwFkol7TE2",
+      "references": [
+        "TX_1780043925745_77173"
+      ],
+      "attemptedAt": "2026-05-29T08:38:46.569Z"
+    },
+    {
+      "role": "earner",
+      "userId": "B32nvvZn54QeN2ulAc8jNSra8Zn1",
+      "references": [
+        "TX_1779609629889_46837"
+      ],
+      "attemptedAt": "2026-05-24T08:00:30.473Z"
+    },
+    {
+      "role": "earner",
+      "userId": "B7W7TJo3jFh7YYPnhIgii7UfM293",
+      "references": [
+        "TX_1779819564157_92602"
+      ],
+      "attemptedAt": "2026-05-26T18:19:25.920Z"
+    },
+    {
+      "role": "earner",
+      "userId": "BmtxdO9FTNhTxhvzRy0JZJ84pjA2",
+      "references": [
+        "TX_1780391397818_38986"
+      ],
+      "attemptedAt": "2026-06-02T09:09:58.875Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Bmys7wmRYKTHhZbx1C2JlyYgEKX2",
+      "references": [
+        "TX_1779722557472_84724"
+      ],
+      "attemptedAt": "2026-05-25T15:22:38.412Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9trzTamUmlh9GCOMcbgcyaVxF1M2",
+      "references": [
+        "TX_1780602913137_23366",
+        "TX_1780602554704_66679",
+        "TX_1780602575340_83120",
+        "TX_1780602612259_11461",
+        "TX_1780602822378_14731",
+        "TX_1780602913138_90902"
+      ],
+      "attemptedAt": "2026-06-04T19:55:14.592Z"
+    },
+    {
+      "role": "earner",
+      "userId": "BqIHJh5QUycWux69yGAOLtOgSpn2",
+      "references": [
+        "TX_1780446124678_85814"
+      ],
+      "attemptedAt": "2026-06-03T00:22:06.868Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Bpp9CZyT96cGbXm4FcJJ9HaA0PH3",
+      "references": [
+        "TX_1780565324794_36178"
+      ],
+      "attemptedAt": "2026-06-04T09:28:46.185Z"
+    },
+    {
+      "role": "earner",
+      "userId": "BssW34wn6khlWNhMVeEfIHIn2Xh1",
+      "references": [
+        "TX_1779442082927_33534"
+      ],
+      "attemptedAt": "2026-05-22T09:28:03.843Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Bw0FRj6LSiQ3jZYRmdWG1kSA3Mq2",
+      "references": [
+        "TX_1780264648274_2978"
+      ],
+      "attemptedAt": "2026-05-31T21:57:29.624Z"
+    },
+    {
+      "role": "earner",
+      "userId": "C0HNChkpJ9gGOaUXlyqv2ZATMTY2",
+      "references": [
+        "TX_1780072831752_33182"
+      ],
+      "attemptedAt": "2026-05-29T16:40:34.807Z"
+    },
+    {
+      "role": "earner",
+      "userId": "C48eJAZmkoX2G2Oz8emIQnNDQN42",
+      "references": [
+        "TX_1780339938506_68675"
+      ],
+      "attemptedAt": "2026-06-01T18:52:19.852Z"
+    },
+    {
+      "role": "earner",
+      "userId": "C5mWuqOqTnVdXQIjptBALq0Xr1e2",
+      "references": [
+        "TX_1779895243152_46109"
+      ],
+      "attemptedAt": "2026-05-27T15:20:44.657Z"
+    },
+    {
+      "role": "earner",
+      "userId": "C9hHoKVqROM8GoBRyIHk6G27U0f2",
+      "references": [
+        "TX_1779826438627_39202"
+      ],
+      "attemptedAt": "2026-05-26T20:14:00.040Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CdBWzISQRqOsdvTlxjEs6X6cDUs2",
+      "references": [
+        "TX_1779638121615_43252"
+      ],
+      "attemptedAt": "2026-05-24T15:55:23.157Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CisaXdAtC5Ry3nn5AjdWlOpfgMs1",
+      "references": [
+        "TX_1779478118510_70846"
+      ],
+      "attemptedAt": "2026-05-22T19:28:40.603Z"
+    },
+    {
+      "role": "earner",
+      "userId": "COK3sAs8tKeDsYkARWyfrCYRYAf1",
+      "references": [
+        "TX_1780283051101_45753"
+      ],
+      "attemptedAt": "2026-06-01T03:04:36.403Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CKaGCo0RAvXuqx9S7PcKk8HAhWg1",
+      "references": [
+        "TX_1780255937012_17780",
+        "TX_1780090850392_74850"
+      ],
+      "attemptedAt": "2026-05-31T19:32:17.655Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Cnlx837H8hX88e1c92G2W7m4ekn2",
+      "references": [
+        "TX_1779974779191_42895"
+      ],
+      "attemptedAt": "2026-05-28T13:26:21.014Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CxBhXyijpmaBfVL2SYLuCkuZ5593",
+      "references": [
+        "TX_1779896522682_36760"
+      ],
+      "attemptedAt": "2026-05-27T15:42:05.142Z"
+    },
+    {
+      "role": "earner",
+      "userId": "D6D0oljJoOZHUeqTAisEqFQ41J73",
+      "references": [
+        "TX_1780161687508_26550"
+      ],
+      "attemptedAt": "2026-05-30T17:21:28.536Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CvKf1YzaqQbAONevn83nRBaA0Qq1",
+      "references": [
+        "TX_1780123661960_94057",
+        "TX_1780119790001_23061"
+      ],
+      "attemptedAt": "2026-05-30T06:47:44.579Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DEJFJCDcoXfjerFYpoJ9HBG0m4G3",
+      "references": [
+        "TX_1779584191648_47532"
+      ],
+      "attemptedAt": "2026-05-24T00:56:33.703Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DEYgpOqovZYWZnMgrRte21V7l3k2",
+      "references": [
+        "TX_1779990926833_69442"
+      ],
+      "attemptedAt": "2026-05-28T17:55:27.733Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DFCHHbrrGhYsYHZOTOYHhWCHqVF3",
+      "references": [
+        "TX_1780072726955_87755"
+      ],
+      "attemptedAt": "2026-05-29T16:38:48.404Z"
+    },
+    {
+      "role": "earner",
+      "userId": "CripnLYJkNVmWGbyBYFLqphvzMa2",
+      "references": [
+        "TX_1779475357757_18491",
+        "TX_1779312269375_49678",
+        "TX_1779475182369_38642"
+      ],
+      "attemptedAt": "2026-05-22T18:42:38.242Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DLbmMbiderh4RrHzxN6OBThnBf32",
+      "references": [
+        "TX_1779432540519_67971"
+      ],
+      "attemptedAt": "2026-05-22T06:49:06.787Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DTjh7BVMrbX8ovnuBuwVP5iNuBy2",
+      "references": [
+        "TX_1779403254959_66532"
+      ],
+      "attemptedAt": "2026-05-21T22:40:56.905Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DhMFU0iYr9dvNYhhbPEqTHrMsfC2",
+      "references": [
+        "TX_1780422935930_33731"
+      ],
+      "attemptedAt": "2026-06-02T17:55:36.525Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Dc3yFBxUR9STta8MQz8v6FvYYb92",
+      "references": [
+        "TX_1779457218789_30175"
+      ],
+      "attemptedAt": "2026-05-22T13:40:21.958Z"
+    },
+    {
+      "role": "earner",
+      "userId": "DuXOkYfnuXb46N8DezqRwXJKd8C2",
+      "references": [
+        "TX_1780311499500_64385"
+      ],
+      "attemptedAt": "2026-06-01T10:58:20.421Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Dzs8YgQi4If22bm9pcFxXfnE7i12",
+      "references": [
+        "TX_1779797050038_35917"
+      ],
+      "attemptedAt": "2026-05-26T12:04:11.722Z"
+    },
+    {
+      "role": "earner",
+      "userId": "EHcfuqgaKPYZ5i5MrBK0T4MZ50t2",
+      "references": [
+        "TX_1780273336194_90044"
+      ],
+      "attemptedAt": "2026-06-01T00:22:17.175Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ENe6JkC3bFfH7TNB7RNweBsbZNI2",
+      "references": [
+        "TX_1779864926130_4706"
+      ],
+      "attemptedAt": "2026-05-27T06:55:29.358Z"
+    },
+    {
+      "role": "earner",
+      "userId": "EUVbz9FYMXQoJY0mXLg72wKe5JD2",
+      "references": [
+        "TX_1780190885331_40068"
+      ],
+      "attemptedAt": "2026-05-31T01:28:06.654Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FGW9w64hZNYTOcJzoXGzSUwpAPn1",
+      "references": [
+        "TX_1780150494372_47283"
+      ],
+      "attemptedAt": "2026-05-30T14:14:55.888Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FJyHvX0GljYTSKsKUyjuDFUnDJc2",
+      "references": [
+        "TX_1779569423099_23874"
+      ],
+      "attemptedAt": "2026-05-23T20:50:24.272Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Evh0wD7OFFhCtFAnTxg7ESoSD9p1",
+      "references": [
+        "TX_1780600172563_90683",
+        "TX_1780600123948_12075"
+      ],
+      "attemptedAt": "2026-06-04T19:09:34.577Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FSnpfCaE7dWlhg9Jq2jUL8cLXoP2",
+      "references": [
+        "TX_1780064497045_83114"
+      ],
+      "attemptedAt": "2026-05-29T14:21:39.172Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FhaZvGgNQLO5klhpcNWV5frX81L2",
+      "references": [
+        "TX_1780358303498_82886"
+      ],
+      "attemptedAt": "2026-06-01T23:58:25.720Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FrcGPjVwFbbPILYxjdUkScK6i7C2",
+      "references": [
+        "TX_1779825985623_55275"
+      ],
+      "attemptedAt": "2026-05-26T20:06:27.849Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FOHCecycRUVIOhAEQFldtPCipXU2",
+      "references": [
+        "TX_1780497615858_77202",
+        "TX_1780178280894_26330",
+        "TX_1780180208948_53250"
+      ],
+      "attemptedAt": "2026-06-03T14:40:16.940Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Fo1B67OK6WRWqEFzINnMQAWMnkk2",
+      "references": [
+        "TX_1780132649900_12721",
+        "TX_1779734744468_19302"
+      ],
+      "attemptedAt": "2026-05-30T09:17:30.398Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FzMMtwEKToeOYvMiCZ77U0hlyg33",
+      "references": [
+        "TX_1779739784563_22186"
+      ],
+      "attemptedAt": "2026-05-25T20:09:45.217Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FuihRQkKgMXQtigYXO2JQ1U37k92",
+      "references": [
+        "TX_1780145102668_16159"
+      ],
+      "attemptedAt": "2026-05-30T12:45:04.441Z"
+    },
+    {
+      "role": "earner",
+      "userId": "G0pZnSSUWDfkNMh8JGmUM97XRUH2",
+      "references": [
+        "TX_1780245649250_66217"
+      ],
+      "attemptedAt": "2026-05-31T16:40:50.597Z"
+    },
+    {
+      "role": "earner",
+      "userId": "G7FArb8OYRbvqdZPTBlvOiGYGbV2",
+      "references": [
+        "TX_1780010500041_59272"
+      ],
+      "attemptedAt": "2026-05-28T23:21:42.733Z"
+    },
+    {
+      "role": "earner",
+      "userId": "G7w9Bf4QBjcLK4KcKZ0z0knpJCu2",
+      "references": [
+        "TX_1779805560936_54054"
+      ],
+      "attemptedAt": "2026-05-26T14:26:02.882Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GA6iW07nOtdbyE0dMAUUSzDBgPk1",
+      "references": [
+        "TX_1780315774117_14400"
+      ],
+      "attemptedAt": "2026-06-01T12:09:34.990Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GVrN8hUSkpOaofz1HY6cyD8MpbX2",
+      "references": [
+        "TX_1779477178562_44612"
+      ],
+      "attemptedAt": "2026-05-22T19:13:01.289Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GfkJ3jEhljfZnqAXqUpbAG4qHbF3",
+      "references": [
+        "TX_1779880151604_33712"
+      ],
+      "attemptedAt": "2026-05-27T11:09:13.674Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GZRppQTzggcWKTSYlexcvpoz9a32",
+      "references": [
+        "TX_1780562888565_27363",
+        "TX_1779291457516_76003"
+      ],
+      "attemptedAt": "2026-06-04T08:48:10.808Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GcRleejWu7asvWNeg260zr783cv2",
+      "references": [
+        "TX_1779813016071_2642",
+        "TX_1779627694459_39052"
+      ],
+      "attemptedAt": "2026-05-26T16:30:18.405Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GrfO3tZS3RdHi4wPfxK8p7DonJy2",
+      "references": [
+        "TX_1780560141482_45192"
+      ],
+      "attemptedAt": "2026-06-04T08:02:22.301Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GtgkZx5Bz0WHYuIPSoHw0Ok1OCT2",
+      "references": [
+        "TX_1779995696043_76717"
+      ],
+      "attemptedAt": "2026-05-28T19:14:58.181Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HBMdqL1CUscaNp6G5zSNdUQz5K82",
+      "references": [
+        "TX_1780155381652_18187"
+      ],
+      "attemptedAt": "2026-05-30T15:36:22.972Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HQVZlaXGyvdDcZe6dNg0F5yYipB2",
+      "references": [
+        "TX_1779490989534_32836"
+      ],
+      "attemptedAt": "2026-05-22T23:03:11.063Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HT5wzHy8bYhNJ33gAGLNFeRQHE93",
+      "references": [
+        "TX_1779540192991_90075"
+      ],
+      "attemptedAt": "2026-05-23T12:43:15.185Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FsZ6DOws10dxylbpfbd8q6IbLnZ2",
+      "references": [
+        "TX_1779833711370_20068",
+        "TX_1779832447814_96101",
+        "TX_1779832833040_88653",
+        "TX_1779832987981_46673",
+        "TX_1779833089125_13795",
+        "TX_1779833516876_73368",
+        "TX_1779833667583_41065"
+      ],
+      "attemptedAt": "2026-05-26T22:15:12.659Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HtYpxNBf6DXkvRItVKQaGgKB4o53",
+      "references": [
+        "TX_1780012830076_68762"
+      ],
+      "attemptedAt": "2026-05-29T00:00:29.143Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HvYROkdXWndpXEC5ZNQdUzfkw713",
+      "references": [
+        "TX_1780213366524_95913"
+      ],
+      "attemptedAt": "2026-05-31T07:22:16.964Z"
+    },
+    {
+      "role": "earner",
+      "userId": "I7tKC98DlMNJFsOJQtfbshhP9ms1",
+      "references": [
+        "TX_1779959250171_50389"
+      ],
+      "attemptedAt": "2026-05-28T09:07:32.014Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HI1LHYL9vCbW2UM7DueNQfrYxjf2",
+      "references": [
+        "TX_1780335248359_52102",
+        "TX_1780270813959_48197",
+        "TX_1780270896306_49024"
+      ],
+      "attemptedAt": "2026-06-01T17:34:09.030Z"
+    },
+    {
+      "role": "earner",
+      "userId": "HszcZ1DSjgVFHfkpAxcboPUC2Ks2",
+      "references": [
+        "TX_1780573225019_32063",
+        "TX_1779881000919_10615"
+      ],
+      "attemptedAt": "2026-06-04T11:40:27.090Z"
+    },
+    {
+      "role": "earner",
+      "userId": "GYCcCs6AOChJnDOoNL2HmrqW8Kg2",
+      "references": [
+        "TX_1780413730580_4044",
+        "TX_1780380573920_22322",
+        "TX_1780380710732_80299",
+        "TX_1780413575980_45959",
+        "MNFY|53|20260602161938|093717",
+        "TX_1780413639581_11653"
+      ],
+      "attemptedAt": "2026-06-02T15:22:10.396Z"
+    },
+    {
+      "role": "earner",
+      "userId": "I9qnldeehScFRYGhjgpgzw0f6Gn1",
+      "references": [
+        "TX_1780252056970_26778"
+      ],
+      "attemptedAt": "2026-05-31T18:27:37.718Z"
+    },
+    {
+      "role": "earner",
+      "userId": "I81O4h6XuqRwUDvEFVC1D7nI08H2",
+      "references": [
+        "TX_1779778211554_6269"
+      ],
+      "attemptedAt": "2026-05-26T06:50:13.188Z"
+    },
+    {
+      "role": "earner",
+      "userId": "IrgDX1Rg4IYMD1aMRD9mSDJ1iRC2",
+      "references": [
+        "TX_1780563059677_27748"
+      ],
+      "attemptedAt": "2026-06-04T08:51:00.941Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Is95zRaF5KUCpBehvA2rthH0UV03",
+      "references": [
+        "TX_1780292965392_25342"
+      ],
+      "attemptedAt": "2026-06-01T05:49:25.906Z"
+    },
+    {
+      "role": "earner",
+      "userId": "IJV9MMQm3YRkc673CZa78CpCCk13",
+      "references": [
+        "TX_1779435734425_30796"
+      ],
+      "attemptedAt": "2026-05-22T07:42:14.752Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JBGlqlUyfbW3e27ZmGD1Z8VuN1p2",
+      "references": [
+        "TX_1779817052790_23967"
+      ],
+      "attemptedAt": "2026-05-26T17:37:33.372Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JWs3Ok2R62a6Cj9o3oqg9D0QvJw1",
+      "references": [
+        "TX_1780157961742_65915"
+      ],
+      "attemptedAt": "2026-05-30T16:19:23.435Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JXDYW0ZdELVoDv0IbqBbozmN17X2",
+      "references": [
+        "TX_1779820136951_96905"
+      ],
+      "attemptedAt": "2026-05-26T18:28:58.032Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JEPW2O6giHUVU29fmNclmaTW7zY2",
+      "references": [
+        "TX_1779573347422_63944"
+      ],
+      "attemptedAt": "2026-05-23T21:55:49.327Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JIfeDipGqBbz1f4Yb3x9Htfng173",
+      "references": [
+        "TX_1779739147148_93695",
+        "TX_1777565890325_99308"
+      ],
+      "attemptedAt": "2026-05-25T20:04:03.936Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JSj6K8gL6TMREyWCEPRM64kSgTp2",
+      "references": [
+        "TX_1780246361611_77707",
+        "TX_1780054895442_64219"
+      ],
+      "attemptedAt": "2026-05-31T16:52:44.663Z"
+    },
+    {
+      "role": "earner",
+      "userId": "KEiTr14YA3e8b9KfuVjeNPNSdhi2",
+      "references": [
+        "TX_1779466605350_54775"
+      ],
+      "attemptedAt": "2026-05-22T16:16:47.266Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JstsgT8R5nWwqzpYzBXrSt5ZShw2",
+      "references": [
+        "TX_1779567563232_91245"
+      ],
+      "attemptedAt": "2026-05-23T20:19:24.094Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JrzWawBsrFg6PPUFAPQXEy52L6D2",
+      "references": [
+        "TX_1779491637910_58405"
+      ],
+      "attemptedAt": "2026-05-22T23:14:00.045Z"
+    },
+    {
+      "role": "earner",
+      "userId": "KH2o9CinxtWgQC61hMTeaS8RIAw1",
+      "references": [
+        "TX_1780412320169_33628"
+      ],
+      "attemptedAt": "2026-06-02T14:58:41.667Z"
+    },
+    {
+      "role": "earner",
+      "userId": "KOcdbw2TRNOQQOgXClVT3Ox6wQA3",
+      "references": [
+        "TX_1780586304955_13915"
+      ],
+      "attemptedAt": "2026-06-04T15:18:31.339Z"
+    },
+    {
+      "role": "earner",
+      "userId": "JoWp84FR8dOJ5w8wEffp8lKvGdY2",
+      "references": [
+        "TX_1780376562641_37254",
+        "TX_1780324437711_1406"
+      ],
+      "attemptedAt": "2026-06-02T05:02:43.947Z"
+    },
+    {
+      "role": "earner",
+      "userId": "KpbuX7uLRSON2SlDThmB7VqNDcl1",
+      "references": [
+        "TX_1780169279946_121"
+      ],
+      "attemptedAt": "2026-05-30T19:28:01.498Z"
+    },
+    {
+      "role": "earner",
+      "userId": "KeDF7Rac5mS9oqCCPJfpUCdpxCJ3",
+      "references": [
+        "TX_1779442354313_10157",
+        "TX_1779442239506_39038"
+      ],
+      "attemptedAt": "2026-05-22T09:32:34.950Z"
+    },
+    {
+      "role": "earner",
+      "userId": "LtbaSrvABbhi2DHNDSZeGl3M4xI3",
+      "references": [
+        "TX_1779746554091_83320"
+      ],
+      "attemptedAt": "2026-05-25T22:02:35.992Z"
+    },
+    {
+      "role": "earner",
+      "userId": "LyPfZBPucgSi9pLUQxQ6JcvQXNe2",
+      "references": [
+        "TX_1780261096969_78541"
+      ],
+      "attemptedAt": "2026-05-31T20:58:19.274Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Ll10dYIKPePg6dVC7AbrcaQ3kxv2",
+      "references": [
+        "TX_1779840039914_53809"
+      ],
+      "attemptedAt": "2026-05-27T00:00:40.841Z"
+    },
+    {
+      "role": "earner",
+      "userId": "LN3zLIzkalM4AVbMdGh7J8t2Cwo2",
+      "references": [
+        "TX_1780084251981_67897",
+        "TX_1779801790009_77883",
+        "TX_1780084209008_78572"
+      ],
+      "attemptedAt": "2026-05-29T19:50:53.969Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MIKYKtJa7gV3LBSKrIZYREBqJAG3",
+      "references": [
+        "TX_1779805347162_44016"
+      ],
+      "attemptedAt": "2026-05-26T14:22:28.774Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MM1GCmE4QTbLOEV6EAomcEecdqc2",
+      "references": [
+        "TX_1779535869005_50724"
+      ],
+      "attemptedAt": "2026-05-23T11:31:11.129Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MNmjEBV24JNykbf4G1eLlPg3uqs2",
+      "references": [
+        "TX_1780323725425_31463"
+      ],
+      "attemptedAt": "2026-06-01T14:22:07.035Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Mds6rgcRjxVq0Vk4S8CSkvSLJpR2",
+      "references": [
+        "TX_1779877873150_82246"
+      ],
+      "attemptedAt": "2026-05-27T10:31:13.956Z"
+    },
+    {
+      "role": "earner",
+      "userId": "LNAlChhKCwPpH3Psx8kQIkstgp83",
+      "references": [
+        "TX_1779898569435_58684",
+        "TX_1779898278560_66097",
+        "TX_1779898482579_16699"
+      ],
+      "attemptedAt": "2026-05-27T16:16:10.952Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MrD5bixhLSWOwdvVy1IRNKb8Ifh2",
+      "references": [
+        "TX_1779484289281_41355"
+      ],
+      "attemptedAt": "2026-05-22T21:11:30.535Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Mw5yUrZnayMuDtCDPufmxWDAdsn2",
+      "references": [
+        "TX_1780467988383_85593"
+      ],
+      "attemptedAt": "2026-06-03T06:26:29.220Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NN1J70pyFeMzlwewIUB9nLFFOXq2",
+      "references": [
+        "TX_1780337692516_72978"
+      ],
+      "attemptedAt": "2026-06-01T18:14:54.574Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MqaKdLQxmOYT8X4XiFQlkB7TIAf2",
+      "references": [
+        "TX_1780066330770_96749",
+        "TX_1779956241860_66730"
+      ],
+      "attemptedAt": "2026-05-29T14:52:11.312Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NI2cu4fLZ2cSw9sQZqR86981tmy1",
+      "references": [
+        "TX_1779967046093_83111",
+        "TX_1779866503652_55098"
+      ],
+      "attemptedAt": "2026-05-28T11:17:27.446Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NQGBnZRTWReurtCkApkdABPEXJ13",
+      "references": [
+        "TX_1780566885403_279"
+      ],
+      "attemptedAt": "2026-06-04T09:54:46.820Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NZRkKbrylMZAx6t9S5zopBxfyW82",
+      "references": [
+        "TX_1779489669279_10718"
+      ],
+      "attemptedAt": "2026-05-22T22:41:10.181Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NZJqli6FyxUhvzCCpEl4GTMU0N82",
+      "references": [
+        "TX_1779831169558_77080"
+      ],
+      "attemptedAt": "2026-05-26T21:32:51.433Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NcasUHZZkEVkVjpTTQSbzoZem5n1",
+      "references": [
+        "TX_1779498608230_36111"
+      ],
+      "attemptedAt": "2026-05-23T01:10:10.811Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Ni9FS8cvEKNCZkVlk6YKueJFkEz1",
+      "references": [
+        "TX_1779619265127_50103"
+      ],
+      "attemptedAt": "2026-05-24T10:41:05.965Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Nzog5TKG33fd8IBkAp8sJgjUUF52",
+      "references": [
+        "TX_1779433033169_37540"
+      ],
+      "attemptedAt": "2026-05-22T06:57:15.383Z"
+    },
+    {
+      "role": "earner",
+      "userId": "O5aL7Gc4aDcGOvfkrsmaGKgyaR33",
+      "references": [
+        "TX_1779455086872_68936"
+      ],
+      "attemptedAt": "2026-05-22T13:04:47.127Z"
+    },
+    {
+      "role": "earner",
+      "userId": "NPJJdCepFOWgJgogVyeCpfiOhsg1",
+      "references": [
+        "TX_1780207001344_63694",
+        "TX_1779261011768_61942",
+        "TX_1779297086154_88776"
+      ],
+      "attemptedAt": "2026-05-31T05:56:42.822Z"
+    },
+    {
+      "role": "earner",
+      "userId": "OZHAJVO6XRYJTokoN99sSDsYe4c2",
+      "references": [
+        "TX_1779889808235_24443"
+      ],
+      "attemptedAt": "2026-05-27T13:50:08.633Z"
+    },
+    {
+      "role": "earner",
+      "userId": "OOOtmKsszFa69PXM0i6se2zQtec2",
+      "references": [
+        "TX_1780306367064_13533"
+      ],
+      "attemptedAt": "2026-06-01T09:32:49.576Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Ok9AXe5HxDSKGoWR72X3ioozohw1",
+      "references": [
+        "TX_1780590167580_20741"
+      ],
+      "attemptedAt": "2026-06-04T16:22:48.086Z"
+    },
+    {
+      "role": "earner",
+      "userId": "PeqGvvcm7ihqgVOeHh498AO7MFI2",
+      "references": [
+        "TX_1780280794008_50759"
+      ],
+      "attemptedAt": "2026-06-01T02:26:34.498Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Q71pX1e1rkN1pYpEZTSbSawIN7C2",
+      "references": [
+        "TX_1779963995074_27392"
+      ],
+      "attemptedAt": "2026-05-28T10:26:37.039Z"
+    },
+    {
+      "role": "earner",
+      "userId": "QJTaNYLCwLW6GEzLSwShWuBpyM92",
+      "references": [
+        "TX_1780126358571_11521"
+      ],
+      "attemptedAt": "2026-05-30T07:32:40.450Z"
+    },
+    {
+      "role": "earner",
+      "userId": "QldhKWu3LkTtF55Wk0IsOFMwCcp1",
+      "references": [
+        "TX_1779712824926_68690"
+      ],
+      "attemptedAt": "2026-05-25T12:40:26.084Z"
+    },
+    {
+      "role": "earner",
+      "userId": "QwK4d8sGI4fDiBHOa3vNBUejo0I2",
+      "references": [
+        "TX_1779921855582_15223"
+      ],
+      "attemptedAt": "2026-05-27T22:44:17.767Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Rpi9si4TztZj6NqzfoT06xPzFV93",
+      "references": [
+        "TX_1779871387379_27274"
+      ],
+      "attemptedAt": "2026-05-27T08:43:09.090Z"
+    },
+    {
+      "role": "earner",
+      "userId": "QMVVHAmjuvTPiKDNcxZ7csd3Ywv1",
+      "references": [
+        "TX_1779600481723_79794",
+        "TX_1779537434896_77873"
+      ],
+      "attemptedAt": "2026-05-24T05:28:03.991Z"
+    },
+    {
+      "role": "earner",
+      "userId": "RusHNuqAsnbWKabhFfpiZrMhCvb2",
+      "references": [
+        "TX_1780407561743_71546"
+      ],
+      "attemptedAt": "2026-06-02T13:39:24.103Z"
+    },
+    {
+      "role": "earner",
+      "userId": "S3YBxMh6cqRIhYlZiw8P704MUa63",
+      "references": [
+        "TX_1780435671619_35378"
+      ],
+      "attemptedAt": "2026-06-02T21:27:52.759Z"
+    },
+    {
+      "role": "earner",
+      "userId": "S2OsYVrEkHgEF23xGnXxIQAOshj2",
+      "references": [
+        "TX_1779439860329_5916"
+      ],
+      "attemptedAt": "2026-05-22T08:51:00.995Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SEhAeZugVRQrVXgLMuBQ7QqjlYG2",
+      "references": [
+        "TX_1780391575902_59757"
+      ],
+      "attemptedAt": "2026-06-02T09:13:00.571Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SlyvqRekR1Mkq2vhrgpksgCXgks2",
+      "references": [
+        "TX_1779474851854_29620"
+      ],
+      "attemptedAt": "2026-05-22T18:34:13.717Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Sj85v8y2CIhV2HwWLqJB6GYYT5O2",
+      "references": [
+        "TX_1780177191280_20795"
+      ],
+      "attemptedAt": "2026-05-30T21:39:52.969Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SdCHdTKH7LYfgZXb8www9fWc4jy1",
+      "references": [
+        "TX_1780088433513_60849"
+      ],
+      "attemptedAt": "2026-05-29T21:00:34.409Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SwkPskWqhihVzZXJN0SOhOwYluv1",
+      "references": [
+        "TX_1780476821855_15667"
+      ],
+      "attemptedAt": "2026-06-03T08:53:42.522Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SSdZw8Ke7yUTRZvuYlmx5cl3OPj1",
+      "references": [
+        "TX_1779960364023_77904",
+        "TX_1779960266054_71208"
+      ],
+      "attemptedAt": "2026-05-28T09:26:04.559Z"
+    },
+    {
+      "role": "earner",
+      "userId": "TEwUQjLj7faz9CoPoHjXBapKLvc2",
+      "references": [
+        "TX_1780397913476_50118"
+      ],
+      "attemptedAt": "2026-06-02T10:58:35.804Z"
+    },
+    {
+      "role": "earner",
+      "userId": "T9s6mWUkbbZHNnENWMHyrtrllU43",
+      "references": [
+        "TX_1780004147892_93719"
+      ],
+      "attemptedAt": "2026-05-28T21:35:49.095Z"
+    },
+    {
+      "role": "earner",
+      "userId": "TRYKpaF5RkPYTxvXHeH212Odx5S2",
+      "references": [
+        "TX_1779466556474_48994"
+      ],
+      "attemptedAt": "2026-05-22T16:15:57.374Z"
+    },
+    {
+      "role": "earner",
+      "userId": "TVG5r7lvnhM2rXgOogGhzWUAh5B3",
+      "references": [
+        "TX_1780317025154_76269"
+      ],
+      "attemptedAt": "2026-06-01T12:30:26.128Z"
+    },
+    {
+      "role": "earner",
+      "userId": "SzsarDkMR5ZeVFClKGJhecWrBvE2",
+      "references": [
+        "TX_1780049019812_38153",
+        "TX_1779805277486_61704"
+      ],
+      "attemptedAt": "2026-05-29T10:03:42.348Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Tu1QlrYa1zZln89fdCdo1wEQDD33",
+      "references": [
+        "TX_1780248260174_79823"
+      ],
+      "attemptedAt": "2026-05-31T17:24:21.816Z"
+    },
+    {
+      "role": "earner",
+      "userId": "TuZBu6u4pgXVvVG1NHPubxOoBio1",
+      "references": [
+        "TX_1780142681842_5248"
+      ],
+      "attemptedAt": "2026-05-30T12:04:42.610Z"
+    },
+    {
+      "role": "earner",
+      "userId": "UXZKvZ0dbNQrq9iBmP9P54LxdEx1",
+      "references": [
+        "TX_1780074762461_39583"
+      ],
+      "attemptedAt": "2026-05-29T17:12:44.057Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Tb0TbHz8MwMN5xTxVy5iJSIyW6y1",
+      "references": [
+        "TX_1780084687377_18794",
+        "TX_1780084549465_54507"
+      ],
+      "attemptedAt": "2026-05-29T19:58:08.355Z"
+    },
+    {
+      "role": "earner",
+      "userId": "UYZvxZGyvEO2coTkQ7NBeoGJlQP2",
+      "references": [
+        "TX_1780095452344_3889"
+      ],
+      "attemptedAt": "2026-05-29T22:57:33.623Z"
+    },
+    {
+      "role": "earner",
+      "userId": "To6NCS1vu0XDBTJDrSMJmz14ik62",
+      "references": [
+        "TX_1779580135634_2153",
+        "TX_1779249574496_88582",
+        "TX_1779249595599_76998"
+      ],
+      "attemptedAt": "2026-05-23T23:48:56.373Z"
+    },
+    {
+      "role": "earner",
+      "userId": "UZureiDOdzPcI4BK5hmyBNBExMy2",
+      "references": [
+        "TX_1780248499382_44150"
+      ],
+      "attemptedAt": "2026-05-31T17:28:20.653Z"
+    },
+    {
+      "role": "earner",
+      "userId": "UchKV4T8Z0QnYSPrYCYYM1gJZpE3",
+      "references": [
+        "TX_1780574637362_33665"
+      ],
+      "attemptedAt": "2026-06-04T12:03:58.272Z"
+    },
+    {
+      "role": "earner",
+      "userId": "V5XkUrlfMrP14bEAfU3skPaixtR2",
+      "references": [
+        "TX_1780261901302_88262"
+      ],
+      "attemptedAt": "2026-05-31T21:11:43.565Z"
+    },
+    {
+      "role": "earner",
+      "userId": "VawiqyQSY5TsVFqAFXjXcx4aW5z1",
+      "references": [
+        "TX_1779488758568_8566"
+      ],
+      "attemptedAt": "2026-05-22T22:25:59.258Z"
+    },
+    {
+      "role": "earner",
+      "userId": "VedAluLE9laYgpGYlJjXBiPFY822",
+      "references": [
+        "TX_1780081518516_89235"
+      ],
+      "attemptedAt": "2026-05-29T19:05:20.078Z"
+    },
+    {
+      "role": "earner",
+      "userId": "VlIIqfdxA0TveSufOsd5et0NrW63",
+      "references": [
+        "TX_1779868267904_45942"
+      ],
+      "attemptedAt": "2026-05-27T07:51:09.699Z"
+    },
+    {
+      "role": "earner",
+      "userId": "VlPIIsC7RiVVayMa0aUPtWBnYSV2",
+      "references": [
+        "TX_1779451753800_39653"
+      ],
+      "attemptedAt": "2026-05-22T12:09:14.359Z"
+    },
+    {
+      "role": "earner",
+      "userId": "VzlQfQQw6DYbOqz5PYY7tmOIydF3",
+      "references": [
+        "TX_1780470723938_24115"
+      ],
+      "attemptedAt": "2026-06-03T07:12:05.261Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WXyrT8M5Zoex7QccOSq3A4LXQWG3",
+      "references": [
+        "TX_1780087849219_31883"
+      ],
+      "attemptedAt": "2026-05-29T20:50:49.880Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WQ79YxirathAo7pvkr1QlLz05443",
+      "references": [
+        "TX_1780545540552_7481"
+      ],
+      "attemptedAt": "2026-06-04T03:59:02.088Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WoijDZW3G8d2c4CoSXfyxcpPQ5U2",
+      "references": [
+        "TX_1779578783955_76955"
+      ],
+      "attemptedAt": "2026-05-23T23:26:24.165Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WZ1m7oJG1eYluKLmbY6Vkc8nk9z2",
+      "references": [
+        "TX_1779420891708_6752",
+        "TX_1779420769625_312"
+      ],
+      "attemptedAt": "2026-05-22T03:34:53.150Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WhjBTkxPfeXfS2xokNEVf8OWhDS2",
+      "references": [
+        "TX_1780584045791_65154"
+      ],
+      "attemptedAt": "2026-06-04T14:40:46.503Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XD5iI8vZivc5tp1RGn8mrtHplpf1",
+      "references": [
+        "TX_1780061969842_10161"
+      ],
+      "attemptedAt": "2026-05-29T13:39:31.598Z"
+    },
+    {
+      "role": "earner",
+      "userId": "X5ii4kZhzGWlB19dFobgh9LimJ12",
+      "references": [
+        "TX_1780228948746_22308"
+      ],
+      "attemptedAt": "2026-05-31T12:02:30.758Z"
+    },
+    {
+      "role": "earner",
+      "userId": "WorL6rl0XdN5TX8L3aQQAOcko7v1",
+      "references": [
+        "TX_1779962094930_29134"
+      ],
+      "attemptedAt": "2026-05-28T09:54:54.190Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XLLbQeVhCkOkdFc62HWKGFXtWNJ2",
+      "references": [
+        "TX_1779648786507_91132"
+      ],
+      "attemptedAt": "2026-05-24T18:53:08.193Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XYIvsF0tFIPu4h4GwDzYB2Xpvb43",
+      "references": [
+        "TX_1779446564362_59610"
+      ],
+      "attemptedAt": "2026-05-22T10:42:44.911Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XNcFwrO4xvdr7GgF4Mg9VpBQFY92",
+      "references": [
+        "TX_1779953724599_3220"
+      ],
+      "attemptedAt": "2026-05-28T07:35:24.982Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XhgAKQgqdGXxxQcOhFoozbVPmhv2",
+      "references": [
+        "TX_1779809483863_36765"
+      ],
+      "attemptedAt": "2026-05-26T15:31:26.375Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XlbjFBTv9dQM913ucVV2s0zTWGn1",
+      "references": [
+        "TX_1780532916317_82940"
+      ],
+      "attemptedAt": "2026-06-04T00:28:39.804Z"
+    },
+    {
+      "role": "earner",
+      "userId": "XgAfHdH1CVfhQXZU3AAwqMDIaYj2",
+      "references": [
+        "TX_1779440985436_83523"
+      ],
+      "attemptedAt": "2026-05-22T09:09:50.072Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Y3KQRV3XlFSkRXfF4i31kFZ2giE2",
+      "references": [
+        "TX_1780204945977_38098"
+      ],
+      "attemptedAt": "2026-05-31T05:22:26.851Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Xox0NzszNYh4tJhkrBIecVOAbYD3",
+      "references": [
+        "TX_1779465847513_12060"
+      ],
+      "attemptedAt": "2026-05-22T16:04:09.552Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YQ7LISkZKnNJ3RWYoAM9YMEgRph1",
+      "references": [
+        "TX_1780193306329_52680"
+      ],
+      "attemptedAt": "2026-05-31T02:08:27.909Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YXqdCOO9KiV9fMe4PZ3UWVrrmTl2",
+      "references": [
+        "TX_1780013416772_81651"
+      ],
+      "attemptedAt": "2026-05-29T00:10:19.184Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YRohXBofPjOka7kiOfIekawKLwh1",
+      "references": [
+        "TX_1780118935322_38631"
+      ],
+      "attemptedAt": "2026-05-30T05:28:56.365Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YaZKJDNormbfbvWIQM6qe2Mi8Kb2",
+      "references": [
+        "TX_1780393358214_23486"
+      ],
+      "attemptedAt": "2026-06-02T09:42:39.280Z"
+    },
+    {
+      "role": "earner",
+      "userId": "Yk9ukAFwfpa0xiTLyyAv32Pn3hl1",
+      "references": [
+        "TX_1779500668324_72123"
+      ],
+      "attemptedAt": "2026-05-23T01:44:29.976Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YeWUvVTwM4V7jqg2fDYBdBUSHK93",
+      "references": [
+        "TX_1780344670407_78163"
+      ],
+      "attemptedAt": "2026-06-01T20:11:18.683Z"
+    },
+    {
+      "role": "earner",
+      "userId": "YzlJeRm4nbYZq8xyxY04IcBl3xJ3",
+      "references": [
+        "TX_1780315432306_39926"
+      ],
+      "attemptedAt": "2026-06-01T12:03:53.194Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZBLRldFq9qX2gC23jFh6crzIuvJ2",
+      "references": [
+        "TX_1779802392557_4996"
+      ],
+      "attemptedAt": "2026-05-26T13:33:14.547Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZCbdnU0AWEc2ztaSNi3pW0jMPbt2",
+      "references": [
+        "TX_1779815507460_36062"
+      ],
+      "attemptedAt": "2026-05-26T17:11:48.030Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZJBThaR3x1aS7EsFrsOnAGRqieg1",
+      "references": [
+        "TX_1780047380973_98030"
+      ],
+      "attemptedAt": "2026-05-29T09:36:23.516Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZOtKvSZLZtf3TTrt9MtyZnnud0x2",
+      "references": [
+        "TX_1779715759791_55106"
+      ],
+      "attemptedAt": "2026-05-25T13:29:22.292Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZWIZqQkitwYCvp7jR1wKiPyFpKf2",
+      "references": [
+        "TX_1780215375318_88127"
+      ],
+      "attemptedAt": "2026-05-31T08:16:17.573Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ZXBnOteGZxecddkaqRBOZEAYolw1",
+      "references": [
+        "TX_1780563643769_9497"
+      ],
+      "attemptedAt": "2026-06-04T09:00:45.791Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aEsbHKaIbOavvkOlvKJLWZnynpC2",
+      "references": [
+        "TX_1780465656151_53813"
+      ],
+      "attemptedAt": "2026-06-03T05:47:36.083Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aZzwewQzQNWXCHOn77lzGi2oDMC3",
+      "references": [
+        "TX_1779509560141_49129"
+      ],
+      "attemptedAt": "2026-05-23T04:12:43.232Z"
+    },
+    {
+      "role": "earner",
+      "userId": "afeyDpnSCdfjvnyx6ARaw7vUNZp2",
+      "references": [
+        "TX_1779813721922_77014"
+      ],
+      "attemptedAt": "2026-05-26T16:42:03.296Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aXLyO14b9SaT2B2m6CrFMrsZMnn2",
+      "references": [
+        "TX_1779466238269_75554"
+      ],
+      "attemptedAt": "2026-05-22T16:10:39.194Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aySDlARZCMb5Xm6V0lfPPMLMbUf1",
+      "references": [
+        "TX_1779974024078_37838"
+      ],
+      "attemptedAt": "2026-05-28T13:13:45.062Z"
+    },
+    {
+      "role": "earner",
+      "userId": "b3kZA5WIHXTfOdQghctsYLYDZNz2",
+      "references": [
+        "TX_1780213653908_20041"
+      ],
+      "attemptedAt": "2026-05-31T07:47:34.927Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aRlzelTjcthn6K9V1uWK8eiIoeM2",
+      "references": [
+        "TX_1780562012787_73259",
+        "TX_1779269987359_69317",
+        "TX_1779270072058_45741"
+      ],
+      "attemptedAt": "2026-06-04T08:33:33.835Z"
+    },
+    {
+      "role": "earner",
+      "userId": "bJtqhL5EvvTGebbaGiBpFIosd7V2",
+      "references": [
+        "TX_1780342298131_4532"
+      ],
+      "attemptedAt": "2026-06-01T19:31:38.738Z"
+    },
+    {
+      "role": "earner",
+      "userId": "bTGZGcXxaXWHkJlHU2YYpdBxJlx2",
+      "references": [
+        "TX_1780333728086_12874"
+      ],
+      "attemptedAt": "2026-06-01T17:08:49.767Z"
+    },
+    {
+      "role": "earner",
+      "userId": "aqbqIfye3gaXyERM2AqwERhueMz2",
+      "references": [
+        "TX_1780486823606_23860",
+        "TX_1776762289917_95132",
+        "TX_1777329398410_37690"
+      ],
+      "attemptedAt": "2026-06-03T11:40:25.009Z"
+    },
+    {
+      "role": "earner",
+      "userId": "bRjkCsdFLCZf3olRILf8Ezoi6WB2",
+      "references": [
+        "TX_1780181450486_51324"
+      ],
+      "attemptedAt": "2026-05-30T22:50:51.511Z"
+    },
+    {
+      "role": "earner",
+      "userId": "axqnx3H0L3MXcXvylKBTNKar4Sb2",
+      "references": [
+        "TX_1779658389087_36703",
+        "TX_1779590465980_82155",
+        "TX_1779590510976_93730"
+      ],
+      "attemptedAt": "2026-05-24T21:33:10.585Z"
+    },
+    {
+      "role": "earner",
+      "userId": "cO3iaOFWEoRXlIyZbW5iNaGxJZM2",
+      "references": [
+        "TX_1779565618315_18108"
+      ],
+      "attemptedAt": "2026-05-23T19:46:59.919Z"
+    },
+    {
+      "role": "earner",
+      "userId": "cFKv8YVBIJTinrM5haK2zRVKCX53",
+      "references": [
+        "TX_1779794323958_16764"
+      ],
+      "attemptedAt": "2026-05-26T11:18:45.045Z"
+    },
+    {
+      "role": "earner",
+      "userId": "bY9divhlXrMYrvaavVjZ8sOeOjw1",
+      "references": [
+        "TX_1779558641824_91183",
+        "TX_1779558600069_2101"
+      ],
+      "attemptedAt": "2026-05-23T17:50:52.308Z"
+    },
+    {
+      "role": "earner",
+      "userId": "cM06GXGmDnfrfKrlgbca8ymwDzE3",
+      "references": [
+        "TX_1780003831129_75368"
+      ],
+      "attemptedAt": "2026-05-28T21:30:32.856Z"
+    },
+    {
+      "role": "earner",
+      "userId": "cT89GQfrRAZadBXSgI5WsFDxJzq2",
+      "references": [
+        "TX_1780385583445_7764"
+      ],
+      "attemptedAt": "2026-06-02T07:33:04.317Z"
+    },
+    {
+      "role": "earner",
+      "userId": "clsQFA4pT1UHfTvgbDGiL8Nkmi92",
+      "references": [
+        "TX_1779690021731_72908"
+      ],
+      "attemptedAt": "2026-05-25T06:20:23.768Z"
+    },
+    {
+      "role": "earner",
+      "userId": "d7YYxPfZqtMzNlId87PNyMxJ4PA2",
+      "references": [
+        "TX_1780213653147_51679"
+      ],
+      "attemptedAt": "2026-05-31T07:47:35.078Z"
+    },
+    {
+      "role": "earner",
+      "userId": "d9bWDSpAihYuh3InrXklQWx0Dz73",
+      "references": [
+        "TX_1779443629255_50526"
+      ],
+      "attemptedAt": "2026-05-22T09:53:49.899Z"
+    },
+    {
+      "role": "earner",
+      "userId": "cW6SXqEc6ic92LzmB6v16MvJh5l2",
+      "references": [
+        "TX_1779897646348_35719",
+        "TX_1779896707826_85966"
+      ],
+      "attemptedAt": "2026-05-27T16:00:47.717Z"
+    },
+    {
+      "role": "earner",
+      "userId": "dAt8j4I5c0SdsLWqmnk8FEdVJi13",
+      "references": [
+        "TX_1779957677266_96934"
+      ],
+      "attemptedAt": "2026-05-28T08:41:18.496Z"
+    },
+    {
+      "role": "earner",
+      "userId": "dD2i69lbudbc8NeIPNH8xnVAWg13",
+      "references": [
+        "TX_1779424718830_53633"
+      ],
+      "attemptedAt": "2026-05-22T04:38:39.331Z"
+    },
+    {
+      "role": "earner",
+      "userId": "dLCpSIPr4lX6icBqbUe36OJ8LaE3",
+      "references": [
+        "TX_1780314168360_44567"
+      ],
+      "attemptedAt": "2026-06-01T11:42:50.025Z"
+    },
+    {
+      "role": "earner",
+      "userId": "bk4WiLTs1shnAWEhGOrvZUxxfsX2",
+      "references": [
+        "TX_1780336483268_31623",
+        "TX_1780087930108_76174",
+        "TX_1780088065511_76011",
+        "TX_1780090585291_6040",
+        "TX_1780090669751_37583"
+      ],
+      "attemptedAt": "2026-06-01T17:54:44.608Z"
+    },
+    {
+      "role": "earner",
+      "userId": "dxHXbkIL8ZWez44NAdaylybGk7Z2",
+      "references": [
+        "TX_1779835633126_8364"
+      ],
+      "attemptedAt": "2026-05-26T22:47:16.185Z"
+    },
+    {
+      "role": "earner",
+      "userId": "e6t5VkuT8eVLUgpBZn3U6b0jxRw2",
+      "references": [
+        "TX_1779934052183_34119"
+      ],
+      "attemptedAt": "2026-05-28T02:07:34.401Z"
+    },
+    {
+      "role": "earner",
+      "userId": "dXrhTSlU6DXO4LLufdhFaEK3N5E3",
+      "references": [
+        "TX_1780074276532_36700",
+        "TX_1779123213663_79694"
+      ],
+      "attemptedAt": "2026-05-29T17:04:37.733Z"
+    },
+    {
+      "role": "earner",
+      "userId": "eSEhdbOhUnd7zNaxidU3OXFVky73",
+      "references": [
+        "TX_1780129228266_39247"
+      ],
+      "attemptedAt": "2026-05-30T08:20:28.154Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ehPFpbLYNtNkLhaQnZhFY1PjZcg2",
+      "references": [
+        "TX_1780183232754_68770"
+      ],
+      "attemptedAt": "2026-05-30T23:20:33.305Z"
+    },
+    {
+      "role": "earner",
+      "userId": "eVSBCH7i6faNIflt5RxsK55OPZ42",
+      "references": [
+        "TX_1779794300866_36012"
+      ],
+      "attemptedAt": "2026-05-26T11:18:22.737Z"
+    },
+    {
+      "role": "earner",
+      "userId": "etILly4BhFciLwA4ObgU6lFrC1g1",
+      "references": [
+        "TX_1779739009104_37974"
+      ],
+      "attemptedAt": "2026-05-25T19:56:52.731Z"
+    },
+    {
+      "role": "earner",
+      "userId": "exK3JlDg4JfbAWk9k8gV4to9e852",
+      "references": [
+        "TX_1780074176327_7424"
+      ],
+      "attemptedAt": "2026-05-29T17:02:56.820Z"
+    },
+    {
+      "role": "earner",
+      "userId": "eiAetYFu8PbhYtsIWBkua0sUJMS2",
+      "references": [
+        "TX_1779575707365_91762",
+        "TX_1779522416238_44423"
+      ],
+      "attemptedAt": "2026-05-23T22:35:08.929Z"
+    },
+    {
+      "role": "earner",
+      "userId": "f17GjSZEA3YSKfjuRIJd7n5aZfo2",
+      "references": [
+        "TX_1779892410312_80820"
+      ],
+      "attemptedAt": "2026-05-27T14:33:31.566Z"
+    },
+    {
+      "role": "earner",
+      "userId": "eTaW0feN7eROkUz6dDWJdXgFprR2",
+      "references": [
+        "TX_1780461567465_78137",
+        "TX_1780459064078_33889",
+        "TX_1780461259852_35247"
+      ],
+      "attemptedAt": "2026-06-03T04:39:28.757Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ffsINeqDwSeABSIxDiVXcJ3YTT22",
+      "references": [
+        "TX_1780006042646_16746"
+      ],
+      "attemptedAt": "2026-05-28T22:07:23.511Z"
+    },
+    {
+      "role": "earner",
+      "userId": "fZSGEw9Dv7foTcWDFa5NbVV8dkV2",
+      "references": [
+        "TX_1779793705991_38599",
+        "TX_1779536717356_46324"
+      ],
+      "attemptedAt": "2026-05-26T11:08:26.800Z"
+    },
+    {
+      "role": "earner",
+      "userId": "fjVBEdeR4sUzY5Irq2idaiey6ZG3",
+      "references": [
+        "TX_1779442837954_56031"
+      ],
+      "attemptedAt": "2026-05-22T09:40:37.470Z"
+    },
+    {
+      "role": "earner",
+      "userId": "fk88jA2eske3r54WOaNqoDFLcmz2",
+      "references": [
+        "TX_1779521417215_97599"
+      ],
+      "attemptedAt": "2026-05-23T07:30:17.876Z"
+    },
+    {
+      "role": "earner",
+      "userId": "fl5bBGElLjM0BZheMESk3SK4qSZ2",
+      "references": [
+        "TX_1780595346385_95831"
+      ],
+      "attemptedAt": "2026-06-04T17:49:07.330Z"
+    },
+    {
+      "role": "earner",
+      "userId": "foYZQEgkV8WLvHJCpVJhISCF7Tp1",
+      "references": [
+        "TX_1780002603742_28532"
+      ],
+      "attemptedAt": "2026-05-28T21:10:05.781Z"
+    },
+    {
+      "role": "earner",
+      "userId": "fpUpwKNPvrPtQLn71kcDLyA8bGC3",
+      "references": [
+        "TX_1779444341155_67090"
+      ],
+      "attemptedAt": "2026-05-22T10:05:43.248Z"
+    },
+    {
+      "role": "earner",
+      "userId": "g9DhtPvEDWQMon1R7cg8Aat9N0B3",
+      "references": [
+        "TX_1779800665732_3657"
+      ],
+      "attemptedAt": "2026-05-26T13:04:27.140Z"
+    },
+    {
+      "role": "earner",
+      "userId": "g4wvwQMv8GazT6mkjUBXTdGSWtF3",
+      "references": [
+        "TX_1780076547282_28592"
+      ],
+      "attemptedAt": "2026-05-29T17:42:30.060Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gHro4RvOgLSM2QAIH2LffamMIUb2",
+      "references": [
+        "TX_1779489117028_58376"
+      ],
+      "attemptedAt": "2026-05-22T22:31:57.893Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gjNHd4JscIOhhIXrp82pT9Rrs5E2",
+      "references": [
+        "TX_1779487667850_20837"
+      ],
+      "attemptedAt": "2026-05-22T22:07:47.532Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gd2KaRelRqS7rJllycMULEiCgdT2",
+      "references": [
+        "TX_1780035254913_3770"
+      ],
+      "attemptedAt": "2026-05-29T06:14:17.062Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gncJqCc6hvX56Yfr3TPQWT61Hbl1",
+      "references": [
+        "TX_1779482626669_90473"
+      ],
+      "attemptedAt": "2026-05-22T20:43:48.033Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gtWmhVMbavWifOdxaTDwIWyhWxM2",
+      "references": [
+        "TX_1779663210791_33545"
+      ],
+      "attemptedAt": "2026-05-24T22:53:33.107Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gwoHMlIeyGUV6j3Ee2q1MZQ4IFR2",
+      "references": [
+        "TX_1780183177160_50426"
+      ],
+      "attemptedAt": "2026-05-30T23:19:38.293Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gx2IBOdppMQo1IEgQjH0YEA5wGN2",
+      "references": [
+        "TX_1779552358793_45837"
+      ],
+      "attemptedAt": "2026-05-23T16:06:03.358Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gZRQJV0upqMB95XhbC9I5rsVohP2",
+      "references": [
+        "TX_1779469788417_37289",
+        "TX_1779189431215_53321",
+        "TX_1779202647960_4776"
+      ],
+      "attemptedAt": "2026-05-22T17:09:50.038Z"
+    },
+    {
+      "role": "earner",
+      "userId": "h3mcyWL0xaaFPWlPI2IcmW9JsNo1",
+      "references": [
+        "TX_1779818592468_92689"
+      ],
+      "attemptedAt": "2026-05-26T18:03:13.213Z"
+    },
+    {
+      "role": "earner",
+      "userId": "h22sBaucdbMJoHnYaz0QdoGZg5G3",
+      "references": [
+        "TX_1780315135257_80923"
+      ],
+      "attemptedAt": "2026-06-01T11:58:57.241Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hCKNgMl0oBa5G3ZnrDzbNvk3l503",
+      "references": [
+        "TX_1779812261116_25767"
+      ],
+      "attemptedAt": "2026-05-26T16:17:41.759Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hEfIrhpZRuUgvAz1fSztKfuPqUv1",
+      "references": [
+        "TX_1780469491505_21653"
+      ],
+      "attemptedAt": "2026-06-03T06:51:31.980Z"
+    },
+    {
+      "role": "earner",
+      "userId": "gzYg3fkbmZeombtWrSVrHrOp8YG3",
+      "references": [
+        "TX_1780117511395_57587",
+        "TX_1780076675639_71372"
+      ],
+      "attemptedAt": "2026-05-30T05:05:13.985Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hQRaC9T2cxcCuE9luNYE1rhTpIJ2",
+      "references": [
+        "TX_1780595805223_53434"
+      ],
+      "attemptedAt": "2026-06-04T17:56:46.662Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hZn2p8WpO2MfXHq0chF8ZeCyhZz1",
+      "references": [
+        "TX_1779882732860_81931"
+      ],
+      "attemptedAt": "2026-05-27T11:52:16.203Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hblJOmglD1crDjmjIH3AAcJfFX43",
+      "references": [
+        "TX_1779844088725_12216"
+      ],
+      "attemptedAt": "2026-05-27T01:08:09.542Z"
+    },
+    {
+      "role": "earner",
+      "userId": "iogwVfwMJAWKi703lVfZxg1WH4f2",
+      "references": [
+        "TX_1779796805711_12142"
+      ],
+      "attemptedAt": "2026-05-26T12:00:07.519Z"
+    },
+    {
+      "role": "earner",
+      "userId": "itnZLIi4hFf1OeO1UZCpnbME0T73",
+      "references": [
+        "TX_1780010153557_70663"
+      ],
+      "attemptedAt": "2026-05-28T23:15:56.080Z"
+    },
+    {
+      "role": "earner",
+      "userId": "hJazuew1dlQ8umXTtAmiGYUgbnz1",
+      "references": [
+        "TX_1780341901535_89479",
+        "MNFY|44|20260601202502|067185"
+      ],
+      "attemptedAt": "2026-06-01T19:25:02.166Z"
+    },
+    {
+      "role": "earner",
+      "userId": "izU79hm4NqMivZmejRpbnzOL2753",
+      "references": [
+        "TX_1779715132482_42127"
+      ],
+      "attemptedAt": "2026-05-25T13:18:54.024Z"
+    },
+    {
+      "role": "earner",
+      "userId": "k36gV4NW1me9WGAT9JFNM2aDtPO2",
+      "references": [
+        "TX_1779571661035_12292"
+      ],
+      "attemptedAt": "2026-05-23T21:27:42.429Z"
+    },
+    {
+      "role": "earner",
+      "userId": "jfKrGcbzStdjHQvdlImIhQlTHah1",
+      "references": [
+        "TX_1779821978352_55687"
+      ],
+      "attemptedAt": "2026-05-26T18:59:40.448Z"
+    },
+    {
+      "role": "earner",
+      "userId": "k86ViwUhGweZxc6V66o3SYakpvF2",
+      "references": [
+        "TX_1780473703058_83045"
+      ],
+      "attemptedAt": "2026-06-03T08:01:45.374Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kBHj4I1yJobGQGhoLCjkRdhNMKr2",
+      "references": [
+        "TX_1779973441618_79734"
+      ],
+      "attemptedAt": "2026-05-28T13:04:02.584Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kMXRJZLblXMDKNZ1Brw2eD7TtxV2",
+      "references": [
+        "TX_1780564814449_44182"
+      ],
+      "attemptedAt": "2026-06-04T09:20:15.238Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kfuRHY3yi9ULMHNa6Mx1CGI09Lu2",
+      "references": [
+        "TX_1779450521701_42474"
+      ],
+      "attemptedAt": "2026-05-22T11:48:42.751Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kOv0PkJKvCRG2tueMU1GwcHlenb2",
+      "references": [
+        "TX_1780261183856_46534"
+      ],
+      "attemptedAt": "2026-05-31T20:59:44.755Z"
+    },
+    {
+      "role": "earner",
+      "userId": "khO9SUMrVGNS6oNTmeYVX0w3M1B3",
+      "references": [
+        "TX_1780172758894_51967"
+      ],
+      "attemptedAt": "2026-05-30T20:26:00.610Z"
+    },
+    {
+      "role": "earner",
+      "userId": "l7WRj4ensWbUDepNKukSgWTqUIm2",
+      "references": [
+        "TX_1779985957601_93677"
+      ],
+      "attemptedAt": "2026-05-28T16:32:39.570Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kopfcY9H1rYv1PsE1IWpP69LjU12",
+      "references": [
+        "TX_1780083827935_80400",
+        "TX_1779222386333_37828"
+      ],
+      "attemptedAt": "2026-05-29T19:43:48.422Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kO8JAnheGNYPeKjlGkVYJIFdkAY2",
+      "references": [
+        "TX_1780096230323_95131",
+        "TX_1779432943479_88978",
+        "TX_1779487800029_23071"
+      ],
+      "attemptedAt": "2026-05-29T23:10:31.660Z"
+    },
+    {
+      "role": "earner",
+      "userId": "kr0lALUA96hyJf7Uit3UUmdatQp2",
+      "references": [
+        "TX_1779986312515_597",
+        "TX_1779986220919_42533"
+      ],
+      "attemptedAt": "2026-05-28T16:38:33.931Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lRd7o4xGEIhd8RG7Q1h4yL0wqwL2",
+      "references": [
+        "TX_1780226803440_70981"
+      ],
+      "attemptedAt": "2026-05-31T11:26:45.011Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lPVadlJxphd0O9RK3vhLhyJpVuk1",
+      "references": [
+        "TX_1779470345428_6299",
+        "TX_1779470292996_46176"
+      ],
+      "attemptedAt": "2026-05-22T17:19:08.337Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lTMBUZpKO3QCC1imVXQu4jGCum03",
+      "references": [
+        "TX_1780103669013_12621"
+      ],
+      "attemptedAt": "2026-05-30T01:14:29.970Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lI396tcggPPXuMrGrBsf5lvowsj2",
+      "references": [
+        "TX_1779616336176_67676",
+        "TX_1779616120892_44993"
+      ],
+      "attemptedAt": "2026-05-24T09:52:17.492Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lUWGlriFvJdOdAaohgS3xSm2K2C2",
+      "references": [
+        "TX_1779908150342_5370"
+      ],
+      "attemptedAt": "2026-05-27T18:55:54.975Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lcTpjg3sQ5Q23aFWkIUdyoZ0AwB2",
+      "references": [
+        "TX_1780008292751_83727"
+      ],
+      "attemptedAt": "2026-05-28T22:45:37.221Z"
+    },
+    {
+      "role": "earner",
+      "userId": "lqFpV36DRANvPQpp4IQIDF91RL92",
+      "references": [
+        "TX_1780577158943_65173"
+      ],
+      "attemptedAt": "2026-06-04T12:45:59.512Z"
+    },
+    {
+      "role": "earner",
+      "userId": "m1nNZ3zFmKeIelH5Z31KWFPQ25m2",
+      "references": [
+        "TX_1779755321854_78588"
+      ],
+      "attemptedAt": "2026-05-26T00:28:42.588Z"
+    },
+    {
+      "role": "earner",
+      "userId": "m3Fq8xD5otMGVz4zQHTS7Yxawlm1",
+      "references": [
+        "TX_1780128583996_6973"
+      ],
+      "attemptedAt": "2026-05-30T08:09:44.538Z"
+    },
+    {
+      "role": "earner",
+      "userId": "mGeRSj7DoUcP31d1Fduvj97L9Q82",
+      "references": [
+        "TX_1780391653200_45705"
+      ],
+      "attemptedAt": "2026-06-02T09:14:14.250Z"
+    },
+    {
+      "role": "earner",
+      "userId": "mKhJj2nWekgoxGit4at8WfAeGCv1",
+      "references": [
+        "TX_1780184324914_27920"
+      ],
+      "attemptedAt": "2026-05-30T23:38:46.673Z"
+    },
+    {
+      "role": "earner",
+      "userId": "mSvN0F71hyek1Ley6rGOWULF1ZE2",
+      "references": [
+        "TX_1779445985605_1620"
+      ],
+      "attemptedAt": "2026-05-22T10:33:06.854Z"
+    },
+    {
+      "role": "earner",
+      "userId": "mwlqINjQO9PKJZelyaiAwYbdFJm2",
+      "references": [
+        "TX_1780007254843_42957"
+      ],
+      "attemptedAt": "2026-05-28T22:27:46.999Z"
+    },
+    {
+      "role": "earner",
+      "userId": "n2nSlicVBmZJf1eqwsrCyO8nTTn2",
+      "references": [
+        "TX_1780576687288_82341"
+      ],
+      "attemptedAt": "2026-06-04T12:38:08.439Z"
+    },
+    {
+      "role": "earner",
+      "userId": "n9MKeYmQe2Y3Ga0fsbtUSvO82ec2",
+      "references": [
+        "TX_1780577050355_11046"
+      ],
+      "attemptedAt": "2026-06-04T12:44:11.509Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nAVGIBez0uREdDtuiRJvRfyPOVm1",
+      "references": [
+        "TX_1780063118253_47019"
+      ],
+      "attemptedAt": "2026-05-29T13:58:40.196Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nImfeUSmBDUjOW8rfkoFGX4uUgp1",
+      "references": [
+        "TX_1780059459141_61629"
+      ],
+      "attemptedAt": "2026-05-29T12:57:40.472Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nP9kgPxynydSmh8JMNPmqrAXI443",
+      "references": [
+        "TX_1780252925207_80657"
+      ],
+      "attemptedAt": "2026-05-31T18:42:06.444Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nal4hfbKX5a1GQZtmf7KDwHJ6m33",
+      "references": [
+        "TX_1780207825648_19083"
+      ],
+      "attemptedAt": "2026-05-31T06:10:26.332Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nVUSbp3ESwU75fKxPC0rtaU85S53",
+      "references": [
+        "TX_1780265493897_34986"
+      ],
+      "attemptedAt": "2026-05-31T22:11:34.601Z"
+    },
+    {
+      "role": "earner",
+      "userId": "nrE1rra2uja5tMqSe8VMmpxwdUp1",
+      "references": [
+        "TX_1779896533789_33768"
+      ],
+      "attemptedAt": "2026-05-27T15:42:15.023Z"
+    },
+    {
+      "role": "earner",
+      "userId": "o9EU3vG9N4V3GNiOcefGbL8TYxV2",
+      "references": [
+        "TX_1780591925100_85165"
+      ],
+      "attemptedAt": "2026-06-04T16:52:06.402Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ojd8xIPpeGMovwb6a8y5LoHH13r2",
+      "references": [
+        "TX_1779796234394_81447"
+      ],
+      "attemptedAt": "2026-05-26T11:50:36.486Z"
+    },
+    {
+      "role": "earner",
+      "userId": "oeuqx80ql4VF77uqTMZ4dLAkgZ42",
+      "references": [
+        "TX_1780109642531_28490"
+      ],
+      "attemptedAt": "2026-05-30T02:54:03.459Z"
+    },
+    {
+      "role": "earner",
+      "userId": "orEv63fvp9OdV599XYGp023mvGt2",
+      "references": [
+        "TX_1779471545085_98375"
+      ],
+      "attemptedAt": "2026-05-22T17:39:06.032Z"
+    },
+    {
+      "role": "earner",
+      "userId": "oPFDlunLeTWipBtaaXc4NeDfns72",
+      "references": [
+        "TX_1780509543565_43651",
+        "TX_1780509464322_52149"
+      ],
+      "attemptedAt": "2026-06-03T17:59:05.304Z"
+    },
+    {
+      "role": "earner",
+      "userId": "p9az037OSzV1WxoKO0IsxlIqTa12",
+      "references": [
+        "TX_1780147783815_90183"
+      ],
+      "attemptedAt": "2026-05-30T13:29:45.741Z"
+    },
+    {
+      "role": "earner",
+      "userId": "pGk1ltnhrWP0xl1uVFZHZHiOaPu2",
+      "references": [
+        "TX_1779647546941_25402"
+      ],
+      "attemptedAt": "2026-05-24T18:32:28.270Z"
+    },
+    {
+      "role": "earner",
+      "userId": "pAY7Q8ZH3TYREiq8OyXPj7fzQfo1",
+      "references": [
+        "TX_1780207116530_74217"
+      ],
+      "attemptedAt": "2026-05-31T05:58:38.166Z"
+    },
+    {
+      "role": "earner",
+      "userId": "peklo4HCoDMCqLWsFCbaa4nn47P2",
+      "references": [
+        "TX_1779777006477_65896"
+      ],
+      "attemptedAt": "2026-05-26T06:30:08.892Z"
+    },
+    {
+      "role": "earner",
+      "userId": "pHuSJfUGG4WR8V2C8k32WekWZ102",
+      "references": [
+        "TX_1780098265641_94245",
+        "TX_1779648567858_6140"
+      ],
+      "attemptedAt": "2026-05-29T23:44:26.608Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qM00Ev0x1gTLTkXCVAMnfb4aOoh1",
+      "references": [
+        "TX_1779569704316_28342"
+      ],
+      "attemptedAt": "2026-05-23T20:55:05.873Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qIhvRbazNCcMytXSjjM5JLN3Rv03",
+      "references": [
+        "TX_1780319014105_76344"
+      ],
+      "attemptedAt": "2026-06-01T13:03:35.942Z"
+    },
+    {
+      "role": "earner",
+      "userId": "pjMtSeTO9hMG1ApCjACUCFUHRYZ2",
+      "references": [
+        "TX_1780605574232_79485",
+        "TX_1780604952609_90390"
+      ],
+      "attemptedAt": "2026-06-04T20:39:36.988Z"
+    },
+    {
+      "role": "earner",
+      "userId": "o6Vqsb8XH4TR36VbB0vDXqehZy93",
+      "references": [
+        "TX_1780391048871_9310",
+        "TX_1779943609940_24151",
+        "MNFY|22|20260528054651|109894",
+        "MNFY|44|20260602100410|089434"
+      ],
+      "attemptedAt": "2026-06-02T09:04:10.072Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qMlo7S02kXWXDMOOw5NVJZ1kNwo1",
+      "references": [
+        "TX_1780153574735_15459"
+      ],
+      "attemptedAt": "2026-05-30T15:06:15.560Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qQ3ep2G32SQFpmwExTAUyAuIh5D3",
+      "references": [
+        "TX_1779554680023_56045"
+      ],
+      "attemptedAt": "2026-05-23T16:44:40.849Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qcP4vo10AeMx5cTSzZ4sbQjcDvy2",
+      "references": [
+        "TX_1780171054125_51913"
+      ],
+      "attemptedAt": "2026-05-30T19:58:21.191Z"
+    },
+    {
+      "role": "earner",
+      "userId": "r5Y8d7NYnWfjXlPSjpgZaMoSmgG2",
+      "references": [
+        "TX_1779595639367_94033"
+      ],
+      "attemptedAt": "2026-05-24T04:07:20.657Z"
+    },
+    {
+      "role": "earner",
+      "userId": "r6focnus2kXQRabPl5bX3pxmWLI2",
+      "references": [
+        "TX_1779735098862_76429"
+      ],
+      "attemptedAt": "2026-05-25T18:51:40.803Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qvHiZL6eb8S0fct1fFCbdgIzqng1",
+      "references": [
+        "TX_1779487347243_8060"
+      ],
+      "attemptedAt": "2026-05-22T22:02:28.335Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qpEzekQSaLgn9NFRYGqQ4yO81Fb2",
+      "references": [
+        "TX_1779987498415_36829"
+      ],
+      "attemptedAt": "2026-05-28T16:58:19.597Z"
+    },
+    {
+      "role": "earner",
+      "userId": "rXGvsRyu3aRUZH7xlBrOo9VeWIS2",
+      "references": [
+        "TX_1780222545161_45532"
+      ],
+      "attemptedAt": "2026-05-31T10:15:46.832Z"
+    },
+    {
+      "role": "earner",
+      "userId": "qaQyTBTCVLYB610JaTr7ypAmZBy1",
+      "references": [
+        "TX_1779468990405_8586",
+        "TX_1779457871560_51995",
+        "TX_1779457963601_57474"
+      ],
+      "attemptedAt": "2026-05-22T16:56:31.078Z"
+    },
+    {
+      "role": "earner",
+      "userId": "rlC5mdO9xzeD91bMRknfi1SEhsr1",
+      "references": [
+        "TX_1780245125439_1459"
+      ],
+      "attemptedAt": "2026-05-31T16:32:06.285Z"
+    },
+    {
+      "role": "earner",
+      "userId": "rrjbF8ysJmXLRXNYMjI8tBCww6A3",
+      "references": [
+        "TX_1779543181531_8377"
+      ],
+      "attemptedAt": "2026-05-23T13:33:01.995Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sNk0FnB36NQwC09FqF4XuKN7Gs23",
+      "references": [
+        "TX_1779796405289_36221"
+      ],
+      "attemptedAt": "2026-05-26T11:53:27.124Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sFvseTeiqKdXQ6CvjoiYAdr8pvJ2",
+      "references": [
+        "TX_1780078138330_99990"
+      ],
+      "attemptedAt": "2026-05-29T18:09:00.584Z"
+    },
+    {
+      "role": "earner",
+      "userId": "s7g5nmuIv4cYrncBxE6HDrVSKC93",
+      "references": [
+        "TX_1779775236021_54416",
+        "TX_1779775167845_72378"
+      ],
+      "attemptedAt": "2026-05-26T06:00:37.772Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sPIZ78LPLJX7lUtx6r2DhaagYTk1",
+      "references": [
+        "TX_1780334787059_73584"
+      ],
+      "attemptedAt": "2026-06-01T17:26:28.749Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sO7aPizdHBWD5XTtfEnUIyjySKD3",
+      "references": [
+        "TX_1779773865066_82623"
+      ],
+      "attemptedAt": "2026-05-26T05:37:46.271Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sOWN1SagsgZ5Jz2QtV0kVvhO7VU2",
+      "references": [
+        "TX_1780267208807_21115"
+      ],
+      "attemptedAt": "2026-05-31T22:40:09.325Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sVcJpb9vrEMssRJoTv0qMqEf5TH2",
+      "references": [
+        "TX_1780076494035_91719"
+      ],
+      "attemptedAt": "2026-05-29T17:41:36.291Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sodlCkH0aOgE1DnaQtHizfQ88Kp1",
+      "references": [
+        "TX_1780319577769_11707"
+      ],
+      "attemptedAt": "2026-06-01T13:12:59.118Z"
+    },
+    {
+      "role": "earner",
+      "userId": "siWe8vIcriY2uNm4VCo6fPSNagF2",
+      "references": [
+        "TX_1780442361505_6659"
+      ],
+      "attemptedAt": "2026-06-02T23:19:23.141Z"
+    },
+    {
+      "role": "earner",
+      "userId": "t9UBjBSg2FYaj1zdBe73TX4JHtH3",
+      "references": [
+        "TX_1780313959818_11561"
+      ],
+      "attemptedAt": "2026-06-01T11:39:20.390Z"
+    },
+    {
+      "role": "earner",
+      "userId": "sfaSRTU9QLMgxd1Ea2BlrnXbqBz2",
+      "references": [
+        "TX_1779634400698_86806",
+        "TX_1779008107940_10116"
+      ],
+      "attemptedAt": "2026-05-24T14:53:21.381Z"
+    },
+    {
+      "role": "earner",
+      "userId": "tSlnd64PuBRuCULJbt4K62rTmIE2",
+      "references": [
+        "TX_1780159093217_88867"
+      ],
+      "attemptedAt": "2026-05-30T16:38:15.042Z"
+    },
+    {
+      "role": "earner",
+      "userId": "t2l5aqqfdkW6hne8FriTmRbOC8Y2",
+      "references": [
+        "TX_1780386359452_27164",
+        "TX_1780355465704_71734"
+      ],
+      "attemptedAt": "2026-06-02T07:46:02.429Z"
+    },
+    {
+      "role": "earner",
+      "userId": "txmkK4rNpLR1u683oPxTKCukmB92",
+      "references": [
+        "TX_1780324367639_47772"
+      ],
+      "attemptedAt": "2026-06-01T14:32:47.107Z"
+    },
+    {
+      "role": "earner",
+      "userId": "uDwl9g70QPYOXxz4duSUDdYKoAt1",
+      "references": [
+        "TX_1780301433872_78706"
+      ],
+      "attemptedAt": "2026-06-01T08:10:35.947Z"
+    },
+    {
+      "role": "earner",
+      "userId": "uGapemGjk6T3i71B6Eqj63H3vDb2",
+      "references": [
+        "TX_1780562878576_86315"
+      ],
+      "attemptedAt": "2026-06-04T08:47:59.143Z"
+    },
+    {
+      "role": "earner",
+      "userId": "unMf9nI6KwRqPsJs0VUI2fnzKwR2",
+      "references": [
+        "TX_1779777602934_72996"
+      ],
+      "attemptedAt": "2026-05-26T06:40:03.489Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vKn2CkZ9EXalq0ixI72sxXYmPBz2",
+      "references": [
+        "TX_1779703377719_20877"
+      ],
+      "attemptedAt": "2026-05-25T10:02:59.009Z"
+    },
+    {
+      "role": "earner",
+      "userId": "uciJSflUVmhQzLFsLSjzYBEcBcj1",
+      "references": [
+        "TX_1780348692657_111",
+        "MNFY|73|20260601221816|070868"
+      ],
+      "attemptedAt": "2026-06-01T21:18:15.095Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vNUvM6DPLiaCgvTUUVBtBMu2zPn1",
+      "references": [
+        "TX_1779799433118_86282"
+      ],
+      "attemptedAt": "2026-05-26T12:43:54.925Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vEZY3AgHV5RRaQGKSwtHHfnbCgj2",
+      "references": [
+        "TX_1780003853530_80129",
+        "TX_1780003528843_67048"
+      ],
+      "attemptedAt": "2026-05-28T21:30:55.411Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vZ3P38l8KLgZ8Ut7s7RFs4OND7E2",
+      "references": [
+        "TX_1780392639174_76803"
+      ],
+      "attemptedAt": "2026-06-02T09:30:40.858Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vrq6hEnYWdf6JyrwFvvIZyfUg2w1",
+      "references": [
+        "TX_1780410827452_72264"
+      ],
+      "attemptedAt": "2026-06-02T14:33:49.204Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wDWGzHxDGtVhAO3hKcSZ0ovEVk83",
+      "references": [
+        "TX_1780469390150_69761"
+      ],
+      "attemptedAt": "2026-06-03T06:49:50.703Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wMcn5NIndaZAlyVqGhQISHrlmeH3",
+      "references": [
+        "TX_1779963091509_59239"
+      ],
+      "attemptedAt": "2026-05-28T10:11:32.625Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wenVaIEWk1gL9Z6TYwjEQJgk6Ye2",
+      "references": [
+        "TX_1779811271519_44041"
+      ],
+      "attemptedAt": "2026-05-26T16:01:12.206Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wesVlWZVhtaxQGXTiTpdMcs3QDp1",
+      "references": [
+        "TX_1779903022894_80572"
+      ],
+      "attemptedAt": "2026-05-27T17:30:22.994Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wfkhLWFYzgfXgcQZtLfWjI6AX5I3",
+      "references": [
+        "TX_1779446710453_83493"
+      ],
+      "attemptedAt": "2026-05-22T10:45:12.143Z"
+    },
+    {
+      "role": "earner",
+      "userId": "woSOcGJwWPP5WJHfbBAVSz7MyhI3",
+      "references": [
+        "TX_1780168511232_94590"
+      ],
+      "attemptedAt": "2026-05-30T19:15:12.343Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wl0JOI4M1acPeFTgfCvXYdChSJy1",
+      "references": [
+        "TX_1779573457732_42760"
+      ],
+      "attemptedAt": "2026-05-23T21:57:39.117Z"
+    },
+    {
+      "role": "earner",
+      "userId": "woyJ18SU2yNoA4RFPMzBgybqUPX2",
+      "references": [
+        "TX_1779952980733_67021"
+      ],
+      "attemptedAt": "2026-05-28T07:23:05.681Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wg1hGT7K7BXpktpbvlzkNUQXiYt1",
+      "references": [
+        "TX_1779904205816_9920",
+        "TX_1779903678683_15237"
+      ],
+      "attemptedAt": "2026-05-27T17:50:08.242Z"
+    },
+    {
+      "role": "earner",
+      "userId": "x77YzVMeV1fCLs0hEgIMHieJCDh2",
+      "references": [
+        "TX_1779532223287_28243"
+      ],
+      "attemptedAt": "2026-05-23T10:30:23.925Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wyvr15bJipXeVKGvoxsQbLRMbdf1",
+      "references": [
+        "TX_1780572494102_45443"
+      ],
+      "attemptedAt": "2026-06-04T11:28:17.889Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xB5HHeOAeYWzRZBHDHHeG4LTCvi1",
+      "references": [
+        "TX_1780392572346_70822"
+      ],
+      "attemptedAt": "2026-06-02T09:29:32.974Z"
+    },
+    {
+      "role": "earner",
+      "userId": "x8NlE7xjlfQwdXSfVIFEA5QDBwD3",
+      "references": [
+        "TX_1780091640479_11720"
+      ],
+      "attemptedAt": "2026-05-29T21:54:00.989Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xDx327H8e2OG4H9X3bHFXeFy1YL2",
+      "references": [
+        "TX_1780569474947_47063",
+        "TX_1780486621178_91879"
+      ],
+      "attemptedAt": "2026-06-04T10:37:55.519Z"
+    },
+    {
+      "role": "earner",
+      "userId": "wtS1h8yIJgWJ7slR2w9Q6LCOLF73",
+      "references": [
+        "TX_1779442071530_37888",
+        "TX_1779395851481_126",
+        "TX_1779442042310_31747"
+      ],
+      "attemptedAt": "2026-05-22T09:30:05.172Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xo5fGE45ydT7ab3doPcfEzAv2hG3",
+      "references": [
+        "TX_1779975212884_43026"
+      ],
+      "attemptedAt": "2026-05-28T13:33:33.447Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xTRlTx1Ac8OUcoPIMK0zMwnh4VO2",
+      "references": [
+        "TX_1779995400866_12666"
+      ],
+      "attemptedAt": "2026-05-28T19:10:01.726Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xx8P84cBUrZUlqFIDuAyUOon7hq2",
+      "references": [
+        "TX_1779870672292_66021"
+      ],
+      "attemptedAt": "2026-05-27T08:31:11.732Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xyS0XbBPCoalbDFNDdQyea7xhnH3",
+      "references": [
+        "TX_1780089716108_37790"
+      ],
+      "attemptedAt": "2026-05-29T21:21:57.475Z"
+    },
+    {
+      "role": "earner",
+      "userId": "xzO6gM9VYkYXIPRyMjV8HilFphG2",
+      "references": [
+        "TX_1780244394032_34647",
+        "TX_1780168670832_3308"
+      ],
+      "attemptedAt": "2026-05-31T16:19:54.563Z"
+    },
+    {
+      "role": "earner",
+      "userId": "yAhbakRCOAf9JpMtJw1QppdRUIj2",
+      "references": [
+        "TX_1779835275090_82607"
+      ],
+      "attemptedAt": "2026-05-26T22:41:15.564Z"
+    },
+    {
+      "role": "earner",
+      "userId": "y5l3Xb80usg8XnczPXEVLAYmrDD3",
+      "references": [
+        "MNFY|81|20260528014424|099090",
+        "TX_1779929061053_95786"
+      ],
+      "attemptedAt": "2026-05-28T00:44:23.619Z"
+    },
+    {
+      "role": "earner",
+      "userId": "yC7ZsphL0hRKqKrJ22B8sIz4CFE3",
+      "references": [
+        "TX_1780270135650_19603"
+      ],
+      "attemptedAt": "2026-05-31T23:28:56.575Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vk1godXhNbexhfQgXLEMbRthRN03",
+      "references": [
+        "TX_1780601877788_23909",
+        "TX_1779625691908_7410",
+        "TX_1779708713545_21473",
+        "TX_1779712732905_3668",
+        "TX_1780572406744_56006",
+        "TX_1780574240001_86998",
+        "TX_1780601345952_61095",
+        "TX_1780601412505_65470",
+        "TX_1780601451139_78273",
+        "TX_1780601528074_71843",
+        "TX_1780601793186_63529"
+      ],
+      "attemptedAt": "2026-06-04T19:37:59.245Z"
+    },
+    {
+      "role": "earner",
+      "userId": "yJd7t7z2GDPqdcQmjx7ceBRk3I22",
+      "references": [
+        "TX_1780037559838_81547"
+      ],
+      "attemptedAt": "2026-05-29T06:52:40.833Z"
+    },
+    {
+      "role": "earner",
+      "userId": "yWZYXpt3gmVFEbep4gFZcpQl17i1",
+      "references": [
+        "TX_1779441155020_96730"
+      ],
+      "attemptedAt": "2026-05-22T09:12:36.495Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ycYBu1unsmUoMTPNEh9jN1cVDPx1",
+      "references": [
+        "TX_1780341244811_2606"
+      ],
+      "attemptedAt": "2026-06-01T19:14:07.600Z"
+    },
+    {
+      "role": "earner",
+      "userId": "ywgikgyhrJhIi38h6kojWBL2BRj2",
+      "references": [
+        "TX_1780139621728_81862"
+      ],
+      "attemptedAt": "2026-05-30T11:13:43.297Z"
+    },
+    {
+      "role": "earner",
+      "userId": "yCv2iJ0wShU72dG5TG3qVHbJtZu1",
+      "references": [
+        "TX_1780068999857_40400",
+        "TX_1780068468389_57824"
+      ],
+      "attemptedAt": "2026-05-29T15:36:40.873Z"
+    },
+    {
+      "role": "earner",
+      "userId": "z7DDyU1EXnS2fS33M9A9tqU1zdm2",
+      "references": [
+        "TX_1780565256290_21889"
+      ],
+      "attemptedAt": "2026-06-04T09:27:36.716Z"
+    },
+    {
+      "role": "earner",
+      "userId": "z7fLuwlNQzYizD7bZ5T7egbiBgk2",
+      "references": [
+        "TX_1780128530802_53938"
+      ],
+      "attemptedAt": "2026-05-30T08:07:13.533Z"
+    },
+    {
+      "role": "earner",
+      "userId": "zKdhgcKFNTg6SXoG1xz97C1VRkA2",
+      "references": [
+        "TX_1780342274337_10706"
+      ],
+      "attemptedAt": "2026-06-01T19:31:15.716Z"
+    },
+    {
+      "role": "earner",
+      "userId": "zpaZpADZHkdqqd9rYDtg5Kt8p6G2",
+      "references": [
+        "TX_1780396490657_21338"
+      ],
+      "attemptedAt": "2026-06-02T10:34:52.238Z"
+    },
+    {
+      "role": "earner",
+      "userId": "zuKtgvjPhgMGXRDfbBfGyWIBDQJ3",
+      "references": [
+        "TX_1779441344081_9233"
+      ],
+      "attemptedAt": "2026-05-22T09:15:44.564Z"
+    },
+    {
+      "role": "earner",
+      "userId": "zQQxoGADqhOnKkGJhhSxXf2RY6T2",
+      "references": [
+        "TX_1779447211283_89113",
+        "TX_1779447069481_81603"
+      ],
+      "attemptedAt": "2026-05-22T10:53:33.263Z"
+    },
+    {
+      "role": "earner",
+      "userId": "zcU1lAcNjPTL0FoN6GQhVkHfCr82",
+      "references": [
+        "TX_1780341990126_49369",
+        "TX_1780341899161_34630"
+      ],
+      "attemptedAt": "2026-06-01T19:26:32.952Z"
+    }
+  ],
+  "walletStillPending": [
+    {
+      "transactionId": "06R6rEMFP5Ov85PG62ex",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519901198_55404"
+      ],
+      "createdAt": "2026-06-03T20:51:42.302Z"
+    },
+    {
+      "transactionId": "4dNz0kPVR6Kp0g7bYMNm",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780523976789_98336"
+      ],
+      "createdAt": "2026-06-03T21:59:38.531Z"
+    },
+    {
+      "transactionId": "6t29geniWooVx8RiSY64",
+      "userId": "mnnkGZ2yBTdIxn3HRVTNSVpuPQt2",
+      "amount": 100,
+      "references": [
+        "TX_1779445874062_32249"
+      ],
+      "createdAt": "2026-05-22T10:31:14.682Z"
+    },
+    {
+      "transactionId": "1wViU7lQzF92aAzMPmHf",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780547022677_93114"
+      ],
+      "createdAt": "2026-06-04T04:23:44.281Z"
+    },
+    {
+      "transactionId": "2SUusvGYwWE0Stb1ue86",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521900451_48965"
+      ],
+      "createdAt": "2026-06-03T21:25:01.622Z"
+    },
+    {
+      "transactionId": "6eT6efaUkc9SSbEN4CT6",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524103196_85324"
+      ],
+      "createdAt": "2026-06-03T22:01:44.390Z"
+    },
+    {
+      "transactionId": "8t7Tc2pgCmTdw0sX241x",
+      "userId": "jRQNq3zXhpe4dKJUbe3rfGDyKkE3",
+      "amount": 2000,
+      "references": [
+        "TX_1780330873903_88161"
+      ],
+      "createdAt": "2026-06-01T16:21:15.575Z"
+    },
+    {
+      "transactionId": "DbUUzruYItvdgDz0zIvW",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519819960_26475"
+      ],
+      "createdAt": "2026-06-03T20:50:21.106Z"
+    },
+    {
+      "transactionId": "9lXQjW0ShpceR8hDGtgp",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780600905387_2138"
+      ],
+      "createdAt": "2026-06-04T19:21:46.539Z"
+    },
+    {
+      "transactionId": "74kLrW8LtCN9LXHZNfS8",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780546994887_96858"
+      ],
+      "createdAt": "2026-06-04T04:23:16.453Z"
+    },
+    {
+      "transactionId": "DinbZVDVBNufmgxrDsm8",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524155482_32384"
+      ],
+      "createdAt": "2026-06-03T22:02:36.694Z"
+    },
+    {
+      "transactionId": "L1iXakkkFHB67cs4HTqj",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524179916_2449"
+      ],
+      "createdAt": "2026-06-03T22:03:01.137Z"
+    },
+    {
+      "transactionId": "Ds23Zta7JDLzgfQnV8kZ",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521715537_3209"
+      ],
+      "createdAt": "2026-06-03T21:21:56.797Z"
+    },
+    {
+      "transactionId": "IR375G6KUOZpc8H5bLdE",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780603061121_69786"
+      ],
+      "createdAt": "2026-06-04T19:57:42.297Z"
+    },
+    {
+      "transactionId": "H86N20ahvrtRnnDk6Xft",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521856604_34077"
+      ],
+      "createdAt": "2026-06-03T21:24:17.721Z"
+    },
+    {
+      "transactionId": "LFYD6oAPiy2iQOeM7akk",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521620503_26971"
+      ],
+      "createdAt": "2026-06-03T21:20:21.810Z"
+    },
+    {
+      "transactionId": "B8InSmif2VrJp0MSgoHP",
+      "userId": "XllgABEdLPeVs4H4a9v9koTLAss2",
+      "amount": 10000,
+      "references": [
+        "MNFY|29|20260531083426|023421",
+        "TX_1780212865487_29500"
+      ],
+      "createdAt": "2026-05-31T07:34:26.041Z"
+    },
+    {
+      "transactionId": "NPWatUQZsjZKsRkLwKNH",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524142238_66190"
+      ],
+      "createdAt": "2026-06-03T22:02:23.382Z"
+    },
+    {
+      "transactionId": "N9PpYtUDni8RibaK6Xt8",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780520857426_47690"
+      ],
+      "createdAt": "2026-06-03T21:07:38.619Z"
+    },
+    {
+      "transactionId": "NktczY5L1v5L1ZNyZcPu",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780522005387_7761"
+      ],
+      "createdAt": "2026-06-03T21:26:46.640Z"
+    },
+    {
+      "transactionId": "QLGs8GEvPAwVUmNQZquJ",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780606062073_79892"
+      ],
+      "createdAt": "2026-06-04T20:47:43.215Z"
+    },
+    {
+      "transactionId": "QNvJLSs2iKG5SDtyS7LF",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780602724467_47697"
+      ],
+      "createdAt": "2026-06-04T19:52:05.668Z"
+    },
+    {
+      "transactionId": "T5BL9jOHwKXuw194ythW",
+      "userId": "3WR9ZAFmL6R8ELhetXQr7tmL65S2",
+      "amount": 100,
+      "references": [
+        "TX_1780602677499_52454"
+      ],
+      "createdAt": "2026-06-04T19:51:18.260Z"
+    },
+    {
+      "transactionId": "TEYbIDlgxOF1GpOxHs3g",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 500,
+      "references": [
+        "TX_1779579662453_1315"
+      ],
+      "createdAt": "2026-05-23T23:41:04.334Z"
+    },
+    {
+      "transactionId": "UNjdVAARDoGBi9IL1jMt",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780522053304_89661"
+      ],
+      "createdAt": "2026-06-03T21:27:34.642Z"
+    },
+    {
+      "transactionId": "UiKtx0lNpGQ82a3XWV1s",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780601646221_44282"
+      ],
+      "createdAt": "2026-06-04T19:34:07.564Z"
+    },
+    {
+      "transactionId": "VPoBIvWlFPhQ7KeuwOS0",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780600855470_45167"
+      ],
+      "createdAt": "2026-06-04T19:20:56.965Z"
+    },
+    {
+      "transactionId": "VvxO6saNA8TZm047jT7k",
+      "userId": "JzsVgYd0gddaZSQcXiXTL6pyvg93",
+      "amount": 4000,
+      "references": [
+        "TX_1779525721842_83547"
+      ],
+      "createdAt": "2026-05-23T08:42:02.622Z"
+    },
+    {
+      "transactionId": "XG0LPTgdojjc52fEQ6Uj",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 100000,
+      "references": [
+        "TX_1780389951766_28858"
+      ],
+      "createdAt": "2026-06-02T08:45:52.682Z"
+    },
+    {
+      "transactionId": "Y55BtmO1WGqyzgWGTeYf",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780602431044_61735"
+      ],
+      "createdAt": "2026-06-04T19:47:12.307Z"
+    },
+    {
+      "transactionId": "akNF478DQ0Ttcp5Lc2Zt",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780601776699_39406"
+      ],
+      "createdAt": "2026-06-04T19:36:17.798Z"
+    },
+    {
+      "transactionId": "b0bf2Vyurjf6ATiTIIxa",
+      "userId": "JzsVgYd0gddaZSQcXiXTL6pyvg93",
+      "amount": 2000,
+      "references": [
+        "TX_1779707826402_44067"
+      ],
+      "createdAt": "2026-05-25T11:17:09.243Z"
+    },
+    {
+      "transactionId": "YUtQCRVx9t3RBGX810k1",
+      "userId": "m05HbPL1qzM0myMLuLhAdThaq3F2",
+      "amount": 1000,
+      "references": [
+        "TX_1779839584930_22062"
+      ],
+      "createdAt": "2026-05-26T23:53:05.896Z"
+    },
+    {
+      "transactionId": "cD4pZ4C0bkeD6SbWPtDc",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521792701_72010"
+      ],
+      "createdAt": "2026-06-03T21:23:15.667Z"
+    },
+    {
+      "transactionId": "d9XY3qO6aicDknROq7FI",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780520020557_48571"
+      ],
+      "createdAt": "2026-06-03T20:53:41.720Z"
+    },
+    {
+      "transactionId": "djQfIuJHkzpkYnYxDFQk",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524012131_14694"
+      ],
+      "createdAt": "2026-06-03T22:00:13.441Z"
+    },
+    {
+      "transactionId": "gxqZstSdbZc6Zmh4eogt",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780603002613_82257"
+      ],
+      "createdAt": "2026-06-04T19:56:43.699Z"
+    },
+    {
+      "transactionId": "jCwPtBXXIpwQmkokMq74",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519969965_28423"
+      ],
+      "createdAt": "2026-06-03T20:52:51.148Z"
+    },
+    {
+      "transactionId": "iGQfFBZCr9rUS9385hB6",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780602752167_37056"
+      ],
+      "createdAt": "2026-06-04T19:52:33.438Z"
+    },
+    {
+      "transactionId": "hW8KIMiYcUS8BD870MFW",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780601254908_21971"
+      ],
+      "createdAt": "2026-06-04T19:27:36.076Z"
+    },
+    {
+      "transactionId": "kdJebbT4d7tw0wo6tRri",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780522071299_44101"
+      ],
+      "createdAt": "2026-06-03T21:27:52.548Z"
+    },
+    {
+      "transactionId": "lKGysshbJhwz3ImVZ7BU",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780601142996_84656"
+      ],
+      "createdAt": "2026-06-04T19:25:44.107Z"
+    },
+    {
+      "transactionId": "nkdxQau9kPEuZKEnXGQW",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519928983_9117"
+      ],
+      "createdAt": "2026-06-03T20:52:10.192Z"
+    },
+    {
+      "transactionId": "plCaVuKqzElr7zpH7vmh",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780546965722_29700"
+      ],
+      "createdAt": "2026-06-04T04:22:47.590Z"
+    },
+    {
+      "transactionId": "nhAibtvHuCkSRM2LG9Gs",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524054434_41026"
+      ],
+      "createdAt": "2026-06-03T22:00:55.771Z"
+    },
+    {
+      "transactionId": "nvZzg82i0vnLm7Ui5qLu",
+      "userId": "UEb8UddgKIgLy9k8v8KddPq6dNr1",
+      "amount": 2000,
+      "references": [
+        "TX_1780600882438_68196"
+      ],
+      "createdAt": "2026-06-04T19:21:23.602Z"
+    },
+    {
+      "transactionId": "pnhyDxmTTuDgw5EATjY5",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524115890_25327"
+      ],
+      "createdAt": "2026-06-03T22:01:57.020Z"
+    },
+    {
+      "transactionId": "ptu9r9tNTr0ZboibP25E",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519434683_85012"
+      ],
+      "createdAt": "2026-06-03T20:43:56.113Z"
+    },
+    {
+      "transactionId": "rQsYVyrxNxHF7qfLYr9g",
+      "userId": "JzsVgYd0gddaZSQcXiXTL6pyvg93",
+      "amount": 2000,
+      "references": [
+        "TX_1779707826401_10920"
+      ],
+      "createdAt": "2026-05-25T11:17:07.046Z"
+    },
+    {
+      "transactionId": "qiVpiFpm4bNVkqXeAlOm",
+      "userId": "jRQNq3zXhpe4dKJUbe3rfGDyKkE3",
+      "amount": 2000,
+      "references": [
+        "TX_1780330771174_64428"
+      ],
+      "createdAt": "2026-06-01T16:19:33.789Z"
+    },
+    {
+      "transactionId": "uKpDSEHK8CzSNTmC0hDl",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519783187_63700"
+      ],
+      "createdAt": "2026-06-03T20:49:44.387Z"
+    },
+    {
+      "transactionId": "uWgBurEDACVZdbwOAYqV",
+      "userId": "Te1gLRXXSVNHtdDABLpq6yJAbR63",
+      "amount": 1000,
+      "references": [
+        "TX_1780250570202_59139"
+      ],
+      "createdAt": "2026-05-31T18:03:40.409Z"
+    },
+    {
+      "transactionId": "uWmphbJeowq37l1uUgxN",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524128687_78197"
+      ],
+      "createdAt": "2026-06-03T22:02:10.023Z"
+    },
+    {
+      "transactionId": "vPk9POuhxvZMYoH4CMPB",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780519860926_17480"
+      ],
+      "createdAt": "2026-06-03T20:51:02.050Z"
+    },
+    {
+      "transactionId": "vld4gmYF5cfs5Sf7iVnB",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521590769_15456"
+      ],
+      "createdAt": "2026-06-03T21:19:51.940Z"
+    },
+    {
+      "transactionId": "ukXpGyE81hgmVDhL5iOb",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524031189_24"
+      ],
+      "createdAt": "2026-06-03T22:00:32.455Z"
+    },
+    {
+      "transactionId": "xjXa9iF4dg1t6Se5GKTN",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780521833722_25604"
+      ],
+      "createdAt": "2026-06-03T21:23:54.853Z"
+    },
+    {
+      "transactionId": "vr5moOc9ju5aCoWQPPPm",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780606121512_51121"
+      ],
+      "createdAt": "2026-06-04T20:48:42.680Z"
+    },
+    {
+      "transactionId": "zNIxfff8ljwwrw8Keprz",
+      "userId": "mEqyhksbz8ZygDE4wxxMpXdq7KM2",
+      "amount": 1000,
+      "references": [
+        "TX_1780524069607_98432"
+      ],
+      "createdAt": "2026-06-03T22:01:10.948Z"
+    }
+  ]
+}

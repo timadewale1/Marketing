@@ -1,0 +1,121 @@
+# Activation mismatches from Monnify export
+
+Total unresolved after cross-check: 117
+
+- Justice David <davidaboy671@gmail.com>
+- KILANKO FOLASAYO <kilankofola020@gmail.com>
+- Mabel Nebo <mabelnebo80@gmail.com>
+- Elisha Linus <elishalinus1@gmail.com>
+- Kayopa Woyengimiebifagha <miebikayopa@gmail.com>
+- Blessing Izikire <blessingizikire360@gmail.com>
+- Dalhatu Haruna Muhammad <zazoodiamond@gmail.com>
+- Efe richard <richardeferi@gmail.com>
+- Nwafor Onyinyechi Maryann <onyinyechimaryannnwafor@gmail.com>
+- ALAMU FOLAWE DANIEL <alamufolawe@gmail.com>
+- Olawale Bello <olawalbell52@gmail.com>
+- Fvry <ayomikun370@gmail.com>
+- Salihu <muhammadsalisumahammad@gmail.com>
+- Wasiu Sodiq Ajibola <wasiuayinde1950@gmail.com>
+- zakaria Muzamil <zakariamuzamil39@gmail.com>
+- Abdulsemiu Solihat <Abdulsemiusolihat@icloud.com>
+- Joy Ikem <joypaulinus93@gmail.com>
+- Micheal okechukwu okereke <okechukwum46@gmail.com>
+- Ine Jonathan Jack <inejonathanjack@gmail.com>
+- Sarah Olawuyi <susa12993@gmail.com>
+- Edet Jumbo okon <edeto3671@gmail.com>
+- Ozoekwem Chiadika Anthony <ozoekwemchiadika@gmail.com>
+- Goodness Taiwo <r55uwheine@gmail.com>
+- PATIENCE CHIKODI NWOKENKWO <patiencenwokenkwo@gmail.com>
+- Johnisaac <isaacjohnassogba3@gmail.com>
+- oluwagbemiga ransom <oluwagbemigaransom14@gmail.com>
+- Abubakar Adamu <youngkalee0@gmail.com>
+- Salami Comfort Titilope <hassanomotayo14@gmail.com>
+- Sobayo Samuel Abiodun <samuelsobayo67@gmail.com>
+- Jabir Yusuf <jabiryusuf098@gmail.com>
+- Endurance Otemeh <otemehendurance@gmail.com>
+- Prosper Prince <coleethan636@gmail.com>
+- Peter Elizabeth Omomate <elizabethpeter079@gmail.com>
+- Chidinma Iheanacho Favour <chidinmafavour784@gmail.com>
+- Mobolaji Olabisi <bjalash@gmail.com>
+- JAHSWILL UCHECHUKE ABRAHAM <abrahamjahswill020@gmail.com>
+- Chibueze Chibyke <joachimchibueze748@gmail.com>
+- Azeez Rukayah <Abdulazeezrukky55@gmail.com>
+- Chigozie nwazuruike <doyouwantohear@gmail.com>
+- Shola <sholatogbe@gmail.com>
+- Isah Yusuf Adomu <adomu2022@gmail.com>
+- Peter habila <habilapeter779@gmail.com>
+- Olawumi Hanifat Olayinka <olawumihanifat23@gmail.com>
+- Vitalis buka <ebukavitalis779@gmail.com>
+- Anthony Vera <azzzzma53@gmail.com>
+- DAMILOLA OMOTOSO <adewoledamilola87@gmail.com>
+- Abiodun Oluwaseyi kolapo <princeabiodun268@gmail.com>
+- FIDELIS NATHANIEL <fidelisnathaniel15@gmail.com>
+- Owojuyigbe Folakemi <folaowojuyigbe@gmail.com>
+- Honey drop <oladipupooyinkansola866@gmail.com>
+- Abdulwasiu Ramat omolewa <abdulwasiuramatomolewa@gmail.com>
+- PRAYER EZEDIALU <prayerezedialu914@gmail.com>
+- Joshua kamsi <joshuakamsi009@gmail.com>
+- Usman Muhammad <um578447@gmail.com>
+- Godgift Obasiya <godgiftobasiya2@gmail.com>
+- Okedeji Femi Emmanuel <femiokedeji@gmail.com>
+- Muhammad Usman Ahmad <mahmed3196@gmail.com>
+- Godday Osasere <goddayosasere@gmail.com>
+- Olalekan Oludiran <kvngtushie@gmail.com>
+- Eddykesh <edwardfrancis866@gmail.com>
+- Shittu Abdulbasit <shittubasit473@gmail.com>
+- Bamidele Franck <franck.bams@gmail.com>
+- Bliss Harrison <ukaigwebliss2010@gmail.com>
+- Solomon Nworie <nworiesolomon65@gmail.com>
+- Pearl Diepreye Reuben <pearlistic2001@gmail.com>
+- Emem Jack <jackemem92@gmail.com>
+- Hope Ndifreke <hopendifreke41@gmail.com>
+- Enuesika Dennis Somadina <truckscompany954@gmail.com>
+- Odah benjamin <odahbenjamin4@gmail.com>
+- Joseph Enoch <festus119229881@gmail.com>
+- Adaeze Divine <divineadaeze92@gmail.com>
+- Balogun Korede <balogunkorede2222@gmail.com>
+- Ekwulonu Helen Chimezirim <helchimex@yahoo.com>
+- Isiaka yomi olaoshebikan <abayomiadewale365@gmail.com>
+- Aregu, Agatha Danlami <areguagatha@gmail.com>
+- Ganiyu Abdulmalik <abdulmalikayo287@gmail.com>
+- Abdulazeez Isah <abdulazizisah04@gmail.com>
+- Grace Moronfade <alexbalogun593@gmail.com>
+- Victor Nwachukwu <selenacampos017@gmail.com>
+- Ogunwumi ojo samuel <ojojames934@gmail.com>
+- Godswill Jackson Monday <godswillmonday736@gmail.com>
+- chidera <onumonuchidera1@gmail.com>
+- Bei kem <munonyedic22@gmail.com>
+- Funkekeme Cameroon <funkekemecameroon247@gmail.com>
+- Rebecca ishaya peni <beckyishaya31@gmail.com>
+- chibuike <chibuike4771@gmail.com>
+- Adeyeye taiwo bosede <aygold988@gmail.com>
+- Precious John aneke <preciousemeka8499@gmail.com>
+- Gift Ehi peter <pehi71355@gmail.com>
+- Michael Adama <michaeladama482@gmail.com>
+- Akiode Daniel <slicerdcff@gmail.com>
+- Nweke Ifeoma Ụgbala <ifeyras44@gmail.com>
+- David George <davidjosephchigozie@gmail.com>
+- Charles M. Oloworaran <>
+- Goma Michael <joymargaret500@gmail.com>
+- Samuel Edet Etinefio <harrysamuel080@gmail.com>
+- Aisha Ahmed <aishaahma002@gmail.com>
+- Godwin samuel john <godorns6@gmail.com>
+- Kpaama Seth Bariela <elasqueenunarrested@gmail.com>
+- Valentine Raymond <valentine00vbou@gmail.com>
+- John wike <favour254123@gmail.com>
+- Elijah Aniedi Patrick <elijahpatrick875@gmail.com>
+- Isaiah 7 <otina2298@gmail.com>
+- Afeez <oyekanmiafeez259@gmail.com>
+- Kasarachi Joseph <chijiokebetter@yahoo.com>
+- Samuel nwabueze <samuelwilliams095@gmail.com>
+- Godswill Anyak <angelojessemars@gmail.com>
+- Victor Nwakudu <vickkybrass@gmail.com>
+- Emi <ermiekeyzodosa5960@gmail.com>
+- ikechukwu  Oscar Ogbonna <oscaroike@gmail.com>
+- Igwe Juliet <igwej7403@gmail.com>
+- Christiana Asuquo <tinaenobong@gmail.com>
+- OG billions <ukachukwuchijiokemartins@gmail.com>
+- Chinaeme Anselm Nwabunwanne <chinaemeanselm01@gmail.com>
+- Otukupe Peter Eze <ezepeter199531@gmail.com>
+- Divine Okenna <divineokenna105@gmail.com>
+- Victory chy <victorychyjude@gmail.com>

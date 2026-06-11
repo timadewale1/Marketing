@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-06-05T11:36:36.271Z",
+  "cutoff": "2026-06-04T22:30:00.000Z",
+  "activationsRecovered": [],
+  "walletRecovered": [
+    {
+      "transactionId": "gVF0fA145P6Yn7mDOjyy",
+      "userId": "NsowxwZud5ge9F7VbKhyPwmiFQS2",
+      "amount": 2000,
+      "reference": "TX_1780651767390_35082",
+      "references": [
+        "TX_1780651767390_35082",
+        "MNFY|11|20260605103832|002896",
+        "TX_1780652311277_7175",
+        "MNFY|38|20260605110449|003507",
+        "TX_1780653887654_99590"
+      ],
+      "source": "monnify-verified-backfill"
+    },
+    {
+      "transactionId": "URAVjHF0okTBg63RUrA2",
+      "userId": "NsowxwZud5ge9F7VbKhyPwmiFQS2",
+      "amount": 17000,
+      "reference": "TX_1780651767390_35082",
+      "references": [
+        "TX_1780651767390_35082",
+        "TX_1780653887654_99590",
+        "MNFY|38|20260605110449|003507"
+      ],
+      "source": "monnify-verified-backfill"
+    }
+  ],
+  "referralsCompleted": [],
+  "activationStillPending": [
+    {
+      "role": "earner",
+      "userId": "jpEjRiL8eiYxURrPnE86B9lcg1J3",
+      "references": [
+        "TX_1780649724648_60534"
+      ],
+      "attemptedAt": "2026-06-05T08:55:26.758Z"
+    },
+    {
+      "role": "earner",
+      "userId": "4WVE9YXmVoXBmnKTqT2I8nIFHd02",
+      "references": [
+        "TX_1780656449042_70459",
+        "TX_1780060722289_38601"
+      ],
+      "attemptedAt": "2026-06-05T10:47:31.144Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FzMMtwEKToeOYvMiCZ77U0hlyg33",
+      "references": [
+        "TX_1780644509873_39564",
+        "TX_1779739784563_22186"
+      ],
+      "attemptedAt": "2026-06-05T07:28:30.710Z"
+    },
+    {
+      "role": "earner",
+      "userId": "FSnpfCaE7dWlhg9Jq2jUL8cLXoP2",
+      "references": [
+        "TX_1780647192820_61656",
+        "TX_1780064497045_83114"
+      ],
+      "attemptedAt": "2026-06-05T08:13:14.616Z"
+    },
+    {
+      "role": "earner",
+      "userId": "pjMtSeTO9hMG1ApCjACUCFUHRYZ2",
+      "references": [
+        "TX_1780618408187_84367",
+        "TX_1780604952609_90390",
+        "TX_1780605574232_79485"
+      ],
+      "attemptedAt": "2026-06-05T00:13:29.299Z"
+    },
+    {
+      "role": "earner",
+      "userId": "MWj4yR6KjvSeYPiBnohniJC1lUp2",
+      "references": [
+        "TX_1780616243370_57277",
+        "TX_1780615556530_8147",
+        "TX_1780615793271_87910",
+        "TX_1780615915896_55561",
+        "TX_1780616113080_81826",
+        "TX_1780616167146_93611"
+      ],
+      "attemptedAt": "2026-06-04T23:37:26.064Z"
+    },
+    {
+      "role": "earner",
+      "userId": "9trzTamUmlh9GCOMcbgcyaVxF1M2",
+      "references": [
+        "TX_1780626999921_84011",
+        "TX_1780602554704_66679",
+        "TX_1780602575340_83120",
+        "TX_1780602612259_11461",
+        "TX_1780602822378_14731",
+        "TX_1780602913138_90902",
+        "TX_1780602913137_23366",
+        "TX_1780617099934_46651",
+        "TX_1780617142075_23848"
+      ],
+      "attemptedAt": "2026-06-05T02:36:41.762Z"
+    },
+    {
+      "role": "earner",
+      "userId": "vk1godXhNbexhfQgXLEMbRthRN03",
+      "references": [
+        "TX_1780646328468_2104",
+        "TX_1779625691908_7410",
+        "TX_1779708713545_21473",
+        "TX_1779712732905_3668",
+        "TX_1780572406744_56006",
+        "TX_1780574240001_86998",
+        "TX_1780601345952_61095",
+        "TX_1780601412505_65470",
+        "TX_1780601451139_78273",
+        "TX_1780601528074_71843",
+        "TX_1780601793186_63529",
+        "TX_1780601877788_23909"
+      ],
+      "attemptedAt": "2026-06-05T07:58:50.061Z"
+    }
+  ],
+  "walletStillPending": [
+    {
+      "transactionId": "PQBIqqXpm9VOu5PbHc2Y",
+      "userId": "qzYvJDkChOSqCzCqH9MV3Gdc7Ny1",
+      "amount": 1000,
+      "references": [
+        "TX_1780650578989_50538"
+      ],
+      "createdAt": "2026-06-05T09:09:40.143Z"
+    },
+    {
+      "transactionId": "bxWLFaJ0CWymjCtkGOTH",
+      "userId": "NsowxwZud5ge9F7VbKhyPwmiFQS2",
+      "amount": 2000,
+      "references": [
+        "TX_1780652099709_27715"
+      ],
+      "createdAt": "2026-06-05T09:35:00.140Z"
+    }
+  ]
+}

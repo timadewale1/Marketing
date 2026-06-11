@@ -1,0 +1,1917 @@
+{
+  "cutoff": "2026-03-31T23:00:00.000Z",
+  "totalUsers": 715,
+  "uncertain": [
+    {
+      "role": "earner",
+      "userId": "Mk7DUqzYtlhQx0shw9Mq2koybc12",
+      "name": "Justice David ",
+      "email": "davidaboy671@gmail.com",
+      "activatedAt": "2026-04-02T12:52:57.512Z",
+      "references": [
+        "manual_fix_20260402_Mk7DUqzYtlhQx0shw9Mq2koybc12"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=manual_fix_20260402_Mk7DUqzYtlhQx0shw9Mq2koybc12"
+    },
+    {
+      "role": "earner",
+      "userId": "CI2r5msKf6UHNL4rJmLPEx9FB3X2",
+      "name": "KILANKO FOLASAYO",
+      "email": "kilankofola020@gmail.com",
+      "activatedAt": "2026-04-06T18:52:38.888Z",
+      "references": [
+        "TX_1775498873816_97854",
+        "TX_1775498586427_84447",
+        "TX_1775498827166_99127",
+        "TX_1775498827168_46953"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775498873816_97854"
+    },
+    {
+      "role": "earner",
+      "userId": "ttqmRz5bARQaVNZBe4SeD5quUG33",
+      "name": "Mabel Nebo",
+      "email": "mabelnebo80@gmail.com",
+      "activatedAt": "2026-04-06T18:52:50.896Z",
+      "references": [
+        "TX_1775498537128_54697",
+        "TX_1775498378511_99029",
+        "TX_1775498378509_91495"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775498537128_54697"
+    },
+    {
+      "role": "earner",
+      "userId": "qY0gIl2HS0YAV7ZYbQMJLmV8uBo2",
+      "name": "Elisha Linus",
+      "email": "elishalinus1@gmail.com",
+      "activatedAt": "2026-04-06T18:52:59.533Z",
+      "references": [
+        "TX_1775497751473_14391",
+        "TX_1775497618067_75521"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775497751473_14391"
+    },
+    {
+      "role": "earner",
+      "userId": "mgTnARQuinSdMsEvdHDQTQDlYAh2",
+      "name": "Kayopa Woyengimiebifagha ",
+      "email": "miebikayopa@gmail.com",
+      "activatedAt": "2026-04-07T11:39:03.277Z",
+      "references": [
+        "TX_1775552597225_2033",
+        "TX_1775552239205_35811",
+        "MNFY|55|20260407095722|276628"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775552597225_2033"
+    },
+    {
+      "role": "earner",
+      "userId": "y3vXHpHbUgNO30RZgoHBgBnR2CM2",
+      "name": "Blessing Izikire",
+      "email": "blessingizikire360@gmail.com",
+      "activatedAt": "2026-04-07T11:39:27.354Z",
+      "references": [
+        "TX_1775561455283_73909",
+        "TX_1775560317709_38017",
+        "TX_1775560317709_32866",
+        "TX_1775560317707_33597",
+        "MNFY|75|20260407121204|283297"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775561455283_73909"
+    },
+    {
+      "role": "earner",
+      "userId": "qxjvM5nohAOu07L8JYFeq30ls803",
+      "name": "Dalhatu Haruna Muhammad",
+      "email": "zazoodiamond@gmail.com",
+      "activatedAt": "2026-04-07T11:54:18.793Z",
+      "references": [
+        "TX_1775562532053_4876",
+        "TX_1775561018334_59616",
+        "TX_1775562444456_68520"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775562532053_4876"
+    },
+    {
+      "role": "earner",
+      "userId": "18IGL1UiryNmMex75MXww3P3yRn2",
+      "name": "Efe richard ",
+      "email": "richardeferi@gmail.com",
+      "activatedAt": "2026-04-07T14:51:50.604Z",
+      "references": [
+        "TX_1775573256367_69783",
+        "TX_1775571470874_6145",
+        "TX_1775571470876_57724",
+        "MNFY|93|20260407151756|042485"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775573256367_69783"
+    },
+    {
+      "role": "earner",
+      "userId": "MTFiA8EZ20VePJK4BV45v4golLy2",
+      "name": "Nwafor Onyinyechi Maryann",
+      "email": "onyinyechimaryannnwafor@gmail.com",
+      "activatedAt": "2026-04-07T18:50:52.579Z",
+      "references": [
+        "TX_1775587341339_44507",
+        "TX_1775578230349_53449",
+        "TX_1775578409343_90115",
+        "TX_1775585317028_5402",
+        "TX_1775585404756_23022",
+        "TX_1775587046137_25454",
+        "TX_1775587046138_3070",
+        "TX_1775587122144_58406",
+        "TX_1775587122142_12612"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775587341339_44507"
+    },
+    {
+      "role": "earner",
+      "userId": "JKMOFfyJITUOQMWKM41T9ntsycI2",
+      "name": "ALAMU FOLAWE DANIEL ",
+      "email": "alamufolawe@gmail.com",
+      "activatedAt": "2026-04-07T18:51:00.463Z",
+      "references": [
+        "TX_1775587248761_53994",
+        "TX_1775586611702_87848",
+        "TX_1775587033459_82440"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775587248761_53994"
+    },
+    {
+      "role": "earner",
+      "userId": "DnBM3gGDZddULo0Cmo0Plsf0wVz2",
+      "name": "Olawale Bello",
+      "email": "olawalbell52@gmail.com",
+      "activatedAt": "2026-04-07T18:52:11.008Z",
+      "references": [
+        "TX_1775586960099_75062",
+        "TX_1775586700356_21879",
+        "TX_1775586700355_63252",
+        "TX_1775586960098_54388"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775586960099_75062"
+    },
+    {
+      "role": "earner",
+      "userId": "spoaVilLJxVQRdSgnHPGCAN6RBv1",
+      "name": "Fvry",
+      "email": "ayomikun370@gmail.com",
+      "activatedAt": "2026-04-07T18:52:21.339Z",
+      "references": [
+        "TX_1775584233980_77090",
+        "TX_1775584184397_22579"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775584233980_77090"
+    },
+    {
+      "role": "earner",
+      "userId": "aspxvCb5S4fxuTU3MDWM6jcsn5x1",
+      "name": "Salihu",
+      "email": "muhammadsalisumahammad@gmail.com",
+      "activatedAt": "2026-04-07T18:52:30.094Z",
+      "references": [
+        "TX_1775583594031_72433",
+        "TX_1775583594030_89599"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775583594031_72433"
+    },
+    {
+      "role": "earner",
+      "userId": "JNcBm6G6zhgQQKPb7oyxPZ4304p2",
+      "name": "Wasiu Sodiq Ajibola ",
+      "email": "wasiuayinde1950@gmail.com",
+      "activatedAt": "2026-04-07T18:52:39.380Z",
+      "references": [
+        "TX_1775581223854_39423"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775581223854_39423"
+    },
+    {
+      "role": "earner",
+      "userId": "ZAAR0JW05uYHyQsWJeEH4gRsLXB3",
+      "name": "zakaria Muzamil",
+      "email": "zakariamuzamil39@gmail.com",
+      "activatedAt": "2026-04-07T18:52:48.907Z",
+      "references": [
+        "TX_1775580690906_84848"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775580690906_84848"
+    },
+    {
+      "role": "earner",
+      "userId": "Wt4761TltffL8n8JthyynRK1BIo2",
+      "name": "Abdulsemiu Solihat",
+      "email": "Abdulsemiusolihat@icloud.com",
+      "activatedAt": "2026-04-07T18:52:56.314Z",
+      "references": [
+        "TX_1775575484683_96782"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775575484683_96782"
+    },
+    {
+      "role": "earner",
+      "userId": "lKRnllfu3KWrcb0BSEdI9fFixiS2",
+      "name": "Joy Ikem",
+      "email": "joypaulinus93@gmail.com",
+      "activatedAt": "2026-04-07T18:55:20.134Z",
+      "references": [
+        "unknown"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=unknown"
+    },
+    {
+      "role": "earner",
+      "userId": "sHq9tyGWIqSeruzmDJYIV1iqRsC2",
+      "name": "Micheal okechukwu okereke",
+      "email": "okechukwum46@gmail.com",
+      "activatedAt": "2026-04-07T18:56:38.860Z",
+      "references": [
+        "TX_1775522632059_32044"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775522632059_32044"
+    },
+    {
+      "role": "earner",
+      "userId": "dKUTiYQ0pkhk2prNBcDMVeH92z12",
+      "name": "Ine Jonathan Jack",
+      "email": "inejonathanjack@gmail.com",
+      "activatedAt": "2026-04-08T10:18:23.586Z",
+      "references": [
+        "TX_1775641786601_54418",
+        "TX_1775637927780_72411",
+        "TX_1775638766576_53393"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775641786601_54418"
+    },
+    {
+      "role": "earner",
+      "userId": "VeEXMfSibqT744fB6izm0zdxEx33",
+      "name": "Sarah Olawuyi",
+      "email": "susa12993@gmail.com",
+      "activatedAt": "2026-04-08T10:50:37.327Z",
+      "references": [
+        "TX_1775629055423_29908",
+        "TX_1775628871341_31290"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775629055423_29908"
+    },
+    {
+      "role": "earner",
+      "userId": "kUJpI5JiDnfqELG5ouNlQWWsq5y2",
+      "name": "Edet Jumbo okon ",
+      "email": "edeto3671@gmail.com",
+      "activatedAt": "2026-04-08T10:59:49.908Z",
+      "references": [
+        "TX_1775645399406_76788",
+        "TX_1775645290331_7408",
+        "TX_1775936928752_32639"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775645399406_76788"
+    },
+    {
+      "role": "earner",
+      "userId": "3jV9uQ7HMQb3t31H0nGYwjSqrzw1",
+      "name": "Ozoekwem Chiadika Anthony ",
+      "email": "ozoekwemchiadika@gmail.com",
+      "activatedAt": "2026-04-08T11:41:43.719Z",
+      "references": [
+        "TX_1775605024153_59331",
+        "TX_1775603351248_15571",
+        "TX_1775603516297_71820",
+        "TX_1775603516298_19887",
+        "TX_1775603749068_89102",
+        "TX_1775603826139_48040"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775605024153_59331"
+    },
+    {
+      "role": "earner",
+      "userId": "EPY8AtDI1zUgpLVyZrRpiO1OZj72",
+      "name": "Goodness Taiwo",
+      "email": "r55uwheine@gmail.com",
+      "activatedAt": "2026-04-08T19:26:26.248Z",
+      "references": [
+        "TX_1775675342746_54892",
+        "TX_1775675126284_2515",
+        "TX_1775675172147_29196",
+        "TX_1775675172145_97248"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775675342746_54892"
+    },
+    {
+      "role": "earner",
+      "userId": "F5N7W9cCF8O2soLqgocYIlrgzqA2",
+      "name": "PATIENCE CHIKODI NWOKENKWO ",
+      "email": "patiencenwokenkwo@gmail.com",
+      "activatedAt": "2026-04-09T07:29:22.628Z",
+      "references": [
+        "TX_1775717137613_9350",
+        "TX_1775716154073_72703",
+        "TX_1775716312610_38917",
+        "TX_1775716668952_75952"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775717137613_9350"
+    },
+    {
+      "role": "earner",
+      "userId": "SbMkzhzdfMWKXq6zXpdZFaKH5Si1",
+      "name": "Johnisaac ",
+      "email": "isaacjohnassogba3@gmail.com",
+      "activatedAt": "2026-04-09T07:29:29.057Z",
+      "references": [
+        "TX_1775494347284_41222"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775494347284_41222"
+    },
+    {
+      "role": "earner",
+      "userId": "M5QufzLQaOVn1FxYwNSawSQpbAz1",
+      "name": "oluwagbemiga ransom",
+      "email": "oluwagbemigaransom14@gmail.com",
+      "activatedAt": "2026-04-09T10:56:28.732Z",
+      "references": [
+        "TX_1775732147957_19170",
+        "TX_1775731965652_3756",
+        "TX_1775731965652_94170",
+        "TX_1775731965652_10666",
+        "TX_1775732068510_42549",
+        "TX_1775732068511_10274",
+        "TX_1775495640971_65732"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775732147957_19170"
+    },
+    {
+      "role": "earner",
+      "userId": "utwGtATVKUWfa6SKRGhp1Gts0852",
+      "name": "Abubakar Adamu ",
+      "email": "youngkalee0@gmail.com",
+      "activatedAt": "2026-04-09T15:20:06.416Z",
+      "references": [
+        "TX_1775744838335_3638",
+        "TX_1775744094567_71622",
+        "TX_1775744120461_10856",
+        "TX_1775744310746_77102",
+        "TX_1775744496556_10650"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775744838335_3638"
+    },
+    {
+      "role": "earner",
+      "userId": "hC5KzWOiUahZxAkllWwI8cozQo62",
+      "name": "Salami Comfort Titilope ",
+      "email": "hassanomotayo14@gmail.com",
+      "activatedAt": "2026-04-10T08:36:15.908Z",
+      "references": [
+        "TX_1775808904410_72431",
+        "TX_1775808741814_61644"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775808904410_72431"
+    },
+    {
+      "role": "earner",
+      "userId": "tXNvI9mCmuOusPQkbrFX8eOPW8r1",
+      "name": "Sobayo Samuel Abiodun ",
+      "email": "samuelsobayo67@gmail.com",
+      "activatedAt": "2026-04-10T13:24:52.092Z",
+      "references": [
+        "TX_1775826421677_14559",
+        "TX_1775826196110_66688"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775826421677_14559"
+    },
+    {
+      "role": "earner",
+      "userId": "EREIOaBFKWTGggQiXp8pbhJ5gVx2",
+      "name": "Jabir Yusuf ",
+      "email": "jabiryusuf098@gmail.com",
+      "activatedAt": "2026-04-10T17:44:04.468Z",
+      "references": [
+        "TX_1775842135986_41134",
+        "TX_1775840510633_63142",
+        "TX_1775840549769_34783",
+        "TX_1775840572392_75041",
+        "TX_1775841604761_50856",
+        "TX_1775841659850_87347"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775842135986_41134"
+    },
+    {
+      "role": "earner",
+      "userId": "Soxz1sg75JTqNBzaEg2jP0jcaOT2",
+      "name": "Endurance Otemeh",
+      "email": "otemehendurance@gmail.com",
+      "activatedAt": "2026-04-10T21:21:55.545Z",
+      "references": [
+        "TX_1775851934977_66389",
+        "TX_1775850883093_5451",
+        "TX_1775850883102_22831",
+        "TX_1775850883102_53195",
+        "TX_1775850883102_41042",
+        "TX_1775850883102_74627",
+        "TX_1775850883102_33463",
+        "TX_1775850883102_67703",
+        "TX_1775851525964_26827",
+        "TX_1775851525965_85861",
+        "TX_1775851525965_7065",
+        "TX_1775851525965_20433",
+        "TX_1775851525965_58752"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775851934977_66389"
+    },
+    {
+      "role": "earner",
+      "userId": "YmqfcyMp83TvrqVpwcGjsVSWZ442",
+      "name": "Prosper Prince",
+      "email": "coleethan636@gmail.com",
+      "activatedAt": "2026-04-11T02:55:06.326Z",
+      "references": [
+        "TX_1775859340932_69905",
+        "TX_1775858504629_79098",
+        "TX_1775858504628_9232",
+        "TX_1775859340931_5682"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775859340932_69905"
+    },
+    {
+      "role": "earner",
+      "userId": "HvmFkIB1Tqf1PYN600fOYUwfJW73",
+      "name": "Peter Elizabeth Omomate",
+      "email": "elizabethpeter079@gmail.com",
+      "activatedAt": "2026-04-11T07:09:55.149Z",
+      "references": [
+        "MNFY|69|20260411080725|027292",
+        "MNFY|93|20260411162434|039472",
+        "TX_1775921070335_80773"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=MNFY%7C69%7C20260411080725%7C027292"
+    },
+    {
+      "role": "earner",
+      "userId": "7fnhuADiaqT63Sq2qIujjmVn22z1",
+      "name": "Chidinma Iheanacho Favour ",
+      "email": "chidinmafavour784@gmail.com",
+      "activatedAt": "2026-04-11T17:00:00.540Z",
+      "references": [
+        "TX_1775925966535_22337",
+        "TX_1775925674451_26459",
+        "TX_1775925674448_87185"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775925966535_22337"
+    },
+    {
+      "role": "earner",
+      "userId": "OpC2myA2ljaLSqyAGaMu3rhiHCE2",
+      "name": "Mobolaji Olabisi ",
+      "email": "bjalash@gmail.com",
+      "activatedAt": "2026-04-12T06:06:27.405Z",
+      "references": [
+        "TX_1775972916272_93567",
+        "TX_1775953068980_31260"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775972916272_93567"
+    },
+    {
+      "role": "earner",
+      "userId": "1kkQWINBTbQ5eyexvaCETrZrONL2",
+      "name": "JAHSWILL UCHECHUKE ABRAHAM",
+      "email": "abrahamjahswill020@gmail.com",
+      "activatedAt": "2026-04-12T06:06:36.906Z",
+      "references": [
+        "TX_1775952305726_79645",
+        "TX_1775952108655_89962"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775952305726_79645"
+    },
+    {
+      "role": "earner",
+      "userId": "wZAGqjJdnIb2h8uXCSpmtQisKMv1",
+      "name": "Chibueze Chibyke",
+      "email": "joachimchibueze748@gmail.com",
+      "activatedAt": "2026-04-12T06:06:58.335Z",
+      "references": [
+        "TX_1775951481547_8165",
+        "TX_1775951316712_25435",
+        "TX_1775951316710_88675",
+        "TX_1775951481544_67040"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775951481547_8165"
+    },
+    {
+      "role": "earner",
+      "userId": "QB56Cv1lvdf7pA96oDnSGwegDgq2",
+      "name": "Azeez Rukayah",
+      "email": "Abdulazeezrukky55@gmail.com",
+      "activatedAt": "2026-04-12T06:07:09.086Z",
+      "references": [
+        "TX_1775947515439_19640",
+        "TX_1775947123747_82245",
+        "TX_1775947316010_54965"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775947515439_19640"
+    },
+    {
+      "role": "earner",
+      "userId": "Ol1PYmtcgXbgt4KCFPtuZZU0k6f1",
+      "name": "Chigozie nwazuruike ",
+      "email": "doyouwantohear@gmail.com",
+      "activatedAt": "2026-04-12T06:07:21.216Z",
+      "references": [
+        "TX_1775946236124_86737",
+        "TX_1775946236125_50182"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775946236124_86737"
+    },
+    {
+      "role": "earner",
+      "userId": "5H2ORXUS4uUEW0rBtiWA8ljshs43",
+      "name": "Shola",
+      "email": "sholatogbe@gmail.com",
+      "activatedAt": "2026-04-12T10:17:16.591Z",
+      "references": [
+        "TX_1775945169534_98334",
+        "TX_1775945169533_97870",
+        "TX_1775945169534_60455",
+        "TX_1775945169534_55474",
+        "TX_1776017309468_21049"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775945169534_98334"
+    },
+    {
+      "role": "earner",
+      "userId": "OZao77DKK9U5OdGn8IoM6psviuo1",
+      "name": "Isah Yusuf Adomu",
+      "email": "adomu2022@gmail.com",
+      "activatedAt": "2026-04-12T10:17:17.573Z",
+      "references": [
+        "TX_1775989031893_58040",
+        "TX_1775989031891_82212",
+        "MNFY|42|20260412111738|066621",
+        "TX_1775989055922_48059",
+        "MNFY|95|20260412011750|049798",
+        "TX_1775953068980_31260"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775989031893_58040"
+    },
+    {
+      "role": "earner",
+      "userId": "QjmLqWXaKgfnOOmDl5vCsh9DTgK2",
+      "name": "Peter habila ",
+      "email": "habilapeter779@gmail.com",
+      "activatedAt": "2026-04-12T10:17:18.429Z",
+      "references": [
+        "TX_1775988915611_97359",
+        "TX_1775989049267_7124",
+        "TX_1775989049267_30382",
+        "TX_1775989049264_45925"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1775988915611_97359"
+    },
+    {
+      "role": "earner",
+      "userId": "iw7GX68fWheTvnsIwEILWz9RgeO2",
+      "name": "Olawumi Hanifat Olayinka ",
+      "email": "olawumihanifat23@gmail.com",
+      "activatedAt": "2026-04-12T16:58:10.471Z",
+      "references": [
+        "TX_1776004782764_98860",
+        "TX_1776004782763_56714"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776004782764_98860"
+    },
+    {
+      "role": "earner",
+      "userId": "vzNbJeM81jRSpVHA7KdTZOECocs2",
+      "name": "Vitalis buka",
+      "email": "ebukavitalis779@gmail.com",
+      "activatedAt": "2026-04-12T21:10:57.549Z",
+      "references": [
+        "TX_1776028108681_74104",
+        "TX_1776027508271_86326",
+        "TX_1776028108681_94649"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776028108681_74104"
+    },
+    {
+      "role": "earner",
+      "userId": "b9T1Yikx3gXewh4xoIZCuTvSd2I3",
+      "name": "Anthony Vera",
+      "email": "azzzzma53@gmail.com",
+      "activatedAt": "2026-04-12T21:54:16.175Z",
+      "references": [
+        "TX_1776029537256_64314",
+        "TX_1776029537256_19723",
+        "TX_1776039800787_33942"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776029537256_64314"
+    },
+    {
+      "role": "earner",
+      "userId": "b6ZJEnZHfeO4bPSZBwbOrUSEjJ23",
+      "name": "DAMILOLA OMOTOSO ",
+      "email": "adewoledamilola87@gmail.com",
+      "activatedAt": "2026-04-13T06:19:13.741Z",
+      "references": [
+        "TX_1776061033580_71219",
+        "TX_1776060168934_77050",
+        "TX_1776060466340_51396",
+        "TX_1776060495563_61040",
+        "TX_1776060549548_59873",
+        "TX_1776060568223_95014"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776061033580_71219"
+    },
+    {
+      "role": "earner",
+      "userId": "Xyw6hcVHl2NEJCEm0hG4l5sSP7n1",
+      "name": "Abiodun Oluwaseyi kolapo ",
+      "email": "princeabiodun268@gmail.com",
+      "activatedAt": "2026-04-13T10:35:03.190Z",
+      "references": [
+        "TX_1776071067020_73568",
+        "TX_1776071067019_51454"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776071067020_73568"
+    },
+    {
+      "role": "earner",
+      "userId": "bkMECP7gDjWZuDI1dpKogYpKL6z2",
+      "name": "FIDELIS NATHANIEL",
+      "email": "fidelisnathaniel15@gmail.com",
+      "activatedAt": "2026-04-13T13:10:22.647Z",
+      "references": [
+        "TX_1776082978823_35187"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776082978823_35187"
+    },
+    {
+      "role": "earner",
+      "userId": "pBIfJbTfKnbrsBZGxqqp3wLnM4b2",
+      "name": "Owojuyigbe Folakemi",
+      "email": "folaowojuyigbe@gmail.com",
+      "activatedAt": "2026-04-13T13:10:23.937Z",
+      "references": [
+        "TX_1776084086339_15882"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776084086339_15882"
+    },
+    {
+      "role": "earner",
+      "userId": "wIKztzEM5pN5WBrEr7xs6BJv8hh2",
+      "name": "Honey drop ",
+      "email": "oladipupooyinkansola866@gmail.com",
+      "activatedAt": "2026-04-13T13:10:25.102Z",
+      "references": [
+        "TX_1776085690367_50965"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776085690367_50965"
+    },
+    {
+      "role": "earner",
+      "userId": "R8wEADTQ2POqPnBg8dsG8cxNXCQ2",
+      "name": "Abdulwasiu Ramat omolewa ",
+      "email": "abdulwasiuramatomolewa@gmail.com",
+      "activatedAt": "2026-04-13T23:08:08.007Z",
+      "references": [
+        "TX_1776106079123_79961"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776106079123_79961"
+    },
+    {
+      "role": "earner",
+      "userId": "ZZCKT6buZ3Nq1T2fE1wqkvAIhh83",
+      "name": "PRAYER EZEDIALU",
+      "email": "prayerezedialu914@gmail.com",
+      "activatedAt": "2026-04-13T23:08:09.729Z",
+      "references": [
+        "TX_1776108226106_36145",
+        "TX_1775983911100_80541"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776108226106_36145"
+    },
+    {
+      "role": "earner",
+      "userId": "brtbF1TLFjWBZFsOQZlklCcoMLJ3",
+      "name": "Joshua kamsi",
+      "email": "joshuakamsi009@gmail.com",
+      "activatedAt": "2026-04-13T23:08:11.047Z",
+      "references": [
+        "TX_1776105927064_82812"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776105927064_82812"
+    },
+    {
+      "role": "earner",
+      "userId": "dl7vOGhuFnctqt8QpPZKR1R3EWl1",
+      "name": "Usman Muhammad",
+      "email": "um578447@gmail.com",
+      "activatedAt": "2026-04-13T23:08:12.350Z",
+      "references": [
+        "TX_1776112434207_81141"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776112434207_81141"
+    },
+    {
+      "role": "earner",
+      "userId": "R2d6fhBcOZNixKLM8cFqmamhSsE2",
+      "name": "Godgift Obasiya",
+      "email": "godgiftobasiya2@gmail.com",
+      "activatedAt": "2026-04-14T06:24:09.723Z",
+      "references": [
+        "TX_1776144906434_9546"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776144906434_9546"
+    },
+    {
+      "role": "earner",
+      "userId": "5RcgeVlCR9XVQAAWowPUsKjWdxT2",
+      "name": "Okedeji Femi Emmanuel",
+      "email": "femiokedeji@gmail.com",
+      "activatedAt": "2026-04-14T09:41:07.443Z",
+      "references": [
+        "TX_1776151346913_68621",
+        "TX_1776064547478_22189"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776151346913_68621"
+    },
+    {
+      "role": "earner",
+      "userId": "9rPswAKo4Wg8hdZY06nhvHN2GWz1",
+      "name": "Muhammad Usman Ahmad",
+      "email": "mahmed3196@gmail.com",
+      "activatedAt": "2026-04-14T09:41:08.563Z",
+      "references": [
+        "TX_1776148719513_28631"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776148719513_28631"
+    },
+    {
+      "role": "earner",
+      "userId": "fJlyZAnODBMEeOEZ0lBA5AWWzDx1",
+      "name": "Godday Osasere",
+      "email": "goddayosasere@gmail.com",
+      "activatedAt": "2026-04-14T09:41:09.668Z",
+      "references": [
+        "TX_1776159412442_96285",
+        "TX_1776153569583_90761",
+        "TX_1776153569582_83807",
+        "TX_1776153603402_69275",
+        "TX_1776153603401_93433",
+        "TX_1776159412441_14598"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776159412442_96285"
+    },
+    {
+      "role": "earner",
+      "userId": "zeCvTpTXSsQc1sVptfzDheKpBSD2",
+      "name": "Olalekan Oludiran ",
+      "email": "kvngtushie@gmail.com",
+      "activatedAt": "2026-04-14T09:41:10.818Z",
+      "references": [
+        "TX_1776149397186_74536"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776149397186_74536"
+    },
+    {
+      "role": "earner",
+      "userId": "7s1IvAhWXpMKZrU1JxlB4eOOJwi2",
+      "name": "Eddykesh ",
+      "email": "edwardfrancis866@gmail.com",
+      "activatedAt": "2026-04-14T10:35:03.328Z",
+      "references": [
+        "TX_1776162659703_8514",
+        "TX_1776162659702_24079"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776162659703_8514"
+    },
+    {
+      "role": "earner",
+      "userId": "UHl7Iyhc7oZ0XdRXsTnTFQItpK52",
+      "name": "Shittu Abdulbasit ",
+      "email": "shittubasit473@gmail.com",
+      "activatedAt": "2026-04-14T15:37:21.773Z",
+      "references": [
+        "TX_1776180771292_11030",
+        "TX_1776176798225_64573",
+        "TX_1776176798224_65098",
+        "TX_1776176798225_93052",
+        "TX_1776176798225_69117",
+        "TX_1776176798223_50745",
+        "TX_1776180771291_2957",
+        "MNFY|42|20260414163257|023027"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776180771292_11030"
+    },
+    {
+      "role": "earner",
+      "userId": "MIr5HSVCtIMor3DfpjEF2bYhEVH3",
+      "name": "Bamidele Franck",
+      "email": "franck.bams@gmail.com",
+      "activatedAt": "2026-04-14T16:49:18.999Z",
+      "references": [
+        "TX_1776185219979_8322",
+        "TX_1776184983258_7056"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776185219979_8322"
+    },
+    {
+      "role": "earner",
+      "userId": "BllOVJ0rNTOXjDPCALJyifXaK8G2",
+      "name": "Bliss Harrison",
+      "email": "ukaigwebliss2010@gmail.com",
+      "activatedAt": "2026-04-14T17:46:19.273Z",
+      "references": [
+        "TX_1776188607063_97183",
+        "TX_1776188495710_73102"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776188607063_97183"
+    },
+    {
+      "role": "earner",
+      "userId": "xQvKoyDAOhb9WOVjfqruif4Vnd33",
+      "name": "Solomon Nworie ",
+      "email": "nworiesolomon65@gmail.com",
+      "activatedAt": "2026-04-15T06:39:09.253Z",
+      "references": [
+        "TX_1776232788023_94601",
+        "TX_1776232592027_16943",
+        "TX_1776232592027_24829"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776232788023_94601"
+    },
+    {
+      "role": "earner",
+      "userId": "Ihbdru9bjVhHFnlN4SRNDLpNEs02",
+      "name": "Pearl Diepreye Reuben ",
+      "email": "pearlistic2001@gmail.com",
+      "activatedAt": "2026-04-20T17:58:33.232Z",
+      "references": [
+        "TX_1776707837182_44240",
+        "TX_1776707625604_35467",
+        "TX_1776707694147_51039"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1776707837182_44240"
+    },
+    {
+      "role": "earner",
+      "userId": "1t9L7IhTbXN5NqRxTeBSJQbCXzm2",
+      "name": "Emem Jack",
+      "email": "jackemem92@gmail.com",
+      "activatedAt": "2026-05-04T08:31:29.575Z",
+      "references": [
+        "TX_1777883285182_96400",
+        "TX_1777882885558_19895",
+        "TX_1777883115339_73793"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1777883285182_96400"
+    },
+    {
+      "role": "earner",
+      "userId": "nIytc7O8tGaw914pf07z4CyVsGE2",
+      "name": "Hope Ndifreke",
+      "email": "hopendifreke41@gmail.com",
+      "activatedAt": "2026-05-12T13:30:48.675Z",
+      "references": [
+        "TX_1778592508723_27974",
+        "TX_1778591966963_69778",
+        "TX_1778592018906_64148",
+        "TX_1778592266471_74104",
+        "TX_1778592410544_46345"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1778592508723_27974"
+    },
+    {
+      "role": "earner",
+      "userId": "9iPpsRQ1jYWSLAB6gdYVzWIWego1",
+      "name": "Enuesika Dennis Somadina",
+      "email": "truckscompany954@gmail.com",
+      "activatedAt": "2026-05-12T17:52:42.925Z",
+      "references": [
+        "TX_1778607383717_11763",
+        "TX_1776615255380_19255",
+        "TX_1778607088877_15470"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1778607383717_11763"
+    },
+    {
+      "role": "earner",
+      "userId": "Uk6TYVTVlmO3B3DnEXpSLSOdCmR2",
+      "name": "Odah benjamin",
+      "email": "odahbenjamin4@gmail.com",
+      "activatedAt": "2026-05-13T22:47:46.240Z",
+      "references": [
+        "TX_1778659957028_52395"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1778659957028_52395"
+    },
+    {
+      "role": "earner",
+      "userId": "uMJVWc1NTKVhvxZQT3dDfHhWSml2",
+      "name": "Joseph Enoch",
+      "email": "festus119229881@gmail.com",
+      "activatedAt": "2026-05-15T05:07:34.965Z",
+      "references": [
+        "TX_1778821443265_39137",
+        "TX_1778821137924_96026",
+        "TX_1778821260557_31831"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1778821443265_39137"
+    },
+    {
+      "role": "earner",
+      "userId": "nTGoOAmwjNQKtWHTVWqb9Qr9QFs1",
+      "name": "Adaeze Divine",
+      "email": "divineadaeze92@gmail.com",
+      "activatedAt": "2026-05-19T04:55:35.704Z",
+      "references": [
+        "TX_1779166476137_82222",
+        "TX_1779140004477_35783",
+        "TX_1779140064671_27633",
+        "TX_1779166128136_32770"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779166476137_82222"
+    },
+    {
+      "role": "earner",
+      "userId": "beGSZ6oEO2NpRc48qCDMIDLg3u32",
+      "name": "Balogun Korede",
+      "email": "balogunkorede2222@gmail.com",
+      "activatedAt": "2026-05-19T08:36:40.137Z",
+      "references": [
+        "TX_1779179518985_90324",
+        "TX_1779179377960_35680"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779179518985_90324"
+    },
+    {
+      "role": "earner",
+      "userId": "otUuwUaiAtcwXBsjaRg1mC0uwvC3",
+      "name": "Ekwulonu Helen Chimezirim ",
+      "email": "helchimex@yahoo.com",
+      "activatedAt": "2026-05-19T10:56:44.351Z",
+      "references": [
+        "TX_1779188070895_3041",
+        "TX_1779187942377_88496"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779188070895_3041"
+    },
+    {
+      "role": "earner",
+      "userId": "jfpdPYzxvDhPyyNzH9S0P85JzB93",
+      "name": "Isiaka yomi olaoshebikan ",
+      "email": "abayomiadewale365@gmail.com",
+      "activatedAt": "2026-05-19T13:13:43.219Z",
+      "references": [
+        "TX_1779196317461_97623",
+        "TX_1779194388481_80849",
+        "TX_1779196186316_1851",
+        "TX_1779196210886_69610"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779196317461_97623"
+    },
+    {
+      "role": "earner",
+      "userId": "o9AkKKbI3EVUT03PZ069qUbEg252",
+      "name": "Aregu, Agatha Danlami ",
+      "email": "areguagatha@gmail.com",
+      "activatedAt": "2026-05-19T17:54:35.744Z",
+      "references": [
+        "TX_1779213012414_84028",
+        "TX_1779212653677_26707",
+        "TX_1779212829417_40011",
+        "TX_1779212878802_19532"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779213012414_84028"
+    },
+    {
+      "role": "earner",
+      "userId": "F1tIPtPgxIantdbf5Xc5rvYudDa2",
+      "name": "Ganiyu Abdulmalik ",
+      "email": "abdulmalikayo287@gmail.com",
+      "activatedAt": "2026-05-19T19:40:49.324Z",
+      "references": [
+        "TX_1779219515099_16921",
+        "TX_1779219253150_25185"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779219515099_16921"
+    },
+    {
+      "role": "earner",
+      "userId": "ssNlQe75AlM0OpKyinjPdgibKvg1",
+      "name": "Abdulazeez Isah ",
+      "email": "abdulazizisah04@gmail.com",
+      "activatedAt": "2026-05-19T20:56:44.112Z",
+      "references": [
+        "TX_1779223940096_88412",
+        "TX_1779223634516_85224",
+        "TX_1779223696777_59571"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779223940096_88412"
+    },
+    {
+      "role": "earner",
+      "userId": "DCzCfpAnFYP0vm0RNFnE8znLJAX2",
+      "name": "Grace Moronfade ",
+      "email": "alexbalogun593@gmail.com",
+      "activatedAt": "2026-05-19T21:48:44.569Z",
+      "references": [
+        "TX_1779227231148_99759",
+        "TX_1779227058752_39817"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779227231148_99759"
+    },
+    {
+      "role": "earner",
+      "userId": "j6D1Ef5biVTCcXdnOfPfOCoydiw1",
+      "name": "Victor Nwachukwu",
+      "email": "selenacampos017@gmail.com",
+      "activatedAt": "2026-05-19T22:08:45.874Z",
+      "references": [
+        "TX_1779228416325_3131",
+        "TX_1779228272034_5927"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779228416325_3131"
+    },
+    {
+      "role": "earner",
+      "userId": "VyUTP4ZxX4Zxj9q4hC5H5ijh6Mg2",
+      "name": "Ogunwumi ojo samuel ",
+      "email": "ojojames934@gmail.com",
+      "activatedAt": "2026-05-20T10:49:57.000Z",
+      "references": [
+        "TX_1779274095761_83651",
+        "TX_1779273861829_46322",
+        "TX_1779274010956_93946"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779274095761_83651"
+    },
+    {
+      "role": "earner",
+      "userId": "aFgB8nqlJob2bLWi9rgeefwBlix1",
+      "name": "Godswill Jackson Monday ",
+      "email": "godswillmonday736@gmail.com",
+      "activatedAt": "2026-05-20T12:24:13.334Z",
+      "references": [
+        "TX_1779279527948_77357",
+        "TX_1779279181777_46939"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779279527948_77357"
+    },
+    {
+      "role": "earner",
+      "userId": "hkew6ysEMzO9SV5mLNIw1p3Uq2q2",
+      "name": "chidera ",
+      "email": "onumonuchidera1@gmail.com",
+      "activatedAt": "2026-05-20T12:54:17.536Z",
+      "references": [
+        "TX_1779281370860_89555",
+        "TX_1779281107397_1802"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779281370860_89555"
+    },
+    {
+      "role": "earner",
+      "userId": "1L49wh8rfnXvJrx48RnIY4wBc783",
+      "name": "Bei kem",
+      "email": "munonyedic22@gmail.com",
+      "activatedAt": "2026-05-20T14:12:26.884Z",
+      "references": [
+        "TX_1779286247957_27198",
+        "TX_1779285429005_77607",
+        "TX_1779285429004_16887",
+        "TX_1779286132347_21648"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779286247957_27198"
+    },
+    {
+      "role": "earner",
+      "userId": "AZb4jlDnnVaQ9ncYC8TJVzRB13G3",
+      "name": "Funkekeme Cameroon ",
+      "email": "funkekemecameroon247@gmail.com",
+      "activatedAt": "2026-05-21T06:52:07.180Z",
+      "references": [
+        "TX_1779346226698_21734",
+        "TX_1779219368269_68433",
+        "TX_1779284511124_74288",
+        "TX_1779344987712_99039",
+        "TX_1779345440222_75462"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779346226698_21734"
+    },
+    {
+      "role": "earner",
+      "userId": "iuyZnfaBYtOfpp8iucT7KHJpRbp1",
+      "name": "Rebecca ishaya peni",
+      "email": "beckyishaya31@gmail.com",
+      "activatedAt": "2026-05-21T06:58:08.264Z",
+      "references": [
+        "TX_1779346215105_56364",
+        "TX_1779344784294_37593"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779346215105_56364"
+    },
+    {
+      "role": "earner",
+      "userId": "9TfnSXEFTgXV7zLZO2ShuHg6gu12",
+      "name": "chibuike ",
+      "email": "chibuike4771@gmail.com",
+      "activatedAt": "2026-05-21T10:09:28.397Z",
+      "references": [
+        "TX_1779357508782_5819",
+        "TX_1779271972776_50418",
+        "TX_1779356924949_458",
+        "TX_1779357104893_5119"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779357508782_5819"
+    },
+    {
+      "role": "earner",
+      "userId": "24KhQW2w4ATU7k0jYCEPJ5LofZr1",
+      "name": "Adeyeye taiwo bosede ",
+      "email": "aygold988@gmail.com",
+      "activatedAt": "2026-05-21T20:26:17.618Z",
+      "references": [
+        "TX_1779394939167_89233",
+        "TX_1779394450824_62443",
+        "TX_1779394452690_76856",
+        "TX_1779394578148_30524",
+        "TX_1779394829307_6552"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779394939167_89233"
+    },
+    {
+      "role": "earner",
+      "userId": "87pvneITv9fkIaoz8TuiglAHH6f1",
+      "name": "Precious John aneke",
+      "email": "preciousemeka8499@gmail.com",
+      "activatedAt": "2026-05-22T08:26:38.353Z",
+      "references": [
+        "TX_1779438306959_25540",
+        "TX_1779436920835_69044",
+        "TX_1779438060997_3870"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779438306959_25540"
+    },
+    {
+      "role": "earner",
+      "userId": "1jgkM57MpLP142yEAcdrO6o2okv2",
+      "name": "Gift Ehi peter ",
+      "email": "pehi71355@gmail.com",
+      "activatedAt": "2026-05-23T16:06:28.978Z",
+      "references": [
+        "TX_1779548422291_24810",
+        "TX_1779548258578_11593"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779548422291_24810"
+    },
+    {
+      "role": "earner",
+      "userId": "G69jgXUXRHZKJfS7egsjzcs3mwG2",
+      "name": "Michael Adama ",
+      "email": "michaeladama482@gmail.com",
+      "activatedAt": "2026-05-23T19:56:30.581Z",
+      "references": [
+        "TX_1779566131695_22626",
+        "TX_1779565938057_59547"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779566131695_22626"
+    },
+    {
+      "role": "earner",
+      "userId": "11YVKYP055chqSYcVERFIqyG4r23",
+      "name": "Akiode Daniel ",
+      "email": "slicerdcff@gmail.com",
+      "activatedAt": "2026-05-26T21:33:27.012Z",
+      "references": [
+        "TX_1779797982595_81103",
+        "TX_1779797288229_63441",
+        "TX_1779797418999_96739",
+        "TX_1779797499084_76603",
+        "TX_1779797523599_39589",
+        "TX_1779797643576_5423",
+        "TX_1779797708184_98487"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779797982595_81103"
+    },
+    {
+      "role": "earner",
+      "userId": "4csTHKK3U1hQAb4BKTQkjqDWXsl2",
+      "name": "Nweke Ifeoma Ụgbala ",
+      "email": "ifeyras44@gmail.com",
+      "activatedAt": "2026-05-27T09:33:44.040Z",
+      "references": [
+        "TX_1779870705686_95220",
+        "TX_1779870285946_1213"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779870705686_95220"
+    },
+    {
+      "role": "earner",
+      "userId": "0kiuDaD0KANCjIbsUIPUNxyp0Js1",
+      "name": "David George ",
+      "email": "davidjosephchigozie@gmail.com",
+      "activatedAt": "2026-05-28T21:33:32.332Z",
+      "references": [
+        "TX_1779999753864_29324",
+        "TX_1779969798354_57936",
+        "TX_1779983302699_15248",
+        "TX_1779983489375_71456",
+        "TX_1779983621489_2639",
+        "TX_1779983768878_41395",
+        "TX_1779983895784_18989",
+        "TX_1779994289665_61006"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779999753864_29324"
+    },
+    {
+      "role": "earner",
+      "userId": "4axqBLoPW3S7RXnYOWmYShKNUK02",
+      "name": "Charles M. Oloworaran",
+      "email": "",
+      "activatedAt": "2026-05-28T21:33:34.441Z",
+      "references": [
+        "TX_1780002102205_33361",
+        "TX_1780001240632_69112",
+        "TX_1780001690407_2113"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780002102205_33361"
+    },
+    {
+      "role": "earner",
+      "userId": "2DxJevX90JcGcgzkhZRYrkScrTs2",
+      "name": "Goma Michael ",
+      "email": "joymargaret500@gmail.com",
+      "activatedAt": "2026-05-30T21:33:35.569Z",
+      "references": [
+        "TX_1780160525827_41466",
+        "TX_1780157898568_30050",
+        "TX_1780159640555_76907",
+        "TX_1780159722556_38052",
+        "TX_1780159777215_67112",
+        "TX_1780160082831_1282"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780160525827_41466"
+    },
+    {
+      "role": "earner",
+      "userId": "5W1MnhNDEKRwjTLf5GJJh3jzdyz1",
+      "name": "Samuel Edet Etinefio ",
+      "email": "harrysamuel080@gmail.com",
+      "activatedAt": "2026-06-02T20:45:24.711Z",
+      "references": [
+        "TX_1780432956262_68559",
+        "MNFY|68|20260602214303|004612",
+        "TX_1780432978652_80642"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780432956262_68559"
+    },
+    {
+      "role": "earner",
+      "userId": "C2fcp1F0frcaX9lCVqFfwkde8nl1",
+      "name": "Aisha Ahmed",
+      "email": "aishaahma002@gmail.com",
+      "activatedAt": "2026-06-02T23:19:28.811Z",
+      "references": [
+        "TX_1780442084393_79295",
+        "MNFY|91|20260603001841|009024",
+        "TX_1780442319696_87091"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780442084393_79295"
+    },
+    {
+      "role": "earner",
+      "userId": "8ZtCk37VGUcm8yPgsjk8qeAGQMs2",
+      "name": "Godwin samuel john",
+      "email": "godorns6@gmail.com",
+      "activatedAt": "2026-06-04T09:10:07.905Z",
+      "references": [
+        "TX_1780563837204_19233",
+        "MNFY|33|20260604100748|061594",
+        "TX_1780564064084_5108"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780563837204_19233"
+    },
+    {
+      "role": "earner",
+      "userId": "DmoM1slU75Mz6NHKOJ6BBUCfhnO2",
+      "name": "Kpaama Seth Bariela",
+      "email": "elasqueenunarrested@gmail.com",
+      "activatedAt": "2026-06-04T10:41:21.437Z",
+      "references": [
+        "TX_1780569277812_47053",
+        "MNFY|52|20260604113913|064120",
+        "TX_1780569549391_93991"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780569277812_47053"
+    },
+    {
+      "role": "earner",
+      "userId": "GC24htBk8Mdr965yCEzbuXiHqvJ3",
+      "name": "Umar Zainab Abdullahi",
+      "email": "zumar7635@gmail.com",
+      "activatedAt": "2026-06-04T16:11:20.716Z",
+      "references": [
+        "TX_1780584162203_28568",
+        "TX_1780583614956_8300",
+        "TX_1780583765574_9977",
+        "TX_1780583974791_82765"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780584162203_28568"
+    },
+    {
+      "role": "earner",
+      "userId": "79cPd2wWqkb104BaArLnoJA3Dbt2",
+      "name": "Bello Jeremiah O",
+      "email": "olabanjibelloj@gmail.com",
+      "activatedAt": "2026-06-04T16:12:42.379Z",
+      "references": [
+        "TX_1780587357288_29986",
+        "TX_1780587059739_69706",
+        "TX_1780587108553_2082"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780587357288_29986"
+    },
+    {
+      "role": "earner",
+      "userId": "0XZXE5MRaodcImBgs1AQpSt10ra2",
+      "name": "Emmanuel Friday Anyigor",
+      "email": "datb48966@gmail.com",
+      "activatedAt": "2026-06-04T16:13:02.473Z",
+      "references": [
+        "TX_1780588606954_53412",
+        "TX_1780587529430_49091",
+        "TX_1780587673916_46744",
+        "TX_1780587828418_84736"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780588606954_53412"
+    },
+    {
+      "role": "earner",
+      "userId": "BojGCBWF0iaDH3XsqifTFiIuUjF2",
+      "name": "Valentine Raymond ",
+      "email": "valentine00vbou@gmail.com",
+      "activatedAt": "2026-06-04T21:48:29.224Z",
+      "references": [
+        "TX_1780338571740_39713",
+        "TX_1780338289546_16130",
+        "TX_1780338377373_85410",
+        "MNFY|44|20260601192451|066059"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780338571740_39713"
+    },
+    {
+      "role": "earner",
+      "userId": "C3Ld73Kp1rXHoxLA3sEviXXv6b53",
+      "name": "John wike ",
+      "email": "favour254123@gmail.com",
+      "activatedAt": "2026-06-04T21:48:32.076Z",
+      "references": [
+        "TX_1780563383277_83466",
+        "TX_1779872200264_72449",
+        "TX_1779872462596_91363",
+        "TX_1779872668810_18130",
+        "TX_1779873518679_18249",
+        "TX_1779874451286_7911",
+        "TX_1779876967475_17784",
+        "TX_1779878833403_64961",
+        "TX_1779879504975_7366",
+        "TX_1779882274796_57121",
+        "TX_1779888391269_98290",
+        "TX_1779902514828_90298",
+        "TX_1779913350410_29191",
+        "TX_1779947180970_81337",
+        "TX_1779961983125_8885",
+        "TX_1780175091911_51759",
+        "MNFY|48|20260527100107|071627"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780563383277_83466"
+    },
+    {
+      "role": "earner",
+      "userId": "Dtxy1MSnTug3TUuuOHUPJjWXcvq2",
+      "name": "Elijah Aniedi Patrick ",
+      "email": "elijahpatrick875@gmail.com",
+      "activatedAt": "2026-06-04T21:48:37.052Z",
+      "references": [
+        "TX_1780003398624_23244",
+        "TX_1779987248069_76459",
+        "TX_1779987342997_3385",
+        "MNFY|22|20260528175410|132688"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780003398624_23244"
+    },
+    {
+      "role": "earner",
+      "userId": "Dvk1h0tr6adQeIWrKgIS208V1sf1",
+      "name": "Isaiah 7",
+      "email": "otina2298@gmail.com",
+      "activatedAt": "2026-06-04T21:48:39.365Z",
+      "references": [
+        "TX_1779964503615_20904",
+        "TX_1779957247628_30854",
+        "TX_1779963783670_20911",
+        "TX_1779963832103_67845",
+        "TX_1779964004274_6896",
+        "MNFY|26|20260528112354|119498"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779964503615_20904"
+    },
+    {
+      "role": "earner",
+      "userId": "NM5uY38KKMda9DTdiDzXEtpLUcT2",
+      "name": "Afeez ",
+      "email": "oyekanmiafeez259@gmail.com",
+      "activatedAt": "2026-06-04T21:49:05.219Z",
+      "references": [
+        "TX_1780162542635_17066",
+        "TX_1779793731605_92759",
+        "TX_1779793789611_59098",
+        "TX_1779793838210_92545",
+        "MNFY|14|20260526120953|029941",
+        "TX_1779794098048_52240",
+        "TX_1779990110296_59458",
+        "TX_1779990325853_70757",
+        "TX_1779991026150_19181",
+        "TX_1779991194059_89723",
+        "TX_1779991330016_55000",
+        "TX_1780047640105_57771",
+        "MNFY|88|20260528185708|130223"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780162542635_17066"
+    },
+    {
+      "role": "earner",
+      "userId": "UZ2pMaKKGkSLzi7MO52juvIKiMN2",
+      "name": "Kasarachi Joseph ",
+      "email": "chijiokebetter@yahoo.com",
+      "activatedAt": "2026-06-04T21:49:10.028Z",
+      "references": [
+        "TX_1779956985959_76271",
+        "TX_1779956713671_43385",
+        "MNFY|88|20260528092516|112293"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779956985959_76271"
+    },
+    {
+      "role": "earner",
+      "userId": "V7ViZPtepBeGWLRppX7AZibpno32",
+      "name": "Samuel nwabueze ",
+      "email": "samuelwilliams095@gmail.com",
+      "activatedAt": "2026-06-04T21:49:10.791Z",
+      "references": [
+        "TX_1780041119553_82800",
+        "TX_1780000479480_53565",
+        "TX_1780000699652_83871",
+        "TX_1780040003558_74524",
+        "MNFY|14|20260528213441|135671"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780041119553_82800"
+    },
+    {
+      "role": "earner",
+      "userId": "YvM8le4u5yf0hPTgMxBSIdXweRq2",
+      "name": "Godswill Anyak ",
+      "email": "angelojessemars@gmail.com",
+      "activatedAt": "2026-06-04T21:49:18.096Z",
+      "references": [
+        "TX_1780487242561_89021",
+        "TX_1780474517575_6212",
+        "TX_1780474863893_8158",
+        "TX_1780474971298_95012",
+        "MNFY|68|20260603091519|023856"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780487242561_89021"
+    },
+    {
+      "role": "earner",
+      "userId": "kqTaLlXtnwbh3K7cy9WEZXE91Wa2",
+      "name": "Victor Nwakudu",
+      "email": "vickkybrass@gmail.com",
+      "activatedAt": "2026-06-04T21:49:40.391Z",
+      "references": [
+        "TX_1780114938684_36617",
+        "TX_1780114115686_36704",
+        "TX_1780114340360_2865",
+        "TX_1780114449916_94153",
+        "TX_1780114720545_40890",
+        "TX_1780114809563_71639",
+        "TX_1780114910997_71467",
+        "MNFY|35|20260530050838|020909"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780114938684_36617"
+    },
+    {
+      "role": "earner",
+      "userId": "ktlKsK8OVVQo9n2UnmceX7hxX413",
+      "name": "Emi",
+      "email": "ermiekeyzodosa5960@gmail.com",
+      "activatedAt": "2026-06-04T21:49:40.739Z",
+      "references": [
+        "TX_1780333298460_61673",
+        "TX_1780329689990_79150",
+        "TX_1780330084371_84083",
+        "TX_1780330284099_4844",
+        "TX_1780330755658_53165",
+        "MNFY|48|20260601170133|060836"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780333298460_61673"
+    },
+    {
+      "role": "earner",
+      "userId": "rNMx8i9vj6Ml1Xcc87xrzbIAxpr1",
+      "name": "ikechukwu  Oscar Ogbonna",
+      "email": "oscaroike@gmail.com",
+      "activatedAt": "2026-06-04T21:49:53.366Z",
+      "references": [
+        "TX_1780079517975_34987",
+        "TX_1780078769620_43379",
+        "TX_1780079022822_92350",
+        "MNFY|07|20260529191932|005644"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780079517975_34987"
+    },
+    {
+      "role": "earner",
+      "userId": "rn8OQwEik0V8MmCpDdSG2OGdxAk1",
+      "name": "Igwe Juliet ",
+      "email": "igwej7403@gmail.com",
+      "activatedAt": "2026-06-04T21:49:54.547Z",
+      "references": [
+        "TX_1780313438024_62378",
+        "TX_1780308363363_74888",
+        "TX_1780308507697_52210",
+        "TX_1780308664710_63039",
+        "MNFY|43|20260601110605|063640"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780313438024_62378"
+    },
+    {
+      "role": "earner",
+      "userId": "sFFxAH6mLfgV8uSgcV5UgOekXno1",
+      "name": "Christiana Asuquo ",
+      "email": "tinaenobong@gmail.com",
+      "activatedAt": "2026-06-04T21:49:55.321Z",
+      "references": [
+        "TX_1780199647628_53158",
+        "TX_1780199363960_83210",
+        "TX_1780199562095_2863",
+        "MNFY|44|20260531044926|011354"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780199647628_53158"
+    },
+    {
+      "role": "earner",
+      "userId": "tlQi5wlTzjd2Noos9qKEgMjRzUF3",
+      "name": "OG billions",
+      "email": "ukachukwuchijiokemartins@gmail.com",
+      "activatedAt": "2026-06-04T21:50:00.400Z",
+      "references": [
+        "TX_1780253482905_39232",
+        "TX_1780225018931_83120",
+        "TX_1780252674395_91174",
+        "MNFY|73|20260531193757|030251"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780253482905_39232"
+    },
+    {
+      "role": "earner",
+      "userId": "trfIfAtlPaYahCNgdRYLyHTsOqs1",
+      "name": "Chinaeme Anselm Nwabunwanne ",
+      "email": "chinaemeanselm01@gmail.com",
+      "activatedAt": "2026-06-04T21:50:01.991Z",
+      "references": [
+        "TX_1780241753680_59928",
+        "TX_1779794487099_96266",
+        "TX_1779827918483_14705",
+        "TX_1779875228714_87619",
+        "TX_1779875435207_76075",
+        "TX_1780074658925_31126",
+        "MNFY|34|20260527104711|071149"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780241753680_59928"
+    },
+    {
+      "role": "earner",
+      "userId": "vUuxLFeW2eOsx52SjPx9dWauO0N2",
+      "name": "Otukupe Peter Eze ",
+      "email": "ezepeter199531@gmail.com",
+      "activatedAt": "2026-06-04T21:50:03.343Z",
+      "references": [
+        "TX_1779981068261_6510",
+        "TX_1779891271091_18307",
+        "TX_1779891452323_24910",
+        "TX_1779891537840_24987",
+        "TX_1779891635358_61692",
+        "MNFY|34|20260527151438|079685"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779981068261_6510"
+    },
+    {
+      "role": "earner",
+      "userId": "xIiHzy7OPfZGHCAmqXcrxQKj8v63",
+      "name": "Divine Okenna",
+      "email": "divineokenna105@gmail.com",
+      "activatedAt": "2026-06-04T21:50:09.639Z",
+      "references": [
+        "TX_1779794025115_76958",
+        "TX_1779793532161_93655",
+        "TX_1779793733923_76400",
+        "TX_1779793991830_99144",
+        "MNFY|14|20260526120536|029819"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1779794025115_76958"
+    },
+    {
+      "role": "earner",
+      "userId": "zz4yHxlFZsNlT8bHc5qWFWyBxHl2",
+      "name": "Victory chy ",
+      "email": "victorychyjude@gmail.com",
+      "activatedAt": "2026-06-04T21:50:16.477Z",
+      "references": [
+        "TX_1780340974931_49130",
+        "TX_1780008973693_79221",
+        "TX_1780009425077_5557",
+        "TX_1780009953297_31272",
+        "TX_1780010487590_6633",
+        "TX_1780033492745_2411",
+        "TX_1780057865237_29424",
+        "TX_1780062721867_69496",
+        "TX_1780065060648_68427",
+        "TX_1780120324710_47169",
+        "MNFY|70|20260528235617|141544"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780340974931_49130"
+    },
+    {
+      "role": "earner",
+      "userId": "IY2AmndXs5d8RIT2HD0pe4FiuC23",
+      "name": "Jonathan I John",
+      "email": "donezikky@gmail.com",
+      "activatedAt": "2026-06-06T17:16:28.789Z",
+      "references": [
+        "TX_1780766015826_95810",
+        "MNFY|30|20260606181429|047019",
+        "TX_1780766068142_49174"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780766015826_95810"
+    },
+    {
+      "role": "earner",
+      "userId": "irBfRo3QAaVv3n2FK0yxtlL1wbq1",
+      "name": "Mujahid Almustapha",
+      "email": "mujahidalmustapha57@gmail.com",
+      "activatedAt": "2026-06-06T19:56:37.838Z",
+      "references": [
+        "TX_1780775476032_83005",
+        "MNFY|73|20260606205119|034841",
+        "TX_1780775476034_14815"
+      ],
+      "monnifyStatus": null,
+      "verificationState": "unverified",
+      "verificationAttempt": "/api/v1/transactions/query?transactionReference=TX_1780775476032_83005"
+    }
+  ]
+}

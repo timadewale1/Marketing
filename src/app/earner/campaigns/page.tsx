@@ -189,7 +189,12 @@ export default function AvailableCampaignsPage() {
   }, [router]);
 
   const filteredCampaigns = campaigns
-    .filter((campaign) => Number(campaign.budget || 0) > 0)
+    .filter((campaign) => {
+      // Must have budget available to accommodate at least one more lead
+      const costPerLead = Number(campaign.costPerLead || 0);
+      const availableBudget = Number(campaign.budget || 0);
+      return costPerLead > 0 && availableBudget >= costPerLead;
+    })
     .filter((campaign) => filterType === "All" || campaign.category === filterType)
     .filter((campaign) => !participatedIds.includes(campaign.id));
   const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
