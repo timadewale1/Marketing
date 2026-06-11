@@ -338,12 +338,6 @@ export async function POST(req: Request): Promise<Response> {
   if (action === "deactivate_user") {
     if (userData.activated) {
       await reverseReferralBonusesForUser(dbAdmin, admin, userId)
-      if (role === "earner") {
-        const subsSnap = await dbAdmin.collection("earnerSubmissions").where("userId", "==", userId).get()
-        for (const subDoc of subsSnap.docs) {
-          await reverseSubmissionForDeactivation(dbAdmin, admin, subDoc.ref, subDoc.data() as SubmissionRecord, adminSession.uid)
-        }
-      }
       await deleteActivationFeeTransactions(dbAdmin, role, userId)
     }
 

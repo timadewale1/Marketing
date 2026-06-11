@@ -276,14 +276,8 @@ async function deactivateUser(db, adminModule, userId, adminUid) {
 
   if (!role || !userRef) return { found: false }
 
-  if (userData.activated) {
+    if (userData.activated) {
     await reverseReferralBonusesForUser(db, adminModule, userId)
-    if (role === "earner") {
-      const subsSnap = await db.collection("earnerSubmissions").where("userId", "==", userId).get()
-      for (const subDoc of subsSnap.docs) {
-        await reverseSubmissionForDeactivation(db, adminModule, subDoc.ref, subDoc.data() || {}, adminUid)
-      }
-    }
     await deleteActivationFeeTransactions(db, role, userId)
   }
 
