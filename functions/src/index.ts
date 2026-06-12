@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/scheduler";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
@@ -48,6 +48,39 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
 
 export const retryPendingMonnifyPayments = onSchedule("every 6 hours", async () => {
   await callInternalRoute("/api/internal/recovery-sweep");
+});
+
+// Trigger recovery when a NEW wallet funding transaction is CREATED with pending status
+export const wakeRecoveryOnCreatedWalletFunding = onDocumentCreated("advertiserTransactions/{transactionId}", async (event) => {
+  const data = event.data?.data() as Record<string, unknown> | undefined;
+
+  if (!data) return;
+
+  const type = String(data.type || "").toLowerCase();
+  const status = String(data.status || "").toLowerCase();
+
+  // If this is a NEW wallet_funding transaction with pending status, trigger recovery immediately
+  if (type === "wallet_funding" && status === "pending") {
+    console.log(`[trigger] Detected NEW pending wallet funding: ${event.params.transactionId}, triggering immediate recovery`);
+    await callInternalRoute("/api/internal/recovery-sweep");
+    return;
+  }
+});
+
+// Trigger recovery when a NEW activation attempt is CREATED with pending status
+export const wakeRecoveryOnCreatedActivation = onDocumentCreated("activationAttempts/{attemptId}", async (event) => {
+  const data = event.data?.data() as Record<string, unknown> | undefined;
+
+  if (!data) return;
+
+  const status = String(data.status || "").toLowerCase();
+
+  // If this is a NEW activation attempt with pending status, trigger recovery immediately
+  if (status === "pending") {
+    console.log(`[trigger] Detected NEW pending activation: ${event.params.attemptId}, triggering immediate recovery`);
+    await callInternalRoute("/api/internal/recovery-sweep");
+    return;
+  }
 });
 
 async function wakeRecoverySweepIfNeeded(beforeData: Record<string, unknown> | undefined, afterData: Record<string, unknown> | undefined) {
