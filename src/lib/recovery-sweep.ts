@@ -156,7 +156,6 @@ async function verifyProviderPaymentState(reference: string, provider: PaymentPr
     const state = payload?.requestSuccessful ? resolveMonnifyVerificationState(payload) : "unverified"
     console.log(`[recovery-sweep] Monnify verification for ${reference}: ${state}`, {
       requestSuccessful: payload?.requestSuccessful,
-      paymentStatus: payload?.responseBody?.paymentStatus || payload?.responseBody?.status,
     })
     return state
   } catch (error) {
@@ -442,6 +441,25 @@ export async function runRecoverySweep() {
     if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
     if (!candidate.attemptDocId) continue
+
+    // NEW: For first-time checks (retryCount === 0), add a small delay to give payment provider time to confirm
+    if (candidate.retryCount === 0) {
+      console.log(`[recovery-sweep] First check for activation ${candidate.id}: deferring 90 seconds to allow payment confirmation`, {
+        references: candidate.references,
+        provider: candidate.provider,
+      })
+      const attemptRef = dbAdmin.collection("activationAttempts").doc(candidate.attemptDocId)
+      await attemptRef.set({
+        lastRecoveryCheckedAt: new Date(),
+        recoveryRetryCount: 0,
+        recoveryDisposition: "scheduled",
+        nextRecoveryCheckAt: new Date(Date.now() + 90000), // 90 seconds
+        updatedAt: new Date(),
+      }, { merge: true })
+      activationDeferred += 1
+      continue
+    }
+
     activationChecked += 1
     // ⚠️ CRITICAL: Only process if payment provider confirms PAID status
     if (candidate.verificationState !== "paid") {
@@ -543,6 +561,26 @@ export async function runRecoverySweep() {
   for (const candidate of walletCandidates) {
     if (candidate.autoChecksLocked) continue
     if (candidate.nextCheckAt && candidate.nextCheckAt.getTime() > Date.now()) continue
+
+    // NEW: For first-time checks (retryCount === 0), add a small delay to give payment provider time to confirm
+    if (candidate.retryCount === 0) {
+      console.log(`[recovery-sweep] First check for wallet funding ${candidate.id}: deferring 90 seconds to allow payment confirmation`, {
+        references: candidate.references,
+        provider: candidate.provider,
+        amount: candidate.amount,
+      })
+      const txRef = dbAdmin.collection("advertiserTransactions").doc(candidate.id)
+      await txRef.set({
+        lastRecoveryCheckedAt: new Date(),
+        recoveryRetryCount: 0,
+        recoveryDisposition: "scheduled",
+        nextRecoveryCheckAt: new Date(Date.now() + 90000), // 90 seconds
+        updatedAt: new Date(),
+      }, { merge: true })
+      walletDeferred += 1
+      continue
+    }
+
     walletChecked += 1
     // ⚠️ CRITICAL: Only process if payment provider confirms PAID status
     if (candidate.verificationState !== "paid") {
