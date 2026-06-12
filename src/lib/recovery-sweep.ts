@@ -239,6 +239,8 @@ export async function runRecoverySweep() {
     buildSuccessfulWebhookReferences(dbAdmin),
   ])
 
+  console.log(`[recovery-sweep] Initial query results: ${pendingWalletSnap.docs.length} pending wallet, ${activationAttemptsSnap.docs.length} pending activations`)
+
   if (pendingWalletSnap.empty && activationAttemptsSnap.empty) {
     await logPaymentLifecycle({
       scope: "recovery",
@@ -282,11 +284,36 @@ export async function runRecoverySweep() {
     const data = doc.data()
     const userId = String(data.userId || "")
     const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
-    if (!userId || !role) continue
+    
+    // Log filtering details for debugging
+    if (!userId || !role) {
+      console.log(`[recovery-sweep] Skipping activationAttempt ${doc.id}: missing userId or role`, {
+        docId: doc.id,
+        userId,
+        rawRole: data.role,
+        role,
+        hasUserId: !!data.userId,
+        hasRole: !!data.role,
+        status: data.status
+      })
+      continue
+    }
+    
     const key = `${role}:${userId}`
     const previous = activationAttemptsByUser.get(key)
     const references = normalizeReferences([data.reference, ...(Array.isArray(data.references) ? data.references : [])])
-    if (references.length === 0 && !previous) continue
+    
+    if (references.length === 0 && !previous) {
+      console.log(`[recovery-sweep] Skipping activationAttempt ${doc.id}: no payment reference`, {
+        docId: doc.id,
+        userId,
+        role,
+        reference: data.reference,
+        references: data.references,
+        status: data.status
+      })
+      continue
+    }
 
       activationAttemptsByUser.set(key, {
         docId: doc.id,
