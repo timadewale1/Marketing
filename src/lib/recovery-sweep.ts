@@ -146,13 +146,21 @@ async function verifyProviderPaymentState(reference: string, provider: PaymentPr
   if (!reference) return "unverified"
 
   if (provider === "paystack") {
-    return (await verifyPaystackPayment(reference)) ? "paid" : "unverified"
+    const result = (await verifyPaystackPayment(reference)) ? "paid" : "unverified"
+    console.log(`[recovery-sweep] Paystack verification for ${reference}: ${result}`)
+    return result
   }
 
   try {
     const payload = await verifyMonnifyTransaction(reference)
-    return payload?.requestSuccessful ? resolveMonnifyVerificationState(payload) : "unverified"
-  } catch {
+    const state = payload?.requestSuccessful ? resolveMonnifyVerificationState(payload) : "unverified"
+    console.log(`[recovery-sweep] Monnify verification for ${reference}: ${state}`, {
+      requestSuccessful: payload?.requestSuccessful,
+      paymentStatus: payload?.responseBody?.paymentStatus || payload?.responseBody?.status,
+    })
+    return state
+  } catch (error) {
+    console.error(`[recovery-sweep] Monnify verification failed for ${reference}`, error)
     return "unverified"
   }
 }
@@ -500,6 +508,15 @@ export async function runRecoverySweep() {
       references: candidate.references,
       retryCount: nextRetryCount,
       firstSeenAt,
+    })
+
+    console.log(`[recovery-sweep] Updating activation deferral: ${candidate.attemptDocId}`, {
+      userId: candidate.id,
+      references: candidate.references,
+      verificationState: candidate.verificationState,
+      retryCount: nextRetryCount,
+      escalate,
+      autoChecksLocked,
     })
 
     await attemptRef.set({
