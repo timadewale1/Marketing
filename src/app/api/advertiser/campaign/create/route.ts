@@ -37,8 +37,17 @@ export async function POST(req: Request) {
     }
 
     const budget = Number(campaignData.budget || 0)
+    const category = String(campaignData.category || '')
+    const externalLink = String(campaignData.externalLink || '').trim()
+    const mediaUrl = String(campaignData.mediaUrl || '').trim()
     if (!budget || budget <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid campaign budget' }, { status: 400 })
+    }
+    if (category === 'Social media live task' && !externalLink && !mediaUrl) {
+      return NextResponse.json({
+        success: false,
+        message: 'For Social media live task, add at least a link or an image.',
+      }, { status: 400 })
     }
     const baseCostPerLead = Number(campaignData.baseCostPerLead || campaignData.costPerLead || 0)
     const priorityMultiplierRaw = Number(campaignData.priorityMultiplier || 1)

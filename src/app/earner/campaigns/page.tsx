@@ -29,6 +29,7 @@ type Campaign = {
 
 const TASK_TYPES = [
   "Video",
+  "Social media live task",
   "Share my Product",
   "other website tasks",
   "Survey",

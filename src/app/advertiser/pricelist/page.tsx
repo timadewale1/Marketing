@@ -10,6 +10,7 @@ export default function AdvertiserPriceListPage() {
   // canonical task types and CPL map (should match create-campaign)
   const CPL_MAP: Record<string, number> = {
     Video: 100,
+    "Social media live task": 1000,
     "Share my Product": 150,
     "other website tasks": 100,
     Survey: 100,

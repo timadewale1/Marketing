@@ -26,6 +26,7 @@ import {
 
 type CampaignType =
   | "Video"
+  | "Social media live task"
   | "Share my Product"
   | "WhatsApp Status"
   | "WhatsApp Group Join"
@@ -54,6 +55,7 @@ const STEPS = ["Details", "Upload Task Link", "Budget", "Review & Pay"] as const
 const CPL_MAP: Record<CampaignType, number> = {
   // Advertiser price (NGN). Earner gets half of this amount.
   Video: 100,
+    "Social media live task": 1000,
     "Share my Product": 150,
     "other website tasks": 100,
     Survey: 100,
@@ -264,6 +266,7 @@ const compressed = await imageCompression(file, options)
     if (step === 1) {
       if (category === "Video") return videoLink.trim().length > 5 
       if (category === "Share my Product") return productLink.trim().length > 5
+      if (category === "Social media live task") return externalLink.trim().length > 5 || mediaUrl.trim().length > 5
       if (["Survey", "other website tasks", "App Download"].includes(category))
         return externalLink.trim().length > 5
       return true
@@ -865,6 +868,50 @@ const getEmbeddedVideo = (url: string) => {
                 />
               )}
 
+              {category === "Social media live task" && (
+                <div className="space-y-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                  <div>
+                    <label className="text-sm font-medium text-stone-700 block mb-2">Live task link (optional)</label>
+                    <Input
+                      placeholder="Enter link (https://...)"
+                      value={externalLink}
+                      onChange={(e) => setExternalLink(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-stone-700 block mb-2">Live task image (optional)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm border border-stone-300 rounded px-3 py-2 cursor-pointer bg-white"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        setLoading(true)
+                        try {
+                          const compressed = await compressImage(file)
+                          const filename = `social-live-${Date.now()}-${file.name.replace(/\s+/g, "-")}`
+                          const storagePath = `campaignSocialLive/${auth.currentUser?.uid}/${filename}`
+                          uploadFile(compressed, storagePath, (url) => {
+                            setMediaUrl(url)
+                            toast.success("Image uploaded")
+                          })
+                        } catch (error) {
+                          console.error("Social media live image upload failed:", error)
+                          toast.error("Image upload failed")
+                          setLoading(false)
+                          setUploadProgress(null)
+                        }
+                      }}
+                    />
+                    {mediaUrl ? (
+                      <p className="text-xs text-stone-500 mt-1">Image attached successfully.</p>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-stone-500">At least one is required: link or image.</p>
+                </div>
+              )}
+
               {/* For social tasks and simple link-based tasks show a generic task link / handle input */}
               {[
                 'Instagram Follow','Instagram Like','Instagram Share',
@@ -1169,6 +1216,25 @@ const getEmbeddedVideo = (url: string) => {
                 >
                   View Product
                 </a>
+              )}
+              {category === "Social media live task" && (
+                <div className="mt-2 space-y-2">
+                  {externalLink ? (
+                    <a
+                      className="text-amber-600 underline block break-all"
+                      href={externalLink}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open live link
+                    </a>
+                  ) : null}
+                  {mediaUrl ? (
+                    <div className="relative h-44 w-full overflow-hidden rounded-xl border border-stone-200">
+                      <Image src={mediaUrl} alt="Social media live task image" fill className="object-cover" />
+                    </div>
+                  ) : null}
+                </div>
               )}
 
               <div className="mt-4 space-y-3 rounded-[24px] border border-stone-200 bg-stone-50/80 p-5">
