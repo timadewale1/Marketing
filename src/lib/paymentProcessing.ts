@@ -25,14 +25,29 @@ export async function processPendingActivationReferrals(
   admin: typeof import('firebase-admin'),
   userId: string
 ) {
+  // Query by referred user only, then filter in-memory so we don't miss
+  // legacy/inconsistent docs where status/bonus flags were not updated cleanly.
   const refsSnap = await adminDb.collection('referrals')
     .where('referredId', '==', userId)
-    .where('status', '==', 'pending')
+    .limit(50)
     .get()
 
-  console.log(`[activation][retry] processing ${refsSnap.size} referrals for ${userId}`)
+  const referralDocs = refsSnap.docs.filter((doc) => {
+    const data = doc.data() as {
+      bonusPaid?: boolean
+      status?: string
+      condition?: string
+    }
+    if (data.bonusPaid === true) return false
+    const condition = String(data.condition || 'activation').toLowerCase()
+    if (condition !== 'activation') return false
+    const status = String(data.status || '').toLowerCase()
+    return status === 'pending' || status === '' || status === 'processing' || status === 'incomplete'
+  })
 
-  for (const rDoc of refsSnap.docs) {
+  console.log(`[activation][retry] processing ${referralDocs.length} referrals for ${userId}`)
+
+  for (const rDoc of referralDocs) {
     const referral = rDoc.data() as {
       amount?: number | string
       referrerId?: string
@@ -42,76 +57,98 @@ export async function processPendingActivationReferrals(
     if (!referrerId || bonus <= 0) continue
 
     try {
-      await adminDb.runTransaction(async (t) => {
-        const referralRef = adminDb.collection('referrals').doc(rDoc.id)
-        const snap = await t.get(referralRef)
-        if (!snap.exists || snap.data()?.status !== 'pending') return
+      let processed = false
+      let lastError: unknown = null
+      for (let attempt = 1; attempt <= 3 && !processed; attempt += 1) {
+        try {
+          await adminDb.runTransaction(async (t) => {
+            const referralRef = adminDb.collection('referrals').doc(rDoc.id)
+            const snap = await t.get(referralRef)
+            const referralData = snap.data() as { status?: string; bonusPaid?: boolean } | undefined
+            if (!snap.exists || referralData?.bonusPaid === true) {
+              processed = true
+              return
+            }
 
-        const advRef = adminDb.collection('advertisers').doc(referrerId)
-        const earnerRef = adminDb.collection('earners').doc(referrerId)
-        const [advSnap, earnerSnap] = await Promise.all([t.get(advRef), t.get(earnerRef)])
-        const referrerCollection = advSnap.exists ? 'advertisers' : earnerSnap.exists ? 'earners' : null
-        if (!referrerCollection) return
+            const advRef = adminDb.collection('advertisers').doc(referrerId)
+            const earnerRef = adminDb.collection('earners').doc(referrerId)
+            const [advSnap, earnerSnap] = await Promise.all([t.get(advRef), t.get(earnerRef)])
+            const referrerCollection = advSnap.exists ? 'advertisers' : earnerSnap.exists ? 'earners' : null
+            if (!referrerCollection) {
+              processed = true
+              return
+            }
 
-        await awardPointsInTransaction({
-          adminDb,
-          admin,
-          transaction: t,
-          userCollection: referrerCollection,
-          userId: referrerId,
-          amount: REFERRAL_ACTIVATED_POINTS,
-          eventId: getPointsEventId('referral-activated', rDoc.id),
-          type: 'referral_activated',
-          note: `Referral activation bonus for referring ${userId}`,
-          referenceId: userId,
-          extraUserUpdates: {
-            pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
-            pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          extraLedgerData: {
-            referralId: rDoc.id,
-            referredUserId: userId,
-          },
-        })
+            await awardPointsInTransaction({
+              adminDb,
+              admin,
+              transaction: t,
+              userCollection: referrerCollection,
+              userId: referrerId,
+              amount: REFERRAL_ACTIVATED_POINTS,
+              eventId: getPointsEventId('referral-activated', rDoc.id),
+              type: 'referral_activated',
+              note: `Referral activation bonus for referring ${userId}`,
+              referenceId: userId,
+              extraUserUpdates: {
+                pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
+                pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              extraLedgerData: {
+                referralId: rDoc.id,
+                referredUserId: userId,
+              },
+            })
 
-        t.update(referralRef, {
-          status: 'completed',
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          bonusPaid: true,
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
-          paidAmount: bonus,
-        })
+            t.update(referralRef, {
+              status: 'completed',
+              completedAt: admin.firestore.FieldValue.serverTimestamp(),
+              bonusPaid: true,
+              paidAt: admin.firestore.FieldValue.serverTimestamp(),
+              paidAmount: bonus,
+            })
 
-        const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
-        const recoveryResult = await applyRecoveryAwareCreditInTransaction({
-          adminDb,
-          admin,
-          transaction: t,
-          userCollection: referrerCollection,
-          userId: referrerId,
-          amount: bonus,
-          transactionCollection: referrerTxCollection,
-          recoveryNote: `Automatic recovery deduction from a previous reversal`,
-          transactionType: 'balance_recovery_deduction',
-          transactionExtras: {
-            referralId: rDoc.id,
-            referredUserId: userId,
-          },
-        })
+            const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+            const recoveryResult = await applyRecoveryAwareCreditInTransaction({
+              adminDb,
+              admin,
+              transaction: t,
+              userCollection: referrerCollection,
+              userId: referrerId,
+              amount: bonus,
+              transactionCollection: referrerTxCollection,
+              recoveryNote: `Automatic recovery deduction from a previous reversal`,
+              transactionType: 'balance_recovery_deduction',
+              transactionExtras: {
+                referralId: rDoc.id,
+                referredUserId: userId,
+              },
+            })
 
-        t.set(adminDb.collection(referrerTxCollection).doc(), {
-          userId: referrerId,
-          type: 'referral_bonus',
-          amount: bonus,
-          netAmount: recoveryResult.netCredited,
-          recoveryOffsetApplied: recoveryResult.offsetApplied,
-          status: 'completed',
-          note: `Referral bonus for referring ${userId}`,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          referralId: rDoc.id,
-          referredUserId: userId,
-        })
-      })
+            t.set(adminDb.collection(referrerTxCollection).doc(), {
+              userId: referrerId,
+              type: 'referral_bonus',
+              amount: bonus,
+              netAmount: recoveryResult.netCredited,
+              recoveryOffsetApplied: recoveryResult.offsetApplied,
+              status: 'completed',
+              note: `Referral bonus for referring ${userId}`,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              referralId: rDoc.id,
+              referredUserId: userId,
+            })
+          })
+          processed = true
+        } catch (error) {
+          lastError = error
+          if (attempt < 3) {
+            await new Promise((resolve) => setTimeout(resolve, attempt * 500))
+          }
+        }
+      }
+      if (!processed && lastError) {
+        throw lastError
+      }
 
       await adminDb.runTransaction(async (weeklyTransaction) => {
         const weeklyAdvRef = adminDb.collection('advertisers').doc(referrerId)

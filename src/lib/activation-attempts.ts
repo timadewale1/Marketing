@@ -54,16 +54,16 @@ export async function recordActivationAttempt({
     reference: primaryReference,
     references: admin.firestore.FieldValue.arrayUnion(...allReferences),
     pendingReference: primaryReference,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
     attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Recovery sweep fields - initialize to defaults for first-time processing
+    retryCount: 0,
     recoveryRetryCount: 0,
-    lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
-    lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
-    nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
-    recoveryDisposition: admin.firestore.FieldValue.delete(),
-    recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
-    recoveryEscalationReason: admin.firestore.FieldValue.delete(),
-    recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
+    verificationState: null,
+    nextRecoveryCheckAt: null,
+    recoveryDisposition: null,
+    recoveryAutoChecksLocked: false,
   }, { merge: true })
 }
 

@@ -55,7 +55,14 @@ export async function POST(req: Request) {
         status: "pending",
         note: `Wallet funding initiated via ${provider}`,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Recovery fields - initialize to defaults
+        retryCount: 0,
         recoveryRetryCount: 0,
+        verificationState: null,
+        nextRecoveryCheckAt: null,
+        recoveryDisposition: null,
+        recoveryAutoChecksLocked: false,
       })
     } else {
       await existingPendingSnap.docs[0].ref.set({
@@ -63,14 +70,13 @@ export async function POST(req: Request) {
         provider,
         reference,
         referenceCandidates: [reference],
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Recovery fields - initialize to defaults (don't delete)
         recoveryRetryCount: 0,
-        lastRecoveryCheckedAt: admin.firestore.FieldValue.delete(),
-        lastRecoveryVerificationState: admin.firestore.FieldValue.delete(),
-        nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
-        recoveryDisposition: admin.firestore.FieldValue.delete(),
-        recoveryEscalatedAt: admin.firestore.FieldValue.delete(),
-        recoveryEscalationReason: admin.firestore.FieldValue.delete(),
-        recoveryAutoChecksLocked: admin.firestore.FieldValue.delete(),
+        verificationState: null,
+        nextRecoveryCheckAt: null,
+        recoveryDisposition: null,
+        recoveryAutoChecksLocked: false,
       }, { merge: true })
     }
 

@@ -35,12 +35,12 @@ export async function GET(req: NextRequest) {
 
     console.log('[process-pending-referrals] Starting pending referral processing...')
 
-    // Get all pending referrals
+    // Pull pending referrals; filter bonusPaid in memory so legacy docs
+    // with missing/dirty flags don't get stuck forever.
     const pendingReferralsSnap = await dbAdmin
       .collection('referrals')
       .where('status', '==', 'pending')
-      .where('bonusPaid', '==', false)
-      .limit(100)
+      .limit(300)
       .get()
 
     console.log(`[process-pending-referrals] Found ${pendingReferralsSnap.size} pending referrals to process`)
@@ -60,6 +60,11 @@ export async function GET(req: NextRequest) {
     for (const referralDoc of pendingReferralsSnap.docs) {
       const referral = referralDoc.data() as Referral
       const { referrerId, referredId, amount } = referral
+
+      if ((referralDoc.data() as { bonusPaid?: boolean }).bonusPaid === true) {
+        skipped++
+        continue
+      }
 
       if (!referrerId || !referredId || (amount || 0) <= 0) {
         console.warn(`[process-pending-referrals] Skipping invalid referral ${referralDoc.id}`)
