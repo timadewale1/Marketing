@@ -15,12 +15,12 @@ type ProcessedWebhookRecord = {
 
 const TX_ONLY_MAX_AUTO_RETRIES = 3
 const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
-const RECOVERY_SWEEP_BATCH_LIMIT = 50
+const RECOVERY_SWEEP_BATCH_LIMIT = 300
 
 const MONNIFY_MAX_AUTO_RETRIES = 6
 const MONNIFY_MAX_AUTO_AGE_MS = 36 * 60 * 60 * 1000
 const RECOVERY_AUTO_CHECK_LIMIT = 4
-const RECOVERY_AUTO_RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
+const RECOVERY_AUTO_RECHECK_INTERVAL_MS = 15 * 60 * 1000
 
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {

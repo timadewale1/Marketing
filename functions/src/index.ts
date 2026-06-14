@@ -79,9 +79,32 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
   await callInternalRoute("/api/internal/auto-verify-submissions");
 });
 
-export const retryPendingMonnifyPayments = onSchedule("every 6 hours", async () => {
+export const retryPendingMonnifyPayments = onSchedule("every 30 minutes", async () => {
   await callInternalRoute("/api/internal/recovery-sweep");
 });
+
+function normalizeReferences(values: unknown[]) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function referencesChanged(beforeData: Record<string, unknown> | undefined, afterData: Record<string, unknown> | undefined) {
+  const beforeRefs = normalizeReferences([
+    beforeData?.reference,
+    ...(Array.isArray(beforeData?.referenceCandidates) ? beforeData?.referenceCandidates : []),
+    ...(Array.isArray(beforeData?.references) ? beforeData?.references : []),
+    beforeData?.pendingReference,
+  ]);
+  const afterRefs = normalizeReferences([
+    afterData?.reference,
+    ...(Array.isArray(afterData?.referenceCandidates) ? afterData?.referenceCandidates : []),
+    ...(Array.isArray(afterData?.references) ? afterData?.references : []),
+    afterData?.pendingReference,
+  ]);
+
+  if (afterRefs.length !== beforeRefs.length) return true;
+  const beforeSet = new Set(beforeRefs);
+  return afterRefs.some((ref) => !beforeSet.has(ref));
+}
 
 // Trigger recovery when a NEW wallet funding transaction is CREATED with pending status
 export const wakeRecoveryOnCreatedWalletFunding = onDocumentCreated("advertiserTransactions/{transactionId}", async (event) => {
@@ -137,8 +160,10 @@ export const wakeRecoveryOnPendingWalletFunding = onDocumentUpdated("advertiserT
   const afterStatus = String(afterData?.status || "").toLowerCase();
   const type = String(afterData?.type || "").toLowerCase();
 
-  // If this is a wallet_funding transaction that just became pending, trigger recovery immediately
-  if (type === "wallet_funding" && afterStatus === "pending" && beforeStatus !== "pending") {
+  const refsDidChange = referencesChanged(beforeData, afterData);
+
+  // Trigger recovery when wallet funding becomes pending OR when new reference data arrives while pending.
+  if (type === "wallet_funding" && afterStatus === "pending" && (beforeStatus !== "pending" || refsDidChange)) {
     console.log(`[trigger] Detected new pending wallet funding: ${event.params.transactionId}, triggering immediate recovery`);
     await callInternalRoute("/api/internal/recovery-sweep");
     return;
@@ -158,8 +183,10 @@ export const wakeRecoveryOnPendingActivation = onDocumentUpdated("activationAtte
   const beforeStatus = String(beforeData?.status || "").toLowerCase();
   const afterStatus = String(afterData?.status || "").toLowerCase();
 
-  // If this is an activation attempt that just became pending, trigger recovery immediately
-  if (afterStatus === "pending" && beforeStatus !== "pending") {
+  const refsDidChange = referencesChanged(beforeData, afterData);
+
+  // Trigger recovery when activation becomes pending OR when new reference data arrives while pending.
+  if (afterStatus === "pending" && (beforeStatus !== "pending" || refsDidChange)) {
     console.log(`[trigger] Detected new pending activation: ${event.params.attemptId}, triggering immediate recovery`);
     await callInternalRoute("/api/internal/recovery-sweep");
     return;
