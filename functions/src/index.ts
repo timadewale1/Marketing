@@ -1,8 +1,41 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/scheduler";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onRequest } from "firebase-functions/v2/https";
+import nodemailer from "nodemailer";
 
 admin.initializeApp();
+
+let smtpTransporter: nodemailer.Transporter | null = null;
+
+function getSmtpTransporter() {
+  if (smtpTransporter) return smtpTransporter;
+
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
+  const smtpService = process.env.SMTP_SERVICE || "gmail";
+
+  if (!smtpUser || !smtpPass) {
+    throw new Error("SMTP_USER and SMTP_PASS are required");
+  }
+
+  smtpTransporter =
+    smtpHost && smtpPort
+      ? nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: { user: smtpUser, pass: smtpPass },
+        })
+      : nodemailer.createTransport({
+          service: smtpService,
+          auth: { user: smtpUser, pass: smtpPass },
+        });
+
+  return smtpTransporter;
+}
 
 const APP_BASE_URL =
   process.env.APP_BASE_URL ||
@@ -148,4 +181,54 @@ export const wakeRecoveryOnWalletReview = onDocumentUpdated("advertiserTransacti
     event.data?.before.exists ? (event.data.before.data() as Record<string, unknown>) : undefined,
     event.data?.after.exists ? (event.data.after.data() as Record<string, unknown>) : undefined
   );
+});
+
+export const mailerApi = onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({ success: false, message: "Method not allowed" });
+    return;
+  }
+
+  const expectedSecret = String(process.env.MAILER_API_SECRET || "").trim();
+  if (!expectedSecret) {
+    res.status(500).json({ success: false, message: "MAILER_API_SECRET is not configured" });
+    return;
+  }
+
+  const incomingSecret = String(req.headers["x-mailer-secret"] || "").trim();
+  if (!incomingSecret || incomingSecret !== expectedSecret) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+
+  const body = (req.body || {}) as { to?: string; subject?: string; html?: string };
+  const to = String(body.to || "").trim();
+  const subject = String(body.subject || "").trim();
+  const html = String(body.html || "").trim();
+  const from = String(process.env.SMTP_FROM || "").trim();
+
+  if (!to || !subject || !html) {
+    res.status(400).json({ success: false, message: "to, subject, and html are required" });
+    return;
+  }
+
+  if (!from) {
+    res.status(500).json({ success: false, message: "SMTP_FROM is not configured" });
+    return;
+  }
+
+  try {
+    const transporter = getSmtpTransporter();
+    const result = await transporter.sendMail({ from, to, subject, html });
+    res.status(200).json({
+      success: true,
+      messageId: result.messageId || null,
+      accepted: Array.isArray(result.accepted) ? result.accepted.length : 0,
+      rejected: Array.isArray(result.rejected) ? result.rejected.length : 0,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[mailerApi] send failed", { to, subject, error: message });
+    res.status(500).json({ success: false, message });
+  }
 });

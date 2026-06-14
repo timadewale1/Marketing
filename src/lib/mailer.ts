@@ -5,6 +5,8 @@ const SMTP_SERVICE = process.env.SMTP_SERVICE || 'gmail'
 const SMTP_USER = process.env.SMTP_USER
 const SMTP_PASS = process.env.SMTP_PASS
 const SMTP_FROM = process.env.SMTP_FROM
+const MAILER_API_URL = process.env.MAILER_API_URL
+const MAILER_API_SECRET = process.env.MAILER_API_SECRET
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.pambaadverts.com'
 const ADMIN_INBOX_EMAIL = process.env.ADMIN_INBOX_EMAIL || 'pambaadverts@gmail.com'
 
@@ -119,6 +121,24 @@ async function sendEmail({
   subject: string
   html: string
 }) {
+  if (MAILER_API_URL) {
+    const response = await fetch(MAILER_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(MAILER_API_SECRET ? { 'x-mailer-secret': MAILER_API_SECRET } : {}),
+      },
+      body: JSON.stringify({ to, subject, html }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || payload?.success === false) {
+      throw new Error(payload?.message || `Mailer API request failed with status ${response.status}`)
+    }
+
+    return payload
+  }
+
   const transporter = await getTransporter()
   if (!transporter) {
     throw new Error('SMTP transporter not available')
