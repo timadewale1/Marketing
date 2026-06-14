@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, doc, limit, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, limit, onSnapshot, query, where } from "firebase/firestore";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { Card } from "@/components/ui/card";
@@ -127,7 +127,11 @@ export default function AvailableCampaignsPage() {
     }
 
     const liveCampaignsQuery = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(150));
-    const unsubCampaigns = onSnapshot(liveCampaignsQuery, (snapshot) => {
+    const unsubCampaigns = onSnapshot(liveCampaignsQuery, { includeMetadataChanges: true }, (snapshot) => {
+      // Avoid rendering stale cached campaign states that can briefly show exhausted tasks.
+      if (snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+        return;
+      }
       const mapped = snapshot.docs.map((campaignDoc) => {
         const data = campaignDoc.data() as Partial<Campaign>;
         return {
@@ -191,10 +195,12 @@ export default function AvailableCampaignsPage() {
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
-      // Must have budget available to accommodate at least one more lead
+      // Must have net available budget (total budget minus reserved submissions)
       const costPerLead = Number(campaign.costPerLead || 0);
-      const availableBudget = Number(campaign.budget || 0);
-      return costPerLead > 0 && availableBudget >= costPerLead;
+      const totalBudget = Number(campaign.budget || 0);
+      const reservedBudget = Number(campaign.reservedBudget || 0);
+      const netAvailableBudget = totalBudget - reservedBudget;
+      return costPerLead > 0 && netAvailableBudget >= costPerLead;
     })
     .filter((campaign) => filterType === "All" || campaign.category === filterType)
     .filter((campaign) => !participatedIds.includes(campaign.id));
@@ -357,7 +363,7 @@ export default function AvailableCampaignsPage() {
 
                           <div className="mt-5 flex flex-wrap items-center gap-3">
                             <Button
-                              onClick={() => {
+                              onClick={async () => {
                                 const user = auth.currentUser;
                                 if (!user) {
                                   toast.error("Please login to participate in tasks");
@@ -371,6 +377,29 @@ export default function AvailableCampaignsPage() {
                                 if (!activated) {
                                   toast.error("Please pay your one-time membership fee before performing tasks.");
                                   router.push("/earner/transactions");
+                                  return;
+                                }
+                                try {
+                                  const freshSnap = await getDoc(doc(db, "campaigns", campaign.id));
+                                  if (!freshSnap.exists()) {
+                                    toast.error("This task is no longer available.");
+                                    setCampaigns((prev) => prev.filter((item) => item.id !== campaign.id));
+                                    return;
+                                  }
+                                  const fresh = freshSnap.data() as Partial<Campaign>;
+                                  const freshStatus = String(fresh.status || "");
+                                  const freshCost = Number(fresh.costPerLead || 0);
+                                  const freshBudget = Number(fresh.budget || 0);
+                                  const freshReserved = Number(fresh.reservedBudget || 0);
+                                  const freshNetAvailable = freshBudget - freshReserved;
+                                  if (freshStatus !== "Active" || freshCost <= 0 || freshNetAvailable < freshCost) {
+                                    toast.error("This task budget is exhausted.");
+                                    setCampaigns((prev) => prev.filter((item) => item.id !== campaign.id));
+                                    return;
+                                  }
+                                } catch (error) {
+                                  console.error("Failed to confirm task availability:", error);
+                                  toast.error("Could not confirm task availability. Please try again.");
                                   return;
                                 }
                                 router.push(`/earner/campaigns/${campaign.id}`);

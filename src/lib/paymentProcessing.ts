@@ -4,7 +4,7 @@ import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/a
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
-import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel } from '@/lib/referral-rewards'
+import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel, getReferralActivationBonusAmount } from '@/lib/referral-rewards'
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
@@ -35,14 +35,12 @@ export async function processPendingActivationReferrals(
   const referralDocs = refsSnap.docs.filter((doc) => {
     const data = doc.data() as {
       bonusPaid?: boolean
-      status?: string
       condition?: string
     }
     if (data.bonusPaid === true) return false
     const condition = String(data.condition || 'activation').toLowerCase()
     if (condition !== 'activation') return false
-    const status = String(data.status || '').toLowerCase()
-    return status === 'pending' || status === '' || status === 'processing' || status === 'incomplete'
+    return true
   })
 
   console.log(`[activation][retry] processing ${referralDocs.length} referrals for ${userId}`)
@@ -52,7 +50,8 @@ export async function processPendingActivationReferrals(
       amount?: number | string
       referrerId?: string
     }
-    const bonus = Number(referral.amount || 0)
+    const rawBonus = Number(referral.amount || 0)
+    const bonus = rawBonus > 0 ? rawBonus : getReferralActivationBonusAmount()
     const referrerId = String(referral.referrerId || '').trim()
     if (!referrerId || bonus <= 0) continue
 
