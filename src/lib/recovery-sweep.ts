@@ -15,12 +15,13 @@ type ProcessedWebhookRecord = {
 
 const TX_ONLY_MAX_AUTO_RETRIES = 3
 const TX_ONLY_MAX_AUTO_AGE_MS = 12 * 60 * 60 * 1000
-const RECOVERY_SWEEP_BATCH_LIMIT = 300
+const RECOVERY_SWEEP_BATCH_LIMIT = 50
+const RECOVERY_SOURCE_SCAN_LIMIT = 500
 
 const MONNIFY_MAX_AUTO_RETRIES = 6
 const MONNIFY_MAX_AUTO_AGE_MS = 36 * 60 * 60 * 1000
 const RECOVERY_AUTO_CHECK_LIMIT = 4
-const RECOVERY_AUTO_RECHECK_INTERVAL_MS = 15 * 60 * 1000
+const RECOVERY_AUTO_RECHECK_INTERVAL_MS = 5 * 60 * 1000
 
 function serializeDate(value: unknown) {
   if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
@@ -240,15 +241,27 @@ export async function runRecoverySweep() {
     source: "recovery-sweep",
   })
 
-  const [pendingWalletSnap, activationAttemptsSnap, successfulWebhookReferences] = await Promise.all([
-    dbAdmin.collection("advertiserTransactions").where("type", "==", "wallet_funding").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
-    dbAdmin.collection("activationAttempts").where("status", "==", "pending").limit(RECOVERY_SWEEP_BATCH_LIMIT).get(),
+  const [latestWalletSourceSnap, latestActivationSourceSnap, successfulWebhookReferences] = await Promise.all([
+    dbAdmin.collection("advertiserTransactions").orderBy("createdAt", "desc").limit(RECOVERY_SOURCE_SCAN_LIMIT).get(),
+    dbAdmin.collection("activationAttempts").orderBy("createdAt", "desc").limit(RECOVERY_SOURCE_SCAN_LIMIT).get(),
     buildSuccessfulWebhookReferences(dbAdmin),
   ])
 
-  console.log(`[recovery-sweep] Initial query results: ${pendingWalletSnap.docs.length} pending wallet, ${activationAttemptsSnap.docs.length} pending activations`)
+  const pendingWalletDocs = latestWalletSourceSnap.docs
+    .filter((doc) => {
+      const data = doc.data()
+      return String(data.type || "").toLowerCase() === "wallet_funding" &&
+        String(data.status || "").toLowerCase() === "pending"
+    })
+    .slice(0, RECOVERY_SWEEP_BATCH_LIMIT)
 
-  if (pendingWalletSnap.empty && activationAttemptsSnap.empty) {
+  const pendingActivationDocs = latestActivationSourceSnap.docs
+    .filter((doc) => String(doc.data().status || "").toLowerCase() === "pending")
+    .slice(0, RECOVERY_SWEEP_BATCH_LIMIT)
+
+  console.log(`[recovery-sweep] Initial query results (latest only): ${pendingWalletDocs.length} pending wallet, ${pendingActivationDocs.length} pending activations`)
+
+  if (pendingWalletDocs.length === 0 && pendingActivationDocs.length === 0) {
     await logPaymentLifecycle({
       scope: "recovery",
       status: "retry_completed",
@@ -287,7 +300,7 @@ export async function runRecoverySweep() {
     autoChecksLocked: boolean
   }>()
 
-  for (const doc of activationAttemptsSnap.docs) {
+  for (const doc of pendingActivationDocs) {
     const data = doc.data()
     const userId = String(data.userId || "")
     const role = String(data.role || "") === "advertiser" ? "advertiser" : String(data.role || "") === "earner" ? "earner" : null
@@ -403,7 +416,7 @@ export async function runRecoverySweep() {
   )).filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
 
   const walletCandidates = (await Promise.all(
-    pendingWalletSnap.docs.map(async (txDoc) => {
+    pendingWalletDocs.map(async (txDoc) => {
       const data = txDoc.data()
       const advertiserId = String(data.userId || "")
       if (!advertiserId) return null
