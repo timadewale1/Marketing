@@ -78,6 +78,15 @@ export async function processPendingActivationReferrals(
               return
             }
 
+            const referrerRef = referrerCollection === 'advertisers' ? advRef : earnerRef
+            const referrerSnap = referrerCollection === 'advertisers' ? advSnap : earnerSnap
+            const referrerData = referrerSnap.data() || {}
+            const pendingRecovery = Math.max(0, Number(referrerData.pendingBalanceRecovery || 0))
+            const offsetApplied = Math.min(pendingRecovery, bonus)
+            const netCredited = Math.max(0, bonus - offsetApplied)
+            const remainingDebt = Math.max(0, pendingRecovery - offsetApplied)
+            const timestamp = admin.firestore.FieldValue.serverTimestamp()
+
             await awardPointsInTransaction({
               adminDb,
               admin,
@@ -101,38 +110,52 @@ export async function processPendingActivationReferrals(
 
             t.update(referralRef, {
               status: 'completed',
-              completedAt: admin.firestore.FieldValue.serverTimestamp(),
+              completedAt: timestamp,
               bonusPaid: true,
-              paidAt: admin.firestore.FieldValue.serverTimestamp(),
+              paidAt: timestamp,
               paidAmount: bonus,
             })
 
             const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
-            const recoveryResult = await applyRecoveryAwareCreditInTransaction({
-              adminDb,
-              admin,
-              transaction: t,
-              userCollection: referrerCollection,
-              userId: referrerId,
-              amount: bonus,
-              transactionCollection: referrerTxCollection,
-              recoveryNote: `Automatic recovery deduction from a previous reversal`,
-              transactionType: 'balance_recovery_deduction',
-              transactionExtras: {
+            if (offsetApplied > 0) {
+              t.set(adminDb.collection(referrerTxCollection).doc(), {
+                userId: referrerId,
+                type: 'balance_recovery_deduction',
+                amount: -offsetApplied,
+                status: 'completed',
+                note: 'Automatic recovery deduction from a previous reversal',
+                createdAt: timestamp,
+                recoveredAmount: offsetApplied,
+                source: 'balance_recovery',
                 referralId: rDoc.id,
                 referredUserId: userId,
-              },
-            })
+              })
+            }
+
+            const userUpdates: Record<string, unknown> = {
+              updatedAt: timestamp,
+            }
+            if (netCredited > 0) {
+              userUpdates.balance = admin.firestore.FieldValue.increment(netCredited)
+            }
+            if (remainingDebt > 0) {
+              userUpdates.pendingBalanceRecovery = remainingDebt
+              userUpdates.pendingBalanceRecoveryUpdatedAt = timestamp
+            } else if (pendingRecovery > 0) {
+              userUpdates.pendingBalanceRecovery = admin.firestore.FieldValue.delete()
+              userUpdates.pendingBalanceRecoveryUpdatedAt = admin.firestore.FieldValue.delete()
+            }
+            t.update(referrerRef, userUpdates)
 
             t.set(adminDb.collection(referrerTxCollection).doc(), {
               userId: referrerId,
               type: 'referral_bonus',
               amount: bonus,
-              netAmount: recoveryResult.netCredited,
-              recoveryOffsetApplied: recoveryResult.offsetApplied,
+              netAmount: netCredited,
+              recoveryOffsetApplied: offsetApplied,
               status: 'completed',
               note: `Referral bonus for referring ${userId}`,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              createdAt: timestamp,
               referralId: rDoc.id,
               referredUserId: userId,
             })

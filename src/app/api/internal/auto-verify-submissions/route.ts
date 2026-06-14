@@ -278,6 +278,17 @@ export async function GET(request: Request) {
           const userId = String(submission.userId || '')
           if (!userId) throw new Error('Submission missing userId')
 
+          const earnerRef = adminDb.collection('earners').doc(userId)
+          const liveEarnerSnap = await t.get(earnerRef)
+          const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
+          const earnerCurrentBalance = Number(liveEarnerData?.balance || 0)
+          const earnerIsActivated = Boolean(liveEarnerData?.activated)
+          const shouldAutoActivate =
+            !earnerIsActivated &&
+            earnerCurrentBalance + earnerAmount >= EARNER_AUTO_ACTIVATION_THRESHOLD
+          const activationDeduction = shouldAutoActivate ? EARNER_AUTO_ACTIVATION_THRESHOLD : 0
+          const netEarning = earnerAmount - activationDeduction
+
           await awardPointsInTransaction({
             adminDb,
             admin,
@@ -337,17 +348,6 @@ export async function GET(request: Request) {
             campaignUpdates.status = 'Completed'
           }
           t.update(campaignRef, campaignUpdates)
-
-          const earnerRef = adminDb.collection('earners').doc(userId)
-          const liveEarnerSnap = await t.get(earnerRef)
-          const liveEarnerData = liveEarnerSnap.data() as { balance?: number; activated?: boolean } | undefined
-          const earnerCurrentBalance = Number(liveEarnerData?.balance || 0)
-          const earnerIsActivated = Boolean(liveEarnerData?.activated)
-          const shouldAutoActivate =
-            !earnerIsActivated &&
-            earnerCurrentBalance + earnerAmount >= EARNER_AUTO_ACTIVATION_THRESHOLD
-          const activationDeduction = shouldAutoActivate ? EARNER_AUTO_ACTIVATION_THRESHOLD : 0
-          const netEarning = earnerAmount - activationDeduction
 
           const earnerTxRef = adminDb.collection('earnerTransactions').doc()
           t.set(earnerTxRef, {

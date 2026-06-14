@@ -91,6 +91,11 @@ function normalizeWebhookText(value: unknown) {
   return String(value || '').trim().toUpperCase()
 }
 
+function toSafeNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 function isSuccessfulMonnifyCollection(eventType: unknown, eventData: Record<string, unknown> | null | undefined) {
   const normalizedEventType = normalizeWebhookText(eventType)
   const paymentStatus = normalizeWebhookText(eventData?.paymentStatus || eventData?.status)
@@ -135,6 +140,8 @@ export async function POST(req: NextRequest) {
 
     if (isSuccessfulMonnifyCollection(eventType, eventData)) {
       const { reference, status, amount, transactionReference } = eventData
+      const safeAmount = toSafeNumber(amount, 0)
+      const effectiveReference = String(reference || transactionReference || '')
       const paymentStatus = normalizeWebhookText(eventData?.paymentStatus || status)
       const customerEmail = String(
         (eventData?.customer && typeof eventData.customer === 'object'
@@ -142,7 +149,7 @@ export async function POST(req: NextRequest) {
           : '') || ''
       ).trim().toLowerCase()
       const referenceCandidates = extractMonnifyReferenceCandidates(
-        String(reference || ''),
+        effectiveReference,
         eventData as Record<string, unknown>,
         typeof transactionReference === 'string' ? transactionReference : null
       )
@@ -153,14 +160,14 @@ export async function POST(req: NextRequest) {
         amount,
       })
       await logPaymentLifecycle({
-        scope: Number(amount || 0) >= 2000 ? 'activation' : 'wallet_funding',
+        scope: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
         status: 'webhook_received',
         source: 'webhooks/monnify/transaction',
         provider: 'monnify',
         email: customerEmail,
-        reference: String(reference || ''),
+        reference: effectiveReference,
         references: referenceCandidates,
-        amount: Number(amount || 0),
+        amount: safeAmount,
         details: { webhookStatus: String(status || ''), eventType: String(eventType || '') },
       })
 
@@ -183,13 +190,13 @@ export async function POST(req: NextRequest) {
 
           // Mark as processing to prevent concurrent processing
           await dbAdmin.collection('processedWebhooks').doc().set({
-            reference: referenceCandidates[0] || String(reference || ''),
+            reference: referenceCandidates[0] || effectiveReference,
             referenceCandidates,
             eventType: 'TRANSACTION_COMPLETION',
             sourceEventType: normalizedEventType,
             status: paymentStatus || normalizeWebhookText(status) || null,
             paymentStatus: paymentStatus || null,
-            amount,
+            amount: safeAmount,
             transactionReference: transactionReference || null,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
           })
@@ -290,7 +297,7 @@ export async function POST(req: NextRequest) {
                       email: customerEmail,
                       reference: referenceCandidates[0] || String(reference || ''),
                       references: referenceCandidates,
-                      amount: Number(amount || 0),
+                      amount: safeAmount,
                     })
                     console.log('[webhook][monnify][transaction] activation processed successfully')
                 } catch (activationError) {
@@ -314,7 +321,7 @@ export async function POST(req: NextRequest) {
                       email: customerEmail,
                       reference: referenceCandidates[0] || String(reference || ''),
                       references: referenceCandidates,
-                      amount: Number(amount || 0),
+                      amount: safeAmount,
                     })
                     console.log('[webhook][monnify][transaction] activation processed successfully')
                   } catch (activationError) {
@@ -363,7 +370,7 @@ export async function POST(req: NextRequest) {
                           email: customerEmail,
                           reference: referenceCandidates[0] || String(reference || ''),
                           references: referenceCandidates,
-                          amount: Number(amount || 0),
+                          amount: safeAmount,
                           details: { attemptId: activationAttemptDoc.id },
                         })
                         console.log('[webhook][monnify][transaction] activation processed successfully from attempt record')
@@ -391,7 +398,7 @@ export async function POST(req: NextRequest) {
         reference,
         transactionReference,
         status,
-        amount,
+        amount: safeAmount,
       })
     }
 
