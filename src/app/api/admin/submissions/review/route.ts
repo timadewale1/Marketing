@@ -44,7 +44,10 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
   }
   const adminDb = firebaseAdmin.dbAdmin
-  const admin = await import('firebase-admin')
+  const admin = firebaseAdmin.admin
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
+  }
   const now = new Date()
   const cleanupEligibleAt = getProofCleanupEligibleAt(now)
   const adminUid = req.headers.get('x-admin-uid') || 'system'
@@ -306,7 +309,7 @@ export async function POST(req: Request): Promise<Response> {
         if (campaignId) {
           campaignRef = adminDb.collection('campaigns').doc(campaignId)
           campaignSnap = await t.get(campaignRef)
-          campaign = campaignSnap.exists ? campaignSnap.data() as Campaign : null
+          campaign = campaignSnap && campaignSnap.exists ? campaignSnap.data() as Campaign : null
           advertiserId = String(submission.advertiserId || campaign?.ownerId || '') || undefined
         } else {
           advertiserId = submission.advertiserId ? String(submission.advertiserId) : undefined

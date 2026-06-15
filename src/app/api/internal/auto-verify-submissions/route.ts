@@ -44,7 +44,10 @@ export async function GET(request: Request) {
   }
 
   const adminDb = firebaseAdmin.dbAdmin
-  const admin = await import('firebase-admin')
+  const admin = firebaseAdmin.admin
+  if (!admin) {
+    return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
+  }
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWENTY_FOUR_HOURS_MS)
 
   try {
