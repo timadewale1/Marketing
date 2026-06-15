@@ -60,63 +60,49 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
       try {
         const serviceAccount = JSON.parse(serviceAccountEnv);
         
-        // Validate the parsed service account object
-        if (!serviceAccount || typeof serviceAccount !== 'object') {
-          throw new Error('Service account is not a valid object')
-        }
-        
-        if (!serviceAccount.private_key || !serviceAccount.client_email) {
-          throw new Error('Service account missing required fields: private_key or client_email')
-        }
-        
-        // Validate credential module exists and can create cert
-        if (!adminApi.credential || typeof adminApi.credential.cert !== 'function') {
-          console.warn('Firebase-admin credential module not available from env var, will try GOOGLE_APPLICATION_CREDENTIALS')
-          // Fall through to GOOGLE_APPLICATION_CREDENTIALS
-        } else {
-          const certCredential = adminApi.credential.cert(serviceAccount)
-          if (!certCredential) {
-            throw new Error('Failed to create credential from service account')
+        // Try to initialize with credential from service account
+        try {
+          if (adminApi.credential && typeof adminApi.credential.cert === 'function') {
+            const certCredential = adminApi.credential.cert(serviceAccount)
+            if (certCredential && (adminApi.getApps?.() || []).length === 0) {
+              adminApi.initializeApp?.({
+                credential: certCredential,
+                storageBucket,
+              })
+              dbAdmin = admin.firestore()
+              return { admin, dbAdmin }
+            }
           }
-          
+        } catch (credErr) {
+          console.warn('Could not use credential.cert(), will try without explicit credential:', credErr)
+        }
+
+        // If credential.cert didn't work, try initializing without it (will use application default)
+        try {
           if ((adminApi.getApps?.() || []).length === 0) {
-            adminApi.initializeApp?.({
-              credential: certCredential,
-              storageBucket,
-            })
+            adminApi.initializeApp?.({ storageBucket })
           }
           dbAdmin = admin.firestore()
+          console.log('Firebase initialized from FIREBASE_SERVICE_ACCOUNT_KEY env with default credentials')
           return { admin, dbAdmin }
+        } catch (err) {
+          console.warn('Could not initialize with application default:', err)
         }
       } catch (err) {
         console.error('Error parsing service account from environment:', err)
-        // Fall through to GOOGLE_APPLICATION_CREDENTIALS
       }
     }
 
-    // Try GOOGLE_APPLICATION_CREDENTIALS (used in Vercel, Cloud Run, etc.)
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      try {
-        if ((adminApi.getApps?.() || []).length === 0) {
-          adminApi.initializeApp?.({ storageBucket })
-        }
-        dbAdmin = admin.firestore()
-        return { admin, dbAdmin }
-      } catch (err) {
-        console.error('Error initializing Firebase with GOOGLE_APPLICATION_CREDENTIALS:', err)
-      }
-    }
-
-    // Last resort: try to initialize without explicit credentials (will use application default)
+    // Fallback: Try to initialize with just storageBucket (will use any available default credentials)
     try {
       if ((adminApi.getApps?.() || []).length === 0) {
         adminApi.initializeApp?.({ storageBucket })
       }
       dbAdmin = admin.firestore()
-      console.warn('Firebase initialized with application default credentials')
+      console.log('Firebase initialized with default credentials')
       return { admin, dbAdmin }
     } catch (err) {
-      console.error('Failed to initialize Firebase with application default credentials:', err)
+      console.error('Failed to initialize Firebase with any method:', err)
     }
 
     // no admin credentials available
