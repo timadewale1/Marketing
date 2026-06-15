@@ -9,18 +9,16 @@ export type FirebaseAdminInitResult = {
 // Lazily initialize firebase-admin to avoid bundling server-only modules into client bundles.
 export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
   try {
-    // Import firebase-admin - handle both ESM and CommonJS
+    // Import firebase-admin
     const adminModule = await import('firebase-admin')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adminRaw = adminModule.default || adminModule
-    const admin = adminRaw as FirebaseAdminCompat
-    
+
     if (!adminRaw) {
       console.error('Failed to import firebase-admin module')
       return { admin: null, dbAdmin: null }
     }
-    
-    // Cast to any to access firebase-admin runtime methods
+
+    const admin = adminRaw as FirebaseAdminCompat
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adminApi = adminRaw as any
 
@@ -30,107 +28,108 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
       process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 
     let dbAdmin: AdminFirestore | null = null
+    let app: any = null
+
+    // Check if app is already initialized
+    const existingApps = adminApi.getApps?.() || []
+    if (existingApps.length > 0) {
+      app = existingApps[0]
+      console.log('Using existing Firebase app')
+    }
 
     // Try to find a service account file in the project root
-    const root = process.cwd()
-    const candidates = ['serviceAccountKey.json', 'serviceAccountKey.json.json', 'serviceAccountKey.json.txt']
-    const found = candidates.map((c) => path.join(root, c)).find((p: string) => fs.existsSync(p))
+    if (!app) {
+      const root = process.cwd()
+      const candidates = ['serviceAccountKey.json', 'serviceAccountKey.json.json', 'serviceAccountKey.json.txt']
+      const found = candidates.map((c) => path.join(root, c)).find((p: string) => fs.existsSync(p))
 
-    if (found) {
-      try {
-        const raw = fs.readFileSync(found, 'utf8')
-        const serviceAccount = JSON.parse(raw)
-        
+      if (found) {
         try {
-          // Try to use credential.cert if available, otherwise init without it
+          const raw = fs.readFileSync(found, 'utf8')
+          const serviceAccount = JSON.parse(raw)
+
           if (adminApi.credential && typeof adminApi.credential.cert === 'function') {
             try {
               const certCredential = adminApi.credential.cert(serviceAccount)
-              if ((adminApi.getApps?.() || []).length === 0) {
-                adminApi.initializeApp?.({
-                  credential: certCredential,
-                  storageBucket,
-                })
-              }
-              dbAdmin = adminApi.firestore()
+              app = adminApi.initializeApp?.({
+                credential: certCredential,
+                storageBucket,
+              })
               console.log('Firebase initialized with credential from file')
-              return { admin, dbAdmin }
             } catch (certErr) {
-              console.warn('credential.cert failed, trying without it:', certErr)
+              console.warn('Failed to initialize with credential from file:', certErr)
             }
           }
-          
-          // Try without explicit credential
-          if ((adminApi.getApps?.() || []).length === 0) {
-            adminApi.initializeApp?.({ storageBucket })
-          }
-          dbAdmin = adminApi.firestore()
-          console.log('Firebase initialized from file with default credentials')
-          return { admin, dbAdmin }
         } catch (err) {
-          console.warn('Failed to initialize from file:', err)
+          console.error('Error loading service account from file:', err)
         }
-      } catch (err) {
-        console.error('Error loading service account from file:', err)
       }
     }
 
-    // Check for service account in environment variables (Vercel)
-    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT
-    if (serviceAccountEnv) {
-      try {
-        const serviceAccount = JSON.parse(serviceAccountEnv)
-        
+    // Try environment variables (Vercel)
+    if (!app) {
+      const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT
+      if (serviceAccountEnv) {
         try {
-          // Try to use credential.cert if available
+          const serviceAccount = JSON.parse(serviceAccountEnv)
+
           if (adminApi.credential && typeof adminApi.credential.cert === 'function') {
             try {
               const certCredential = adminApi.credential.cert(serviceAccount)
-              if ((adminApi.getApps?.() || []).length === 0) {
-                adminApi.initializeApp?.({
-                  credential: certCredential,
-                  storageBucket,
-                })
-              }
-              dbAdmin = adminApi.firestore()
-              console.log('Firebase initialized with credential from env var')
-              return { admin, dbAdmin }
+              app = adminApi.initializeApp?.({
+                credential: certCredential,
+                storageBucket,
+              })
+              console.log('Firebase initialized with credential from environment')
             } catch (certErr) {
-              console.warn('credential.cert from env failed, trying without it:', certErr)
+              console.warn('Failed to initialize with credential from env:', certErr)
             }
           }
-          
-          // Try without explicit credential
-          if ((adminApi.getApps?.() || []).length === 0) {
-            adminApi.initializeApp?.({ storageBucket })
-          }
-          dbAdmin = adminApi.firestore()
-          console.log('Firebase initialized from env var with default credentials')
-          return { admin, dbAdmin }
         } catch (err) {
-          console.warn('Failed to initialize from env var:', err)
+          console.error('Error parsing service account from environment:', err)
+        }
+      }
+    }
+
+    // Last fallback: Initialize without explicit credential (uses application defaults)
+    if (!app) {
+      try {
+        app = adminApi.initializeApp?.({ storageBucket })
+        console.log('Firebase initialized with default credentials')
+      } catch (err) {
+        console.warn('Failed to initialize app with defaults:', err)
+      }
+    }
+
+    // Now try to get firestore instance from the initialized app
+    if (app) {
+      try {
+        // Try to get firestore from the app instance
+        if (typeof app.firestore === 'function') {
+          dbAdmin = app.firestore()
+          console.log('Got firestore instance from app')
+          return { admin, dbAdmin }
         }
       } catch (err) {
-        console.error('Error parsing service account from environment:', err)
+        console.warn('Failed to get firestore from app instance:', err)
+      }
+
+      try {
+        // Fallback: try admin.firestore()
+        if (typeof adminApi.firestore === 'function') {
+          dbAdmin = adminApi.firestore()
+          console.log('Got firestore instance from admin')
+          return { admin, dbAdmin }
+        }
+      } catch (err) {
+        console.error('Failed to get firestore from admin:', err)
       }
     }
 
-    // Last fallback: Try to initialize app without any credential
-    try {
-      if ((adminApi.getApps?.() || []).length === 0) {
-        adminApi.initializeApp?.({ storageBucket })
-      }
-      dbAdmin = adminApi.firestore()
-      console.log('Firebase initialized with application default credentials')
-      return { admin, dbAdmin }
-    } catch (err) {
-      console.error('Failed to initialize Firebase:', err)
-    }
-
-    // no admin credentials available
+    // No successful initialization
     return { admin: null, dbAdmin: null }
   } catch (e) {
-    console.warn('firebase-admin initialization failed (lazy); falling back to client SDK', e)
+    console.error('firebase-admin initialization failed (lazy):', e)
     return { admin: null, dbAdmin: null }
   }
 }
