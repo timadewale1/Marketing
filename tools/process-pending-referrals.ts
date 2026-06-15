@@ -24,31 +24,65 @@ async function initFirebaseAdmin() {
     const found = candidates.map((c) => path.join(root, c)).find((p) => fs.existsSync(p))
 
     if (found) {
-      const raw = fs.readFileSync(found, 'utf8')
-      const serviceAccount = JSON.parse(raw)
-      if (!admin.apps.length) {
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        })
+      try {
+        const raw = fs.readFileSync(found, 'utf8')
+        const serviceAccount = JSON.parse(raw)
+        
+        // Validate credential module exists
+        if (!admin.credential || typeof admin.credential.cert !== 'function') {
+          console.warn('Firebase-admin credential module not available')
+          // Fall through to environment variable
+        } else {
+          const certCredential = admin.credential.cert(serviceAccount)
+          if (!admin.apps.length) {
+            admin.initializeApp({
+              credential: certCredential,
+            })
+          }
+          dbAdmin = admin.firestore()
+          return { admin, dbAdmin }
+        }
+      } catch (err) {
+        console.error('Error loading service account from file:', err)
+        // Fall through to environment variable
       }
-      dbAdmin = admin.firestore()
-      return { admin, dbAdmin }
     }
 
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT
     if (serviceAccountEnv) {
       try {
         const serviceAccount = JSON.parse(serviceAccountEnv)
-        if (!admin.apps.length) {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-          })
+        
+        // Validate the parsed service account object
+        if (!serviceAccount || typeof serviceAccount !== 'object') {
+          throw new Error('Service account is not a valid object')
         }
-        dbAdmin = admin.firestore()
-        return { admin, dbAdmin }
+        
+        if (!serviceAccount.private_key || !serviceAccount.client_email) {
+          throw new Error('Service account missing required fields: private_key or client_email')
+        }
+        
+        // Validate credential module exists
+        if (!admin.credential || typeof admin.credential.cert !== 'function') {
+          console.warn('Firebase-admin credential module not available')
+          // Fall through to no credentials
+        } else {
+          const certCredential = admin.credential.cert(serviceAccount)
+          if (!certCredential) {
+            throw new Error('Failed to create credential from service account')
+          }
+          
+          if (!admin.apps.length) {
+            admin.initializeApp({
+              credential: certCredential,
+            })
+          }
+          dbAdmin = admin.firestore()
+          return { admin, dbAdmin }
+        }
       } catch (err) {
         console.error('Error parsing service account from environment:', err)
-        return { admin: null, dbAdmin: null }
+        // Fall through to no credentials
       }
     }
 

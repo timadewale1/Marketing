@@ -35,8 +35,8 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
         
         // Validate credential module exists
         if (!adminApi.credential || typeof adminApi.credential.cert !== 'function') {
-          console.warn('Firebase-admin credential module not available')
-          // Fall through to other methods
+          console.warn('Firebase-admin credential module not available from file')
+          // Fall through to environment variable
         } else {
           const certCredential = adminApi.credential.cert(serviceAccount)
           if ((adminApi.getApps?.() || []).length === 0) {
@@ -71,7 +71,7 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
         
         // Validate credential module exists and can create cert
         if (!adminApi.credential || typeof adminApi.credential.cert !== 'function') {
-          console.warn('Firebase-admin credential module not available')
+          console.warn('Firebase-admin credential module not available from env var, will try GOOGLE_APPLICATION_CREDENTIALS')
           // Fall through to GOOGLE_APPLICATION_CREDENTIALS
         } else {
           const certCredential = adminApi.credential.cert(serviceAccount)
@@ -94,6 +94,7 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
       }
     }
 
+    // Try GOOGLE_APPLICATION_CREDENTIALS (used in Vercel, Cloud Run, etc.)
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       try {
         if ((adminApi.getApps?.() || []).length === 0) {
@@ -106,10 +107,22 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
       }
     }
 
+    // Last resort: try to initialize without explicit credentials (will use application default)
+    try {
+      if ((adminApi.getApps?.() || []).length === 0) {
+        adminApi.initializeApp?.({ storageBucket })
+      }
+      dbAdmin = admin.firestore()
+      console.warn('Firebase initialized with application default credentials')
+      return { admin, dbAdmin }
+    } catch (err) {
+      console.error('Failed to initialize Firebase with application default credentials:', err)
+    }
+
     // no admin credentials available
     return { admin: null, dbAdmin: null }
   } catch (e) {
-  console.warn('firebase-admin initialization failed (lazy); falling back to client SDK', e)
+    console.warn('firebase-admin initialization failed (lazy); falling back to client SDK', e)
     return { admin: null, dbAdmin: null }
   }
 }
