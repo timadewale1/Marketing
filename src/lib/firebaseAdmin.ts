@@ -1,13 +1,33 @@
+import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import type { Bucket } from '@google-cloud/storage'
+
+export type FirebaseAdminCompat = {
+  apps: unknown[]
+  initializeApp: (options?: Record<string, unknown>) => unknown
+  credential: {
+    cert: (serviceAccount: Record<string, unknown>) => unknown
+  }
+  auth: () => import('firebase-admin/auth').Auth
+  firestore: (() => import('firebase-admin/firestore').Firestore) & typeof import('firebase-admin/firestore')
+  storage: () => { bucket: (name?: string) => Bucket }
+}
+
+export type FirebaseAdminInitResult = {
+  admin: FirebaseAdminCompat | null
+  dbAdmin: AdminFirestore | null
+}
+
 // Lazily initialize firebase-admin to avoid bundling server-only modules into client bundles.
-export async function initFirebaseAdmin() {
+export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
   try {
-    const admin = await import('firebase-admin')
+    const adminModule = await import('firebase-admin')
+    const admin = ((adminModule as { default?: unknown }).default || adminModule) as FirebaseAdminCompat
     const fs = await import('fs')
     const path = await import('path')
     const storageBucket =
       process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 
-    let dbAdmin: import('firebase-admin').firestore.Firestore | null = null
+    let dbAdmin: AdminFirestore | null = null
 
     // Try to find a service account file in the project root
     const root = process.cwd()
@@ -19,7 +39,7 @@ export async function initFirebaseAdmin() {
       const serviceAccount = JSON.parse(raw)
       if (!admin.apps.length) {
         admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
+          credential: admin.credential.cert(serviceAccount),
           storageBucket,
         })
       }
@@ -34,7 +54,7 @@ export async function initFirebaseAdmin() {
         const serviceAccount = JSON.parse(serviceAccountEnv);
         if (!admin.apps.length) {
           admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount as import('firebase-admin').ServiceAccount),
+            credential: admin.credential.cert(serviceAccount),
             storageBucket,
           })
         }
