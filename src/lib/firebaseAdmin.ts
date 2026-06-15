@@ -29,16 +29,29 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
     const found = candidates.map((c) => path.join(root, c)).find((p: string) => fs.existsSync(p))
 
     if (found) {
-      const raw = fs.readFileSync(found, 'utf8')
-      const serviceAccount = JSON.parse(raw)
-      if ((adminApi.getApps?.() || []).length === 0) {
-        adminApi.initializeApp?.({
-          credential: adminApi.credential?.cert(serviceAccount),
-          storageBucket,
-        })
+      try {
+        const raw = fs.readFileSync(found, 'utf8')
+        const serviceAccount = JSON.parse(raw)
+        
+        // Validate credential module exists
+        if (!adminApi.credential || typeof adminApi.credential.cert !== 'function') {
+          console.warn('Firebase-admin credential module not available')
+          // Fall through to other methods
+        } else {
+          const certCredential = adminApi.credential.cert(serviceAccount)
+          if ((adminApi.getApps?.() || []).length === 0) {
+            adminApi.initializeApp?.({
+              credential: certCredential,
+              storageBucket,
+            })
+          }
+          dbAdmin = admin.firestore()
+          return { admin, dbAdmin }
+        }
+      } catch (err) {
+        console.error('Error loading service account from file:', err)
+        // Fall through to environment variable
       }
-      dbAdmin = admin.firestore()
-      return { admin, dbAdmin }
     }
 
     // Check for service account in environment variables (Vercel)
@@ -46,24 +59,51 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
     if (serviceAccountEnv) {
       try {
         const serviceAccount = JSON.parse(serviceAccountEnv);
-        if ((adminApi.getApps?.() || []).length === 0) {
-          adminApi.initializeApp?.({
-            credential: adminApi.credential?.cert(serviceAccount),
-            storageBucket,
-          })
+        
+        // Validate the parsed service account object
+        if (!serviceAccount || typeof serviceAccount !== 'object') {
+          throw new Error('Service account is not a valid object')
         }
-        dbAdmin = admin.firestore()
-        return { admin, dbAdmin }
+        
+        if (!serviceAccount.private_key || !serviceAccount.client_email) {
+          throw new Error('Service account missing required fields: private_key or client_email')
+        }
+        
+        // Validate credential module exists and can create cert
+        if (!adminApi.credential || typeof adminApi.credential.cert !== 'function') {
+          console.warn('Firebase-admin credential module not available')
+          // Fall through to GOOGLE_APPLICATION_CREDENTIALS
+        } else {
+          const certCredential = adminApi.credential.cert(serviceAccount)
+          if (!certCredential) {
+            throw new Error('Failed to create credential from service account')
+          }
+          
+          if ((adminApi.getApps?.() || []).length === 0) {
+            adminApi.initializeApp?.({
+              credential: certCredential,
+              storageBucket,
+            })
+          }
+          dbAdmin = admin.firestore()
+          return { admin, dbAdmin }
+        }
       } catch (err) {
         console.error('Error parsing service account from environment:', err)
-        return { admin: null, dbAdmin: null }
+        // Fall through to GOOGLE_APPLICATION_CREDENTIALS
       }
     }
 
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      if ((adminApi.getApps?.() || []).length === 0) adminApi.initializeApp?.({ storageBucket })
-      dbAdmin = admin.firestore()
-      return { admin, dbAdmin }
+      try {
+        if ((adminApi.getApps?.() || []).length === 0) {
+          adminApi.initializeApp?.({ storageBucket })
+        }
+        dbAdmin = admin.firestore()
+        return { admin, dbAdmin }
+      } catch (err) {
+        console.error('Error initializing Firebase with GOOGLE_APPLICATION_CREDENTIALS:', err)
+      }
     }
 
     // no admin credentials available
