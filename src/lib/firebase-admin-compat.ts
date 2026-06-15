@@ -3,7 +3,7 @@ import type { Bucket } from '@google-cloud/storage'
 type FirestoreNamespace = typeof import('firebase-admin/firestore')
 
 type FirestoreCompat = FirestoreNamespace & {
-  (): FirestoreNamespace['Firestore']
+  (): InstanceType<FirestoreNamespace['Firestore']>
 }
 
 export type FirebaseAdminCompat = typeof import('firebase-admin') & {
