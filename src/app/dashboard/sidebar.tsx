@@ -21,6 +21,7 @@ export default function Sidebar({
   setCollapsed: (v: boolean) => void
 }) {
   const pathname = usePathname()
+  const currentPath = pathname ?? ""
   const { role, loading } = useUserRole()  // 🔥 real role detection
 
   if (loading) {
@@ -49,7 +50,7 @@ export default function Sidebar({
         {navItems
           .filter((item) => item.roles.includes(role))
           .map((item) => {
-            const active = pathname.startsWith(item.href)
+            const active = currentPath.startsWith(item.href)
             return (
               <a
                 key={item.href}

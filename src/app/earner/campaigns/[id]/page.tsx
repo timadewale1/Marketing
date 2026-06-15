@@ -75,7 +75,7 @@ const formatBytes = (bytes: number) => {
 export default function CampaignDetailPage() {
   const router = useRouter();
   const path = usePathname();
-  const id = path.split("/").pop() || "";
+  const id = (path ?? "").split("/").pop() || "";
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);

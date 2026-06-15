@@ -125,6 +125,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [firebaseAuthReady, setFirebaseAuthReady] = useState(false);
   const [firebaseUserPresent, setFirebaseUserPresent] = useState(false);
   const pathname = usePathname();
+  const currentPath = pathname ?? "";
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -329,7 +330,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex flex-col flex-1">
             <nav className="flex-1 px-2 pb-4 space-y-1">
               {NAVIGATION.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = currentPath === item.href;
                 return (
                   <Link
                     key={item.name}
@@ -467,7 +468,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
               <nav className="space-y-2">
                 {NAVIGATION.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = currentPath === item.href;
                   return (
                     <Link
                       key={item.name}

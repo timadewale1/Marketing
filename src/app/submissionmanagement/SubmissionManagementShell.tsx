@@ -17,6 +17,7 @@ const NAV_ITEMS = [
 
 export default function SubmissionManagementShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const currentPath = pathname ?? ""
   const router = useRouter()
   const [authReady, setAuthReady] = useState(false)
   const [firebaseUserPresent, setFirebaseUserPresent] = useState(false)
@@ -74,7 +75,7 @@ export default function SubmissionManagementShell({ children }: { children: Reac
           <nav className="mt-8 space-y-2">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              const active = currentPath === item.href || currentPath.startsWith(`${item.href}/`)
               return (
                 <Link
                   key={item.href}

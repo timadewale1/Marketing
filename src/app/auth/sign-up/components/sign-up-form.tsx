@@ -81,7 +81,7 @@ export function SignUpForm() {
   const [passwordStrength, setPasswordStrength] = useState(0)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const referralId = searchParams.get("ref")
+  const referralId = searchParams?.get("ref") ?? undefined
 
   const {
     register,

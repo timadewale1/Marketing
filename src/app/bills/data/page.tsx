@@ -221,7 +221,7 @@ export default function DataPage() {
       if (matched) payload.amount = String(matched.amount)
       const res = await postBuyService(payload, { idToken })
       if (!res.ok) return toast.error('Purchase failed: ' + (res.body?.message || JSON.stringify(res.body)))
-      const j = res.body
+      const j = res.body ?? {}
       const matched2 = plans.find(p => p.code === plan)
       const transactionData: Record<string, unknown> = {
         serviceID: service || 'data',
@@ -294,7 +294,7 @@ export default function DataPage() {
       if (matched) payload.amount = String(matched.amount)
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(payload, { idToken })
-      const j = res.body
+      const j = res.body ?? {}
       if (!res.ok) {
         toast.error('Purchase failed: ' + (j?.message || JSON.stringify(j)))
         return

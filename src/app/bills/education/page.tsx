@@ -250,10 +250,10 @@ export default function EducationPage() {
 
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
       const res = await postBuyService(pendingPurchase, { idToken })
-      const j = res.body
+      const j = res.body ?? {}
       if (!res.ok) return toast.error('Purchase failed')
 
-      const transactionData = buildTransactionData(j.result || null, {
+      const transactionData = buildTransactionData(j.result ?? null, {
         serviceID: pendingPurchase.serviceID,
         amount: pendingPurchase.amount,
       })
@@ -276,8 +276,8 @@ export default function EducationPage() {
       const res = await postBuyService(payload, { idToken })
       if (!res.ok) return toast.error(res.body?.message || 'Purchase failed')
 
-      const j = res.body
-      const transactionData = buildTransactionData(j.result || null, {
+      const j = res.body ?? {}
+      const transactionData = buildTransactionData(j.result ?? null, {
         serviceID: payload.serviceID,
         amount: payload.amount,
       })

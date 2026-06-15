@@ -36,9 +36,9 @@ function getActionErrorMessage(error: unknown) {
 
 export default function ClientAuthActionPage() {
   const searchParams = useSearchParams()
-  const mode = searchParams.get("mode")
-  const oobCode = searchParams.get("oobCode")
-  const continueUrl = searchParams.get("continueUrl")
+  const mode = searchParams?.get("mode") ?? null
+  const oobCode = searchParams?.get("oobCode") ?? null
+  const continueUrl = searchParams?.get("continueUrl") ?? null
 
   const [status, setStatus] = useState<ActionStatus>("loading")
   const [message, setMessage] = useState("Checking your secure link...")
