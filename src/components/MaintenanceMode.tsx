@@ -11,12 +11,20 @@ const EXCLUDED_PATHS = [
   '/privacy',
   '/terms',
   '/faq',
-  '/',
   '/advertise-directly',
 ]
 
 function isExcludedPath(pathname: string): boolean {
-  return EXCLUDED_PATHS.some(path => pathname.startsWith(path))
+  // Check if pathname starts with any excluded path
+  return EXCLUDED_PATHS.some(path => {
+    // Exact match for root
+    if (path === '/' && pathname === '/') return true
+    // Prefix match for other paths
+    if (path !== '/' && pathname.startsWith(path + '/')) return true
+    // Exact match for other paths (e.g., /contact)
+    if (path !== '/' && pathname === path) return true
+    return false
+  })
 }
 
 export function MaintenanceMode() {
