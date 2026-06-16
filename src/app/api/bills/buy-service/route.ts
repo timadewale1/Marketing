@@ -11,6 +11,7 @@ import { getBillsCommission, getBillsServiceLabel } from '@/lib/bills-commission
 import { resolveBillsPurchaseActor } from '@/lib/bills-admin-alerts'
 import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
 import { BILL_PAYMENT_POINTS, awardPointsOnce, getPointsEventId } from '@/lib/points'
+import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 
 const FRIENDLY_PROVIDER_ERROR_MESSAGE = 'This service is temporarily unavailable right now. Please try again later.'
 const FRIENDLY_REFUND_PENDING_MESSAGE = 'We could not complete this payment. If you were charged, your refund will be processed shortly.'
@@ -113,7 +114,7 @@ async function settleVtpassPurchase(payload: Record<string, unknown>, reqId: str
 
 async function awardBillPurchasePoints(
   db: import('firebase-admin').firestore.Firestore,
-  admin: typeof import('firebase-admin'),
+  admin: FirebaseAdminCompat,
   userId: string | undefined,
   reference: string,
   amount: number
