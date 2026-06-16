@@ -75,6 +75,133 @@ async function callInternalRoute(path: string) {
   return payload;
 }
 
+function isAuthorizedInternalRequest(authHeader: string | undefined) {
+  const secret = String(process.env.CRON_SECRET || "").trim();
+  if (!secret) return false;
+  return authHeader === `Bearer ${secret}`;
+}
+
+async function processPendingReferralsDirect() {
+  const db = admin.firestore();
+  const pendingReferralsSnap = await db
+    .collection("referrals")
+    .where("status", "==", "pending")
+    .limit(300)
+    .get();
+
+  let processed = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const referralDoc of pendingReferralsSnap.docs) {
+    const referral = referralDoc.data() as {
+      referrerId?: string;
+      referredId?: string;
+      amount?: number;
+      bonusPaid?: boolean;
+    };
+
+    if (referral.bonusPaid === true) {
+      skipped += 1;
+      continue;
+    }
+
+    const referrerId = String(referral.referrerId || "");
+    const referredId = String(referral.referredId || "");
+    const amount = Number(referral.amount || 0);
+
+    if (!referrerId || !referredId || amount <= 0) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
+      const [referredEarnerSnap, referredAdvertiserSnap] = await Promise.all([
+        db.collection("earners").doc(referredId).get(),
+        db.collection("advertisers").doc(referredId).get(),
+      ]);
+
+      const referredUser = referredEarnerSnap.exists
+        ? referredEarnerSnap.data()
+        : referredAdvertiserSnap.data();
+
+      if (!referredUser?.activated) {
+        skipped += 1;
+        continue;
+      }
+
+      const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+        db.collection("earners").doc(referrerId).get(),
+        db.collection("advertisers").doc(referrerId).get(),
+      ]);
+
+      const referrerCollection = referrerAdvertiserSnap.exists
+        ? "advertisers"
+        : referrerEarnerSnap.exists
+          ? "earners"
+          : null;
+
+      if (!referrerCollection) {
+        skipped += 1;
+        continue;
+      }
+
+      await db.runTransaction(async (transaction) => {
+        const referralRef = db.collection("referrals").doc(referralDoc.id);
+        const freshReferral = await transaction.get(referralRef);
+        if (!freshReferral.exists || String(freshReferral.data()?.status || "") !== "pending") {
+          return;
+        }
+
+        const bonus = Number(freshReferral.data()?.amount || 0);
+        if (bonus <= 0) return;
+
+        const txCollection = referrerCollection === "advertisers"
+          ? "advertiserTransactions"
+          : "earnerTransactions";
+        const txRef = db.collection(txCollection).doc();
+        const referrerRef = db.collection(referrerCollection).doc(referrerId);
+
+        transaction.set(txRef, {
+          userId: referrerId,
+          type: "referral_bonus",
+          amount: bonus,
+          status: "completed",
+          note: `Referral bonus for referring ${referredId}`,
+          referralId: referralDoc.id,
+          referredId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(referrerRef, {
+          balance: admin.firestore.FieldValue.increment(bonus),
+        });
+
+        transaction.update(referralRef, {
+          status: "completed",
+          bonusPaid: true,
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAmount: bonus,
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      processed += 1;
+    } catch (error) {
+      console.error("[functions][processPendingReferralsDirect] failed", referralDoc.id, error);
+      failed += 1;
+    }
+  }
+
+  return {
+    success: true,
+    processed,
+    skipped,
+    failed,
+    total: pendingReferralsSnap.size,
+  };
+}
+
 export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => {
   await callInternalRoute("/api/internal/auto-verify-submissions");
 });
@@ -258,4 +385,38 @@ export const mailerApi = onRequest(async (req, res) => {
     console.error("[mailerApi] send failed", { to, subject, error: message });
     res.status(500).json({ success: false, message });
   }
+});
+
+export const internalApi = onRequest(async (req, res) => {
+  if (req.method !== "GET") {
+    res.status(405).json({ success: false, message: "Method not allowed" });
+    return;
+  }
+
+  if (!isAuthorizedInternalRequest(req.headers.authorization)) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+
+  const path = String(req.path || "");
+
+  // First real offloaded endpoint (runs fully on Functions, not on Vercel).
+  if (path === "/api/internal/process-pending-referrals") {
+    try {
+      const result = await processPendingReferralsDirect();
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to process pending referrals",
+      });
+    }
+    return;
+  }
+
+  // Other routes can be moved one-by-one; keep explicit not-ready response so Next can fallback safely.
+  res.status(501).json({
+    success: false,
+    message: `Route not offloaded yet: ${path}`,
+  });
 });
