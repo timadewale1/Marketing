@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { verifyFirebaseIdToken } from '@/lib/firebase-auth-verifier'
 
 /**
  * DELETE /api/admin/tasks/[id]/delete
@@ -28,7 +27,7 @@ export async function POST(
     const token = authHeader.substring(7)
     let userId: string
     try {
-      const decodedToken = await verifyFirebaseIdToken(token)
+      const decodedToken = await adminSdk.auth().verifyIdToken(token)
       userId = decodedToken.uid
     } catch (err) {
       console.error('Token verification failed', err)

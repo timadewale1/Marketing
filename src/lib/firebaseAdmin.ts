@@ -7,8 +7,7 @@ import {
   type Firestore as AdminFirestore,
 } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
-import type { FirebaseAdminCompat, FirebaseAuthCompat, FirestoreCompat, FirebaseUserCompat } from '@/lib/firebase-admin-compat'
-import { verifyFirebaseIdToken, verifyFirebaseSessionCookie } from '@/lib/firebase-auth-verifier'
+import type { FirebaseAdminCompat, FirebaseAuthCompat, FirestoreCompat } from '@/lib/firebase-admin-compat'
 
 export type FirebaseAdminInitResult = {
   admin: FirebaseAdminCompat | null
@@ -57,27 +56,24 @@ async function loadNativeAuthModule() {
 }
 
 function createAuthCompat(app: App): FirebaseAuthCompat {
-  let nativeAuthPromise: Promise<{
-    getUserByEmail: (email: string) => Promise<FirebaseUserCompat>
-    createUser: (properties: Record<string, unknown>) => Promise<FirebaseUserCompat>
-    generateEmailVerificationLink: (email: string, actionCodeSettings?: Record<string, unknown>) => Promise<string>
-    deleteUser: (uid: string) => Promise<void>
-    getUser: (uid: string) => Promise<FirebaseUserCompat>
-    generatePasswordResetLink: (email: string, actionCodeSettings?: Record<string, unknown>) => Promise<string>
-    createSessionCookie: (idToken: string, options: { expiresIn: number }) => Promise<string>
-    createCustomToken: (uid: string, developerClaims?: Record<string, unknown>) => Promise<string>
-  }> | null = null
+  let nativeAuthPromise: Promise<import('firebase-admin/auth').Auth> | null = null
 
   const getNativeAuth = () => {
     if (!nativeAuthPromise) {
-      nativeAuthPromise = loadNativeAuthModule().then((module) => module.getAuth(app) as never)
+      nativeAuthPromise = loadNativeAuthModule().then((module) => module.getAuth(app))
     }
     return nativeAuthPromise
   }
 
   return {
-    verifyIdToken: async (token: string) => verifyFirebaseIdToken(token) as never,
-    verifySessionCookie: async (cookie: string) => verifyFirebaseSessionCookie(cookie) as never,
+    verifyIdToken: async (token: string, checkRevoked?: boolean) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.verifyIdToken(token, checkRevoked)
+    },
+    verifySessionCookie: async (cookie: string, checkRevoked?: boolean) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.verifySessionCookie(cookie, checkRevoked)
+    },
     createSessionCookie: async (idToken: string, options: { expiresIn: number }) => {
       const nativeAuth = await getNativeAuth()
       return nativeAuth.createSessionCookie(idToken, options)
@@ -92,7 +88,7 @@ function createAuthCompat(app: App): FirebaseAuthCompat {
     },
     generateEmailVerificationLink: async (email: string, actionCodeSettings?: Record<string, unknown>) => {
       const nativeAuth = await getNativeAuth()
-      return nativeAuth.generateEmailVerificationLink(email, actionCodeSettings)
+      return nativeAuth.generateEmailVerificationLink(email, actionCodeSettings as never)
     },
     deleteUser: async (uid: string) => {
       const nativeAuth = await getNativeAuth()
@@ -104,7 +100,7 @@ function createAuthCompat(app: App): FirebaseAuthCompat {
     },
     generatePasswordResetLink: async (email: string, actionCodeSettings?: Record<string, unknown>) => {
       const nativeAuth = await getNativeAuth()
-      return nativeAuth.generatePasswordResetLink(email, actionCodeSettings)
+      return nativeAuth.generatePasswordResetLink(email, actionCodeSettings as never)
     },
     createCustomToken: async (uid: string, developerClaims?: Record<string, unknown>) => {
       const nativeAuth = await getNativeAuth()

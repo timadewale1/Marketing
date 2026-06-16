@@ -1,15 +1,11 @@
 import type { Bucket } from '@google-cloud/storage'
 import type { App } from 'firebase-admin/app'
+import type { UserRecord } from 'firebase-admin/auth'
 import type * as FirestoreAdmin from 'firebase-admin/firestore'
 
 export type FirestoreCompat = typeof FirestoreAdmin & (() => FirestoreAdmin.Firestore)
 
-export type FirebaseUserCompat = {
-  uid: string
-  email?: string
-  displayName?: string
-  [key: string]: unknown
-}
+export type FirebaseUserCompat = UserRecord
 
 export type FirebaseAuthCompat = {
   verifyIdToken: (token: string, checkRevoked?: boolean) => Promise<{ uid: string; email?: string } & Record<string, unknown>>
