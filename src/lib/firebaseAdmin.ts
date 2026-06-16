@@ -28,6 +28,7 @@ export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
       process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 
     let dbAdmin: AdminFirestore | null = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let app: any = null
 
     // Check if app is already initialized
