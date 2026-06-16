@@ -2,15 +2,19 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 
 const jwksByProject = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
+const FIREBASE_SECURETOKEN_JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 
 function getProjectId() {
-  return (
+  const raw = (
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
     process.env.FIREBASE_PROJECT_ID ||
     process.env.GCLOUD_PROJECT ||
     process.env.GOOGLE_CLOUD_PROJECT ||
     ''
   ).trim()
+
+  // Defensive cleanup for accidentally quoted env values in deployment settings.
+  return raw.replace(/^['"]+|['"]+$/g, '')
 }
 
 function getJwks() {
@@ -22,9 +26,7 @@ function getJwks() {
   const existing = jwksByProject.get(projectId)
   if (existing) return { projectId, jwks: existing }
 
-  const jwks = createRemoteJWKSet(
-    new URL('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com')
-  )
+  const jwks = createRemoteJWKSet(new URL(FIREBASE_SECURETOKEN_JWKS_URL))
   jwksByProject.set(projectId, jwks)
   return { projectId, jwks }
 }
