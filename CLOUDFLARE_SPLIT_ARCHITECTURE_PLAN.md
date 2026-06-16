@@ -29,6 +29,7 @@ Create one API call boundary so backend location can change without touching pag
 2. Add envs:
    - `API_BASE_URL` (backend root, default current app origin)
    - `NEXT_PUBLIC_API_BASE_URL` (client-side base for future split)
+   - `FUNCTIONS_API_BASE_URL` (optional backend runtime target for internal heavy routes)
    - `API_INTERNAL_SECRET` (for internal service-to-service routes)
 3. Route all internal API calls through the wrapper.
 4. Keep existing Next API routes as primary behavior for now.

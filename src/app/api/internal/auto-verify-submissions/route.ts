@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { toDateFromTimestampLike } from '@/lib/earner-suspension'
+import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 
 interface Submission {
   status?: string
@@ -32,6 +33,9 @@ const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
 
 export async function GET(request: Request) {
+  const proxied = await proxyToBackendIfConfigured('/api/internal/auto-verify-submissions', request)
+  if (proxied) return proxied
+
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 
 interface Referral {
   id?: string
@@ -16,6 +17,9 @@ interface User {
 
 export async function GET(req: NextRequest) {
   try {
+    const proxied = await proxyToBackendIfConfigured('/api/internal/process-pending-referrals', req)
+    if (proxied) return proxied
+
     // Verify internal API secret
     const isValid = verifyInternalApiSecret(req)
     if (!isValid) {
