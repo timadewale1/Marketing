@@ -1,4 +1,5 @@
 import type { Firestore as AdminFirestore, Transaction } from 'firebase-admin/firestore'
+import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 
 export const POINTS_REDEEM_MINIMUM = 2500
 export const POINT_VALUE_IN_NAIRA = 0.5
@@ -73,7 +74,7 @@ export function getPointsEventId(...segments: Array<string | number | null | und
 
 type AwardPointsArgs = {
   adminDb: AdminFirestore
-  admin: typeof import('firebase-admin')
+  admin: FirestoreAdminLike
   transaction: Transaction
   userCollection: PointsUserCollection
   userId: string
@@ -88,7 +89,7 @@ type AwardPointsArgs = {
 
 type RedeemPointsArgs = {
   adminDb: AdminFirestore
-  admin: typeof import('firebase-admin')
+  admin: FirestoreAdminLike
   transaction: Transaction
   userCollection: PointsUserCollection
   userId: string
@@ -99,7 +100,16 @@ type RedeemPointsArgs = {
   extraLedgerData?: Record<string, unknown>
 }
 
-function baseUserUpdates(amount: number, eventType: string, note: string, admin: typeof import('firebase-admin')) {
+type FirestoreAdminLike = Pick<FirebaseAdminCompat, 'firestore'> | {
+  firestore: {
+    FieldValue: {
+      increment: (n: number) => unknown
+      serverTimestamp: () => unknown
+    }
+  }
+}
+
+function baseUserUpdates(amount: number, eventType: string, note: string, admin: FirestoreAdminLike) {
   return {
     pointsBalance: admin.firestore.FieldValue.increment(amount),
     pointsLifetimeEarned: admin.firestore.FieldValue.increment(Math.max(amount, 0)),
