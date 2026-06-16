@@ -1,156 +1,175 @@
-import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
-import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { cert, getApp, getApps, initializeApp, type App } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
+import {
+  FieldPath,
+  FieldValue,
+  GeoPoint,
+  Timestamp,
+  getFirestore,
+  CollectionReference,
+  DocumentReference,
+  Query,
+  Transaction,
+  WriteBatch,
+  type Firestore as AdminFirestore,
+} from 'firebase-admin/firestore'
+import { getStorage } from 'firebase-admin/storage'
+import type { FirebaseAdminCompat, FirestoreCompat } from '@/lib/firebase-admin-compat'
 
 export type FirebaseAdminInitResult = {
   admin: FirebaseAdminCompat | null
   dbAdmin: AdminFirestore | null
 }
 
-// Lazily initialize firebase-admin to avoid bundling server-only modules into client bundles.
-export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
+type ServiceAccount = {
+  project_id?: string
+  client_email?: string
+  private_key?: string
+  [key: string]: unknown
+}
+
+let cachedResult: FirebaseAdminInitResult | null = null
+
+function normalizePrivateKey(value?: string) {
+  return String(value || '').replace(/\\n/g, '\n').trim()
+}
+
+function normalizeServiceAccount(value: ServiceAccount) {
+  return {
+    ...value,
+    private_key: normalizePrivateKey(value.private_key),
+  }
+}
+
+function parseServiceAccount(raw: string): ServiceAccount | null {
   try {
-    // Import firebase-admin
-    const adminModule = await import('firebase-admin')
-    const adminRaw = adminModule.default || adminModule
+    const parsed = JSON.parse(raw) as ServiceAccount
+    if (!parsed || typeof parsed !== 'object') return null
+    return normalizeServiceAccount(parsed)
+  } catch (error) {
+    console.warn('[Firebase] Failed to parse service account JSON:', error)
+    return null
+  }
+}
 
-    if (!adminRaw) {
-      console.error('[Firebase] Failed to import firebase-admin module')
-      return { admin: null, dbAdmin: null }
-    }
+function createFirestoreCompat(app: App): FirestoreCompat {
+  const firestore = (() => getFirestore(app)) as FirestoreCompat
+  firestore.FieldValue = FieldValue
+  firestore.FieldPath = FieldPath
+  firestore.Timestamp = Timestamp
+  firestore.GeoPoint = GeoPoint
+  firestore.Firestore = getFirestore(app).constructor as unknown as typeof import('firebase-admin/firestore').Firestore
+  firestore.CollectionReference = CollectionReference
+  firestore.DocumentReference = DocumentReference
+  firestore.Query = Query
+  firestore.Transaction = Transaction
+  firestore.WriteBatch = WriteBatch
+  return firestore
+}
 
-    const admin = adminRaw as FirebaseAdminCompat
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminApi = adminRaw as any
+function createAdminCompat(app: App): FirebaseAdminCompat {
+  const firestore = createFirestoreCompat(app)
+  return {
+    app: (name?: string) => {
+      if (!name) return app
+      return getApp(name)
+    },
+    auth: () => getAuth(app),
+    firestore,
+    storage: () => ({
+      bucket: (name?: string) => getStorage(app).bucket(name),
+    }),
+  }
+}
 
-    const fs = await import('fs')
-    const path = await import('path')
-    const storageBucket =
-      process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+function initializeFromCredential(serviceAccount: ServiceAccount, storageBucket?: string) {
+  const app = initializeApp({
+    credential: cert(serviceAccount as Parameters<typeof cert>[0]),
+    storageBucket,
+  })
+  return app
+}
 
-    let dbAdmin: AdminFirestore | null = null
+function initializeDefault(storageBucket?: string) {
+  return initializeApp({ storageBucket })
+}
 
-    // Check if app is already initialized
-    const existingApps = adminApi.getApps?.() || []
+export async function initFirebaseAdmin(): Promise<FirebaseAdminInitResult> {
+  if (cachedResult) {
+    return cachedResult
+  }
+
+  try {
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    const existingApps = getApps()
     console.log(`[Firebase] Existing apps: ${existingApps.length}`)
 
-    if (existingApps.length > 0) {
-      try {
-        console.log('[Firebase] Using existing app instance')
-        // Try to get firestore from the first app directly
-        const app = existingApps[0]
-        dbAdmin = app.firestore?.() || adminApi.firestore?.()
-        if (dbAdmin) {
-          console.log('[Firebase] Retrieved firestore from existing app')
-          return { admin, dbAdmin }
-        }
-        console.warn('[Firebase] Existing app but firestore unavailable')
-      } catch (err) {
-        console.warn('[Firebase] Error getting firestore from existing app:', err)
-      }
-    }
+    let app: App | null = existingApps[0] || null
 
-    let appInitialized = false
+    if (!app) {
+      const root = process.cwd()
+      const candidates = ['serviceAccountKey.json', 'serviceAccountKey.json.json', 'serviceAccountKey.json.txt']
+      const found = candidates.map((candidate) => path.join(root, candidate)).find((candidate) => existsSync(candidate))
 
-    // Try to find a service account file in the project root
-    const root = process.cwd()
-    const candidates = ['serviceAccountKey.json', 'serviceAccountKey.json.json', 'serviceAccountKey.json.txt']
-    const found = candidates.map((c) => path.join(root, c)).find((p: string) => fs.existsSync(p))
-
-    if (found) {
-      try {
-        console.log(`[Firebase] Found service account file: ${found}`)
-        const raw = fs.readFileSync(found, 'utf8')
-        const serviceAccount = JSON.parse(raw)
-
+      if (found) {
         try {
-          // Try to initialize with credential from file
-          const certCredential = adminApi.credential?.cert(serviceAccount)
-          if (certCredential) {
-            adminApi.initializeApp?.({ credential: certCredential, storageBucket })
-            appInitialized = true
+          console.log(`[Firebase] Found service account file: ${found}`)
+          const parsed = parseServiceAccount(readFileSync(found, 'utf8'))
+          if (parsed) {
+            app = initializeFromCredential(parsed, storageBucket)
             console.log('[Firebase] Initialized with credential from file')
           } else {
-            console.warn('[Firebase] Failed to create cert credential from file')
+            console.warn('[Firebase] Service account file parsed to null')
           }
-        } catch (certErr) {
-          console.warn('[Firebase] Error with credential from file:', certErr)
+        } catch (error) {
+          console.warn('[Firebase] Error initializing from service account file:', error)
         }
-      } catch (err) {
-        console.warn('[Firebase] Error loading service account from file:', err)
       }
     }
 
-    // Try environment variables (Vercel)
-    if (!appInitialized) {
+    if (!app) {
       const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.FIREBASE_SERVICE_ACCOUNT
       if (serviceAccountEnv) {
-        try {
-          console.log('[Firebase] Attempting to parse service account from environment')
-          const serviceAccount = JSON.parse(serviceAccountEnv)
-
+        console.log('[Firebase] Attempting to parse service account from environment')
+        const parsed = parseServiceAccount(serviceAccountEnv)
+        if (parsed) {
           try {
-            // Try to initialize with credential from environment
-            const certCredential = adminApi.credential?.cert(serviceAccount)
-            if (certCredential) {
-              adminApi.initializeApp?.({ credential: certCredential, storageBucket })
-              appInitialized = true
-              console.log('[Firebase] Initialized with credential from environment')
-            } else {
-              console.warn('[Firebase] Failed to create cert credential from environment')
-            }
-          } catch (certErr) {
-            console.warn('[Firebase] Error with credential from environment:', certErr)
+            app = initializeFromCredential(parsed, storageBucket)
+            console.log('[Firebase] Initialized with credential from environment')
+          } catch (error) {
+            console.warn('[Firebase] Failed to initialize with parsed environment credential:', error)
           }
-        } catch (err) {
-          console.warn('[Firebase] Error parsing service account from environment:', err)
         }
       }
     }
 
-    // Last fallback: Initialize without explicit credential
-    if (!appInitialized && (adminApi.getApps?.() || []).length === 0) {
+    if (!app) {
       try {
         console.log('[Firebase] Fallback: attempting default initialization')
-        adminApi.initializeApp?.({ storageBucket })
-        appInitialized = true
+        app = initializeDefault(storageBucket)
         console.log('[Firebase] App initialized with default credential')
-      } catch (err) {
-        console.error('[Firebase] Failed to initialize with default credential:', err)
+      } catch (error) {
+        console.error('[Firebase] Failed to initialize with default credential:', error)
       }
     }
 
-    // Now attempt to get firestore instance
-    try {
-      console.log('[Firebase] Attempting to get firestore instance after initialization')
-      const appsAfterInit = (adminApi.getApps?.() || []).length
-      console.log(`[Firebase] Apps available: ${appsAfterInit}`)
-      
-      dbAdmin = adminApi.firestore?.()
-      if (dbAdmin) {
-        console.log('[Firebase] Successfully retrieved firestore instance')
-        return { admin, dbAdmin }
-      } else {
-        console.error('[Firebase] firestore() returned null/undefined after init')
-        // Try one more time through app instance
-        const apps = adminApi.getApps?.() || []
-        if (apps.length > 0) {
-          console.log('[Firebase] Trying to get firestore from app instance directly')
-          dbAdmin = apps[0].firestore?.()
-          if (dbAdmin) {
-            console.log('[Firebase] Successfully retrieved firestore from app instance')
-            return { admin, dbAdmin }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[Firebase] Error retrieving firestore instance:', err)
+    if (!app) {
+      console.error('[Firebase] Could not initialize Firebase app')
+      cachedResult = { admin: null, dbAdmin: null }
+      return cachedResult
     }
 
-    // No successful initialization
-    console.error('[Firebase] Could not initialize Firebase or get firestore instance after all attempts')
-    return { admin: null, dbAdmin: null }
-  } catch (e) {
-    console.error('[Firebase] Initialization failed at top level:', e)
-    return { admin: null, dbAdmin: null }
+    const admin = createAdminCompat(app)
+    const dbAdmin = getFirestore(app)
+    console.log('[Firebase] Firestore initialized successfully')
+
+    cachedResult = { admin, dbAdmin }
+    return cachedResult
+  } catch (error) {
+    console.error('[Firebase] Initialization failed at top level:', error)
+    cachedResult = { admin: null, dbAdmin: null }
+    return cachedResult
   }
 }
