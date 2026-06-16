@@ -436,7 +436,7 @@ export const mailerApi = onRequest(async (req, res) => {
 });
 
 export const internalApi = onRequest(async (req, res) => {
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ success: false, message: "Method not allowed" });
     return;
   }
@@ -447,6 +447,9 @@ export const internalApi = onRequest(async (req, res) => {
   }
 
   const path = String(req.path || "");
+  const requestPayload = req.method === "POST"
+    ? (typeof req.body === "object" && req.body ? req.body : {})
+    : (req.query || {});
 
   // First real offloaded endpoint (runs fully on Functions, not on Vercel).
   if (path === "/api/internal/process-pending-referrals") {
@@ -485,6 +488,62 @@ export const internalApi = onRequest(async (req, res) => {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to run auto-verify submissions",
+      });
+    }
+    return;
+  }
+
+  // Dedicated activation processor route (cron-protected in Next).
+  if (path === "/api/internal/process-activation") {
+    try {
+      const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}/api/internal/process-activation`;
+      const headers = buildHeaders();
+      headers["x-skip-backend-proxy"] = "1";
+      headers["Content-Type"] = "application/json";
+
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestPayload),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(`status ${response.status}: ${JSON.stringify(payload)}`);
+      }
+      res.status(200).json(payload);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to process activation",
+      });
+    }
+    return;
+  }
+
+  // Dedicated wallet funding processor route (cron-protected in Next).
+  if (path === "/api/internal/process-wallet-funding") {
+    try {
+      const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}/api/internal/process-wallet-funding`;
+      const headers = buildHeaders();
+      headers["x-skip-backend-proxy"] = "1";
+      headers["Content-Type"] = "application/json";
+
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestPayload),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(`status ${response.status}: ${JSON.stringify(payload)}`);
+      }
+      res.status(200).json(payload);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to process wallet funding",
       });
     }
     return;
