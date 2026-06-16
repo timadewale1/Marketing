@@ -1,7 +1,7 @@
 import "./globals.css"
 import { Toaster } from "react-hot-toast"
 import PwaInstaller from "@/components/PwaInstaller"
-import { MaintenanceMode } from "@/components/MaintenanceMode"
+// import { MaintenanceMode } from "@/components/MaintenanceMode"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <PwaInstaller />
-        <MaintenanceMode />
+        {/* <MaintenanceMode /> */}
         {children}
         <Toaster
           position="top-right"
