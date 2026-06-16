@@ -503,7 +503,7 @@ export async function POST(req: Request): Promise<Response> {
       }
     })
 
-    await runSubmissionProofCleanupIfDue(admin as unknown, adminDb)
+    await runSubmissionProofCleanupIfDue(admin, adminDb)
 
     const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
     if (emailPayload?.type === 'added') {

@@ -16,7 +16,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
     }
 
-    const result = await runSubmissionProofCleanupIfDue(admin as unknown, dbAdmin, { force: true })
+    const result = await runSubmissionProofCleanupIfDue(admin, dbAdmin, { force: true })
 
     return NextResponse.json(result)
   } catch (error) {

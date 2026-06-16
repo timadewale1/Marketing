@@ -1,6 +1,10 @@
 import { getProofUrls } from '@/lib/proofs'
+import type { Bucket } from '@google-cloud/storage'
+import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 
-type AdminApp = typeof import('firebase-admin')
+type StorageAccessor = Pick<FirebaseAdminCompat, 'storage'> & {
+  storage: () => { bucket: (name?: string, options?: unknown) => Bucket }
+}
 type FirestoreDb = import('firebase-admin').firestore.Firestore
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000
@@ -44,7 +48,7 @@ export function extractStoragePathFromUrl(url: string) {
 }
 
 export async function deleteSubmissionProofs(
-  admin: AdminApp,
+  admin: StorageAccessor,
   submission: { proofUrl?: unknown; proofUrls?: unknown }
 ) {
   const urls = getProofUrls(submission)
@@ -52,7 +56,18 @@ export async function deleteSubmissionProofs(
     return { deletedCount: 0, failedUrls: [] as string[] }
   }
 
-  const bucket = admin.storage().bucket()
+  if (typeof admin.storage !== 'function') {
+    throw new Error('Firebase admin storage is unavailable for submission proof cleanup')
+  }
+
+  const bucketName =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    ''
+  if (!bucketName) {
+    throw new Error('Missing FIREBASE_STORAGE_BUCKET for submission proof cleanup')
+  }
+  const bucket = admin.storage().bucket(bucketName)
   let deletedCount = 0
   const failedUrls: string[] = []
 
@@ -91,7 +106,7 @@ function asDate(value: unknown) {
 }
 
 export async function runSubmissionProofCleanupIfDue(
-  admin: AdminApp,
+  admin: StorageAccessor,
   dbAdmin: FirestoreDb,
   options?: { force?: boolean }
 ) {
