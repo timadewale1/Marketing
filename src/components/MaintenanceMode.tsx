@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
-const MAINTENANCE_ENABLED = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true'
-
 // Pages that should NOT show maintenance mode
 const EXCLUDED_PATHS = [
   '/admin',
@@ -30,8 +28,8 @@ export function MaintenanceMode() {
   const [showMaintenance, setShowMaintenance] = useState(false)
 
   useEffect(() => {
-    // Only show if maintenance is enabled and we're on a protected (non-excluded) page
-    if (pathname && MAINTENANCE_ENABLED && !isExcludedPath(pathname)) {
+    // Show maintenance mode on all protected pages (non-excluded paths)
+    if (pathname && !isExcludedPath(pathname)) {
       setShowMaintenance(true)
     } else {
       setShowMaintenance(false)
