@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation'
 const EXCLUDED_PATHS = [
   '/admin',
   '/submissionmanagement',
-  '/auth',
   '/contact',
   '/privacy',
   '/terms',
