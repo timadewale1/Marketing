@@ -1,18 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import * as adminModule from 'firebase-admin'
 import { cert, getApp, getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
+import * as authModule from 'firebase-admin/auth'
+import * as firestoreModule from 'firebase-admin/firestore'
 import {
-  FieldPath,
-  FieldValue,
-  GeoPoint,
-  Timestamp,
   getFirestore,
-  CollectionReference,
-  DocumentReference,
-  Query,
-  Transaction,
-  WriteBatch,
   type Firestore as AdminFirestore,
 } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
@@ -56,27 +50,20 @@ function parseServiceAccount(raw: string): ServiceAccount | null {
 
 function createFirestoreCompat(app: App): FirestoreCompat {
   const firestore = (() => getFirestore(app)) as FirestoreCompat
-  firestore.FieldValue = FieldValue
-  firestore.FieldPath = FieldPath
-  firestore.Timestamp = Timestamp
-  firestore.GeoPoint = GeoPoint
-  firestore.Firestore = getFirestore(app).constructor as unknown as typeof import('firebase-admin/firestore').Firestore
-  firestore.CollectionReference = CollectionReference
-  firestore.DocumentReference = DocumentReference
-  firestore.Query = Query
-  firestore.Transaction = Transaction
-  firestore.WriteBatch = WriteBatch
+  Object.assign(firestore, firestoreModule)
   return firestore
 }
 
 function createAdminCompat(app: App): FirebaseAdminCompat {
   const firestore = createFirestoreCompat(app)
+  const auth = Object.assign((() => getAuth(app)) as typeof authModule & (() => ReturnType<typeof getAuth>), authModule)
   return {
+    ...adminModule,
     app: (name?: string) => {
       if (!name) return app
       return getApp(name)
     },
-    auth: () => getAuth(app),
+    auth,
     firestore,
     storage: () => ({
       bucket: (name?: string) => getStorage(app).bucket(name),
