@@ -4,6 +4,7 @@ import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
 import { applyRecoveryAwareDebitInTransaction } from "@/lib/balance-recovery"
+import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
 
 type UserRole = "earner" | "advertiser"
 
@@ -29,7 +30,7 @@ type CampaignRecord = {
 
 async function reverseReferralBonusesForUser(
   dbAdmin: FirebaseFirestore.Firestore,
-  admin: typeof import("firebase-admin"),
+  admin: FirebaseAdminCompat,
   userId: string
 ) {
   const refsSnap = await dbAdmin
@@ -87,7 +88,7 @@ async function reverseReferralBonusesForUser(
 
 async function reverseSubmissionForDeactivation(
   dbAdmin: FirebaseFirestore.Firestore,
-  admin: typeof import("firebase-admin"),
+  admin: FirebaseAdminCompat,
   submissionRef: FirebaseFirestore.DocumentReference,
   submission: SubmissionRecord,
   adminUid: string
@@ -246,10 +247,12 @@ async function deleteActivationFeeTransactions(
 }
 
 export async function POST(req: Request): Promise<Response> {
+  console.log('[AdminActivation] Starting activation endpoint')
   let adminSession: { uid: string; email: string }
   try {
     adminSession = await requireAdminSession()
   } catch {
+    console.error('[AdminActivation] Session validation failed')
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }
 
@@ -260,8 +263,11 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ success: false, message: "Missing userId" }, { status: 400 })
   }
 
+  console.log('[AdminActivation] Initializing Firebase...')
   const { dbAdmin, admin } = await initFirebaseAdmin()
+  console.log(`[AdminActivation] Firebase init result: admin=${!!admin}, dbAdmin=${!!dbAdmin}`)
   if (!dbAdmin || !admin) {
+    console.error('[AdminActivation] Firebase initialization failed')
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
   }
 

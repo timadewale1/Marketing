@@ -6,9 +6,21 @@ import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId }
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
 import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel, getReferralActivationBonusAmount } from '@/lib/referral-rewards'
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
+import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
+type ActivationReferralAdminLike =
+  | FirebaseAdminCompat
+  | {
+      firestore: {
+        FieldValue: {
+          increment: (value: number) => unknown
+          serverTimestamp: () => unknown
+          delete: () => unknown
+        }
+      }
+    }
 
 function normalizeReferenceSet(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
@@ -22,7 +34,7 @@ function referencesOverlap(left: string[], right: string[]) {
 
 export async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
-  admin: typeof import('firebase-admin'),
+  admin: ActivationReferralAdminLike,
   userId: string
 ) {
   // Query by referred user only, then filter in-memory so we don't miss
@@ -210,7 +222,7 @@ export async function processPendingActivationReferrals(
 
 export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
   adminDb: AdminFirestore,
-  admin: typeof import('firebase-admin'),
+  admin: FirebaseAdminCompat,
   transaction: FirebaseFirestore.Transaction,
   advertiserId: string,
   campaignId: string,
