@@ -3,7 +3,6 @@ import path from 'node:path'
 import * as adminModule from 'firebase-admin'
 import { cert, getApp, getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
-import * as authModule from 'firebase-admin/auth'
 import * as firestoreModule from 'firebase-admin/firestore'
 import {
   getFirestore,
@@ -11,6 +10,7 @@ import {
 } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import type { FirebaseAdminCompat, FirestoreCompat } from '@/lib/firebase-admin-compat'
+import { verifyFirebaseIdToken, verifyFirebaseSessionCookie } from '@/lib/firebase-auth-verifier'
 
 export type FirebaseAdminInitResult = {
   admin: FirebaseAdminCompat | null
@@ -56,7 +56,16 @@ function createFirestoreCompat(app: App): FirestoreCompat {
 
 function createAdminCompat(app: App): FirebaseAdminCompat {
   const firestore = createFirestoreCompat(app)
-  const auth = Object.assign((() => getAuth(app)) as typeof authModule & (() => ReturnType<typeof getAuth>), authModule)
+  const auth = (() => {
+    const authInstance = getAuth(app) as ReturnType<typeof getAuth> & {
+      verifyIdToken?: (token: string, checkRevoked?: boolean) => Promise<Record<string, unknown>>
+      verifySessionCookie?: (cookie: string, checkRevoked?: boolean) => Promise<Record<string, unknown>>
+    }
+
+    authInstance.verifyIdToken = async (token: string) => verifyFirebaseIdToken(token)
+    authInstance.verifySessionCookie = async (cookie: string) => verifyFirebaseSessionCookie(cookie)
+    return authInstance
+  }) as FirebaseAdminCompat['auth']
   return {
     ...adminModule,
     app: (name?: string) => {

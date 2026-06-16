@@ -4,7 +4,6 @@ import path from "path";
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname), // forces Next.js to use this folder as root
-  serverExternalPackages: ["firebase-admin"],
   images: {
     unoptimized: true,
     domains: ["firebasestorage.googleapis.com", "i.ytimg.com", "img.youtube.com"],
