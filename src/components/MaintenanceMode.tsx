@@ -7,10 +7,7 @@ import { usePathname } from 'next/navigation'
 const EXCLUDED_PATHS = [
   '/admin',
   '/submissionmanagement',
-  '/auth/sign-in',
-  '/auth/sign-up',
-  '/auth/forgot-password',
-  '/auth/verify-email',
+  '/auth',
   '/contact',
   '/privacy',
   '/terms',
@@ -25,16 +22,14 @@ function isExcludedPath(pathname: string): boolean {
 
 export function MaintenanceMode() {
   const pathname = usePathname()
-  const [showMaintenance, setShowMaintenance] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Show maintenance mode on all protected pages (non-excluded paths)
-    if (pathname && !isExcludedPath(pathname)) {
-      setShowMaintenance(true)
-    } else {
-      setShowMaintenance(false)
-    }
-  }, [pathname])
+    setMounted(true)
+  }, [])
+
+  // Show maintenance mode on all protected pages (non-excluded paths)
+  const showMaintenance = mounted && pathname && !isExcludedPath(pathname)
 
   if (!showMaintenance) {
     return null

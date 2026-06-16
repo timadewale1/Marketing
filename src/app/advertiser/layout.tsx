@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { MaintenanceMode } from "@/components/MaintenanceMode";
 
 export default function AdvertiserLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -18,5 +19,10 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
     return () => unsubscribe();
   }, [router]);
 
-  return <div className="min-w-0 overflow-x-hidden">{children}</div>;
+  return (
+    <div className="min-w-0 overflow-x-hidden">
+      <MaintenanceMode />
+      {children}
+    </div>
+  );
 }

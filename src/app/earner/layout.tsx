@@ -6,6 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { deleteField, doc, getDoc, updateDoc } from "firebase/firestore";
 import { shouldAutoUnsuspendEarner } from "@/lib/earner-suspension";
+import { MaintenanceMode } from "@/components/MaintenanceMode";
 
 export default function EarnerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -40,5 +41,10 @@ export default function EarnerLayout({ children }: { children: React.ReactNode }
     return () => unsubscribe();
   }, [router]);
 
-  return <div className="min-w-0 overflow-x-hidden">{children}</div>;
+  return (
+    <div className="min-w-0 overflow-x-hidden">
+      <MaintenanceMode />
+      {children}
+    </div>
+  );
 }
