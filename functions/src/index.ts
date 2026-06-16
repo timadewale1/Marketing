@@ -75,6 +75,23 @@ async function callInternalRoute(path: string) {
   return payload;
 }
 
+async function callLegacyNextInternalRoute(path: string) {
+  const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
+  const headers = buildHeaders();
+  headers["x-skip-backend-proxy"] = "1";
+
+  const response = await fetch(targetUrl, {
+    method: "GET",
+    headers,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Legacy internal route failed for ${path} with status ${response.status}`);
+  }
+  return payload;
+}
+
 function isAuthorizedInternalRequest(authHeader: string | undefined) {
   const secret = String(process.env.CRON_SECRET || "").trim();
   if (!secret) return false;
@@ -409,6 +426,34 @@ export const internalApi = onRequest(async (req, res) => {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to process pending referrals",
+      });
+    }
+    return;
+  }
+
+  // Bridge mode: route still executes on Next local handler, but avoids proxy recursion.
+  if (path === "/api/internal/recovery-sweep") {
+    try {
+      const result = await callLegacyNextInternalRoute("/api/internal/recovery-sweep");
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to run recovery sweep",
+      });
+    }
+    return;
+  }
+
+  // Bridge mode for auto-verify while direct offload is prepared.
+  if (path === "/api/internal/auto-verify-submissions") {
+    try {
+      const result = await callLegacyNextInternalRoute("/api/internal/auto-verify-submissions");
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to run auto-verify submissions",
       });
     }
     return;
