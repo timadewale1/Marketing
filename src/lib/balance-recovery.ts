@@ -1,10 +1,11 @@
 import type { Firestore, Transaction } from "firebase-admin/firestore"
+import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
 
 type UserCollection = "earners" | "advertisers"
 
 type CreditRecoveryOptions = {
   adminDb: Firestore
-  admin: typeof import("firebase-admin")
+  admin: FirebaseAdminCompat
   transaction: Transaction
   userCollection: UserCollection
   userId: string
@@ -17,7 +18,7 @@ type CreditRecoveryOptions = {
 
 type DebitRecoveryOptions = {
   adminDb: Firestore
-  admin: typeof import("firebase-admin")
+  admin: FirebaseAdminCompat
   transaction: Transaction
   userCollection: UserCollection
   userId: string
