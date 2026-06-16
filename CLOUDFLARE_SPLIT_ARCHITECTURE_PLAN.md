@@ -25,9 +25,10 @@
 Create one API call boundary so backend location can change without touching pages/components repeatedly.
 
 ### Tasks
-1. Add centralized server API client wrapper (`src/lib/server-api.ts`).
+1. Add centralized server API client wrapper (`src/lib/server-api.ts`). ✅
 2. Add envs:
    - `API_BASE_URL` (backend root, default current app origin)
+   - `NEXT_PUBLIC_API_BASE_URL` (client-side base for future split)
    - `API_INTERNAL_SECRET` (for internal service-to-service routes)
 3. Route all internal API calls through the wrapper.
 4. Keep existing Next API routes as primary behavior for now.
@@ -146,4 +147,3 @@ Use Cloudflare on free tier only for small focused workers (each under script li
 - Do not cut over all routes at once.
 - Do not reintroduce custom JWT/JWKS verification in runtime path.
 - Do not remove current fallback handlers before monitoring confirms parity.
-

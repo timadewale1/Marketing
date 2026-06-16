@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/server-api"
+
 export type BuyServiceResult = {
   response_description?: string
   transactionId?: string
@@ -36,7 +38,7 @@ export type BuyServiceResponse = {
 export async function postBuyService(payload: Record<string, unknown>, options?: { idToken?: string }): Promise<BuyServiceResponse> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (options?.idToken) headers['Authorization'] = `Bearer ${options.idToken}`
-  const res = await fetch('/api/bills/buy-service', { method: 'POST', headers, body: JSON.stringify(payload) })
+  const res = await apiFetch('/api/bills/buy-service', { method: 'POST', headers, body: JSON.stringify(payload) })
   let body: BuyServiceResponseBody = {}
   try { body = (await res.json()) as BuyServiceResponseBody } catch (_error) { body = {} }
   return { ok: Boolean(res.ok && body.ok), status: res.status, body, raw: res }

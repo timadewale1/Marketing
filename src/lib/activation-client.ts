@@ -1,6 +1,7 @@
 "use client"
 
 import { auth } from "@/lib/firebase"
+import { apiFetch } from "@/lib/server-api"
 
 export async function registerActivationReference({
   role,
@@ -17,7 +18,7 @@ export async function registerActivationReference({
   }
 
   const idToken = await user.getIdToken()
-  const response = await fetch("/api/activation/register-reference", {
+  const response = await apiFetch("/api/activation/register-reference", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

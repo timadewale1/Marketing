@@ -1,6 +1,7 @@
 "use client"
 
 import { auth } from "@/lib/firebase"
+import { apiFetch } from "@/lib/server-api"
 
 export async function registerWalletFundingReference({
   reference,
@@ -17,7 +18,7 @@ export async function registerWalletFundingReference({
   }
 
   const idToken = await user.getIdToken()
-  const response = await fetch("/api/wallet/register-funding-reference", {
+  const response = await apiFetch("/api/wallet/register-funding-reference", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
