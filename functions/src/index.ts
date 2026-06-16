@@ -42,6 +42,20 @@ const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   "https://www.pambaadverts.com";
 
+function getInternalApiBaseUrl() {
+  const explicit = String(process.env.INTERNAL_API_BASE_URL || "").trim();
+  if (explicit) {
+    return explicit.replace(/\/+$/, "");
+  }
+
+  const projectId = String(process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "").trim();
+  if (projectId) {
+    return `https://us-central1-${projectId}.cloudfunctions.net/internalApi`;
+  }
+
+  return "";
+}
+
 function buildHeaders() {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -55,24 +69,41 @@ function buildHeaders() {
 }
 
 async function callInternalRoute(path: string) {
-  const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
-  const response = await fetch(targetUrl, {
-    method: "GET",
-    headers: buildHeaders(),
-  });
+  const headers = buildHeaders();
+  const internalBase = getInternalApiBaseUrl();
+  const appBase = APP_BASE_URL.replace(/\/$/, "");
+  const targetCandidates = internalBase
+    ? [`${internalBase}${path}`, `${appBase}${path}`]
+    : [`${appBase}${path}`];
 
-  const payload = await response.json().catch(() => ({}));
-  console.log(`[scheduler] ${path}`, {
-    ok: response.ok,
-    status: response.status,
-    payload,
-  });
+  let lastError: string | null = null;
+  for (const targetUrl of targetCandidates) {
+    try {
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers,
+      });
 
-  if (!response.ok) {
-    throw new Error(`Scheduled call failed for ${path} with status ${response.status}`);
+      const payload = await response.json().catch(() => ({}));
+      console.log(`[scheduler] ${path}`, {
+        targetUrl,
+        ok: response.ok,
+        status: response.status,
+        payload,
+      });
+
+      if (response.ok) {
+        return payload;
+      }
+
+      lastError = `status ${response.status}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "unknown error";
+      console.warn(`[scheduler] ${path} call failed`, { targetUrl, error: lastError });
+    }
   }
 
-  return payload;
+  throw new Error(`Scheduled call failed for ${path}${lastError ? `: ${lastError}` : ""}`);
 }
 
 async function callLegacyNextInternalRoute(path: string) {
