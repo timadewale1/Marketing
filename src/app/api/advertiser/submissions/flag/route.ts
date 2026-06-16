@@ -400,7 +400,7 @@ export async function POST(req: Request) {
       }
     })
 
-    await runSubmissionProofCleanupIfDue(admin, dbAdmin)
+    await runSubmissionProofCleanupIfDue(admin as unknown, dbAdmin)
 
     if (resubmissionEmailPayload) {
       sendProofResubmissionRequestedEmail(resubmissionEmailPayload).catch((error) => {

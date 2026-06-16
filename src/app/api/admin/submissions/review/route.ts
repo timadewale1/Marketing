@@ -39,13 +39,17 @@ export async function POST(req: Request): Promise<Response> {
   }
   const body = await req.json()
   const { action, rejectionReason, submissionId, userId: bodyUserId, campaignId: bodyCampaignId } = body
+  console.log('[AdminReview] Initializing Firebase...')
   const firebaseAdmin = await initFirebaseAdmin()
+  console.log(`[AdminReview] Firebase init result: admin=${!!firebaseAdmin.admin}, dbAdmin=${!!firebaseAdmin.dbAdmin}`)
   if (!firebaseAdmin || !firebaseAdmin.dbAdmin) {
+    console.error('[AdminReview] Firebase dbAdmin initialization failed')
     return NextResponse.json({ success: false, message: 'Firebase not initialized' }, { status: 500 })
   }
   const adminDb = firebaseAdmin.dbAdmin
   const admin = firebaseAdmin.admin
   if (!admin) {
+    console.error('[AdminReview] Firebase admin unavailable')
     return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
   }
   const now = new Date()
@@ -499,7 +503,7 @@ export async function POST(req: Request): Promise<Response> {
       }
     })
 
-    await runSubmissionProofCleanupIfDue(admin, adminDb)
+    await runSubmissionProofCleanupIfDue(admin as unknown, adminDb)
 
     const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
     if (emailPayload?.type === 'added') {
