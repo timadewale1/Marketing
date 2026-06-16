@@ -10,3 +10,5 @@ binding = "ASSETS"
 [observability.logs]
 enabled = true
 
+[build]
+command = "npm run build:cf"

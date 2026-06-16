@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin';
-import * as admin from 'firebase-admin';
+import { FieldValue, type DocumentReference, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { notifyAdminOfBillsPurchase } from '@/lib/bills-admin-alerts';
 import { resolveActorUserIdFromRequest, verifyExternalBillsPayment } from '@/lib/bills-payment';
 
@@ -35,9 +35,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
 
     let verifiedUid: string | null = (await resolveActorUserIdFromRequest(request)) || null;
     let userType: 'advertiser' | 'earner' | null = null;
-    let txDocRef: admin.firestore.DocumentReference | null = null;
-    let db: admin.firestore.Firestore | null = null;
-    let adminAuth: admin.auth.Auth | null = null;
+    let txDocRef: DocumentReference | null = null;
+    let db: Firestore | null = null;
+    let adminAuth: ReturnType<NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['admin']>['auth']> | null = null;
     const amountN = Number(sellAmount || amount || 0);
 
     if (payFromWallet && amountN > 0) {
@@ -47,11 +47,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
       }
       const idToken = authHeader.split('Bearer ')[1];
 
+      console.log('[UsufCable] Initializing Firebase...');
       const adminInit = await initFirebaseAdmin();
+      console.log(`[UsufCable] Firebase init result: admin=${!!adminInit.admin}, dbAdmin=${!!adminInit.dbAdmin}`);
       adminAuth = adminInit.admin?.auth() || null;
-      db = adminInit.dbAdmin as admin.firestore.Firestore;
+      db = adminInit.dbAdmin as Firestore;
 
       if (!adminAuth || !db) {
+        console.error('[UsufCable] Firebase initialization failed');
         return NextResponse.json({ status: false, message: 'Server admin unavailable' }, { status: 500 });
       }
 
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
       const advSnap = await advertiserRef.get();
       const earSnap = await earnerRef.get();
 
-      let userRef: admin.firestore.DocumentReference;
+      let userRef: DocumentReference;
       if (advSnap.exists) {
         userType = 'advertiser';
         userRef = advertiserRef;
@@ -93,13 +96,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
       txDocRef = db!.collection(txCollection).doc();
 
       try {
-        await db!.runTransaction(async (t: admin.firestore.Transaction) => {
+        await db!.runTransaction(async (t: Transaction) => {
           const uSnap = await t.get(userRef);
           const userData = uSnap.data() as Record<string, unknown> | undefined;
           const bal = Number(userData?.balance || 0);
           if (bal < amountN) throw new Error('Insufficient balance');
 
-          t.update(userRef, { balance: admin.firestore.FieldValue.increment(-amountN) });
+          t.update(userRef, { balance: FieldValue.increment(-amountN) });
           t.set(txDocRef!, {
             userId: verifiedUid,
             type: 'usuf_cable',
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
             cablename,
             cableplan,
             smartCard: smart_card_number || null,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
           });
         });
       } catch (e: unknown) {
@@ -173,8 +176,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
           const userRefRollback = userType === 'advertiser'
             ? db!.collection('advertisers').doc(verifiedUid)
             : db!.collection('earners').doc(verifiedUid);
-          await db!.runTransaction(async (t: admin.firestore.Transaction) => {
-            t.update(userRefRollback, { balance: admin.firestore.FieldValue.increment(amountN) });
+          await db!.runTransaction(async (t: Transaction) => {
+            t.update(userRefRollback, { balance: FieldValue.increment(amountN) });
             t.update(txDocRef!, { status: 'failed', response: data, updatedAt: new Date().toISOString() });
           });
         } catch (e) {
@@ -199,7 +202,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
     const returnData = data?.data ?? data;
     const message = data?.message || data?.api_response || data?.apiResponse || (returnData && (returnData.api_response || returnData.api_response_message)) || 'Cable subscription successful';
 
-    const completeWithRetry = async (ref: import('firebase-admin').firestore.DocumentReference, data: Record<string, unknown>) => {
+    const completeWithRetry = async (ref: DocumentReference, data: Record<string, unknown>) => {
       try {
         await ref.update(data);
       } catch (err) {
@@ -226,11 +229,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
           const txCollection = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions';
           const userRef = userType === 'advertiser' ? db.collection('advertisers').doc(verifiedUid) : db.collection('earners').doc(verifiedUid);
           const newTxRef = db.collection(txCollection).doc();
-          await db.runTransaction(async (t: admin.firestore.Transaction) => {
+          await db.runTransaction(async (t: Transaction) => {
             const uSnap = await t.get(userRef);
             const bal = Number(uSnap.data()?.balance || 0);
             if (bal < amountN) throw new Error('Insufficient balance for post-debit');
-            t.update(userRef, { balance: admin.firestore.FieldValue.increment(-amountN) });
+            t.update(userRef, { balance: FieldValue.increment(-amountN) });
             t.set(newTxRef, {
               userId: verifiedUid,
               type: 'usuf_cable',
@@ -240,7 +243,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UsufCable
               cableplan,
               smartCard: smart_card_number || null,
               response: returnData,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              createdAt: FieldValue.serverTimestamp(),
               updatedAt: new Date().toISOString(),
             });
           });

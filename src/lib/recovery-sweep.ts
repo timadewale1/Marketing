@@ -1,4 +1,4 @@
-import * as admin from "firebase-admin"
+import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paymentProcessing"
 import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
@@ -555,7 +555,7 @@ export async function runRecoverySweep() {
       lastRecoveryVerificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
       recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
-      nextRecoveryCheckAt: autoChecksLocked ? admin.firestore.FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
+      nextRecoveryCheckAt: autoChecksLocked ? FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Activation payment remained unresolved after automatic retries" : null,
       recoveryAutoChecksLocked: autoChecksLocked,
@@ -675,7 +675,7 @@ export async function runRecoverySweep() {
       verificationState: candidate.verificationState,
       recoveryRetryCount: nextRetryCount,
       recoveryDisposition: isManualReview ? "manual_review" : (escalate ? "manual_review" : "scheduled"),
-      nextRecoveryCheckAt: autoChecksLocked ? admin.firestore.FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
+      nextRecoveryCheckAt: autoChecksLocked ? FieldValue.delete() : new Date(Date.now() + RECOVERY_AUTO_RECHECK_INTERVAL_MS),
       recoveryEscalatedAt: escalate ? new Date() : null,
       recoveryEscalationReason: escalate ? "Wallet funding remained unresolved after automatic retries" : null,
       recoveryAutoChecksLocked: autoChecksLocked,

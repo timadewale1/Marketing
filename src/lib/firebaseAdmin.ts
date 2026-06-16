@@ -1,15 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import * as adminModule from 'firebase-admin'
 import { cert, getApp, getApps, initializeApp, type App } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
 import * as firestoreModule from 'firebase-admin/firestore'
 import {
   getFirestore,
   type Firestore as AdminFirestore,
 } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
-import type { FirebaseAdminCompat, FirestoreCompat } from '@/lib/firebase-admin-compat'
+import type { FirebaseAdminCompat, FirebaseAuthCompat, FirestoreCompat, FirebaseUserCompat } from '@/lib/firebase-admin-compat'
 import { verifyFirebaseIdToken, verifyFirebaseSessionCookie } from '@/lib/firebase-auth-verifier'
 
 export type FirebaseAdminInitResult = {
@@ -54,25 +52,76 @@ function createFirestoreCompat(app: App): FirestoreCompat {
   return firestore
 }
 
+async function loadNativeAuthModule() {
+  return import('firebase-admin/auth')
+}
+
+function createAuthCompat(app: App): FirebaseAuthCompat {
+  let nativeAuthPromise: Promise<{
+    getUserByEmail: (email: string) => Promise<FirebaseUserCompat>
+    createUser: (properties: Record<string, unknown>) => Promise<FirebaseUserCompat>
+    generateEmailVerificationLink: (email: string, actionCodeSettings?: Record<string, unknown>) => Promise<string>
+    deleteUser: (uid: string) => Promise<void>
+    getUser: (uid: string) => Promise<FirebaseUserCompat>
+    generatePasswordResetLink: (email: string, actionCodeSettings?: Record<string, unknown>) => Promise<string>
+    createSessionCookie: (idToken: string, options: { expiresIn: number }) => Promise<string>
+    createCustomToken: (uid: string, developerClaims?: Record<string, unknown>) => Promise<string>
+  }> | null = null
+
+  const getNativeAuth = () => {
+    if (!nativeAuthPromise) {
+      nativeAuthPromise = loadNativeAuthModule().then((module) => module.getAuth(app) as never)
+    }
+    return nativeAuthPromise
+  }
+
+  return {
+    verifyIdToken: async (token: string) => verifyFirebaseIdToken(token) as never,
+    verifySessionCookie: async (cookie: string) => verifyFirebaseSessionCookie(cookie) as never,
+    createSessionCookie: async (idToken: string, options: { expiresIn: number }) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.createSessionCookie(idToken, options)
+    },
+    getUserByEmail: async (email: string) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.getUserByEmail(email)
+    },
+    createUser: async (properties: Record<string, unknown>) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.createUser(properties)
+    },
+    generateEmailVerificationLink: async (email: string, actionCodeSettings?: Record<string, unknown>) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.generateEmailVerificationLink(email, actionCodeSettings)
+    },
+    deleteUser: async (uid: string) => {
+      const nativeAuth = await getNativeAuth()
+      await nativeAuth.deleteUser(uid)
+    },
+    getUser: async (uid: string) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.getUser(uid)
+    },
+    generatePasswordResetLink: async (email: string, actionCodeSettings?: Record<string, unknown>) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.generatePasswordResetLink(email, actionCodeSettings)
+    },
+    createCustomToken: async (uid: string, developerClaims?: Record<string, unknown>) => {
+      const nativeAuth = await getNativeAuth()
+      return nativeAuth.createCustomToken(uid, developerClaims)
+    },
+  }
+}
+
 function createAdminCompat(app: App): FirebaseAdminCompat {
   const firestore = createFirestoreCompat(app)
-  const auth = (() => {
-    const authInstance = getAuth(app) as ReturnType<typeof getAuth> & {
-      verifyIdToken?: (token: string, checkRevoked?: boolean) => Promise<Record<string, unknown>>
-      verifySessionCookie?: (cookie: string, checkRevoked?: boolean) => Promise<Record<string, unknown>>
-    }
-
-    authInstance.verifyIdToken = async (token: string) => verifyFirebaseIdToken(token)
-    authInstance.verifySessionCookie = async (cookie: string) => verifyFirebaseSessionCookie(cookie)
-    return authInstance
-  }) as FirebaseAdminCompat['auth']
+  const authCompat = createAuthCompat(app)
   return {
-    ...adminModule,
     app: (name?: string) => {
       if (!name) return app
       return getApp(name)
     },
-    auth,
+    auth: () => authCompat,
     firestore,
     storage: () => ({
       bucket: (name?: string) => getStorage(app).bucket(name),
