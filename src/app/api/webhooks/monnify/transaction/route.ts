@@ -140,7 +140,8 @@ export async function POST(req: NextRequest) {
 
     if (isSuccessfulMonnifyCollection(eventType, eventData)) {
       const { reference, status, amount, transactionReference } = eventData
-      const safeAmount = toSafeNumber(amount, 0)
+      const rawAmount = eventData?.amount ?? eventData?.amountPaid ?? eventData?.paidAmount ?? eventData?.totalPayable
+      const safeAmount = toSafeNumber(rawAmount, 0)
       const effectiveReference = String(reference || transactionReference || '')
       const paymentStatus = normalizeWebhookText(eventData?.paymentStatus || status)
       const customerEmail = String(
@@ -155,9 +156,12 @@ export async function POST(req: NextRequest) {
       )
 
       console.log('[webhook][monnify][transaction] processing transaction', {
-        reference,
+        reference: effectiveReference,
+        transactionReference,
+        paymentStatus,
         status,
-        amount,
+        amount: safeAmount,
+        rawAmount,
       })
       await logPaymentLifecycle({
         scope: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
@@ -286,7 +290,7 @@ export async function POST(req: NextRequest) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, Number(amount || 2000))
+                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 2000)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -310,7 +314,7 @@ export async function POST(req: NextRequest) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, Number(amount || 2000))
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 2000)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -348,7 +352,7 @@ export async function POST(req: NextRequest) {
                           'monnify',
                           3,
                           referenceCandidates,
-                          Number(amount || 2000)
+                          safeAmount > 0 ? safeAmount : 2000
                         )
 
                         await dbAdmin.collection('activationAttempts').doc(getActivationAttemptDocId(attemptedRole, attemptedUserId)).set({
@@ -395,8 +399,9 @@ export async function POST(req: NextRequest) {
 
       // Log for audit purposes
       console.log('[webhook][monnify][transaction] transaction completed', {
-        reference,
+        reference: effectiveReference,
         transactionReference,
+        paymentStatus,
         status,
         amount: safeAmount,
       })

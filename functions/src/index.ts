@@ -123,6 +123,25 @@ async function callLegacyNextInternalRoute(path: string) {
   return payload;
 }
 
+async function callLegacyNextInternalPostRoute(path: string, payload: Record<string, unknown>) {
+  const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
+  const headers = buildHeaders();
+  headers["x-skip-backend-proxy"] = "1";
+  headers["Content-Type"] = "application/json";
+
+  const response = await fetch(targetUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Legacy POST route failed for ${path} with status ${response.status}`);
+  }
+  return body;
+}
+
 function isAuthorizedInternalRequest(authHeader: string | undefined) {
   const secret = String(process.env.CRON_SECRET || "").trim();
   if (!secret) return false;
@@ -260,6 +279,315 @@ export const retryPendingMonnifyPayments = onSchedule("every 5 minutes", async (
 
 function normalizeReferences(values: unknown[]) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+let cachedMonnifyToken: { token: string; expiresAt: number } | null = null;
+
+async function getMonnifyToken() {
+  if (cachedMonnifyToken && cachedMonnifyToken.expiresAt > Date.now()) {
+    return cachedMonnifyToken.token;
+  }
+
+  const base = String(process.env.MONNIFY_BASE_URL || "").trim();
+  const apiKey = String(process.env.MONNIFY_API_KEY || "").trim();
+  const secret = String(process.env.MONNIFY_SECRET_KEY || "").trim();
+  if (!base || !apiKey || !secret) {
+    throw new Error("Monnify credentials missing in functions env");
+  }
+
+  const basic = Buffer.from(`${apiKey}:${secret}`).toString("base64");
+  const response = await fetch(`${base}/api/v1/auth/login`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      Accept: "application/json",
+    },
+  });
+
+  const payload = await response.json().catch(() => ({})) as {
+    requestSuccessful?: boolean;
+    responseBody?: { accessToken?: string; expiresIn?: number };
+  };
+
+  if (!response.ok || !payload.requestSuccessful || !payload.responseBody?.accessToken) {
+    throw new Error("Monnify auth failed");
+  }
+
+  cachedMonnifyToken = {
+    token: payload.responseBody.accessToken,
+    expiresAt: Date.now() + Number(payload.responseBody.expiresIn || 0) * 1000,
+  };
+
+  return cachedMonnifyToken.token;
+}
+
+function resolveMonnifyStatus(value: unknown): "paid" | "manual_check" | "unverified" {
+  const status = String(value || "").toUpperCase();
+  if (status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED") return "paid";
+  if (status === "PENDING" || status === "PROCESSING" || status === "INITIATED" || status === "IN_PROGRESS") return "manual_check";
+  return "unverified";
+}
+
+async function verifyMonnifyReference(reference: string): Promise<"paid" | "manual_check" | "unverified"> {
+  if (!reference) return "unverified";
+  const base = String(process.env.MONNIFY_BASE_URL || "").trim();
+  if (!base) return "unverified";
+  const token = await getMonnifyToken();
+
+  const endpoints = [
+    `${base}/api/v2/merchant/transactions/query?paymentReference=${encodeURIComponent(reference)}`,
+    `${base}/api/v2/merchant/transactions/query?transactionReference=${encodeURIComponent(reference)}`,
+    `${base}/api/v2/transactions/${encodeURIComponent(reference)}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        requestSuccessful?: boolean;
+        responseBody?: { paymentStatus?: unknown; status?: unknown };
+      };
+      if (!response.ok || !payload.requestSuccessful) continue;
+      const state = resolveMonnifyStatus(payload.responseBody?.paymentStatus || payload.responseBody?.status);
+      if (state !== "unverified") return state;
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return reference.toUpperCase().startsWith("TX_") || reference.toUpperCase().startsWith("MNFY")
+    ? "manual_check"
+    : "unverified";
+}
+
+async function buildSuccessfulWebhookReferences() {
+  const db = admin.firestore();
+  const processedWebhookSnap = await db
+    .collection("processedWebhooks")
+    .where("eventType", "==", "TRANSACTION_COMPLETION")
+    .limit(1000)
+    .get();
+
+  return new Set(
+    processedWebhookSnap.docs
+      .filter((doc) => {
+        const data = doc.data();
+        const status = String(data.status || data.paymentStatus || "").toUpperCase();
+        return status === "PAID" || status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED";
+      })
+      .flatMap((doc) => {
+        const data = doc.data();
+        return normalizeReferences([
+          data.reference,
+          ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+        ]).slice(0, 1);
+      })
+  );
+}
+
+function getDateFromFirestoreValue(value: unknown) {
+  if (value && typeof value === "object" && "toDate" in (value as Record<string, unknown>)) {
+    return ((value as { toDate: () => Date }).toDate());
+  }
+  return null;
+}
+
+async function resolveReferencesPaidState(
+  references: string[],
+  successfulWebhookReferences: Set<string>,
+  verificationCache: Map<string, Promise<"paid" | "manual_check" | "unverified">>,
+) {
+  if (references.some((reference) => successfulWebhookReferences.has(reference))) return "paid" as const;
+
+  let sawManual = false;
+  for (const reference of references) {
+    let verification = verificationCache.get(reference);
+    if (!verification) {
+      verification = verifyMonnifyReference(reference);
+      verificationCache.set(reference, verification);
+    }
+    const state = await verification;
+    if (state === "paid") return "paid" as const;
+    if (state === "manual_check") sawManual = true;
+  }
+  return sawManual ? "manual_check" as const : "unverified" as const;
+}
+
+async function runDirectRecoverySweep() {
+  const db = admin.firestore();
+  const now = Date.now();
+  const verificationCache = new Map<string, Promise<"paid" | "manual_check" | "unverified">>();
+  const [walletSourceSnap, activationSourceSnap, successfulWebhookReferences] = await Promise.all([
+    db.collection("advertiserTransactions").orderBy("createdAt", "desc").limit(500).get(),
+    db.collection("activationAttempts").orderBy("createdAt", "desc").limit(500).get(),
+    buildSuccessfulWebhookReferences(),
+  ]);
+
+  const pendingWalletDocs = walletSourceSnap.docs
+    .filter((doc) => {
+      const data = doc.data();
+      return String(data.type || "").toLowerCase() === "wallet_funding" &&
+        String(data.status || "").toLowerCase() === "pending";
+    })
+    .slice(0, 50);
+
+  const pendingActivationDocs = activationSourceSnap.docs
+    .filter((doc) => String(doc.data().status || "").toLowerCase() === "pending")
+    .slice(0, 50);
+
+  let activationRecovered = 0;
+  let walletRecovered = 0;
+  let activationDeferred = 0;
+  let walletDeferred = 0;
+
+  for (const doc of pendingActivationDocs) {
+    const data = doc.data();
+    if (Boolean(data.recoveryAutoChecksLocked)) continue;
+    if (String(data.recoveryDisposition || "").toLowerCase() === "manual_review") continue;
+    const nextCheckAt = getDateFromFirestoreValue(data.nextRecoveryCheckAt);
+    if (nextCheckAt && nextCheckAt.getTime() > now) continue;
+
+    const references = normalizeReferences([
+      data.reference,
+      ...(Array.isArray(data.references) ? data.references : []),
+      data.pendingReference,
+    ]);
+    if (references.length === 0) continue;
+
+    const retryCount = Number(data.recoveryRetryCount || 0);
+    if (retryCount === 0) {
+      await doc.ref.set({
+        lastRecoveryCheckedAt: new Date(),
+        recoveryRetryCount: 0,
+        recoveryDisposition: "scheduled",
+        nextRecoveryCheckAt: new Date(Date.now() + 90_000),
+      }, { merge: true });
+      activationDeferred += 1;
+      continue;
+    }
+
+    const verificationState = await resolveReferencesPaidState(references, successfulWebhookReferences, verificationCache);
+    if (verificationState === "paid") {
+      try {
+        await callLegacyNextInternalPostRoute("/api/internal/process-activation", {
+          userId: String(data.userId || ""),
+          role: String(data.role || "").toLowerCase() === "advertiser" ? "advertiser" : "earner",
+          provider: String(data.provider || "monnify"),
+          reference: references[0],
+          references,
+          amount: Number(data.amount || 2000),
+        });
+        await doc.ref.set({
+          lastRecoveryCheckedAt: new Date(),
+          lastRecoveryVerificationState: "paid",
+          recoveryDisposition: "completed",
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: false,
+        }, { merge: true });
+        activationRecovered += 1;
+      } catch (error) {
+        console.error("[functions][recovery-direct] activation processing failed", { docId: doc.id, error });
+      }
+      continue;
+    }
+
+    const nextRetryCount = retryCount + 1;
+    const lock = nextRetryCount >= 4;
+    await doc.ref.set({
+      lastRecoveryCheckedAt: new Date(),
+      lastRecoveryVerificationState: verificationState,
+      recoveryRetryCount: nextRetryCount,
+      recoveryDisposition: lock ? "manual_review" : "scheduled",
+      nextRecoveryCheckAt: lock ? admin.firestore.FieldValue.delete() : new Date(Date.now() + 5 * 60 * 1000),
+      recoveryAutoChecksLocked: lock,
+    }, { merge: true });
+    activationDeferred += 1;
+  }
+
+  for (const doc of pendingWalletDocs) {
+    const data = doc.data();
+    if (Boolean(data.recoveryAutoChecksLocked)) continue;
+    if (String(data.recoveryDisposition || "").toLowerCase() === "manual_review") continue;
+    const nextCheckAt = getDateFromFirestoreValue(data.nextRecoveryCheckAt);
+    if (nextCheckAt && nextCheckAt.getTime() > now) continue;
+
+    const references = normalizeReferences([
+      data.reference,
+      ...(Array.isArray(data.referenceCandidates) ? data.referenceCandidates : []),
+    ]);
+    if (references.length === 0) continue;
+
+    const retryCount = Number(data.recoveryRetryCount || 0);
+    if (retryCount === 0) {
+      await doc.ref.set({
+        lastRecoveryCheckedAt: new Date(),
+        recoveryRetryCount: 0,
+        recoveryDisposition: "scheduled",
+        nextRecoveryCheckAt: new Date(Date.now() + 90_000),
+      }, { merge: true });
+      walletDeferred += 1;
+      continue;
+    }
+
+    const verificationState = await resolveReferencesPaidState(references, successfulWebhookReferences, verificationCache);
+    if (verificationState === "paid") {
+      try {
+        await callLegacyNextInternalPostRoute("/api/internal/process-wallet-funding", {
+          userId: String(data.userId || ""),
+          role: "advertiser",
+          provider: String(data.provider || "monnify"),
+          reference: references[0],
+          references,
+          amount: Number(data.amount || 0),
+        });
+        await doc.ref.set({
+          lastRecoveryCheckedAt: new Date(),
+          lastRecoveryVerificationState: "paid",
+          verificationState: "paid",
+          recoveryDisposition: "completed",
+          nextRecoveryCheckAt: admin.firestore.FieldValue.delete(),
+          recoveryAutoChecksLocked: false,
+        }, { merge: true });
+        walletRecovered += 1;
+      } catch (error) {
+        console.error("[functions][recovery-direct] wallet processing failed", { docId: doc.id, error });
+      }
+      continue;
+    }
+
+    const nextRetryCount = retryCount + 1;
+    const lock = nextRetryCount >= 4;
+    await doc.ref.set({
+      lastRecoveryCheckedAt: new Date(),
+      lastRecoveryVerificationState: verificationState,
+      verificationState,
+      recoveryRetryCount: nextRetryCount,
+      recoveryDisposition: lock ? "manual_review" : "scheduled",
+      nextRecoveryCheckAt: lock ? admin.firestore.FieldValue.delete() : new Date(Date.now() + 5 * 60 * 1000),
+      recoveryAutoChecksLocked: lock,
+    }, { merge: true });
+    walletDeferred += 1;
+  }
+
+  return {
+    success: true,
+    activationRecovered,
+    walletRecovered,
+    checked: {
+      activation: pendingActivationDocs.length,
+      wallet: pendingWalletDocs.length,
+    },
+    deferred: {
+      activation: activationDeferred,
+      wallet: walletDeferred,
+    },
+  };
 }
 
 function referencesChanged(beforeData: Record<string, unknown> | undefined, afterData: Record<string, unknown> | undefined) {
@@ -467,14 +795,27 @@ export const internalApi = onRequest(async (req, res) => {
 
   // Bridge mode: route still executes on Next local handler, but avoids proxy recursion.
   if (path === "/api/internal/recovery-sweep") {
+    const useDirectSweep = String(process.env.FUNCTIONS_DIRECT_RECOVERY_SWEEP || "1").trim() !== "0";
     try {
-      const result = await callLegacyNextInternalRoute("/api/internal/recovery-sweep");
+      const result = useDirectSweep
+        ? await runDirectRecoverySweep()
+        : await callLegacyNextInternalRoute("/api/internal/recovery-sweep");
       res.status(200).json(result);
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to run recovery sweep",
-      });
+      // Safety fallback during migration: if direct sweep fails, run the legacy route.
+      try {
+        const fallbackResult = await callLegacyNextInternalRoute("/api/internal/recovery-sweep");
+        res.status(200).json({
+          ...fallbackResult,
+          fallbackUsed: true,
+        });
+      } catch (fallbackError) {
+        res.status(500).json({
+          success: false,
+          message: fallbackError instanceof Error ? fallbackError.message : "Failed to run recovery sweep",
+          originalError: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
     return;
   }

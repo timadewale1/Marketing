@@ -54,7 +54,7 @@ export async function proxyToBackendIfConfigured(path: `/${string}`, request: Re
 
     // During phased migration, fall back to local logic if backend route is absent/unavailable.
     if (!upstream.ok) {
-      const fallbackStatuses = new Set([404, 405, 500, 501, 502, 503, 504])
+      const fallbackStatuses = new Set([401, 403, 404, 405, 500, 501, 502, 503, 504])
       if (fallbackStatuses.has(upstream.status)) {
         return null
       }
