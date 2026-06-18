@@ -363,6 +363,22 @@ export default function PAMBALanding() {
           padding: 22px;
           box-shadow: 0 18px 40px -30px rgba(28,25,23,0.28);
         }
+        .updates-card-highlight {
+          position: relative;
+          overflow: hidden;
+          background: linear-gradient(135deg, rgba(245,158,11,0.11), rgba(255,255,255,0.96));
+          border-color: rgba(245,158,11,0.26);
+        }
+        .updates-card-highlight::after {
+          content: '';
+          position: absolute;
+          inset: auto -32px -32px auto;
+          width: 120px;
+          height: 120px;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(245,158,11,0.18), transparent 68%);
+          pointer-events: none;
+        }
         .updates-card h3 {
           font-family: 'Sora', sans-serif;
           font-size: 1rem;
@@ -985,12 +1001,17 @@ export default function PAMBALanding() {
               <h3>For earners and advertisers</h3>
               <p>Earn cashback when you buy from participating vendors, with the feature unlocking as products go live.</p>
             </div>
-            <div className="updates-card">
-              <h3>Still onboarding vendors</h3>
-              <p>The marketplace will stay in a polished onboarding state until vendor stores and products are ready.</p>
+            <div className="updates-card updates-card-highlight">
+              <h3>Explore the marketplace</h3>
+              <p>Browse vendor shops, open product links, and discover what is available as stores come online.</p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">Search shops</span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">View products</span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">Open storefronts</span>
+              </div>
             </div>
           </div>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-10 flex justify-center px-2 sm:px-0">
             <Link href="/marketplace" className="btn-primary-lg">
               Visit Marketplace <ArrowRight size={18} />
             </Link>

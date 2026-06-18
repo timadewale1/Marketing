@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { processWalletFundingWithRetry } from "@/lib/paymentProcessing"
+import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
 
 function isAuthorized(request: Request) {
   const cronSecret = String(process.env.CRON_SECRET || "").trim()
@@ -8,6 +9,9 @@ function isAuthorized(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const proxied = await proxyToBackendIfConfigured("/api/internal/process-wallet-funding", request)
+  if (proxied) return proxied
+
   if (!isAuthorized(request)) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }

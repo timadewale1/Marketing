@@ -104,6 +104,14 @@ export default function VendorDashboardPage() {
                 <p className="max-w-3xl text-sm leading-6 text-stone-600">
                   Your store is set up for product listings, storefront sharing, and external checkout links.
                 </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild className="rounded-full">
+                    <Link href="/vendor/products">Manage products</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/marketplace">View marketplace</Link>
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge className="rounded-full border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">

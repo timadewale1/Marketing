@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { runFullActivationFlow } from "@/lib/paymentProcessing"
+import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
 
 type UserRole = "earner" | "advertiser"
 
@@ -10,6 +11,9 @@ function isAuthorized(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const proxied = await proxyToBackendIfConfigured("/api/internal/process-activation", request)
+  if (proxied) return proxied
+
   if (!isAuthorized(request)) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }
