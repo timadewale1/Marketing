@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
+import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 
 export async function GET(req: Request) {
   try {
+    const proxied = await proxyToBackendIfConfigured('/api/internal/submission-proof-cleanup', req)
+    if (proxied) return proxied
+
     const cronSecret = process.env.CRON_SECRET
     const authHeader = req.headers.get('authorization') || ''
 

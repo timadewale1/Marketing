@@ -30,7 +30,7 @@ const formSchema = z.object({
     .string()
     .regex(/^\d{10,15}$/, "Enter a valid phone number (10-15 digits)"),
   password: z.string().min(5, "Password must be at least 5 characters"),
-  action: z.enum(["advertiser", "earner"], {
+  action: z.enum(["advertiser", "earner", "vendor"], {
     message: "Please select what you want to do",
   }),
   acceptTerms: z.boolean().refine((val) => val === true, {
@@ -226,15 +226,19 @@ export function SignUpForm() {
 
           <div>
             <Label className="text-stone-200">What do you want to do?</Label>
-            <Select onValueChange={(val) => setValue("action", val as "advertiser" | "earner")} defaultValue="earner">
-              <SelectTrigger className="bg-white/20 border-white/30 text-white">
-                <SelectValue placeholder="Choose an option" />
-              </SelectTrigger>
-              <SelectContent className="bg-stone-700 text-white">
-                <SelectItem value="advertiser">Create Tasks</SelectItem>
-                <SelectItem value="earner">Earn by performing tasks</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select onValueChange={(val) => setValue("action", val as "advertiser" | "earner" | "vendor")} defaultValue="earner">
+                <SelectTrigger className="bg-white/20 border-white/30 text-white">
+                  <SelectValue placeholder="Choose an option" />
+                </SelectTrigger>
+                <SelectContent className="bg-stone-700 text-white">
+                  <SelectItem value="advertiser">Create Tasks</SelectItem>
+                  <SelectItem value="earner">Earn by performing tasks</SelectItem>
+                  <SelectItem value="vendor">Pamba Vendor Store</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-2 text-xs text-stone-400">
+                Vendors can set up a storefront, list products, and share a shop link with buyers.
+              </p>
           </div>
 
           <div className="space-y-3">

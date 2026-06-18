@@ -171,8 +171,11 @@ export async function GET(): Promise<Response> {
     return adminSession.errorResponse as Response
   }
 
+  console.log('[AdminRecovery] Initializing Firebase...')
   const { dbAdmin } = await initFirebaseAdmin()
+  console.log(`[AdminRecovery] Firebase init result: dbAdmin=${!!dbAdmin}`)
   if (!dbAdmin) {
+    console.error('[AdminRecovery] Firebase initialization failed')
     return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
   }
 

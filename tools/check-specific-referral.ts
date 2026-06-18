@@ -28,7 +28,7 @@ async function main() {
 
     // Find referrer by email
     const referrerEmail = 'idowualalade49@gmail.com'
-    const referredEmail = 'angeloreoluwa999@gmail.com'
+    const referredEmail = 'barnabasphilemon84@gmail.com'
 
     console.log(`📧 Referrer: ${referrerEmail}`)
     console.log(`📧 Referred: ${referredEmail}\n`)

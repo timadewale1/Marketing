@@ -12,8 +12,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
     }
 
+    console.log('[SubmissionMgmt:Campaign] Initializing Firebase...')
     const { admin, dbAdmin } = await initFirebaseAdmin()
+    console.log(`[SubmissionMgmt:Campaign] Firebase init result: admin=${!!admin}, dbAdmin=${!!dbAdmin}`)
     if (!dbAdmin || !admin) {
+      console.error('[SubmissionMgmt:Campaign] Firebase initialization failed')
       return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
     }
 

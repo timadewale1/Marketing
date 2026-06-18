@@ -143,6 +143,7 @@ export default function PAMBALanding() {
   const navLinks = [
     { label: "About", href: "#about" },
     { label: "Features", href: "#features" },
+    { label: "Marketplace", href: "#marketplace" },
     { label: "How It Works", href: "#howitworks" },
     { label: "Bills", href: "#bills" },
     { label: "FAQ", href: "/faq" },
@@ -962,6 +963,41 @@ export default function PAMBALanding() {
       </div>
 
       {/* ── UPDATES ── */}
+      <section className="updates-wrap" id="marketplace">
+        <div className="section-inner">
+          <div className="section-header center">
+            <div className="section-label">Pamba Marketplace</div>
+            <h2 className="section-title">A new place for vendors, products, and storefronts</h2>
+            <p className="section-sub">
+              Soon, shoppers will be able to browse vendors, view products, and open store links straight from Pamba.
+            </p>
+          </div>
+          <div className="updates-grid">
+            <div className="updates-card">
+              <h3>For vendors</h3>
+              <p>Set up a shop, list products with images and descriptions, and share your own store link anywhere.</p>
+            </div>
+            <div className="updates-card">
+              <h3>For buyers</h3>
+              <p>Search products and vendors in one place, then copy a product link and reach the seller directly.</p>
+            </div>
+            <div className="updates-card">
+              <h3>For earners and advertisers</h3>
+              <p>Earn cashback when you buy from participating vendors, with the feature unlocking as products go live.</p>
+            </div>
+            <div className="updates-card">
+              <h3>Still onboarding vendors</h3>
+              <p>The marketplace will stay in a polished onboarding state until vendor stores and products are ready.</p>
+            </div>
+          </div>
+          <div className="mt-8 flex justify-center">
+            <Link href="/marketplace" className="btn-primary-lg">
+              Visit Marketplace <ArrowRight size={18} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="updates-wrap">
         <div className="section-inner">
           <div className="section-header center">

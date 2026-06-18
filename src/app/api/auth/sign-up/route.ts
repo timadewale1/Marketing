@@ -36,7 +36,14 @@ export async function POST(req: Request) {
     const email = String(body?.email || "").trim().toLowerCase()
     const phone = String(body?.phone || "").trim()
     const password = String(body?.password || "")
-    const action = body?.action === "advertiser" ? "advertiser" : body?.action === "earner" ? "earner" : ""
+    const action =
+      body?.action === "advertiser"
+        ? "advertiser"
+        : body?.action === "vendor"
+          ? "vendor"
+          : body?.action === "earner"
+            ? "earner"
+            : ""
     const referralId = String(body?.referralId || "").trim() || null
 
     if (!name || !email || !phone || !password || !action) {
@@ -48,7 +55,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Firebase admin unavailable" }, { status: 500 })
     }
 
-    for (const collectionName of ["advertisers", "earners"]) {
+    for (const collectionName of ["advertisers", "earners", "vendors"]) {
       const [emailSnap, phoneSnap] = await Promise.all([
         dbAdmin.collection(collectionName).where("email", "==", email).limit(1).get(),
         dbAdmin.collection(collectionName).where("phone", "==", phone).limit(1).get(),
@@ -80,8 +87,10 @@ export async function POST(req: Request) {
     })
     createdUid = userRecord.uid
 
-    const profileRef = dbAdmin.collection(`${action}s`).doc(createdUid)
-    const referralRef = referralId ? dbAdmin.collection("referrals").doc(`${referralId}-${createdUid}`) : null
+    const profileRef = dbAdmin.collection(`${action}s`).doc(String(createdUid))
+    const referralRef = referralId && action !== "vendor"
+      ? dbAdmin.collection("referrals").doc(`${String(referralId)}-${createdUid}`)
+      : null
     const [referrerEarnerSnap, referrerAdvertiserSnap] = referralId
       ? await Promise.all([
           dbAdmin.collection("earners").doc(referralId).get(),
@@ -98,7 +107,18 @@ export async function POST(req: Request) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       verified: false,
       onboarded: false,
+      role: action,
       referredBy: referralId,
+      ...(action === "vendor"
+        ? {
+            vendorVerificationStatus: "pending",
+            vendorPaymentStatus: "unpaid",
+            monthlyRentStatus: "unpaid",
+            storeStatus: "awaiting_verification",
+            productsPublishedCount: 0,
+            productsHiddenCount: 0,
+          }
+        : {}),
     })
 
     if (referralRef) {
@@ -124,7 +144,7 @@ export async function POST(req: Request) {
 
     if (referralId && referrerExists) {
       const referrerCollection = referrerAdvertiserSnap?.exists ? 'advertisers' : 'earners'
-      await dbAdmin.collection(referrerCollection).doc(referralId).set({
+      await dbAdmin.collection(referrerCollection).doc(String(referralId)).set({
         pointsReferralCount: admin.firestore.FieldValue.increment(1),
         pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true }).catch((error) => {

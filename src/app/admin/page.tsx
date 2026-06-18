@@ -280,6 +280,34 @@ export default function Page() {
                 Keep the contact queue from piling up while moderation is running.
               </p>
             </Link>
+            <Link
+              href="/admin/vendors"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Vendor management
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Review vendor verification
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Track vendor accounts, storefronts, and monthly rent status in one view.
+              </p>
+            </Link>
+            <Link
+              href="/admin/vendor-submissions"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Cashback claims
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Approve vendor purchase proofs
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Review earners and advertisers who submit vendor purchase evidence for cashback.
+              </p>
+            </Link>
           </div>
         </SectionCard>
 

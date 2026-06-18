@@ -15,8 +15,11 @@ export async function GET() {
   try {
     await requireAdminSession()
 
+    console.log('[AdminHomepageAds] Initializing Firebase...')
     const { dbAdmin } = await initFirebaseAdmin()
+    console.log(`[AdminHomepageAds] Firebase init result: dbAdmin=${!!dbAdmin}`)
     if (!dbAdmin) {
+      console.error('[AdminHomepageAds] Firebase initialization failed')
       return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
     }
 
@@ -64,8 +67,11 @@ export async function POST(req: Request) {
   try {
     await requireAdminSession()
 
+    console.log('[AdminHomepageAds:POST] Initializing Firebase...')
     const { admin, dbAdmin } = await initFirebaseAdmin()
+    console.log(`[AdminHomepageAds:POST] Firebase init result: admin=${!!admin}, dbAdmin=${!!dbAdmin}`)
     if (!admin || !dbAdmin) {
+      console.error('[AdminHomepageAds:POST] Firebase initialization failed')
       return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
     }
 

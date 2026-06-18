@@ -21,6 +21,7 @@ import {
   Award,
   Coins,
   ReceiptText,
+  Store,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -59,6 +60,16 @@ const NAVIGATION = [
     name: "Campaigns",
     href: "/admin/campaigns",
     icon: BarChart2,
+  },
+  {
+    name: "Vendors",
+    href: "/admin/vendors",
+    icon: Store,
+  },
+  {
+    name: "Vendor Claims",
+    href: "/admin/vendor-submissions",
+    icon: FileCheck,
   },
   {
     name: "Notifications",

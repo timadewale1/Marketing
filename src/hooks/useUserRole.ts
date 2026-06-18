@@ -18,7 +18,7 @@ export function useUserRole() {
       }
 
       // Check across all collections
-      const collections = ["advertisers", "earners", "marketers", "admins"]
+      const collections = ["advertisers", "earners", "vendors", "marketers", "admins"]
       for (const coll of collections) {
         const ref = doc(db, coll, user.uid)
         const snap = await getDoc(ref)

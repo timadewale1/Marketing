@@ -87,15 +87,15 @@ export default function SignInPage() {
       }
 
       // ✅ Figure out the user's role and onboarding status
-      let role: "advertiser" | "earner" | "marketer" | null = null
-      const collections = ["advertisers", "earners", "marketers"]
+      let role: "advertiser" | "earner" | "marketer" | "vendor" | null = null
+      const collections = ["advertisers", "earners", "vendors", "marketers"]
       let onboarded = false
 
       for (const coll of collections) {
         const docRef = doc(db, coll, cred.user.uid)
         const snap = await getDoc(docRef)
         if (snap.exists()) {
-          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer"
+          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer" | "vendor"
 
           // ✅ Update verified field
           if (!snap.data().verified) {
@@ -116,7 +116,9 @@ export default function SignInPage() {
 
       // ✅ Redirect based on onboarding status
       toast.success("Login successful 🎉")
-      if (!onboarded) {
+      if (role === "vendor") {
+        router.push("/vendor")
+      } else if (!onboarded) {
         router.push(`/${role}/onboarding`)
       } else {
         router.push(`/${role}`)

@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     for (const role of effectiveRoles) {
       const collectionName = role === 'earner' ? 'earners' : 'advertisers'
       const snap = await dbAdmin.collection(collectionName).get()
-      snap.docs.forEach((doc) => {
+      snap.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
         const data = doc.data() as {
           email?: string
           name?: string

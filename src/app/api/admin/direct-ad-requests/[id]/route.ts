@@ -17,8 +17,11 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: 'Invalid request update' }, { status: 400 })
     }
 
+    console.log('[AdminDirectAds] Initializing Firebase...')
     const { admin, dbAdmin } = await initFirebaseAdmin()
+    console.log(`[AdminDirectAds] Firebase init result: admin=${!!admin}, dbAdmin=${!!dbAdmin}`)
     if (!admin || !dbAdmin) {
+      console.error('[AdminDirectAds] Firebase initialization failed')
       return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
     }
 

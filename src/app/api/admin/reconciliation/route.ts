@@ -16,8 +16,11 @@ export async function GET(): Promise<Response> {
     return adminSession.errorResponse as Response
   }
 
+  console.log('[AdminReconciliation] Initializing Firebase...')
   const { dbAdmin } = await initFirebaseAdmin()
+  console.log(`[AdminReconciliation] Firebase init result: dbAdmin=${!!dbAdmin}`)
   if (!dbAdmin) {
+    console.error('[AdminReconciliation] Firebase initialization failed')
     return NextResponse.json({ success: false, message: "Server admin unavailable" }, { status: 500 })
   }
 
