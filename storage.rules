@@ -39,6 +39,21 @@ service firebase.storage {
       allow write: if isSelf(uid);
     }
 
+    match /vendorVerification/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /vendorProducts/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
+    match /vendorCashbackProofs/{uid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if isSelf(uid);
+    }
+
     match /homepage-direct-ads/{allPaths=**} {
       allow read, write: if false;
     }

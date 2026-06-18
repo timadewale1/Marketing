@@ -46,6 +46,34 @@ service cloud.firestore {
       allow update, delete: if isSelf(uid) || isAdmin();
     }
 
+    match /vendors/{uid} {
+      allow create: if isSelf(uid);
+      allow get, list: if signedIn();
+      allow update, delete: if isSelf(uid) || isAdmin();
+    }
+
+    match /vendorProducts/{productId} {
+      allow create: if signedIn() && request.resource.data.vendorId == request.auth.uid;
+      allow get, list: if signedIn();
+      allow update, delete: if isAdmin() || (
+        signedIn() &&
+        resource.data.vendorId == request.auth.uid &&
+        request.resource.data.vendorId == resource.data.vendorId
+      );
+    }
+
+    match /vendorTransactions/{transactionId} {
+      allow create: if sameUser('userId') || isAdmin();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /vendorPurchaseSubmissions/{submissionId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
     match /campaigns/{campaignId} {
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
       allow get, list: if signedIn();
