@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import toast from "react-hot-toast"
 
 type ProductPayload = {
   success: boolean
@@ -53,6 +54,17 @@ export default function MarketplaceProductPage() {
 
   const product = data.product
   const contactLink = product.shopLink || data.vendor?.storefrontLink || ""
+
+  const copyProductLink = async () => {
+    if (typeof window === "undefined") return
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success("Product link copied")
+    } catch {
+      toast.error("Could not copy product link")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 px-6 py-10">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -78,7 +90,19 @@ export default function MarketplaceProductPage() {
                 Contact vendor to buy
               </a>
             ) : null}
+            <button
+              type="button"
+              onClick={() => void copyProductLink()}
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700"
+            >
+              Copy product link
+            </button>
           </div>
+          <p className="mt-3 text-sm text-stone-700">
+            How to buy: contact via{" "}
+            <span className="font-medium capitalize">{product.contactMethod || "vendor link"}</span>
+            {product.contactDetails ? ` (${product.contactDetails})` : ""}
+          </p>
           <p className="mt-3 text-xs text-stone-500">
             Product ID: <span className="font-medium text-stone-700">{product.id}</span>
           </p>
