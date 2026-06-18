@@ -403,8 +403,8 @@ export default function VendorDashboardPage() {
                     <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>View shop</Link>
                   </Button>
                 ) : (
-                  <Button asChild variant="outline" className="rounded-full" disabled>
-                    <span>View shop</span>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/vendor/profile">Set shop link to enable view shop</Link>
                   </Button>
                 )}
               </div>
