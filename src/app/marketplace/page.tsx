@@ -4,78 +4,98 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { BadgePercent, Search, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+
+type MarketplaceProduct = {
+  id: string
+  vendorId: string
+  title: string
+  description: string
+  price: number
+  category: string
+  vendorName: string
+  shopLink: string
+  images: string[]
+}
+
+type MarketplaceVendor = {
+  id: string
+  name: string
+  storefrontSlug?: string
+  storefrontLink?: string
+  vendorVerificationStatus?: string
+  monthlyRentStatus?: string
+}
 
 export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState<Array<{
-    id: string
-    title: string
-    description: string
-    price: number
-    category: string
-    vendorName: string
-    shopLink: string
-    visibleOnMarketplace: boolean
-    images: string[]
-  }>>([])
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string; vendorVerificationStatus?: string; monthlyRentStatus?: string }>>([])
+  const [hasLiveProducts, setHasLiveProducts] = useState(false)
+  const [products, setProducts] = useState<MarketplaceProduct[]>([])
+  const [vendors, setVendors] = useState<MarketplaceVendor[]>([])
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [productsSnap, vendorsSnap] = await Promise.all([
-          getDocs(query(collection(db, "vendorProducts"), orderBy("createdAt", "desc"), limit(48))),
-          getDocs(query(collection(db, "vendors"), orderBy("updatedAt", "desc"), limit(24))),
-        ])
+        const res = await fetch("/api/marketplace/overview", { cache: "no-store" })
+        const payload = await res.json().catch(() => ({})) as {
+          success?: boolean
+          hasLiveProducts?: boolean
+          products?: Array<Record<string, unknown>>
+          vendors?: Array<Record<string, unknown>>
+        }
 
-        setProducts(productsSnap.docs.map((docItem) => {
-          const data = docItem.data() as Record<string, unknown>
-          return {
-            id: docItem.id,
-            title: String(data.title || ""),
-            description: String(data.description || ""),
-            price: Number(data.price || 0),
-            category: String(data.category || "General"),
-            vendorName: String(data.vendorName || "Vendor"),
-            shopLink: String(data.shopLink || ""),
-            visibleOnMarketplace: Boolean(data.visibleOnMarketplace),
-            images: Array.isArray(data.images) ? data.images.map((value) => String(value || "")).filter(Boolean) : [],
-          }
-        }))
-        setVendors(vendorsSnap.docs.map((docItem) => {
-          const data = docItem.data() as Record<string, unknown>
-          return {
-            id: docItem.id,
-            name: String(data.name || data.companyName || "Vendor"),
-            vendorVerificationStatus: String(data.vendorVerificationStatus || ""),
-            monthlyRentStatus: String(data.monthlyRentStatus || ""),
-          }
-        }))
+        if (!res.ok || !payload.success) {
+          throw new Error("Failed to load marketplace")
+        }
+
+        setHasLiveProducts(Boolean(payload.hasLiveProducts))
+        setProducts(
+          Array.isArray(payload.products)
+            ? payload.products.map((item) => ({
+              id: String(item.id || ""),
+              vendorId: String(item.vendorId || ""),
+              title: String(item.title || ""),
+              description: String(item.description || ""),
+              price: Number(item.price || 0),
+              category: String(item.category || "General"),
+              vendorName: String(item.vendorName || "Vendor"),
+              shopLink: String(item.shopLink || ""),
+              images: Array.isArray(item.images) ? item.images.map((value) => String(value || "")).filter(Boolean) : [],
+            }))
+            : []
+        )
+        setVendors(
+          Array.isArray(payload.vendors)
+            ? payload.vendors.map((item) => ({
+              id: String(item.id || ""),
+              name: String(item.name || "Vendor"),
+              storefrontSlug: String(item.storefrontSlug || ""),
+              storefrontLink: String(item.storefrontLink || ""),
+              vendorVerificationStatus: String(item.vendorVerificationStatus || ""),
+              monthlyRentStatus: String(item.monthlyRentStatus || ""),
+            }))
+            : []
+        )
+      } catch (error) {
+        console.error("Marketplace load error", error)
       } finally {
         setLoading(false)
       }
     }
 
-    load().catch((error) => {
-      console.error("Marketplace load error", error)
-      setLoading(false)
-    })
+    void load()
   }, [])
 
-  const visibleProducts = products.filter((product) => {
-    const haystack = [product.title, product.description, product.category, product.vendorName].join(" ").toLowerCase()
-    return haystack.includes(searchQuery.toLowerCase()) && product.visibleOnMarketplace
-  })
+  const q = searchQuery.toLowerCase()
+  const visibleProducts = products.filter((product) =>
+    [product.title, product.description, product.category, product.vendorName].join(" ").toLowerCase().includes(q)
+  )
+  const visibleVendors = vendors.filter((vendor) =>
+    [vendor.name, vendor.vendorVerificationStatus, vendor.monthlyRentStatus].join(" ").toLowerCase().includes(q)
+  )
 
-  const visibleVendors = vendors.filter((vendor) => {
-    const haystack = [vendor.name, vendor.vendorVerificationStatus, vendor.monthlyRentStatus].join(" ").toLowerCase()
-    return haystack.includes(searchQuery.toLowerCase())
-  })
   const onboardingCopy = useMemo(
-    () => "We are still onboarding vendors. Check back soon for live shops, products, and storefront links.",
+    () => "We are still onboarding vendors. Check back soon for live shops and products.",
     []
   )
 
@@ -127,12 +147,14 @@ export default function MarketplacePage() {
               <Store className="h-10 w-10 animate-pulse" />
             </div>
             <h2 className="relative mt-5 text-2xl font-semibold text-stone-900">Loading marketplace...</h2>
-            <p className="relative mx-auto mt-3 max-w-2xl text-sm leading-6 text-stone-600">We are checking for live vendor products and storefronts.</p>
+            <p className="relative mx-auto mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+              We are checking for live vendor products and storefronts.
+            </p>
           </div>
-        ) : visibleProducts.length > 0 ? (
+        ) : hasLiveProducts && visibleProducts.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {visibleProducts.map((product) => (
-              <Link key={product.id} href={product.shopLink || "#"} className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_-42px_rgba(28,25,23,0.4)] transition hover:-translate-y-1">
+              <Link key={product.id} href={`/marketplace/product/${product.id}`} className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_-42px_rgba(28,25,23,0.4)] transition hover:-translate-y-1">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-stone-500">{product.category}</p>
@@ -175,16 +197,16 @@ export default function MarketplacePage() {
           </div>
         )}
 
-        {visibleVendors.length > 0 ? (
+        {hasLiveProducts && visibleVendors.length > 0 ? (
           <div className="rounded-[28px] border border-stone-200 bg-white/90 p-6">
             <h2 className="text-xl font-semibold text-stone-900">Vendors</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {visibleVendors.map((vendor) => (
-                <div key={vendor.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <Link key={vendor.id} href={vendor.storefrontSlug ? `/marketplace/shop/${vendor.storefrontSlug}` : `/marketplace/vendor/${vendor.id}`} className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:-translate-y-0.5">
                   <p className="font-semibold text-stone-900">{vendor.name}</p>
                   <p className="mt-1 text-sm text-stone-600">Verification: {vendor.vendorVerificationStatus || "pending"}</p>
                   <p className="mt-1 text-sm text-stone-600">Rent: {vendor.monthlyRentStatus || "unpaid"}</p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

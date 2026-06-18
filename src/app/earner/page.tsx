@@ -47,6 +47,7 @@ import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
 import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
+import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel"
 import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
 import { getReferralPromoCopy } from "@/lib/referral-rewards"
 
@@ -567,6 +568,12 @@ export default function EarnerDashboard() {
               userId={userId}
               displayName={userName}
             />
+          </div>
+        ) : null}
+
+        {userId ? (
+          <div className="mb-10">
+            <CashbackClaimPanel role="earner" />
           </div>
         ) : null}
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { syncVendorStoreEligibility } from "@/lib/vendor-store"
 
 function toMillis(value: unknown) {
   if (!value) return 0
@@ -105,9 +106,8 @@ export async function POST(req: Request) {
     }
 
     const vendorData = auth.vendorSnap.data() as Record<string, unknown>
-    const isVerified = Boolean(vendorData.verified || String(vendorData.vendorVerificationStatus || "").toLowerCase() === "verified")
-    const rentPaid = String(vendorData.monthlyRentStatus || "").toLowerCase() === "paid"
-    const visibleOnMarketplace = isVerified && rentPaid
+    const state = await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorData)
+    const visibleOnMarketplace = state.canShowProducts
     const status = visibleOnMarketplace ? "active" : "hidden"
     const productsRef = auth.dbAdmin.collection("vendorProducts").doc()
     const now = auth.admin.firestore.FieldValue.serverTimestamp()

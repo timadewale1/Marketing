@@ -32,6 +32,7 @@ import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
 import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
+import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
@@ -529,6 +530,12 @@ export default function AdvertiserDashboard() {
               userId={userId}
               displayName={name}
             />
+          </div>
+        ) : null}
+
+        {userId ? (
+          <div className="mb-10">
+            <CashbackClaimPanel role="advertiser" />
           </div>
         ) : null}
 

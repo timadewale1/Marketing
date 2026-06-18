@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { syncVendorStoreEligibility } from "@/lib/vendor-store"
 
 async function requireVendor(req: Request) {
   const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
@@ -68,9 +69,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     const vendorData = auth.vendorSnap.data() as Record<string, unknown>
-    const isVerified = Boolean(vendorData.verified || String(vendorData.vendorVerificationStatus || "").toLowerCase() === "verified")
-    const rentPaid = String(vendorData.monthlyRentStatus || "").toLowerCase() === "paid"
-    const visibleOnMarketplace = isVerified && rentPaid && status !== "hidden"
+    const state = await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorData)
+    const visibleOnMarketplace = state.canShowProducts && status !== "hidden"
 
     await productRef.update({
       title,

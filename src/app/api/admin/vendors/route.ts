@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
+import { syncVendorStoreEligibility } from "@/lib/vendor-store"
 
 function toMillis(value: unknown) {
   if (!value) return 0
@@ -45,6 +46,17 @@ export async function GET() {
         storeStatus: String(data.storeStatus || "awaiting_verification"),
         verified: Boolean(data.verified),
         productsPublishedCount: Number(data.productsPublishedCount || productsByVendor.get(doc.id) || 0),
+        storefrontLink: String(data.storefrontLink || ""),
+        storefrontSlug: String(data.storefrontSlug || ""),
+        verificationDetails: {
+          address: String((data.verificationDetails as Record<string, unknown> | undefined)?.address || ""),
+          city: String((data.verificationDetails as Record<string, unknown> | undefined)?.city || ""),
+          state: String((data.verificationDetails as Record<string, unknown> | undefined)?.state || ""),
+          ninNumber: String((data.verificationDetails as Record<string, unknown> | undefined)?.ninNumber || ""),
+          proofOfAddressUrl: String((data.verificationDetails as Record<string, unknown> | undefined)?.proofOfAddressUrl || ""),
+          ninSlipUrl: String((data.verificationDetails as Record<string, unknown> | undefined)?.ninSlipUrl || ""),
+          facialVerificationUrl: String((data.verificationDetails as Record<string, unknown> | undefined)?.facialVerificationUrl || ""),
+        },
         createdAtMs: toMillis(data.createdAt),
         updatedAtMs: toMillis(data.updatedAt),
       }
@@ -86,7 +98,15 @@ export async function PATCH(req: Request) {
     if (vendorVerificationStatus === "verified") updates.verified = true
     if (vendorVerificationStatus === "rejected") updates.verified = false
 
-    await dbAdmin.collection("vendors").doc(vendorId).set(updates, { merge: true })
+    const vendorRef = dbAdmin.collection("vendors").doc(vendorId)
+    await vendorRef.set(updates, { merge: true })
+
+    // Keep product visibility and store state synced with setup/rent/verification state.
+    const vendorSnap = await vendorRef.get()
+    const vendorData = vendorSnap.data() as Record<string, unknown> | undefined
+    if (vendorData) {
+      await syncVendorStoreEligibility(dbAdmin, vendorId, vendorData)
+    }
 
     return NextResponse.json({ success: true, message: "Vendor updated successfully" })
   } catch (error) {

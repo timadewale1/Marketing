@@ -12,12 +12,23 @@ type VendorRow = {
   name: string
   email: string
   phone: string
+  storefrontLink?: string
+  storefrontSlug?: string
   vendorVerificationStatus: string
   vendorPaymentStatus: string
   monthlyRentStatus: string
   storeStatus: string
   verified: boolean
   productsPublishedCount: number
+  verificationDetails?: {
+    address?: string
+    city?: string
+    state?: string
+    ninNumber?: string
+    proofOfAddressUrl?: string
+    ninSlipUrl?: string
+    facialVerificationUrl?: string
+  }
 }
 
 type VendorProductRow = {
@@ -45,12 +56,8 @@ export default function AdminVendorsPage() {
       ])
       const vendorsData = await vendorsRes.json().catch(() => ({}))
       const productsData = await productsRes.json().catch(() => ({}))
-      if (!vendorsRes.ok || !vendorsData.success) {
-        throw new Error(vendorsData.message || "Failed to load vendors")
-      }
-      if (!productsRes.ok || !productsData.success) {
-        throw new Error(productsData.message || "Failed to load vendor products")
-      }
+      if (!vendorsRes.ok || !vendorsData.success) throw new Error(vendorsData.message || "Failed to load vendors")
+      if (!productsRes.ok || !productsData.success) throw new Error(productsData.message || "Failed to load vendor products")
       setVendors(Array.isArray(vendorsData.vendors) ? vendorsData.vendors : [])
       setProducts(Array.isArray(productsData.products) ? productsData.products : [])
     } catch (error) {
@@ -80,9 +87,7 @@ export default function AdminVendorsPage() {
         body: JSON.stringify({ vendorId, ...payload }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update vendor")
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to update vendor")
       toast.success("Vendor updated")
       await load()
     } catch (error) {
@@ -99,9 +104,7 @@ export default function AdminVendorsPage() {
         body: JSON.stringify({ productId, ...payload }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update product")
-      }
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to update product")
       toast.success("Product updated")
       await load()
     } catch (error) {
@@ -130,33 +133,45 @@ export default function AdminVendorsPage() {
         <MetricCard label="Rent overdue" value={stats.rentOverdue} hint="Vendors on hold for unpaid monthly rent" icon={Wallet} tone="rose" />
       </div>
 
-      <SectionCard
-        title="Verification queue"
-        description="Approve a vendor after email, address, proof of address, NIN, and face verification are complete."
-      >
+      <SectionCard title="Verification queue" description="Approve vendors after their verification details and documents are complete.">
         {loading ? (
-          <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center text-stone-600">
-            Loading vendors...
-          </div>
+          <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50/80 px-6 py-10 text-center text-stone-600">Loading vendors...</div>
         ) : vendors.length === 0 ? (
-          <EmptyState
-            title="No vendors waiting right now"
-            description="Once vendors start signing up, their verification requests will appear here with review actions."
-          />
+          <EmptyState title="No vendors waiting right now" description="Vendor verification requests will appear here." />
         ) : (
           <div className="space-y-3">
             {vendors.map((vendor) => (
               <div key={vendor.id} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
+                  <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-stone-900">{vendor.name}</p>
                       <StatusBadge label={vendor.vendorVerificationStatus || "pending"} tone={vendor.vendorVerificationStatus === "verified" ? "green" : vendor.vendorVerificationStatus === "rejected" ? "red" : "amber"} />
                       <StatusBadge label={vendor.monthlyRentStatus || "unpaid"} tone={vendor.monthlyRentStatus === "paid" ? "green" : "amber"} />
                     </div>
-                    <p className="mt-2 text-sm text-stone-600">{vendor.email || "No email"} {vendor.phone ? `• ${vendor.phone}` : ""}</p>
-                    <p className="mt-1 text-sm text-stone-600">Products: {vendor.productsPublishedCount.toLocaleString()}</p>
-                    <p className="mt-1 text-sm text-stone-600">Store status: {vendor.storeStatus || "awaiting_verification"}</p>
+                    <p className="text-sm text-stone-600">{vendor.email || "No email"} {vendor.phone ? `• ${vendor.phone}` : ""}</p>
+                    <p className="text-sm text-stone-600">Products: {vendor.productsPublishedCount.toLocaleString()}</p>
+                    <p className="text-sm text-stone-600">Store status: {vendor.storeStatus || "awaiting_verification"}</p>
+                    {vendor.storefrontSlug ? <p className="text-sm text-stone-600">Shop slug: /marketplace/shop/{vendor.storefrontSlug}</p> : null}
+                    {vendor.storefrontLink ? (
+                      <p className="text-sm text-stone-600">
+                        Storefront link:{" "}
+                        <a className="text-blue-700 underline" href={vendor.storefrontLink} target="_blank" rel="noreferrer">
+                          Open link
+                        </a>
+                      </p>
+                    ) : null}
+                    <div className="mt-2 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-700">
+                      <p className="font-semibold text-stone-900">Verification details</p>
+                      <p className="mt-1">Address: {vendor.verificationDetails?.address || "Not submitted"}</p>
+                      <p className="mt-1">City/State: {[vendor.verificationDetails?.city, vendor.verificationDetails?.state].filter(Boolean).join(", ") || "Not submitted"}</p>
+                      <p className="mt-1">NIN: {vendor.verificationDetails?.ninNumber || "Not submitted"}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {vendor.verificationDetails?.proofOfAddressUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.proofOfAddressUrl} target="_blank" rel="noreferrer">Proof of address</a> : null}
+                        {vendor.verificationDetails?.ninSlipUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.ninSlipUrl} target="_blank" rel="noreferrer">NIN slip</a> : null}
+                        {vendor.verificationDetails?.facialVerificationUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.facialVerificationUrl} target="_blank" rel="noreferrer">Facial verification</a> : null}
+                      </div>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button className="rounded-full bg-emerald-600 hover:bg-emerald-500" onClick={() => void updateVendor(vendor.id, { vendorVerificationStatus: "verified", storeStatus: "active" })}>
@@ -177,12 +192,9 @@ export default function AdminVendorsPage() {
         )}
       </SectionCard>
 
-      <SectionCard title="Products" description="Product listings and storefront links will show up here once vendors begin publishing items.">
+      <SectionCard title="Products" description="Moderate products and marketplace visibility.">
         {products.length === 0 ? (
-          <EmptyState
-            title="No product moderation queue yet"
-            description="The marketplace is still onboarding vendors, so product moderation will appear here when the first shops go live."
-          />
+          <EmptyState title="No product moderation queue yet" description="Product moderation appears here as vendors publish listings." />
         ) : (
           <div className="space-y-3">
             {products.map((product) => (
@@ -195,32 +207,18 @@ export default function AdminVendorsPage() {
                       <StatusBadge label={product.visibleOnMarketplace ? "Visible" : "Hidden"} tone={product.visibleOnMarketplace ? "green" : "red"} />
                     </div>
                     <p className="mt-2 text-sm text-stone-600">{product.vendorName} • {product.category || "General"} • ₦{Number(product.price || 0).toLocaleString()}</p>
-                    <p className="mt-1 text-sm text-stone-600 line-clamp-2">{product.description}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-stone-600">{product.description}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" className="rounded-full" onClick={() => void updateProduct(product.id, { status: "active", visibleOnMarketplace: true })}>
-                      Approve
-                    </Button>
-                    <Button variant="outline" className="rounded-full border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => void updateProduct(product.id, { status: "draft", visibleOnMarketplace: false })}>
-                      Hold
-                    </Button>
-                    <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => void updateProduct(product.id, { status: "hidden", visibleOnMarketplace: false })}>
-                      Hide
-                    </Button>
+                    <Button variant="outline" className="rounded-full" onClick={() => void updateProduct(product.id, { status: "active", visibleOnMarketplace: true })}>Approve</Button>
+                    <Button variant="outline" className="rounded-full border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => void updateProduct(product.id, { status: "draft", visibleOnMarketplace: false })}>Hold</Button>
+                    <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => void updateProduct(product.id, { status: "hidden", visibleOnMarketplace: false })}>Hide</Button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </SectionCard>
-
-      <SectionCard title="Recent vendor updates" description="You will also see rent status, approval actions, and shop activity in this area.">
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge label="Onboarding" tone="amber" />
-          <StatusBadge label="Verification pending" tone="blue" />
-          <StatusBadge label="Store hidden" tone="red" />
-        </div>
       </SectionCard>
     </div>
   )
