@@ -17,7 +17,7 @@ interface User {
 
 export async function GET(req: NextRequest) {
   try {
-    const proxied = await proxyToBackendIfConfigured('/api/internal/process-pending-referrals', req)
+    const proxied = await proxyToBackendIfConfigured('/api/internal/process-pending-referrals', req, { internalAuth: true })
     if (proxied) return proxied
 
     // Verify internal API secret

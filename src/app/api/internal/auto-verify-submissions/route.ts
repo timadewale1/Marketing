@@ -33,7 +33,7 @@ const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
 
 export async function GET(request: Request) {
-  const proxied = await proxyToBackendIfConfigured('/api/internal/auto-verify-submissions', request)
+  const proxied = await proxyToBackendIfConfigured('/api/internal/auto-verify-submissions', request, { internalAuth: true })
   if (proxied) return proxied
 
   const authHeader = request.headers.get('authorization')

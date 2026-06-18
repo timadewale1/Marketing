@@ -42,6 +42,11 @@ Create one API call boundary so backend location can change without touching pag
 ### Rollback
 - Revert wrapper usage and keep direct local route calls.
 
+### Current Status
+- Completed.
+- `server-api` and backend proxy boundary exist.
+- Internal routes can proxy to backend with fallback to local Next handlers.
+
 ---
 
 ## Phase 2: Move High-Load Payment and Recovery APIs to Firebase Functions
@@ -69,6 +74,17 @@ Move the heaviest operational logic out of Next runtime first.
 
 ### Rollback
 - Flip proxy wrappers back to local Next handlers.
+
+### Current Status
+- In progress (mostly complete for payment/recovery internals).
+- Functions `internalApi` is live for:
+  - `/api/internal/recovery-sweep`
+  - `/api/internal/auto-verify-submissions`
+  - `/api/internal/submission-proof-cleanup`
+  - `/api/internal/process-pending-referrals`
+  - bridge handlers for `/api/internal/process-activation` and `/api/internal/process-wallet-funding`
+- Next internal routes now forward `Authorization` using `API_INTERNAL_SECRET`/`CRON_SECRET` when proxying to backend.
+- Functions now accept either `API_INTERNAL_SECRET` or `CRON_SECRET` for internal authorization.
 
 ---
 

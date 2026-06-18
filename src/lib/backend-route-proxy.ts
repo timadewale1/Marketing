@@ -4,6 +4,11 @@ const BACKEND_BASE_ENV_KEYS = [
   "API_BASE_URL",
 ] as const
 
+const INTERNAL_SECRET_ENV_KEYS = [
+  "API_INTERNAL_SECRET",
+  "CRON_SECRET",
+] as const
+
 function getBackendBaseUrl() {
   for (const key of BACKEND_BASE_ENV_KEYS) {
     const value = String(process.env[key] || "").trim()
@@ -12,7 +17,23 @@ function getBackendBaseUrl() {
   return ""
 }
 
-export async function proxyToBackendIfConfigured(path: `/${string}`, request: Request): Promise<Response | null> {
+function getInternalAuthHeaderValue() {
+  for (const key of INTERNAL_SECRET_ENV_KEYS) {
+    const value = String(process.env[key] || "").trim()
+    if (value) return `Bearer ${value}`
+  }
+  return ""
+}
+
+type ProxyOptions = {
+  internalAuth?: boolean
+}
+
+export async function proxyToBackendIfConfigured(
+  path: `/${string}`,
+  request: Request,
+  options: ProxyOptions = {}
+): Promise<Response | null> {
   if (request.headers.get("x-skip-backend-proxy") === "1") {
     return null
   }
@@ -37,6 +58,12 @@ export async function proxyToBackendIfConfigured(path: `/${string}`, request: Re
   const headers = new Headers(request.headers)
   headers.delete("host")
   headers.delete("content-length")
+  if (options.internalAuth) {
+    const internalAuth = getInternalAuthHeaderValue()
+    if (internalAuth) {
+      headers.set("authorization", internalAuth)
+    }
+  }
 
   const method = (request.method || "GET").toUpperCase()
   const init: RequestInit = {

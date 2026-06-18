@@ -11,7 +11,7 @@ function isAuthorized(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const proxied = await proxyToBackendIfConfigured("/api/internal/process-activation", request)
+  const proxied = await proxyToBackendIfConfigured("/api/internal/process-activation", request, { internalAuth: true })
   if (proxied) return proxied
 
   if (!isAuthorized(request)) {

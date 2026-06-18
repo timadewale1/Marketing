@@ -3,7 +3,7 @@ import { runRecoverySweep } from "@/lib/recovery-sweep"
 import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
 
 export async function GET(request: Request) {
-  const proxied = await proxyToBackendIfConfigured("/api/internal/recovery-sweep", request)
+  const proxied = await proxyToBackendIfConfigured("/api/internal/recovery-sweep", request, { internalAuth: true })
   if (proxied) return proxied
 
   const authHeader = request.headers.get("authorization")

@@ -5,7 +5,7 @@ import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 
 export async function GET(req: Request) {
   try {
-    const proxied = await proxyToBackendIfConfigured('/api/internal/submission-proof-cleanup', req)
+    const proxied = await proxyToBackendIfConfigured('/api/internal/submission-proof-cleanup', req, { internalAuth: true })
     if (proxied) return proxied
 
     const cronSecret = process.env.CRON_SECRET

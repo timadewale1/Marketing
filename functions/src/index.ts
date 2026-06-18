@@ -61,8 +61,9 @@ function buildHeaders() {
     Accept: "application/json",
   };
 
-  if (process.env.CRON_SECRET) {
-    headers.Authorization = `Bearer ${process.env.CRON_SECRET}`;
+  const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || "").trim();
+  if (internalSecret) {
+    headers.Authorization = `Bearer ${internalSecret}`;
   }
 
   return headers;
@@ -143,9 +144,11 @@ async function callLegacyNextInternalPostRoute(path: string, payload: Record<str
 }
 
 function isAuthorizedInternalRequest(authHeader: string | undefined) {
-  const secret = String(process.env.CRON_SECRET || "").trim();
-  if (!secret) return false;
-  return authHeader === `Bearer ${secret}`;
+  const apiInternalSecret = String(process.env.API_INTERNAL_SECRET || "").trim();
+  const cronSecret = String(process.env.CRON_SECRET || "").trim();
+  const accepted = [apiInternalSecret, cronSecret].map((value) => value.trim()).filter(Boolean);
+  if (!accepted.length) return false;
+  return accepted.some((secret) => authHeader === `Bearer ${secret}`);
 }
 
 async function processPendingReferralsDirect() {
