@@ -25,7 +25,23 @@ export async function GET(req: Request) {
   try {
     const auth = await requireVendor(req)
     if ("error" in auth) return auth.error
-    await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, auth.vendorData)
+    const currentStatus = String(auth.vendorData.vendorVerificationStatus || "").toLowerCase()
+    const bootstrapUpdates: Record<string, unknown> = {}
+    if (!currentStatus) bootstrapUpdates.vendorVerificationStatus = "pending"
+    if (auth.vendorData.vendorVerified === undefined) bootstrapUpdates.vendorVerified = false
+    if (auth.vendorData.vendorPaymentStatus === undefined) bootstrapUpdates.vendorPaymentStatus = "unpaid"
+    if (auth.vendorData.monthlyRentStatus === undefined) bootstrapUpdates.monthlyRentStatus = "unpaid"
+    if (auth.vendorData.storeStatus === undefined) bootstrapUpdates.storeStatus = "awaiting_verification"
+    if (Object.keys(bootstrapUpdates).length > 0) {
+      bootstrapUpdates.updatedAt = auth.admin.firestore.FieldValue.serverTimestamp()
+      await auth.vendorRef.set(bootstrapUpdates, { merge: true })
+    }
+    const normalizedSnap = await auth.vendorRef.get()
+    await syncVendorStoreEligibility(
+      auth.dbAdmin,
+      auth.vendorId,
+      normalizedSnap.data() as Record<string, unknown>
+    )
     const refreshed = await auth.vendorRef.get()
     return NextResponse.json({ success: true, profile: refreshed.data() || auth.vendorData })
   } catch (error) {
@@ -40,6 +56,7 @@ export async function PATCH(req: Request) {
     if ("error" in auth) return auth.error
 
     const body = await req.json().catch(() => ({})) as Record<string, unknown>
+    const updateType = String(body.updateType || "verification").trim().toLowerCase()
     const storefrontLink = String(body.storefrontLink || "").trim()
     const storefrontSlugRaw = String(body.storefrontSlug || "").trim().toLowerCase()
     const storefrontSlug = storefrontSlugRaw.replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
@@ -50,8 +67,14 @@ export async function PATCH(req: Request) {
     const proofOfAddressUrl = String(body.proofOfAddressUrl || "").trim()
     const ninSlipUrl = String(body.ninSlipUrl || "").trim()
     const facialVerificationUrl = String(body.facialVerificationUrl || "").trim()
+    const storeCoverUrl = String(body.storeCoverUrl || "").trim()
+    const shopLayout = String(body.shopLayout || "").trim().toLowerCase()
+    const shopTheme = String(body.shopTheme || "").trim().toLowerCase()
 
     const verificationComplete = Boolean(
+      storefrontLink &&
+      storefrontSlug &&
+      storeCoverUrl &&
       address &&
       city &&
       state &&
@@ -61,7 +84,7 @@ export async function PATCH(req: Request) {
       facialVerificationUrl
     )
 
-    if (storefrontSlug && storefrontSlug.length < 3) {
+    if (storefrontSlug.length > 0 && storefrontSlug.length < 3) {
       return NextResponse.json({ success: false, message: "Store link slug must be at least 3 characters" }, { status: 400 })
     }
 
@@ -77,10 +100,25 @@ export async function PATCH(req: Request) {
       }
     }
 
-    await auth.vendorRef.set({
+    if (updateType === "verification" && !verificationComplete) {
+      return NextResponse.json({
+        success: false,
+        message: "Please complete all verification fields, upload all documents, add your store cover, and set your store link details before submitting.",
+      }, { status: 400 })
+    }
+
+    const updates: Record<string, unknown> = {
       storefrontLink: storefrontLink || null,
       storefrontSlug: storefrontSlug || null,
-      verificationDetails: {
+      storeCoverUrl: storeCoverUrl || null,
+      updatedAt: auth.admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    if (shopLayout) updates.shopLayout = shopLayout
+    if (shopTheme) updates.shopTheme = shopTheme
+
+    if (updateType === "verification") {
+      updates.verificationDetails = {
         address: address || null,
         city: city || null,
         state: state || null,
@@ -88,20 +126,19 @@ export async function PATCH(req: Request) {
         proofOfAddressUrl: proofOfAddressUrl || null,
         ninSlipUrl: ninSlipUrl || null,
         facialVerificationUrl: facialVerificationUrl || null,
-      },
-      vendorVerificationStatus: verificationComplete
-        ? String(auth.vendorData.vendorVerificationStatus || "pending")
-        : "pending",
-      verificationSubmittedAt: verificationComplete
-        ? auth.admin.firestore.FieldValue.serverTimestamp()
-        : auth.admin.firestore.FieldValue.delete(),
-      updatedAt: auth.admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true })
+      }
+      const verificationStatus = String(auth.vendorData.vendorVerificationStatus || "pending").toLowerCase()
+      updates.vendorVerificationStatus = verificationStatus || "pending"
+      updates.vendorVerified = verificationStatus === "verified" || verificationStatus === "approved"
+      updates.verificationSubmittedAt = auth.admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    await auth.vendorRef.set(updates, { merge: true })
 
     const nextVendorSnap = await auth.vendorRef.get()
     await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, nextVendorSnap.data() as Record<string, unknown>)
 
-    return NextResponse.json({ success: true, verificationComplete })
+    return NextResponse.json({ success: true, verificationComplete, updateType })
   } catch (error) {
     console.error("[vendor][profile][PATCH] error:", error)
     return NextResponse.json({ success: false, message: "Failed to update vendor profile" }, { status: 500 })

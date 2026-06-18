@@ -112,6 +112,7 @@ export async function POST(req: Request) {
       ...(action === "vendor"
         ? {
             vendorVerificationStatus: "pending",
+            vendorVerified: false,
             vendorPaymentStatus: "unpaid",
             monthlyRentStatus: "unpaid",
             storeStatus: "awaiting_verification",

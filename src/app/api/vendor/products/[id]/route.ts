@@ -70,6 +70,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     const vendorData = auth.vendorSnap.data() as Record<string, unknown>
     const state = await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorData)
+    if (!state.canShowProducts) {
+      return NextResponse.json({
+        success: false,
+        message: "Your store must be verified and setup fee completed before editing products.",
+      }, { status: 403 })
+    }
     const visibleOnMarketplace = state.canShowProducts && status !== "hidden"
 
     await productRef.update({
@@ -113,6 +119,15 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     const productData = productSnap.data() as Record<string, unknown>
     if (String(productData.vendorId || "") !== auth.vendorId) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 })
+    }
+
+    const vendorData = auth.vendorSnap.data() as Record<string, unknown>
+    const state = await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorData)
+    if (!state.canShowProducts) {
+      return NextResponse.json({
+        success: false,
+        message: "Your store must be verified and setup fee completed before deleting products.",
+      }, { status: 403 })
     }
 
     await productRef.delete()

@@ -12,13 +12,11 @@ export async function GET() {
       dbAdmin
         .collection("vendorProducts")
         .where("visibleOnMarketplace", "==", true)
-        .orderBy("updatedAt", "desc")
         .limit(120)
         .get(),
       dbAdmin
         .collection("vendors")
         .where("storeStatus", "==", "active")
-        .orderBy("updatedAt", "desc")
         .limit(80)
         .get(),
     ])
@@ -34,11 +32,14 @@ export async function GET() {
         price: Number(data.price || 0),
         category: String(data.category || "General"),
         shopLink: String(data.shopLink || ""),
+        updatedAtMs: typeof data.updatedAt === "object" && data.updatedAt && "seconds" in data.updatedAt
+          ? Number((data.updatedAt as { seconds?: number }).seconds || 0) * 1000
+          : 0,
         images: Array.isArray(data.images)
           ? data.images.map((value) => String(value || "")).filter(Boolean)
           : [],
       }
-    })
+    }).sort((a, b) => b.updatedAtMs - a.updatedAtMs)
 
     const vendors = vendorsSnap.docs.map((docItem) => {
       const data = docItem.data() as Record<string, unknown>
@@ -48,10 +49,16 @@ export async function GET() {
         email: String(data.email || ""),
         storefrontLink: String(data.storefrontLink || ""),
         storefrontSlug: String(data.storefrontSlug || ""),
+        storeCoverUrl: String(data.storeCoverUrl || ""),
+        shopTheme: String(data.shopTheme || "classic"),
+        shopLayout: String(data.shopLayout || "cards"),
         vendorVerificationStatus: String(data.vendorVerificationStatus || ""),
         monthlyRentStatus: String(data.monthlyRentStatus || ""),
+        updatedAtMs: typeof data.updatedAt === "object" && data.updatedAt && "seconds" in data.updatedAt
+          ? Number((data.updatedAt as { seconds?: number }).seconds || 0) * 1000
+          : 0,
       }
-    })
+    }).sort((a, b) => b.updatedAtMs - a.updatedAtMs)
 
     return NextResponse.json({
       success: true,

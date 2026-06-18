@@ -15,8 +15,6 @@ async function loadVendorAndProducts(vendorId: string) {
   const productsSnap = await dbAdmin
     .collection("vendorProducts")
     .where("vendorId", "==", vendorId)
-    .where("visibleOnMarketplace", "==", true)
-    .orderBy("updatedAt", "desc")
     .limit(120)
     .get()
 
@@ -27,11 +25,15 @@ async function loadVendorAndProducts(vendorId: string) {
       email: String(vendorData.email || ""),
       storefrontLink: String(vendorData.storefrontLink || ""),
       storefrontSlug: String(vendorData.storefrontSlug || ""),
+      storeCoverUrl: String(vendorData.storeCoverUrl || ""),
+      shopTheme: String(vendorData.shopTheme || "classic"),
+      shopLayout: String(vendorData.shopLayout || "cards"),
       city: String((vendorData.verificationDetails as Record<string, unknown> | undefined)?.city || ""),
       state: String((vendorData.verificationDetails as Record<string, unknown> | undefined)?.state || ""),
     },
     products: productsSnap.docs.map((docItem) => {
       const data = docItem.data() as Record<string, unknown>
+      if (!Boolean(data.visibleOnMarketplace)) return null
       return {
         id: docItem.id,
         title: String(data.title || ""),
@@ -41,7 +43,7 @@ async function loadVendorAndProducts(vendorId: string) {
         images: Array.isArray(data.images) ? data.images.map((v) => String(v || "")).filter(Boolean) : [],
         shopLink: String(data.shopLink || ""),
       }
-    }),
+    }).filter(Boolean),
   }
 }
 

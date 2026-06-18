@@ -33,10 +33,13 @@ async function getApprovedOrderAmount(dbAdmin: Awaited<ReturnType<typeof initFir
   const snap = await dbAdmin
     .collection("vendorPurchaseSubmissions")
     .where("userId", "==", userId)
-    .where("status", "==", "approved")
     .limit(500)
     .get()
-  return snap.docs.reduce((sum, docItem) => sum + Number(docItem.data()?.eligibleOrderAmount || 0), 0)
+  return snap.docs.reduce((sum, docItem) => {
+    const data = docItem.data() as Record<string, unknown>
+    if (String(data.status || "").toLowerCase() !== "approved") return sum
+    return sum + Number(data.eligibleOrderAmount || 0)
+  }, 0)
 }
 
 export async function GET(req: Request) {
@@ -49,7 +52,6 @@ export async function GET(req: Request) {
       auth.dbAdmin
         .collection("vendorPurchaseSubmissions")
         .where("userId", "==", auth.userId)
-        .orderBy("createdAt", "desc")
         .limit(100)
         .get(),
       auth.dbAdmin
@@ -71,7 +73,7 @@ export async function GET(req: Request) {
         reviewerReason: String(data.reviewerReason || ""),
         createdAtMs: typeof data.createdAt === "object" && data.createdAt && "seconds" in data.createdAt ? Number((data.createdAt as { seconds?: number }).seconds || 0) * 1000 : 0,
       }
-    })
+    }).sort((a, b) => b.createdAtMs - a.createdAtMs)
 
     return NextResponse.json({
       success: true,

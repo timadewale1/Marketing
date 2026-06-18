@@ -13,6 +13,9 @@ type VendorStorePayload = {
     email: string
     storefrontLink: string
     storefrontSlug: string
+    storeCoverUrl: string
+    shopTheme: string
+    shopLayout: string
     city: string
     state: string
   }
@@ -39,7 +42,6 @@ export default function MarketplaceVendorPage() {
       setLoading(false)
       return
     }
-
     fetch(`/api/marketplace/vendor/${id}`, { cache: "no-store" })
       .then(async (res) => {
         const payload = (await res.json().catch(() => ({}))) as VendorStorePayload
@@ -53,11 +55,22 @@ export default function MarketplaceVendorPage() {
     return <div className="min-h-screen bg-stone-50 p-8 text-stone-700">{data?.message || "Vendor shop not available right now."}</div>
   }
 
+  const themeClass =
+    data.vendor.shopTheme === "ocean"
+      ? "bg-[linear-gradient(180deg,#e0f2fe_0%,#f0f9ff_100%)] border-sky-200"
+      : data.vendor.shopTheme === "sunset"
+        ? "bg-[linear-gradient(180deg,#fff7ed_0%,#fff1f2_100%)] border-orange-200"
+        : "bg-white border-stone-200"
+
   const products = Array.isArray(data.products) ? data.products : []
   return (
-    <div className="min-h-screen bg-stone-50 px-6 py-10">
+    <div className={`min-h-screen px-6 py-10 ${themeClass}`}>
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="rounded-3xl border border-stone-200 bg-white p-6">
+          {data.vendor.storeCoverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.vendor.storeCoverUrl} alt={`${data.vendor.name} cover`} className="mb-5 h-48 w-full rounded-2xl object-cover ring-1 ring-stone-200" />
+          ) : null}
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Vendor shop</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{data.vendor.name}</h1>
           <p className="mt-2 text-sm text-stone-600">{[data.vendor.city, data.vendor.state].filter(Boolean).join(", ") || "Nigeria"}</p>
@@ -73,7 +86,7 @@ export default function MarketplaceVendorPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className={`grid gap-4 ${data.vendor.shopLayout === "spotlight" ? "md:grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3"}`}>
           {products.map((product) => (
             <Link key={product.id} href={`/marketplace/product/${product.id}`} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5">
               <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{product.category || "General"}</p>

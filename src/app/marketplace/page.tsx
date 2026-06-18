@@ -22,6 +22,9 @@ type MarketplaceVendor = {
   name: string
   storefrontSlug?: string
   storefrontLink?: string
+  storeCoverUrl?: string
+  shopTheme?: string
+  shopLayout?: string
   vendorVerificationStatus?: string
   monthlyRentStatus?: string
 }
@@ -71,6 +74,9 @@ export default function MarketplacePage() {
               name: String(item.name || "Vendor"),
               storefrontSlug: String(item.storefrontSlug || ""),
               storefrontLink: String(item.storefrontLink || ""),
+              storeCoverUrl: String(item.storeCoverUrl || ""),
+              shopTheme: String(item.shopTheme || "classic"),
+              shopLayout: String(item.shopLayout || "cards"),
               vendorVerificationStatus: String(item.vendorVerificationStatus || ""),
               monthlyRentStatus: String(item.monthlyRentStatus || ""),
             }))
@@ -203,6 +209,10 @@ export default function MarketplacePage() {
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {visibleVendors.map((vendor) => (
                 <Link key={vendor.id} href={vendor.storefrontSlug ? `/marketplace/shop/${vendor.storefrontSlug}` : `/marketplace/vendor/${vendor.id}`} className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:-translate-y-0.5">
+                  {vendor.storeCoverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={vendor.storeCoverUrl} alt={`${vendor.name} cover`} className="mb-3 h-28 w-full rounded-xl object-cover ring-1 ring-stone-200" />
+                  ) : null}
                   <p className="font-semibold text-stone-900">{vendor.name}</p>
                   <p className="mt-1 text-sm text-stone-600">Verification: {vendor.vendorVerificationStatus || "pending"}</p>
                   <p className="mt-1 text-sm text-stone-600">Rent: {vendor.monthlyRentStatus || "unpaid"}</p>

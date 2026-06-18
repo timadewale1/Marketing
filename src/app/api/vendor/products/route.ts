@@ -43,7 +43,6 @@ export async function GET(req: Request) {
     const snap = await auth.dbAdmin
       .collection("vendorProducts")
       .where("vendorId", "==", auth.vendorId)
-      .orderBy("createdAt", "desc")
       .limit(100)
       .get()
 
@@ -65,7 +64,7 @@ export async function GET(req: Request) {
         visibleOnMarketplace: Boolean(data.visibleOnMarketplace),
         createdAtMs: toMillis(data.createdAt),
       }
-    })
+    }).sort((a, b) => b.createdAtMs - a.createdAtMs)
 
     return NextResponse.json({ success: true, products })
   } catch (error) {
@@ -107,6 +106,12 @@ export async function POST(req: Request) {
 
     const vendorData = auth.vendorSnap.data() as Record<string, unknown>
     const state = await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorData)
+    if (!state.canShowProducts) {
+      return NextResponse.json({
+        success: false,
+        message: "Your store must be verified and setup fee completed before publishing products.",
+      }, { status: 403 })
+    }
     const visibleOnMarketplace = state.canShowProducts
     const status = visibleOnMarketplace ? "active" : "hidden"
     const productsRef = auth.dbAdmin.collection("vendorProducts").doc()

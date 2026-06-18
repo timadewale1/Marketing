@@ -14,29 +14,31 @@ function toMillis(value: unknown): number {
 }
 
 export function computeVendorStoreState(vendorData: VendorLike, nowMs: number = Date.now()) {
-  const verified = Boolean(
-    vendorData.verified ||
-      String(vendorData.vendorVerificationStatus || "").toLowerCase() === "verified"
-  )
+  const verificationStatus = String(vendorData.vendorVerificationStatus || "").toLowerCase()
+  const verified = verificationStatus === "verified" || verificationStatus === "approved"
   const setupPaid = String(vendorData.vendorPaymentStatus || "").toLowerCase() === "paid"
   const rawRentPaid = String(vendorData.monthlyRentStatus || "").toLowerCase() === "paid"
   const dueAtMs = toMillis(vendorData.monthlyRentDueAt)
-  const rentOverdue = rawRentPaid && dueAtMs > 0 && nowMs > dueAtMs
-  const rentPaid = rawRentPaid && !rentOverdue
+  const rentRequiredNow = setupPaid && dueAtMs > 0 && nowMs >= dueAtMs
+  const rentOverdue = rentRequiredNow && !rawRentPaid
+  const rentPaid = !rentRequiredNow || rawRentPaid
   const canShowProducts = verified && setupPaid && rentPaid
 
   const normalizedStoreStatus = canShowProducts
     ? "active"
-    : rentOverdue || !rentPaid
+    : rentOverdue
       ? "on_hold"
       : !verified
         ? "awaiting_verification"
-        : "pending_payment"
+        : !setupPaid
+          ? "pending_payment"
+          : "on_hold"
 
   return {
     verified,
     setupPaid,
     rentPaid,
+    rentRequiredNow,
     rentOverdue,
     canShowProducts,
     normalizedStoreStatus,

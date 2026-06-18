@@ -74,7 +74,15 @@ export async function POST(req: Request) {
     const txRef = auth.dbAdmin.collection("vendorTransactions").doc(reference)
     const dueAt = thirtyDaysFromNow(auth.admin)
     const setupPaid = String(auth.vendorData.vendorPaymentStatus || "").toLowerCase() === "paid"
-    const verified = Boolean(auth.vendorData.verified || String(auth.vendorData.vendorVerificationStatus || "").toLowerCase() === "verified")
+    const verificationStatus = String(auth.vendorData.vendorVerificationStatus || "").toLowerCase()
+    const verified = verificationStatus === "verified" || verificationStatus === "approved"
+
+    if (purpose === "setup_fee" && !verified) {
+      return NextResponse.json({
+        success: false,
+        message: "Your verification must be approved before you can pay the setup fee.",
+      }, { status: 400 })
+    }
 
     await auth.dbAdmin.runTransaction(async (t) => {
       t.set(txRef, {
@@ -94,7 +102,6 @@ export async function POST(req: Request) {
           vendorPaymentStatus: "paid",
           vendorSetupPaidAt: now,
           monthlyRentStatus: "paid",
-          monthlyRentPaidAt: now,
           monthlyRentDueAt: dueAt || null,
           storeStatus: verified ? "active" : "awaiting_verification",
           updatedAt: now,

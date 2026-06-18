@@ -44,7 +44,7 @@ export async function GET() {
         vendorPaymentStatus: String(data.vendorPaymentStatus || "unpaid"),
         monthlyRentStatus: String(data.monthlyRentStatus || "unpaid"),
         storeStatus: String(data.storeStatus || "awaiting_verification"),
-        verified: Boolean(data.verified),
+        verified: ["verified", "approved"].includes(String(data.vendorVerificationStatus || "").toLowerCase()),
         productsPublishedCount: Number(data.productsPublishedCount || productsByVendor.get(doc.id) || 0),
         storefrontLink: String(data.storefrontLink || ""),
         storefrontSlug: String(data.storefrontSlug || ""),
@@ -95,8 +95,8 @@ export async function PATCH(req: Request) {
     if (vendorPaymentStatus) updates.vendorPaymentStatus = vendorPaymentStatus
     if (monthlyRentStatus) updates.monthlyRentStatus = monthlyRentStatus
     if (storeStatus) updates.storeStatus = storeStatus
-    if (vendorVerificationStatus === "verified") updates.verified = true
-    if (vendorVerificationStatus === "rejected") updates.verified = false
+    if (vendorVerificationStatus === "verified") updates.vendorVerified = true
+    if (vendorVerificationStatus === "rejected") updates.vendorVerified = false
 
     const vendorRef = dbAdmin.collection("vendors").doc(vendorId)
     await vendorRef.set(updates, { merge: true })
