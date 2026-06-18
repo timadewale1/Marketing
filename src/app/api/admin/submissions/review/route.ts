@@ -3,7 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { requireAdminSession } from '@/lib/admin-session'
 import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
-import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
+import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD, EARNER_STRIKE_SYSTEM_ENABLED } from '@/lib/earner-suspension'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 
 interface Submission {
@@ -207,7 +207,7 @@ export async function POST(req: Request): Promise<Response> {
           } : {}),
         })
 
-        if (prevStatus === 'Rejected') {
+        if (EARNER_STRIKE_SYSTEM_ENABLED && prevStatus === 'Rejected') {
           const nextStrikeCount = Math.max(0, currentStrikeCount - 1)
           t.set(earnerRef, {
             strikeCount: nextStrikeCount,
@@ -353,36 +353,38 @@ export async function POST(req: Request): Promise<Response> {
           } : {}),
         })
 
-        const nextStrikeCount = currentStrikeCount + 1
-        const shouldSuspend = nextStrikeCount >= EARNER_STRIKE_SUSPENSION_THRESHOLD
-        const earnerUpdates: Record<string, unknown> = {
-          strikeCount: nextStrikeCount,
-          lastStrikeUpdatedAt: now,
-        }
-        if (shouldSuspend) {
-          const suspension = buildNextEarnerSuspension(earnerData, now)
-          earnerUpdates.status = 'suspended'
-          earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
-          earnerUpdates.suspendedAt = now
-          earnerUpdates.suspensionCount = suspension.suspensionCount
-          earnerUpdates.suspensionIndefinite = suspension.indefinite
-          if (suspension.releaseAt) {
-            earnerUpdates.suspensionReleaseAt = suspension.releaseAt
-            earnerUpdates.suspensionDurationDays = suspension.durationDays
-          } else {
-            earnerUpdates.suspensionReleaseAt = admin.firestore.FieldValue.delete()
-            earnerUpdates.suspensionDurationDays = admin.firestore.FieldValue.delete()
-          }
-        }
-        t.set(earnerRef, earnerUpdates, { merge: true })
-        if (earnerEmail) {
-          strikeEmailPayload = {
-            type: 'added',
-            email: earnerEmail,
-            name: earnerName,
+        if (EARNER_STRIKE_SYSTEM_ENABLED) {
+          const nextStrikeCount = currentStrikeCount + 1
+          const shouldSuspend = nextStrikeCount >= EARNER_STRIKE_SUSPENSION_THRESHOLD
+          const earnerUpdates: Record<string, unknown> = {
             strikeCount: nextStrikeCount,
-            reason: finalRejectionReason,
-            suspended: shouldSuspend,
+            lastStrikeUpdatedAt: now,
+          }
+          if (shouldSuspend) {
+            const suspension = buildNextEarnerSuspension(earnerData, now)
+            earnerUpdates.status = 'suspended'
+            earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
+            earnerUpdates.suspendedAt = now
+            earnerUpdates.suspensionCount = suspension.suspensionCount
+            earnerUpdates.suspensionIndefinite = suspension.indefinite
+            if (suspension.releaseAt) {
+              earnerUpdates.suspensionReleaseAt = suspension.releaseAt
+              earnerUpdates.suspensionDurationDays = suspension.durationDays
+            } else {
+              earnerUpdates.suspensionReleaseAt = admin.firestore.FieldValue.delete()
+              earnerUpdates.suspensionDurationDays = admin.firestore.FieldValue.delete()
+            }
+          }
+          t.set(earnerRef, earnerUpdates, { merge: true })
+          if (earnerEmail) {
+            strikeEmailPayload = {
+              type: 'added',
+              email: earnerEmail,
+              name: earnerName,
+              strikeCount: nextStrikeCount,
+              reason: finalRejectionReason,
+              suspended: shouldSuspend,
+            }
           }
         }
 
@@ -505,25 +507,27 @@ export async function POST(req: Request): Promise<Response> {
 
     await runSubmissionProofCleanupIfDue(admin, adminDb)
 
-    const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
-    if (emailPayload?.type === 'added') {
-      sendEarnerStrikeEmail({
-        email: emailPayload.email,
-        name: emailPayload.name,
-        strikeCount: emailPayload.strikeCount,
-        reason: emailPayload.reason,
-        suspended: emailPayload.suspended,
-      }).catch((error) => {
-        console.error('Failed to send earner strike email', error)
-      })
-    } else if (emailPayload?.type === 'removed') {
-      sendEarnerStrikeRemovedEmail({
-        email: emailPayload.email,
-        name: emailPayload.name,
-        strikeCount: emailPayload.strikeCount,
-      }).catch((error) => {
-        console.error('Failed to send earner strike removal email', error)
-      })
+    if (EARNER_STRIKE_SYSTEM_ENABLED) {
+      const emailPayload = strikeEmailPayload as StrikeEmailPayload | null
+      if (emailPayload?.type === 'added') {
+        sendEarnerStrikeEmail({
+          email: emailPayload.email,
+          name: emailPayload.name,
+          strikeCount: emailPayload.strikeCount,
+          reason: emailPayload.reason,
+          suspended: emailPayload.suspended,
+        }).catch((error) => {
+          console.error('Failed to send earner strike email', error)
+        })
+      } else if (emailPayload?.type === 'removed') {
+        sendEarnerStrikeRemovedEmail({
+          email: emailPayload.email,
+          name: emailPayload.name,
+          strikeCount: emailPayload.strikeCount,
+        }).catch((error) => {
+          console.error('Failed to send earner strike removal email', error)
+        })
+      }
     }
 
     return NextResponse.json({ success: true })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
-import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD } from '@/lib/earner-suspension'
+import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD, EARNER_STRIKE_SYSTEM_ENABLED } from '@/lib/earner-suspension'
 import { sendEarnerStrikeEmail, sendProofResubmissionRequestedEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
@@ -324,42 +324,44 @@ export async function POST(req: Request) {
         }
       } else {
         const finalRejectionReason = normalizedReason
-        const nextStrikeCount = currentStrikeCount + 1
-        const shouldSuspend = nextStrikeCount >= EARNER_STRIKE_SUSPENSION_THRESHOLD
-        const suspension = buildNextEarnerSuspension(
-          {
-            status: earnerData?.status,
-            suspensionCount: earnerData?.suspensionCount,
-            suspensionReleaseAt: earnerData?.suspensionReleaseAt,
-          },
-          now
-        )
-        const earnerUpdates: Record<string, unknown> = {
-          strikeCount: nextStrikeCount,
-          lastStrikeUpdatedAt: now,
-        }
-        if (shouldSuspend) {
-          earnerUpdates.status = 'suspended'
-          earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
-          earnerUpdates.suspendedAt = now
-          earnerUpdates.suspensionCount = suspension.suspensionCount
-          earnerUpdates.suspensionIndefinite = suspension.indefinite
-          if (suspension.releaseAt) {
-            earnerUpdates.suspensionReleaseAt = suspension.releaseAt
-            earnerUpdates.suspensionDurationDays = suspension.durationDays
-          } else {
-            earnerUpdates.suspensionReleaseAt = admin.firestore.FieldValue.delete()
-            earnerUpdates.suspensionDurationDays = admin.firestore.FieldValue.delete()
-          }
-        }
-        t.set(earnerRef, earnerUpdates, { merge: true })
-        if (earnerEmail) {
-          strikeEmailPayload.current = {
-            email: earnerEmail,
-            name: earnerName,
+        if (EARNER_STRIKE_SYSTEM_ENABLED) {
+          const nextStrikeCount = currentStrikeCount + 1
+          const shouldSuspend = nextStrikeCount >= EARNER_STRIKE_SUSPENSION_THRESHOLD
+          const suspension = buildNextEarnerSuspension(
+            {
+              status: earnerData?.status,
+              suspensionCount: earnerData?.suspensionCount,
+              suspensionReleaseAt: earnerData?.suspensionReleaseAt,
+            },
+            now
+          )
+          const earnerUpdates: Record<string, unknown> = {
             strikeCount: nextStrikeCount,
-            reason: finalRejectionReason,
-            suspended: shouldSuspend,
+            lastStrikeUpdatedAt: now,
+          }
+          if (shouldSuspend) {
+            earnerUpdates.status = 'suspended'
+            earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
+            earnerUpdates.suspendedAt = now
+            earnerUpdates.suspensionCount = suspension.suspensionCount
+            earnerUpdates.suspensionIndefinite = suspension.indefinite
+            if (suspension.releaseAt) {
+              earnerUpdates.suspensionReleaseAt = suspension.releaseAt
+              earnerUpdates.suspensionDurationDays = suspension.durationDays
+            } else {
+              earnerUpdates.suspensionReleaseAt = admin.firestore.FieldValue.delete()
+              earnerUpdates.suspensionDurationDays = admin.firestore.FieldValue.delete()
+            }
+          }
+          t.set(earnerRef, earnerUpdates, { merge: true })
+          if (earnerEmail) {
+            strikeEmailPayload.current = {
+              email: earnerEmail,
+              name: earnerName,
+              strikeCount: nextStrikeCount,
+              reason: finalRejectionReason,
+              suspended: shouldSuspend,
+            }
           }
         }
 
@@ -408,7 +410,7 @@ export async function POST(req: Request) {
       })
     }
 
-    if (strikeEmailPayload.current) {
+    if (EARNER_STRIKE_SYSTEM_ENABLED && strikeEmailPayload.current) {
       sendEarnerStrikeEmail(strikeEmailPayload.current).catch((error) => {
         console.error('Failed to send earner strike email', error)
       })

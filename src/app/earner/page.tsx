@@ -32,7 +32,6 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertTriangle,
   Menu,
   X,
   LogOut,
@@ -81,7 +80,6 @@ export default function EarnerDashboard() {
     campaignApproved: 0,
   })
   const [activated, setActivated] = useState<boolean>(false)
-  const [strikeCount, setStrikeCount] = useState<number>(0)
   const [accountStatus, setAccountStatus] = useState<string>('active')
 
   const [totalEarned, setTotalEarned] = useState(0)
@@ -154,7 +152,6 @@ export default function EarnerDashboard() {
           }))
           const nextActivated = !!d.activated
           setActivated(nextActivated)
-          setStrikeCount(Number(d.strikeCount || 0))
           setAccountStatus(String(d.status || 'active'))
 
           if (
@@ -414,10 +411,6 @@ export default function EarnerDashboard() {
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                       Your account is currently suspended. Please contact support for review.
                     </div>
-                  ) : strikeCount > 0 ? (
-                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                      You have {strikeCount} strike{strikeCount === 1 ? '' : 's'}. Repeated rejected submissions can lead to suspension.
-                    </div>
                   ) : null}
               </div>
             </CardContent>
@@ -528,19 +521,19 @@ export default function EarnerDashboard() {
             </CardContent>
           </Card>
 
-          {/* Strike Count */}
+          {/* Strike card temporarily disabled */}
           <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
             <CardContent className="p-6 flex items-center gap-5">
-              <div className={`p-3 rounded-2xl ${accountStatus === 'suspended' ? 'bg-red-200' : strikeCount > 0 ? 'bg-amber-200' : 'bg-stone-200'}`}>
-                <AlertTriangle size={28} className={`${accountStatus === 'suspended' ? 'text-red-800' : strikeCount > 0 ? 'text-amber-800' : 'text-stone-700'}`} />
+              <div className={`p-3 rounded-2xl ${accountStatus === 'suspended' ? 'bg-red-200' : 'bg-stone-200'}`}>
+                <Clock size={28} className={`${accountStatus === 'suspended' ? 'text-red-800' : 'text-stone-700'}`} />
               </div>
               <div>
-                <h3 className="text-sm text-stone-600 font-medium">Strike Count</h3>
+                <h3 className="text-sm text-stone-600 font-medium">Account Status</h3>
                 <p className="text-2xl font-bold text-stone-900">
-                  {strikeCount}
+                  {accountStatus === 'suspended' ? 'Suspended' : 'Active'}
                 </p>
-                <p className={`text-xs mt-1 ${accountStatus === 'suspended' ? 'text-red-600' : strikeCount > 0 ? 'text-amber-600' : 'text-stone-500'}`}>
-                  {accountStatus === 'suspended' ? 'Account suspended' : `Strikes: ${strikeCount}`}
+                <p className={`text-xs mt-1 ${accountStatus === 'suspended' ? 'text-red-600' : 'text-stone-500'}`}>
+                  {accountStatus === 'suspended' ? 'Account suspended' : 'Account in good standing'}
                 </p>
               </div>
             </CardContent>

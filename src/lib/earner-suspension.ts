@@ -1,5 +1,8 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
+// Temporary switch: strike system disabled.
+// Keep code paths in place for easy re-enable later.
+export const EARNER_STRIKE_SYSTEM_ENABLED = false
 export const EARNER_STRIKE_SUSPENSION_THRESHOLD = 20
 const SUSPENSION_DURATION_DAYS = 3
 

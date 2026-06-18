@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
-import { toDateFromTimestampLike } from '@/lib/earner-suspension'
+import { EARNER_STRIKE_SYSTEM_ENABLED, toDateFromTimestampLike } from '@/lib/earner-suspension'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 
 interface Submission {
@@ -203,8 +203,8 @@ export async function GET(request: Request) {
             const earnerSnapshot = await t.get(earnerRef)
             const currentStrikeCount = Number(earnerSnapshot.data()?.strikeCount || 0)
             const nextStrikeCount = currentStrikeCount + 1
-            const shouldSuspend = nextStrikeCount >= 20
-            const suspension = shouldSuspend
+            const shouldSuspend = EARNER_STRIKE_SYSTEM_ENABLED && nextStrikeCount >= 20
+            const suspension = EARNER_STRIKE_SYSTEM_ENABLED && shouldSuspend
               ? {
                   suspensionCount: Number(earnerSnapshot.data()?.suspensionCount || 0) + 1,
                   durationDays: 3,
@@ -229,20 +229,22 @@ export async function GET(request: Request) {
               finalDecisionSource: 'system_auto_resubmission_timeout',
             })
 
-            const earnerUpdates: Record<string, unknown> = {
-              strikeCount: nextStrikeCount,
-              lastStrikeUpdatedAt: now,
+            if (EARNER_STRIKE_SYSTEM_ENABLED) {
+              const earnerUpdates: Record<string, unknown> = {
+                strikeCount: nextStrikeCount,
+                lastStrikeUpdatedAt: now,
+              }
+              if (shouldSuspend && suspension) {
+                earnerUpdates.status = 'suspended'
+                earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
+                earnerUpdates.suspendedAt = now
+                earnerUpdates.suspensionCount = suspension.suspensionCount
+                earnerUpdates.suspensionIndefinite = false
+                earnerUpdates.suspensionReleaseAt = suspension.releaseAt
+                earnerUpdates.suspensionDurationDays = suspension.durationDays
+              }
+              t.set(earnerRef, earnerUpdates, { merge: true })
             }
-            if (shouldSuspend && suspension) {
-              earnerUpdates.status = 'suspended'
-              earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
-              earnerUpdates.suspendedAt = now
-              earnerUpdates.suspensionCount = suspension.suspensionCount
-              earnerUpdates.suspensionIndefinite = false
-              earnerUpdates.suspensionReleaseAt = suspension.releaseAt
-              earnerUpdates.suspensionDurationDays = suspension.durationDays
-            }
-            t.set(earnerRef, earnerUpdates, { merge: true })
 
             if (campaignSnap.exists) {
               const reservedAmt = Number(submission.reservedAmount || 0)
