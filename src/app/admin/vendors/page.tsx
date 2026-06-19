@@ -117,7 +117,7 @@ export default function AdminVendorsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         eyebrow="Vendor management"
-        title="Pamba Vendors"
+        title="Pamba Stores"
         description="Review vendor verification, rent status, and published products from one place."
         action={
           <Button asChild className="rounded-full">

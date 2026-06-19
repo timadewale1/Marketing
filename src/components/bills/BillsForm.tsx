@@ -9,7 +9,7 @@ export default function BillsForm() {
       <h3 className="text-lg font-semibold">Bills & Utilities</h3>
       <p className="text-sm text-stone-600">The previous Dataway integration has been removed. Use PAMBA Bills & Utilities.</p>
       <div className="mt-4">
-        <a href="/bills" target="_blank" rel="noreferrer" className="inline-block bg-amber-500 text-stone-900 px-4 py-2 rounded">Open Bills & Utilities</a>
+        <a href="/bills" target="_blank" rel="noreferrer" className="inline-block bg-amber-500 text-stone-900 px-4 py-2 rounded">Pamba Bills & Utilities</a>
       </div>
     </div>
   )

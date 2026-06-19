@@ -233,7 +233,7 @@ export function SignUpForm() {
                 <SelectContent className="bg-stone-700 text-white">
                   <SelectItem value="advertiser">Create Tasks</SelectItem>
                   <SelectItem value="earner">Earn by performing tasks</SelectItem>
-                  <SelectItem value="vendor">Pamba Vendor Store</SelectItem>
+                  <SelectItem value="vendor">Pamba Store</SelectItem>
                 </SelectContent>
               </Select>
               <p className="mt-2 text-xs text-stone-400">

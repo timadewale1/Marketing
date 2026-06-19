@@ -370,7 +370,7 @@ export default function VendorDashboardPage() {
       <div className="rounded-3xl border border-dashed border-stone-300 bg-white p-8 text-center">
         <Store className="mx-auto h-10 w-10 text-cyan-600" />
         <h1 className="mt-4 text-2xl font-semibold text-stone-900">Vendor dashboard</h1>
-        <p className="mt-2 text-stone-600">Please sign in as a Pamba Vendor.</p>
+        <p className="mt-2 text-stone-600">Please sign in as a Pamba Store.</p>
         <Button asChild className="mt-6 rounded-full bg-cyan-700 hover:bg-cyan-600">
           <Link href="/auth/sign-in">Go to sign in</Link>
         </Button>
@@ -615,7 +615,7 @@ export default function VendorDashboardPage() {
           amount={10000}
           email={auth.currentUser?.email || undefined}
           fullName={profile?.name || auth.currentUser?.displayName || "Vendor"}
-          description="Pamba Vendor Setup Fee"
+          description="Pamba Store Setup Fee"
           onClose={() => setShowSetupPayment(false)}
           onMonnifyReferenceCreated={async (reference: string) => {
             await registerVendorPaymentReference(reference, "setup_fee", 10000)
@@ -633,7 +633,7 @@ export default function VendorDashboardPage() {
           amount={2000}
           email={auth.currentUser?.email || undefined}
           fullName={profile?.name || auth.currentUser?.displayName || "Vendor"}
-          description="Pamba Vendor Monthly Rent"
+          description="Pamba Store Monthly Rent"
           onClose={() => setShowRentPayment(false)}
           onMonnifyReferenceCreated={async (reference: string) => {
             await registerVendorPaymentReference(reference, "monthly_rent", 2000)

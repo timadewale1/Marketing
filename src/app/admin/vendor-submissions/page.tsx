@@ -91,7 +91,7 @@ export default function AdminVendorSubmissionsPage() {
 
       <SectionCard
         title="Review queue"
-        description="When a shopper submits proof of purchase from a Pamba vendor, the claim will land here for approval."
+        description="When a shopper submits proof of purchase from a Pamba store, the claim will land here for approval."
         action={
           <div className="relative w-full min-w-[260px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />

@@ -145,7 +145,7 @@ export default function PAMBALanding() {
     { label: "Features", href: "#features" },
     { label: "Marketplace", href: "#marketplace" },
     { label: "How It Works", href: "#howitworks" },
-    { label: "Bills", href: "#bills" },
+    { label: "Pamba Bills", href: "#bills" },
     { label: "FAQ", href: "/faq" },
   ];
 
@@ -1202,7 +1202,7 @@ export default function PAMBALanding() {
                 <li><Link href="/auth/sign-up">Start Earning</Link></li>
                 <li><Link href="/auth/sign-up">Create Tasks</Link></li>
                 <li><Link href="/advertise-directly">Advertise Directly</Link></li>
-                <li><a href="#bills">Pay Bills</a></li>
+                <li><a href="#bills">Pamba Bills</a></li>
               </ul>
             </div>
             <div className="footer-col">
