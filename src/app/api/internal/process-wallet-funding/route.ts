@@ -3,9 +3,9 @@ import { processWalletFundingWithRetry } from "@/lib/paymentProcessing"
 import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
 
 function isAuthorized(request: Request) {
-  const cronSecret = String(process.env.CRON_SECRET || "").trim()
-  if (!cronSecret) return true
-  return request.headers.get("authorization") === `Bearer ${cronSecret}`
+  const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || "").trim()
+  if (!internalSecret) return true
+  return request.headers.get("authorization") === `Bearer ${internalSecret}`
 }
 
 export async function POST(request: Request) {

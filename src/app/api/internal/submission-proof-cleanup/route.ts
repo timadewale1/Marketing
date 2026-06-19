@@ -8,10 +8,10 @@ export async function GET(req: Request) {
     const proxied = await proxyToBackendIfConfigured('/api/internal/submission-proof-cleanup', req, { internalAuth: true })
     if (proxied) return proxied
 
-    const cronSecret = process.env.CRON_SECRET
+    const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || '').trim()
     const authHeader = req.headers.get('authorization') || ''
 
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (internalSecret && authHeader !== `Bearer ${internalSecret}`) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
