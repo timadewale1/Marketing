@@ -120,9 +120,17 @@ export default function MarketplacePage() {
                 Search shops, browse products, and open vendor storefronts when the marketplace goes live.
               </p>
             </div>
-            <Button asChild className="rounded-full">
-              <Link href="/auth/sign-up">Become a Vendor</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild className="rounded-full">
+                <Link href="/marketplace/auth/sign-up?role=vendor">Become a Vendor</Link>
+              </Button>
+              <Button asChild className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700">
+                <Link href="/marketplace/auth/sign-up?role=customer">Become a Customer</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/marketplace/auth/sign-in">Login to Marketplace</Link>
+              </Button>
+            </div>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
@@ -199,6 +207,14 @@ export default function MarketplacePage() {
                 <p className="flex items-center gap-2 text-sm font-semibold text-stone-900"><Store className="h-4 w-4 text-amber-600" /> Product discovery</p>
                 <p className="mt-1 text-sm text-stone-600">Search and browse vendor listings from one clean marketplace view.</p>
               </div>
+            </div>
+            <div className="relative mt-6 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="rounded-full">
+                <Link href="/marketplace/auth/sign-up?role=vendor">Become a Vendor</Link>
+              </Button>
+              <Button asChild className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700">
+                <Link href="/marketplace/auth/sign-up?role=customer">Become a Customer</Link>
+              </Button>
             </div>
           </div>
         )}

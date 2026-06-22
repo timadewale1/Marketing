@@ -37,7 +37,7 @@ type Withdrawal = {
   userId: string;
   amount: number;
   status: string;
-  source: "earner" | "advertiser" | "vendor";
+  source: "earner" | "advertiser" | "vendor" | "customer";
   createdAtMs: number;
   bank: {
     accountNumber: string;
@@ -68,10 +68,11 @@ export default function WithdrawalsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [earnerSnap, advertiserSnap, vendorSnap] = await Promise.all([
+      const [earnerSnap, advertiserSnap, vendorSnap, customerSnap] = await Promise.all([
         getDocs(query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
         getDocs(query(collection(db, "advertiserWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
         getDocs(query(collection(db, "vendorWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
+        getDocs(query(collection(db, "customerWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
       ]);
 
       const rows: Withdrawal[] = [
@@ -123,6 +124,22 @@ export default function WithdrawalsPage() {
             },
           };
         }),
+        ...customerSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: String(data.userId || ""),
+            amount: Number(data.amount || 0),
+            status: String(data.status || ""),
+            source: "customer" as const,
+            createdAtMs: toMillis(data.createdAt),
+            bank: {
+              accountNumber: String(data.bank?.accountNumber || ""),
+              bankName: String(data.bank?.bankName || ""),
+              accountName: String(data.bank?.accountName || ""),
+            },
+          };
+        }),
       ].sort((a, b) => b.createdAtMs - a.createdAtMs);
 
       setWithdrawals(rows);
@@ -139,7 +156,15 @@ export default function WithdrawalsPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return withdrawals.filter((withdrawal) => {
-      const matchesStatus = statusFilter === "all" || withdrawal.status === statusFilter;
+      const normalizedStatus = String(withdrawal.status || "").toLowerCase();
+      const isActionablePending =
+        normalizedStatus === "pending" || normalizedStatus === "pending_admin_approval";
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "pending"
+            ? isActionablePending
+            : normalizedStatus === statusFilter;
       const matchesSearch =
         !term ||
         withdrawal.bank.accountNumber.toLowerCase().includes(term) ||
@@ -150,8 +175,14 @@ export default function WithdrawalsPage() {
   }, [search, statusFilter, withdrawals]);
 
   const stats = {
-    pending: withdrawals.filter((withdrawal) => withdrawal.status === "pending" || withdrawal.status === "pending_admin_approval" || withdrawal.status === "processing").length,
-    sent: withdrawals.filter((withdrawal) => withdrawal.status === "sent" || withdrawal.status === "completed").length,
+    pending: withdrawals.filter((withdrawal) => {
+      const status = String(withdrawal.status || "").toLowerCase();
+      return status === "pending" || status === "pending_admin_approval";
+    }).length,
+    sent: withdrawals.filter((withdrawal) => {
+      const status = String(withdrawal.status || "").toLowerCase();
+      return status === "sent" || status === "completed";
+    }).length,
     totalAmount: withdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0),
   };
 
@@ -188,7 +219,7 @@ export default function WithdrawalsPage() {
       <AdminPageHeader
         eyebrow="Payout queue"
         title="Withdrawal requests"
-        description="Review and process earner or advertiser withdrawals from one paginated queue."
+        description="Review and process earner, advertiser, vendor, and customer withdrawals from one paginated queue."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -232,7 +263,7 @@ export default function WithdrawalsPage() {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-stone-900">{currency(withdrawal.amount)}</p>
-                      <StatusBadge label={withdrawal.source} tone={withdrawal.source === "earner" ? "amber" : "blue"} />
+                      <StatusBadge label={withdrawal.source} tone={withdrawal.source === "earner" ? "amber" : withdrawal.source === "customer" ? "green" : "blue"} />
                       <StatusBadge
                         label={withdrawal.status === "pending_admin_approval" ? "waiting for admin approval" : withdrawal.status}
                         tone={withdrawal.status === "sent" || withdrawal.status === "completed" ? "green" : "amber"}
@@ -247,7 +278,7 @@ export default function WithdrawalsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline" className="rounded-full">
-                      <Link href={withdrawal.source === "vendor" ? "/admin/vendors" : `/admin/${withdrawal.source === "advertiser" ? "advertisers" : "earners"}/${withdrawal.userId}`}>
+                      <Link href={withdrawal.source === "vendor" ? "/admin/vendors" : withdrawal.source === "customer" ? `/admin/users/${withdrawal.userId}` : `/admin/${withdrawal.source === "advertiser" ? "advertisers" : "earners"}/${withdrawal.userId}`}>
                         Open user
                       </Link>
                     </Button>

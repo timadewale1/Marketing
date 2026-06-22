@@ -52,6 +52,12 @@ service cloud.firestore {
       allow update, delete: if isSelf(uid) || isAdmin();
     }
 
+    match /customers/{uid} {
+      allow create: if isSelf(uid);
+      allow get, list: if signedIn();
+      allow update, delete: if isSelf(uid) || isAdmin();
+    }
+
     match /vendorProducts/{productId} {
       allow create: if signedIn() && request.resource.data.vendorId == request.auth.uid;
       allow get, list: if signedIn();
@@ -63,6 +69,12 @@ service cloud.firestore {
     }
 
     match /vendorTransactions/{transactionId} {
+      allow create: if sameUser('userId') || isAdmin();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /customerTransactions/{transactionId} {
       allow create: if sameUser('userId') || isAdmin();
       allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
@@ -129,6 +141,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /vendorWithdrawals/{withdrawalId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /customerWithdrawals/{withdrawalId} {
+      allow create: if sameUser('userId');
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
     match /withdrawals/{withdrawalId} {
       allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow write: if isAdmin();
@@ -156,6 +180,11 @@ service cloud.firestore {
         )
       );
       allow update, delete: if isAdmin();
+    }
+
+    match /vendorSales/{saleId} {
+      allow create, update, delete: if isAdmin();
+      allow get, list: if isAdmin() || (signedIn() && resource.data.vendorId == request.auth.uid);
     }
 
     match /pointsTransactions/{transactionId} {

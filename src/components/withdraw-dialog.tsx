@@ -37,7 +37,7 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
     }
   };
 
-  const fee = typeof amount === 'number' && amount > 0 ? Math.round(Number(amount) * 0.1) : 0
+  const fee = typeof amount === 'number' && amount > 0 ? Math.round(Number(amount) * 0.05) : 0
   const net = typeof amount === 'number' && amount > 0 ? Math.max(0, Number(amount) - fee) : 0
 
   return (
@@ -102,7 +102,7 @@ export function WithdrawDialog({ open, onClose, onSubmit, maxAmount, bankDetails
               {/* Fee preview */}
               <div className="mt-2 p-3 bg-stone-50 rounded-lg">
                 <div className="flex justify-between text-sm text-stone-700">
-                  <span>Service fee (10%)</span>
+                  <span>Service fee (5%)</span>
                   <span>₦{fee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-medium mt-1">

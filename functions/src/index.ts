@@ -277,7 +277,12 @@ async function processPendingReferralsDirect() {
 }
 
 export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => {
-  await callInternalRoute("/api/internal/auto-verify-submissions");
+  try {
+    await runDirectAutoVerifySubmissions();
+  } catch (error) {
+    console.error("[autoVerifySubmissions] direct run failed, falling back to internal route", error);
+    await callInternalRoute("/api/internal/auto-verify-submissions");
+  }
 });
 
 export const retryPendingMonnifyPayments = onSchedule("every 5 minutes", async () => {

@@ -12,7 +12,7 @@ export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000
 export const POINTS_CREDITING_PAUSED = false
 
-export type PointsUserCollection = 'earners' | 'advertisers'
+export type PointsUserCollection = 'earners' | 'advertisers' | 'customers' | 'vendors'
 export type PointsRedeemTarget = 'wallet' | 'withdraw' | 'bills' | 'tasks'
 
 export type PointsTier = {

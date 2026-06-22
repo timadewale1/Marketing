@@ -66,8 +66,10 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
               ? "customerTransactions"
               : "earnerTransactions"
       const txRef = dbAdmin.collection(transactionCollection).doc()
+      const vendorId = String(claim.vendorId || "")
+      const vendorSalesRef = vendorId ? dbAdmin.collection("vendorSales").doc() : null
       await dbAdmin.runTransaction(async (transaction) => {
-        if (userCollection === "earners" || userCollection === "advertisers") {
+        if (userCollection === "earners" || userCollection === "advertisers" || userCollection === "customers") {
           await awardPointsInTransaction({
             adminDb: dbAdmin,
             admin,
@@ -100,6 +102,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
           source: "vendor_cashback",
         })
         transaction.update(claimRef, updates)
+        if (vendorSalesRef && vendorId) {
+          transaction.set(vendorSalesRef, {
+            vendorId,
+            claimId: id,
+            buyerId: userId,
+            buyerCollection: userCollection,
+            vendorName: String(claim.vendorName || ""),
+            productId: String(claim.productId || ""),
+            amount: Number(claim.amount || 0),
+            cashbackAmount,
+            approvedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+          })
+        }
       })
     } else {
       await claimRef.update(updates)
