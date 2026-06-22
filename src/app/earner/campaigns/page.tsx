@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
+import { computeEarnerPayout } from "@/lib/task-pricing";
 
 type Campaign = {
   id: string;
@@ -326,7 +327,7 @@ export default function AvailableCampaignsPage() {
             ) : (
               <div className="space-y-4">
                 {paginatedCampaigns.map((campaign) => {
-                  const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
+                  const earnerPrice = computeEarnerPayout(campaign.costPerLead || 0);
 
                   return (
                     <Card key={campaign.id} className="overflow-hidden border-none bg-white/80 shadow-md backdrop-blur transition duration-300 hover:shadow-xl">

@@ -6,12 +6,17 @@ import { usePathname, useRouter } from "next/navigation"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import { doc, onSnapshot } from "firebase/firestore"
 import {
+  Banknote,
   LayoutDashboard,
   LogOut,
   Menu,
+  PlusCircle,
   Package,
+  ReceiptText,
+  Repeat,
   Settings,
   UserCircle,
+  Wallet,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,12 +28,17 @@ const VENDOR_NAV_SECTIONS = [
     items: [
       { label: "Dashboard", path: "/vendor", icon: LayoutDashboard },
       { label: "Products", path: "/vendor/products", icon: Package },
+      { label: "Create Task", path: "/vendor/create-task", icon: PlusCircle },
+      { label: "Wallet", path: "/vendor/wallet", icon: Wallet },
+      { label: "Transactions", path: "/vendor/transactions", icon: ReceiptText },
+      { label: "Referrals", path: "/vendor/referrals", icon: Repeat },
     ],
   },
   {
     title: "Account",
     items: [
       { label: "Profile", path: "/vendor/profile", icon: UserCircle },
+      { label: "Bank", path: "/vendor/bank", icon: Banknote },
       { label: "Settings", path: "/vendor", icon: Settings },
     ],
   },

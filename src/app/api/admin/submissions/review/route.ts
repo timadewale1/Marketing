@@ -5,6 +5,7 @@ import { sendEarnerStrikeEmail, sendEarnerStrikeRemovedEmail } from '@/lib/maile
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD, EARNER_STRIKE_SYSTEM_ENABLED } from '@/lib/earner-suspension'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
 
 interface Submission {
   status?: string
@@ -111,8 +112,8 @@ export async function POST(req: Request): Promise<Response> {
         const campaignBudget = Number(campaign.budget || 0)
         const campaignReservedBudget = Number(campaign.reservedBudget || 0)
         const earnerAmount = Number(submission.earnerPrice || 0)
-        const fullAmount = earnerAmount * 2
         const reservedAmount = Number(submission.reservedAmount || 0)
+        const fullAmount = computeAdvertiserCharge(reservedAmount, Number(campaign.costPerLead || 0), earnerAmount)
         const advertiserId = submission.advertiserId || campaign.ownerId
         const flagPending = String(submission.advertiserFlagStatus || '') === 'pending'
         let reservedBudgetAdjustment = 0
@@ -321,7 +322,7 @@ export async function POST(req: Request): Promise<Response> {
 
         // compute earnerAmount/fullAmount (prefer submission, fall back to campaign costPerLead)
         let earnerAmount = Number(submission.earnerPrice || 0)
-        let fullAmount = earnerAmount * 2
+        let fullAmount = computeAdvertiserCharge(Number(submission.reservedAmount || 0), Number(campaign?.costPerLead || 0), earnerAmount)
         const flagPending = String(submission.advertiserFlagStatus || '') === 'pending'
         const finalRejectionReason = String(rejectionReason || submission.advertiserFlagReason || '').trim()
         if (!finalRejectionReason) {
@@ -329,8 +330,8 @@ export async function POST(req: Request): Promise<Response> {
         }
         if ((!earnerAmount || earnerAmount === 0) && campaign) {
           const costPerLeadTmp = Number(campaign.costPerLead || 0)
-          if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
-          fullAmount = Number(submission.reservedAmount || earnerAmount * 2)
+          if (costPerLeadTmp > 0) earnerAmount = computeEarnerPayout(costPerLeadTmp)
+          fullAmount = computeAdvertiserCharge(Number(submission.reservedAmount || 0), costPerLeadTmp, earnerAmount)
         }
 
         // Update submission with rejection metadata

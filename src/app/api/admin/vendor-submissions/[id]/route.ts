@@ -2,9 +2,12 @@ import { NextResponse } from "next/server"
 import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { requireAdminSession } from "@/lib/admin-session"
+import { VENDOR_PURCHASE_APPROVED_POINTS, awardPointsInTransaction, getPointsEventId } from "@/lib/points"
 
 function resolveUserCollection(data: Record<string, unknown>) {
   const raw = String(data.userCollection || data.role || data.userType || "").toLowerCase()
+  if (raw === "vendor" || raw === "vendors") return "vendors" as const
+  if (raw === "customer" || raw === "customers" || raw === "buyer") return "customers" as const
   if (raw === "advertiser" || raw === "advertisers") return "advertisers" as const
   return "earners" as const
 }
@@ -54,8 +57,34 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     }
 
     if (action === "approve" && cashbackAmount > 0) {
-      const txRef = dbAdmin.collection(userCollection === "advertisers" ? "advertiserTransactions" : "earnerTransactions").doc()
+      const transactionCollection =
+        userCollection === "advertisers"
+          ? "advertiserTransactions"
+          : userCollection === "vendors"
+            ? "vendorTransactions"
+            : userCollection === "customers"
+              ? "customerTransactions"
+              : "earnerTransactions"
+      const txRef = dbAdmin.collection(transactionCollection).doc()
       await dbAdmin.runTransaction(async (transaction) => {
+        if (userCollection === "earners" || userCollection === "advertisers") {
+          await awardPointsInTransaction({
+            adminDb: dbAdmin,
+            admin,
+            transaction,
+            userCollection,
+            userId,
+            amount: VENDOR_PURCHASE_APPROVED_POINTS,
+            eventId: getPointsEventId("vendor-purchase-approved", id),
+            type: "vendor_purchase_approved",
+            note: `Points for approved marketplace purchase claim (${String(claim.productId || id)})`,
+            referenceId: id,
+            extraLedgerData: {
+              submissionId: id,
+              productId: String(claim.productId || ""),
+            },
+          })
+        }
         transaction.update(userRef, {
           balance: FieldValue.increment(cashbackAmount),
           updatedAt: FieldValue.serverTimestamp(),

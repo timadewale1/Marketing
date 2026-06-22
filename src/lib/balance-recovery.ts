@@ -1,7 +1,7 @@
 import type { Firestore, Transaction } from "firebase-admin/firestore"
 import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
 
-type UserCollection = "earners" | "advertisers"
+type UserCollection = "earners" | "advertisers" | "vendors" | "customers"
 
 type CreditRecoveryOptions = {
   adminDb: Firestore
@@ -10,7 +10,7 @@ type CreditRecoveryOptions = {
   userCollection: UserCollection
   userId: string
   amount: number
-  transactionCollection?: "earnerTransactions" | "advertiserTransactions"
+  transactionCollection?: "earnerTransactions" | "advertiserTransactions" | "vendorTransactions" | "customerTransactions"
   recoveryNote?: string
   transactionType?: string
   transactionExtras?: Record<string, unknown>
@@ -23,7 +23,7 @@ type DebitRecoveryOptions = {
   userCollection: UserCollection
   userId: string
   amount: number
-  transactionCollection?: "earnerTransactions" | "advertiserTransactions"
+  transactionCollection?: "earnerTransactions" | "advertiserTransactions" | "vendorTransactions" | "customerTransactions"
   recoveryNote?: string
   transactionType?: string
   transactionExtras?: Record<string, unknown>

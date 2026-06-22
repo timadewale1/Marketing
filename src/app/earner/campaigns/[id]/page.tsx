@@ -22,6 +22,7 @@ import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
 import { getCampaignProofSampleUrls } from "@/lib/proofs";
+import { computeEarnerPayout } from "@/lib/task-pricing";
 
 type Campaign = {
   id: string;
@@ -527,7 +528,7 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
     </div>
   );
 
-  const earnerPrice = Math.round((campaign.costPerLead || 0) / 2);
+  const earnerPrice = computeEarnerPayout(campaign.costPerLead || 0);
   const participationProofSamples = getCampaignProofSampleUrls(campaign);
 
   return (

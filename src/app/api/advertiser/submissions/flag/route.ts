@@ -4,6 +4,7 @@ import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD, EARNER_S
 import { sendEarnerStrikeEmail, sendProofResubmissionRequestedEmail } from '@/lib/mailer'
 import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
+import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
 
 interface Submission {
   status?: string
@@ -149,10 +150,10 @@ export async function POST(req: Request) {
       const campaignReservedBudget = Number(campaign.reservedBudget || 0)
       let earnerAmount = Number(submission.earnerPrice || 0)
       if (!earnerAmount) {
-        earnerAmount = Math.round(Number(campaign.costPerLead || 0) / 2) || 0
+        earnerAmount = computeEarnerPayout(Number(campaign.costPerLead || 0)) || 0
       }
-      const fullAmount = earnerAmount * 2
       const reservedAmount = Number(submission.reservedAmount || 0)
+      const fullAmount = computeAdvertiserCharge(reservedAmount, Number(campaign.costPerLead || 0), earnerAmount)
       const advertiserRef = db.collection('advertisers').doc(advertiserId)
       const advertiserSnap = await t.get(advertiserRef)
       const advertiserBalance = Number(advertiserSnap.data()?.balance || 0)

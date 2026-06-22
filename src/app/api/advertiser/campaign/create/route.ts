@@ -4,6 +4,7 @@ import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { HIGH_VALUE_TASK_POINTS, HIGH_VALUE_TASK_THRESHOLD, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { awardAdvertiserFirstTaskReferralBonusInTransaction } from '@/lib/paymentProcessing'
+import { computeEarnerPayout } from '@/lib/task-pricing'
 
 export async function POST(req: Request) {
   try {
@@ -89,11 +90,18 @@ export async function POST(req: Request) {
     }
 
     const advertiserRef = db.collection('advertisers').doc(verifiedUid)
-    const advertiserSnap = await advertiserRef.get()
-    if (!advertiserSnap.exists) return NextResponse.json({ success: false, message: 'Advertiser not found' }, { status: 404 })
+    const vendorRef = db.collection('vendors').doc(verifiedUid)
+    const [advertiserSnap, vendorSnap] = await Promise.all([advertiserRef.get(), vendorRef.get()])
+    const isVendor = vendorSnap.exists && !advertiserSnap.exists
+    const ownerCollection = advertiserSnap.exists ? 'advertisers' : isVendor ? 'vendors' : null
+    if (!ownerCollection) {
+      return NextResponse.json({ success: false, message: 'Account not found for task creation' }, { status: 404 })
+    }
+    const ownerRef = ownerCollection === 'advertisers' ? advertiserRef : vendorRef
+    const ownerSnap = ownerCollection === 'advertisers' ? advertiserSnap : vendorSnap
 
     let createdCampaignId = ''
-    const advertiserData = advertiserSnap.data() || {}
+    const advertiserData = ownerSnap.data() || {}
     const advertiserName = String(
       advertiserData.fullName ||
       advertiserData.businessName ||
@@ -109,7 +117,7 @@ export async function POST(req: Request) {
 
     // Run transaction: create campaign, deduct balance, record transaction
     await db.runTransaction(async (t) => {
-      const advSnap = await t.get(advertiserRef)
+      const advSnap = await t.get(ownerRef)
       const currentBal = Number(advSnap.data()?.balance || 0)
       if (currentBal < budget) throw new Error('Insufficient balance')
 
@@ -117,7 +125,7 @@ export async function POST(req: Request) {
       const campaignRef = db.collection('campaigns').doc()
       createdCampaignId = campaignRef.id
 
-      if (budget >= HIGH_VALUE_TASK_THRESHOLD) {
+      if (ownerCollection === 'advertisers' && budget >= HIGH_VALUE_TASK_THRESHOLD) {
         await awardPointsInTransaction({
           adminDb: db,
           admin,
@@ -140,29 +148,32 @@ export async function POST(req: Request) {
         })
       }
 
-      try {
-        await awardAdvertiserFirstTaskReferralBonusInTransaction(
-          db,
-          admin,
-          t,
-          verifiedUid,
-          campaignRef.id,
-          budget,
-          campaignTitle
-        )
-      } catch (bonusError) {
-        console.warn('[campaign-create] advertiser referral bonus skipped after non-fatal error:', bonusError)
+      if (ownerCollection === 'advertisers') {
+        try {
+          await awardAdvertiserFirstTaskReferralBonusInTransaction(
+            db,
+            admin,
+            t,
+            verifiedUid,
+            campaignRef.id,
+            budget,
+            campaignTitle
+          )
+        } catch (bonusError) {
+          console.warn('[campaign-create] advertiser referral bonus skipped after non-fatal error:', bonusError)
+        }
       }
 
       // Preserve original budget as the advertiser-entered total so advertiser views
       // always show the original task amount (originalBudget). Also initialize reservedBudget.
       t.set(campaignRef, {
         ...campaignData,
+        ownerType: ownerCollection === 'advertisers' ? 'advertiser' : 'vendor',
         baseCostPerLead,
         priorityEnabled,
         priorityMultiplier,
         costPerLead,
-        earnerPrice: Math.round(costPerLead / 2),
+        earnerPrice: computeEarnerPayout(costPerLead),
         ownerId: verifiedUid,
         status: 'Active',
         originalBudget: budget,
@@ -179,13 +190,13 @@ export async function POST(req: Request) {
       })
 
       // Deduct advertiser balance
-      t.update(advertiserRef, {
+      t.update(ownerRef, {
         balance: admin.firestore.FieldValue.increment(-budget),
         campaignsCreated: admin.firestore.FieldValue.increment(1),
       })
 
       // Log transaction
-      const txRef = db.collection('advertiserTransactions').doc()
+      const txRef = db.collection(ownerCollection === 'advertisers' ? 'advertiserTransactions' : 'vendorTransactions').doc()
       t.set(txRef, {
         userId: verifiedUid,
         type: 'campaign_payment',

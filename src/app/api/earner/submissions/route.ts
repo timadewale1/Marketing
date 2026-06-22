@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { shouldAutoUnsuspendEarner } from '@/lib/earner-suspension'
+import { computeEarnerPayout } from '@/lib/task-pricing'
 
 type CampaignDoc = {
   title?: string
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
 
     const costPerLead = Number(campaign.costPerLead || 0)
     const fullAmount = costPerLead
-    const earnerPrice = Math.round(costPerLead / 2)
+    const earnerPrice = computeEarnerPayout(costPerLead)
     if (!fullAmount || Number(campaign.budget || 0) < fullAmount) {
       return NextResponse.json({ success: false, message: 'Task budget has been depleted' }, { status: 400 })
     }

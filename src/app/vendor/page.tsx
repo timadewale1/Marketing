@@ -398,6 +398,9 @@ export default function VendorDashboardPage() {
                 <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600" disabled={!canPublish}>
                   <Link href="/vendor/products">Manage products</Link>
                 </Button>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href="/vendor/create-task">Create task</Link>
+                </Button>
                 {profile?.storefrontSlug ? (
                   <Button asChild variant="outline" className="rounded-full">
                     <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>View shop</Link>

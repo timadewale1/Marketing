@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { confirmMonnifyPaymentWithRetries, isMonnifyImmediateSuccessResponse } from "@/lib/monnify-confirmation"
 import { extractMonnifyReferenceCandidates } from "@/lib/paymentProcessing"
 import { syncVendorStoreEligibility } from "@/lib/vendor-store"
+import { processVendorSetupFeeReferrals } from "@/lib/paymentProcessing"
 
 const PAYMENT_CONFIRMATION_RETRY_DELAYS_MS = [0, 2000, 5000, 10000, 20000, 40000, 60000, 150000]
 
@@ -119,6 +120,9 @@ export async function POST(req: Request) {
 
     const vendorPostSnap = await auth.vendorRef.get()
     await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, vendorPostSnap.data() as Record<string, unknown>)
+    if (purpose === "setup_fee") {
+      await processVendorSetupFeeReferrals(auth.dbAdmin, auth.admin, auth.vendorId, amount)
+    }
 
     return NextResponse.json({ success: true, completed: true, reference: referenceCandidates[0] || reference })
   } catch (error) {

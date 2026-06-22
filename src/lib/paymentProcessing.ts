@@ -4,7 +4,12 @@ import { markActivationAttemptCompleted, recordActivationAttempt } from '@/lib/a
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
-import { getAdvertiserTaskReferralBonusAmount, getAdvertiserTaskReferralLabel, getReferralActivationBonusAmount } from '@/lib/referral-rewards'
+import {
+  getAdvertiserTaskReferralBonusAmount,
+  getAdvertiserTaskReferralLabel,
+  getReferralActivationBonusAmount,
+  normalizeActivationReferralPendingAmount,
+} from '@/lib/referral-rewards'
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
@@ -61,9 +66,21 @@ export async function processPendingActivationReferrals(
     const referral = rDoc.data() as {
       amount?: number | string
       referrerId?: string
+      condition?: string
+      bonusPaid?: boolean
+      status?: string
     }
+    const condition = String(referral.condition || 'activation').toLowerCase()
+    const isPendingActivationReferral =
+      condition === 'activation' &&
+      String(referral.status || 'pending').toLowerCase() === 'pending' &&
+      referral.bonusPaid !== true
     const rawBonus = Number(referral.amount || 0)
-    const bonus = rawBonus > 0 ? rawBonus : getReferralActivationBonusAmount()
+    const bonus = isPendingActivationReferral
+      ? normalizeActivationReferralPendingAmount()
+      : rawBonus > 0
+        ? rawBonus
+        : getReferralActivationBonusAmount()
     const referrerId = String(referral.referrerId || '').trim()
     if (!referrerId || bonus <= 0) continue
 
@@ -126,6 +143,7 @@ export async function processPendingActivationReferrals(
               bonusPaid: true,
               paidAt: timestamp,
               paidAmount: bonus,
+              amount: bonus,
             })
 
             const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
@@ -216,6 +234,106 @@ export async function processPendingActivationReferrals(
       })
     } catch (e) {
       console.error(`[activation][retry] failed processing referral ${rDoc.id}:`, e)
+    }
+  }
+}
+
+export async function processVendorSetupFeeReferrals(
+  adminDb: AdminFirestore,
+  admin: ActivationReferralAdminLike,
+  vendorId: string,
+  setupFeeAmount: number
+) {
+  const refsSnap = await adminDb
+    .collection('referrals')
+    .where('referredId', '==', vendorId)
+    .limit(80)
+    .get()
+
+  const referralDocs = refsSnap.docs.filter((doc) => {
+    const data = doc.data() as { bonusPaid?: boolean; condition?: string; status?: string }
+    if (data.bonusPaid === true) return false
+    if (String(data.status || 'pending').toLowerCase() !== 'pending') return false
+    const condition = String(data.condition || '').toLowerCase()
+    return condition === 'vendor_setup_fee' || condition === 'setup_fee'
+  })
+
+  for (const referralDoc of referralDocs) {
+    const referralData = referralDoc.data() as {
+      referrerId?: string
+      amount?: number | string
+    }
+
+    const referrerId = String(referralData.referrerId || '').trim()
+    if (!referrerId) continue
+    const defaultBonus = Math.floor(Math.max(0, Number(setupFeeAmount || 0)) * 0.1)
+    const bonus = Math.max(0, Number(referralData.amount || defaultBonus))
+    if (!bonus) continue
+
+    try {
+      await adminDb.runTransaction(async (transaction) => {
+        const referralRef = adminDb.collection('referrals').doc(referralDoc.id)
+        const freshReferral = await transaction.get(referralRef)
+        if (!freshReferral.exists || freshReferral.data()?.bonusPaid === true) return
+
+        const [earnerSnap, advertiserSnap, vendorSnap, customerSnap] = await Promise.all([
+          transaction.get(adminDb.collection('earners').doc(referrerId)),
+          transaction.get(adminDb.collection('advertisers').doc(referrerId)),
+          transaction.get(adminDb.collection('vendors').doc(referrerId)),
+          transaction.get(adminDb.collection('customers').doc(referrerId)),
+        ])
+
+        const referrerCollection = advertiserSnap.exists
+          ? 'advertisers'
+          : earnerSnap.exists
+            ? 'earners'
+            : vendorSnap.exists
+              ? 'vendors'
+              : customerSnap.exists
+                ? 'customers'
+                : null
+        if (!referrerCollection) return
+
+        const transactionCollection = referrerCollection === 'advertisers'
+          ? 'advertiserTransactions'
+          : referrerCollection === 'vendors'
+            ? 'vendorTransactions'
+            : referrerCollection === 'customers'
+              ? 'customerTransactions'
+              : 'earnerTransactions'
+
+        transaction.set(adminDb.collection(transactionCollection).doc(), {
+          userId: referrerId,
+          type: 'referral_bonus',
+          amount: bonus,
+          status: 'completed',
+          note: `Referral bonus from vendor setup fee`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          referralId: referralDoc.id,
+          referredUserId: vendorId,
+          source: 'vendor_setup_fee',
+        })
+
+        transaction.set(
+          adminDb.collection(referrerCollection).doc(referrerId),
+          {
+            balance: admin.firestore.FieldValue.increment(bonus),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        )
+
+        transaction.update(referralRef, {
+          status: 'completed',
+          bonusPaid: true,
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          paidAmount: bonus,
+          amount: bonus,
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      })
+    } catch (error) {
+      console.error(`[vendor-setup-referral] failed for ${referralDoc.id}:`, error)
     }
   }
 }
@@ -496,7 +614,7 @@ export async function processWalletFundingWithRetry(
   reference: string,
   amount: number,
   provider: string = 'monnify',
-  userType: 'advertiser' | 'earner' = 'advertiser',
+  userType: 'advertiser' | 'earner' | 'vendor' | 'customer' = 'advertiser',
   maxRetries: number = 3,
   extraReferences: string[] = []
 ) {
@@ -504,8 +622,22 @@ export async function processWalletFundingWithRetry(
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
 
   const adminDb = dbAdmin as AdminFirestore
-  const collectionName = userType === 'advertiser' ? 'advertiserTransactions' : 'earnerTransactions'
-  const userCollection = userType === 'advertiser' ? 'advertisers' : 'earners'
+  const collectionName =
+    userType === 'advertiser'
+      ? 'advertiserTransactions'
+      : userType === 'vendor'
+        ? 'vendorTransactions'
+        : userType === 'customer'
+          ? 'customerTransactions'
+          : 'earnerTransactions'
+  const userCollection =
+    userType === 'advertiser'
+      ? 'advertisers'
+      : userType === 'vendor'
+        ? 'vendors'
+        : userType === 'customer'
+          ? 'customers'
+          : 'earners'
   const referenceCandidates = normalizeReferenceSet([reference, ...extraReferences])
   const primaryReference = referenceCandidates[0] || String(reference || '').trim()
 

@@ -5,6 +5,7 @@ import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
 import { applyRecoveryAwareDebitInTransaction } from "@/lib/balance-recovery"
 import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
+import { computeAdvertiserCharge, computeEarnerPayout } from "@/lib/task-pricing"
 
 type UserRole = "earner" | "advertiser"
 
@@ -118,11 +119,11 @@ async function reverseSubmissionForDeactivation(
     const advertiserSnap = advertiserRef ? await t.get(advertiserRef) : null
 
     let earnerAmount = Number(submission.earnerPrice || 0)
-    let fullAmount = earnerAmount * 2
+    let fullAmount = computeAdvertiserCharge(Number(submission.reservedAmount || 0), Number(campaign?.costPerLead || 0), earnerAmount)
     if ((!earnerAmount || earnerAmount === 0) && campaign) {
       const costPerLeadTmp = Number(campaign.costPerLead || 0)
-      if (costPerLeadTmp > 0) earnerAmount = Math.round(costPerLeadTmp / 2)
-      fullAmount = Number(submission.reservedAmount || earnerAmount * 2)
+      if (costPerLeadTmp > 0) earnerAmount = computeEarnerPayout(costPerLeadTmp)
+      fullAmount = computeAdvertiserCharge(Number(submission.reservedAmount || 0), costPerLeadTmp, earnerAmount)
     }
 
     t.update(submissionRef, {

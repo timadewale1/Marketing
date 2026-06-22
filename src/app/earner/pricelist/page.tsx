@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { computeEarnerPayout } from "@/lib/task-pricing";
 
 export default function PriceListPage() {
   // canonical task types and CPL map (should match advertiser create-campaign)
@@ -36,7 +37,7 @@ export default function PriceListPage() {
   const campaignTypes = Object.keys(CPL_MAP).map((k) => ({
     category: k,
     advertiserPrice: CPL_MAP[k],
-    earnerPrice: Math.round(CPL_MAP[k] / 2),
+    earnerPrice: computeEarnerPayout(CPL_MAP[k]),
   }));
 
   const router = useRouter();

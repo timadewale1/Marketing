@@ -3,7 +3,7 @@ import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { REFERRAL_ACTIVATED_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { recordWeeklyReferralActivationInTransaction } from '@/lib/referral-weekly.server'
-import { getReferralActivationBonusAmount } from '@/lib/referral-rewards'
+import { getReferralActivationBonusAmount, normalizeActivationReferralPendingAmount } from '@/lib/referral-rewards'
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 
 // Handle referral processing for both earners and advertisers
@@ -143,7 +143,10 @@ export async function PUT(req: Request) {
       if (txSnap.exists) throw new Error('Transaction already processed')
 
       // Process payment based on referral type/action
-      const amount = referral.amount || getReferralActivationBonusAmount()
+      const condition = String(referral.condition || 'activation').toLowerCase()
+      const amount = condition === 'activation'
+        ? normalizeActivationReferralPendingAmount()
+        : Number(referral.amount || getReferralActivationBonusAmount())
       if (!(amount > 0)) throw new Error('Invalid referral amount')
 
       const referrerCollection = earnerSnap.exists ? 'earners' : 'advertisers'
@@ -206,6 +209,7 @@ export async function PUT(req: Request) {
         bonusPaid: true,
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         paidAmount: amount,
+        amount,
       })
 
       return { success: true }

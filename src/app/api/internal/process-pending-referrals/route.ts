@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
+import { normalizeActivationReferralPendingAmount } from '@/lib/referral-rewards'
 
 interface Referral {
   id?: string
@@ -9,6 +10,8 @@ interface Referral {
   referredId?: string
   amount?: number
   status?: string
+  condition?: string
+  bonusPaid?: boolean
 }
 
 interface User {
@@ -63,14 +66,18 @@ export async function GET(req: NextRequest) {
 
     for (const referralDoc of pendingReferralsSnap.docs) {
       const referral = referralDoc.data() as Referral
-      const { referrerId, referredId, amount } = referral
+      const { referrerId, referredId } = referral
+      const condition = String(referral.condition || 'activation').toLowerCase()
+      const amount = condition === 'activation'
+        ? normalizeActivationReferralPendingAmount()
+        : Number(referral.amount || 0)
 
       if ((referralDoc.data() as { bonusPaid?: boolean }).bonusPaid === true) {
         skipped++
         continue
       }
 
-      if (!referrerId || !referredId || (amount || 0) <= 0) {
+      if (!referrerId || !referredId || amount <= 0) {
         console.warn(`[process-pending-referrals] Skipping invalid referral ${referralDoc.id}`)
         results.push({
           referralId: referralDoc.id,
@@ -179,6 +186,7 @@ export async function GET(req: NextRequest) {
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             paidAmount: bonus,
             completedAt: admin.firestore.FieldValue.serverTimestamp(),
+            amount: bonus,
           })
 
           console.log(

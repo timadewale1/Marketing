@@ -17,6 +17,7 @@ import imageCompression from "browser-image-compression"
 import { motion, AnimatePresence } from "framer-motion"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
+import { computeEarnerPayout } from "@/lib/task-pricing"
 import {
   FileText,
   ArrowRight,
@@ -382,8 +383,9 @@ const compressed = await imageCompression(file, options)
       return
     }
 
-    // Ensure advertiser profile is onboarded/activated before allowing task creation
+    // Ensure account profile is eligible before allowing task creation
     let advertiserProfile: Record<string, unknown> | null = null
+    let profileCollection: "advertisers" | "vendors" = "advertisers"
 
     // Build a temporary campaign payload early so we can persist it if activation is required
     const tempCampaignData: Record<string, unknown> = {
@@ -401,7 +403,7 @@ const compressed = await imageCompression(file, options)
       priorityMultiplier: selectedMultiplier,
       costPerLead: effectiveCPL,
       customCostPerLead: useCustomPrice ? (typeof customCostPerLead === "number" ? customCostPerLead : Number(customCostPerLead || 0)) : null,
-      earnerPrice: Math.round(effectiveCPL / 2),
+      earnerPrice: computeEarnerPayout(effectiveCPL),
       participationProofSampleUrls: participationProofSampleSlots
         .map((slot) => slot.url)
         .filter(Boolean),
@@ -411,35 +413,47 @@ const compressed = await imageCompression(file, options)
       createdAt: serverTimestamp(),
     }
     try {
-      const advertiserRef = doc(db, 'advertisers', user.uid)
-      const advertiserSnap = await getDoc(advertiserRef)
+      const advertiserRef = doc(db, "advertisers", user.uid)
+      const vendorRef = doc(db, "vendors", user.uid)
+      const [advertiserSnap, vendorSnap] = await Promise.all([getDoc(advertiserRef), getDoc(vendorRef)])
 
       if (advertiserSnap.exists()) {
         advertiserProfile = advertiserSnap.data() as Record<string, unknown>
+        profileCollection = "advertisers"
+      } else if (vendorSnap.exists()) {
+        advertiserProfile = vendorSnap.data() as Record<string, unknown>
+        profileCollection = "vendors"
       } else {
-        const docs = await getDocs(query(collection(db, 'advertisers'), where('email', '==', user.email), limit(1)))
-        if (!docs.empty) {
-          advertiserProfile = docs.docs[0].data() as Record<string, unknown>
+        const [advertiserDocs, vendorDocs] = await Promise.all([
+          getDocs(query(collection(db, "advertisers"), where("email", "==", user.email), limit(1))),
+          getDocs(query(collection(db, "vendors"), where("email", "==", user.email), limit(1))),
+        ])
+        if (!advertiserDocs.empty) {
+          advertiserProfile = advertiserDocs.docs[0].data() as Record<string, unknown>
+          profileCollection = "advertisers"
+        } else if (!vendorDocs.empty) {
+          advertiserProfile = vendorDocs.docs[0].data() as Record<string, unknown>
+          profileCollection = "vendors"
         }
       }
 
       if (!advertiserProfile) {
-        toast.error('Advertiser profile not found - please complete onboarding')
+        toast.error("Account profile not found")
         setLoading(false)
         payInFlightRef.current = false
-        router.push('/advertiser/onboarding')
+        router.push("/auth/sign-in")
         return
       }
-      // If not onboarded, send to onboarding
-      if (!advertiserProfile['onboarded']) {
+      // Advertiser onboarding checks still apply to advertiser profiles.
+      if (profileCollection === "advertisers" && !advertiserProfile['onboarded']) {
         toast.error('Please complete advertiser onboarding before creating tasks')
         setLoading(false)
         payInFlightRef.current = false
         router.push('/advertiser/onboarding')
         return
       }
-      // If onboarded but not activated, show an inline activation prompt instead of redirecting
-      if (ADVERTISER_ACTIVATION_REQUIRED && !advertiserProfile['activated']) {
+      // Membership check applies to advertisers only.
+      if (profileCollection === "advertisers" && ADVERTISER_ACTIVATION_REQUIRED && !advertiserProfile['activated']) {
         // show a prompt to the user to activate now
         setShowActivatePrompt(true)
         // keep campaignData persisted in state so we can continue after activation
@@ -460,6 +474,7 @@ const compressed = await imageCompression(file, options)
     // Attach advertiser display name for admin/reporting convenience
     if (advertiserProfile) {
       campaignData.advertiserName = String(advertiserProfile['fullName'] || advertiserProfile['businessName'] || advertiserProfile['name'] || user.email)
+      campaignData.ownerType = profileCollection === "vendors" ? "vendor" : "advertiser"
     }
 
     const advertiserWalletBalance = Number(advertiserProfile?.balance || 0)
@@ -509,7 +524,7 @@ const compressed = await imageCompression(file, options)
 
       if (res.ok) {
         toast.success('Campaign created using wallet funds')
-        setTimeout(() => router.push('/advertiser'), 600)
+        setTimeout(() => router.push(profileCollection === "vendors" ? "/vendor" : "/advertiser"), 600)
         return
       }
 
@@ -669,7 +684,14 @@ const compressed = await imageCompression(file, options)
         // persist the uploaded face image URL into the advertiser profile if available
         try {
           if (user?.uid) {
-            await updateDoc(doc(db, 'advertisers', user.uid), { advertiserFaceImage: url, advertiserFaceUploadedAt: serverTimestamp() })
+            const advertiserRef = doc(db, "advertisers", user.uid)
+            const vendorRef = doc(db, "vendors", user.uid)
+            const [advertiserSnap, vendorSnap] = await Promise.all([getDoc(advertiserRef), getDoc(vendorRef)])
+            if (advertiserSnap.exists()) {
+              await updateDoc(advertiserRef, { advertiserFaceImage: url, advertiserFaceUploadedAt: serverTimestamp() })
+            } else if (vendorSnap.exists()) {
+              await updateDoc(vendorRef, { vendorFaceImage: url, vendorFaceUploadedAt: serverTimestamp() })
+            }
           }
         } catch (e) {
           console.warn('Failed to persist face URL to advertiser profile', e)

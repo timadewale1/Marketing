@@ -9,17 +9,16 @@ import { NextRequest } from 'next/server'
  */
 export function verifyInternalApiSecret(req: NextRequest | Request): boolean {
   const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
+  const apiInternalSecret = String(process.env.API_INTERNAL_SECRET || '').trim()
+  const cronSecret = String(process.env.CRON_SECRET || '').trim()
+  const acceptedSecrets = [apiInternalSecret, cronSecret].filter(Boolean)
 
-  // If no CRON_SECRET is set in production-like environments, deny access
-  if (!cronSecret) {
-    console.warn('[internal-api-auth] CRON_SECRET not configured')
+  if (!acceptedSecrets.length) {
+    console.warn('[internal-api-auth] API_INTERNAL_SECRET/CRON_SECRET not configured')
     return false
   }
 
-  // Check Bearer token format
-  const expectedAuth = `Bearer ${cronSecret}`
-  const isValid = authHeader === expectedAuth
+  const isValid = acceptedSecrets.some((secret) => authHeader === `Bearer ${secret}`)
 
   if (!isValid) {
     console.warn('[internal-api-auth] Invalid or missing authorization header')

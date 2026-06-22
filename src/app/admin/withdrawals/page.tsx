@@ -37,7 +37,7 @@ type Withdrawal = {
   userId: string;
   amount: number;
   status: string;
-  source: "earner" | "advertiser";
+  source: "earner" | "advertiser" | "vendor";
   createdAtMs: number;
   bank: {
     accountNumber: string;
@@ -68,9 +68,10 @@ export default function WithdrawalsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const [earnerSnap, advertiserSnap] = await Promise.all([
+      const [earnerSnap, advertiserSnap, vendorSnap] = await Promise.all([
         getDocs(query(collection(db, "earnerWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
         getDocs(query(collection(db, "advertiserWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
+        getDocs(query(collection(db, "vendorWithdrawals"), orderBy("createdAt", "desc"), limit(ADMIN_WITHDRAWAL_PAGE_LIMIT))),
       ]);
 
       const rows: Withdrawal[] = [
@@ -98,6 +99,22 @@ export default function WithdrawalsPage() {
             amount: Number(data.amount || 0),
             status: String(data.status || ""),
             source: "advertiser" as const,
+            createdAtMs: toMillis(data.createdAt),
+            bank: {
+              accountNumber: String(data.bank?.accountNumber || ""),
+              bankName: String(data.bank?.bankName || ""),
+              accountName: String(data.bank?.accountName || ""),
+            },
+          };
+        }),
+        ...vendorSnap.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            userId: String(data.userId || ""),
+            amount: Number(data.amount || 0),
+            status: String(data.status || ""),
+            source: "vendor" as const,
             createdAtMs: toMillis(data.createdAt),
             bank: {
               accountNumber: String(data.bank?.accountNumber || ""),
@@ -230,7 +247,7 @@ export default function WithdrawalsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline" className="rounded-full">
-                      <Link href={`/admin/${withdrawal.source === "advertiser" ? "advertisers" : "earners"}/${withdrawal.userId}`}>
+                      <Link href={withdrawal.source === "vendor" ? "/admin/vendors" : `/admin/${withdrawal.source === "advertiser" ? "advertisers" : "earners"}/${withdrawal.userId}`}>
                         Open user
                       </Link>
                     </Button>

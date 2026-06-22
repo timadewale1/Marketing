@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     console.log('verify-payment called with body:', JSON.stringify(body))
     const { reference, campaignData, type, userId, amount, provider, monnifyResponse } = body
+    const requestedUserType = String(body?.userType || '').trim().toLowerCase()
 
     if (!reference) {
       return NextResponse.json({ success: false, message: 'Missing payment reference' }, { status: 400 })
@@ -186,11 +187,39 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === 'wallet_funding' && userId && amount > 0) {
+      let walletFundingUserType: 'advertiser' | 'earner' | 'vendor' | 'customer' = 'advertiser'
+      if (requestedUserType === 'earner' || requestedUserType === 'vendor' || requestedUserType === 'customer' || requestedUserType === 'advertiser') {
+        walletFundingUserType = requestedUserType
+      } else {
+        const [advertiserSnap, earnerSnap, vendorSnap, customerSnap] = await Promise.all([
+          adminDb.collection('advertisers').doc(String(userId)).get(),
+          adminDb.collection('earners').doc(String(userId)).get(),
+          adminDb.collection('vendors').doc(String(userId)).get(),
+          adminDb.collection('customers').doc(String(userId)).get(),
+        ])
+        walletFundingUserType = advertiserSnap.exists
+          ? 'advertiser'
+          : earnerSnap.exists
+            ? 'earner'
+            : vendorSnap.exists
+              ? 'vendor'
+              : customerSnap.exists
+                ? 'customer'
+                : 'advertiser'
+      }
+
       if (provider === 'monnify') {
         const confirmation = monnifyConfirmation || await confirmMonnifyPaymentWithRetries(String(reference), referenceCandidates)
         referenceCandidates = confirmation.references
 
-        const pendingSnap = await adminDb.collection('advertiserTransactions')
+        const pendingTxCollection = walletFundingUserType === 'earner'
+          ? 'earnerTransactions'
+          : walletFundingUserType === 'vendor'
+            ? 'vendorTransactions'
+            : walletFundingUserType === 'customer'
+              ? 'customerTransactions'
+              : 'advertiserTransactions'
+        const pendingSnap = await adminDb.collection(pendingTxCollection)
           .where('userId', '==', String(userId))
           .where('type', '==', 'wallet_funding')
           .where('status', '==', 'pending')
@@ -237,7 +266,7 @@ export async function POST(req: NextRequest) {
           referenceCandidates[0] || String(reference),
           Number(amount),
           provider === 'monnify' ? 'monnify' : 'paystack',
-          'advertiser',
+          walletFundingUserType,
           3,
           referenceCandidates
         )

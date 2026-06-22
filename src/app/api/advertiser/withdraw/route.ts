@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     const activationPaymentProvider = activationPaymentProviderRaw === 'paystack' ? 'paystack' : 'monnify'
 
     // Platform fee (10%) — send net amount via Paystack
-    const fee = Math.round(amount * 0.1)
+    const fee = Math.round(amount * 0.05)
     const net = amount - fee
 
     // Create a withdrawal request record and wait for admin approval before payout.

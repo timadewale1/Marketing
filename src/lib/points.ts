@@ -7,9 +7,10 @@ export const DAILY_LOGIN_POINTS = 10
 export const TASK_APPROVAL_POINTS = 10
 export const BILL_PAYMENT_POINTS = 5
 export const REFERRAL_ACTIVATED_POINTS = 50
+export const VENDOR_PURCHASE_APPROVED_POINTS = 200
 export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000
-export const POINTS_CREDITING_PAUSED = true
+export const POINTS_CREDITING_PAUSED = false
 
 export type PointsUserCollection = 'earners' | 'advertisers'
 export type PointsRedeemTarget = 'wallet' | 'withdraw' | 'bills' | 'tasks'

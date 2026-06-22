@@ -59,6 +59,7 @@ function getInternalApiBaseUrl() {
 function buildHeaders() {
   const headers: Record<string, string> = {
     Accept: "application/json",
+    "x-internal-source": "firebase-functions",
   };
 
   const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || "").trim();
@@ -147,7 +148,10 @@ function isAuthorizedInternalRequest(authHeader: string | undefined) {
   const apiInternalSecret = String(process.env.API_INTERNAL_SECRET || "").trim();
   const cronSecret = String(process.env.CRON_SECRET || "").trim();
   const accepted = [apiInternalSecret, cronSecret].map((value) => value.trim()).filter(Boolean);
-  if (!accepted.length) return false;
+  if (!accepted.length) {
+    console.warn("[internalApi] API_INTERNAL_SECRET/CRON_SECRET not configured; allowing internal request");
+    return true;
+  }
   return accepted.some((secret) => authHeader === `Bearer ${secret}`);
 }
 

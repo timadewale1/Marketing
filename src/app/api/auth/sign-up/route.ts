@@ -41,6 +41,8 @@ export async function POST(req: Request) {
         ? "advertiser"
         : body?.action === "vendor"
           ? "vendor"
+          : body?.action === "customer"
+            ? "customer"
           : body?.action === "earner"
             ? "earner"
             : ""
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Firebase admin unavailable" }, { status: 500 })
     }
 
-    for (const collectionName of ["advertisers", "earners", "vendors"]) {
+    for (const collectionName of ["advertisers", "earners", "vendors", "customers"]) {
       const [emailSnap, phoneSnap] = await Promise.all([
         dbAdmin.collection(collectionName).where("email", "==", email).limit(1).get(),
         dbAdmin.collection(collectionName).where("phone", "==", phone).limit(1).get(),
@@ -88,16 +90,23 @@ export async function POST(req: Request) {
     createdUid = userRecord.uid
 
     const profileRef = dbAdmin.collection(`${action}s`).doc(String(createdUid))
-    const referralRef = referralId && action !== "vendor"
+    const referralRef = referralId
       ? dbAdmin.collection("referrals").doc(`${String(referralId)}-${createdUid}`)
       : null
-    const [referrerEarnerSnap, referrerAdvertiserSnap] = referralId
+    const [referrerEarnerSnap, referrerAdvertiserSnap, referrerVendorSnap, referrerCustomerSnap] = referralId
       ? await Promise.all([
           dbAdmin.collection("earners").doc(referralId).get(),
           dbAdmin.collection("advertisers").doc(referralId).get(),
+          dbAdmin.collection("vendors").doc(referralId).get(),
+          dbAdmin.collection("customers").doc(referralId).get(),
         ])
-      : [null, null]
-    const referrerExists = Boolean(referrerEarnerSnap?.exists || referrerAdvertiserSnap?.exists)
+      : [null, null, null, null]
+    const referrerExists = Boolean(
+      referrerEarnerSnap?.exists ||
+      referrerAdvertiserSnap?.exists ||
+      referrerVendorSnap?.exists ||
+      referrerCustomerSnap?.exists
+    )
     const batch = dbAdmin.batch()
 
     batch.set(profileRef, {
@@ -119,6 +128,12 @@ export async function POST(req: Request) {
             productsPublishedCount: 0,
             productsHiddenCount: 0,
           }
+        : action === "customer"
+          ? {
+              role: "customer",
+              cashbackApprovedOrderTotal: 0,
+              cashbackApprovedAmountTotal: 0,
+            }
         : {}),
     })
 
@@ -126,16 +141,18 @@ export async function POST(req: Request) {
       if (!referrerExists) {
         console.warn(`[signup] referral ${referralId} not found for ${createdUid}; skipping referral doc creation`)
       } else {
+        const referralCondition = action === "vendor" ? "vendor_setup_fee" : action === "customer" ? "none" : "activation"
+        const referralAmount = action === "vendor" ? 1000 : action === "customer" ? 0 : getReferralActivationBonusAmount()
         batch.set(referralRef, {
           referrerId: referralId,
           referredId: createdUid,
           userType: action,
           email,
           name,
-          amount: getReferralActivationBonusAmount(),
+          amount: referralAmount,
           status: "pending",
           bonusPaid: false,
-          condition: "activation",
+          condition: referralCondition,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         })
       }
@@ -144,7 +161,13 @@ export async function POST(req: Request) {
     await batch.commit()
 
     if (referralId && referrerExists) {
-      const referrerCollection = referrerAdvertiserSnap?.exists ? 'advertisers' : 'earners'
+      const referrerCollection = referrerAdvertiserSnap?.exists
+        ? 'advertisers'
+        : referrerEarnerSnap?.exists
+          ? 'earners'
+          : referrerVendorSnap?.exists
+            ? 'vendors'
+            : 'customers'
       await dbAdmin.collection(referrerCollection).doc(String(referralId)).set({
         pointsReferralCount: admin.firestore.FieldValue.increment(1),
         pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -184,6 +207,8 @@ export async function POST(req: Request) {
           const batch = dbAdmin.batch()
           batch.delete(dbAdmin.collection("advertisers").doc(createdUid))
           batch.delete(dbAdmin.collection("earners").doc(createdUid))
+          batch.delete(dbAdmin.collection("vendors").doc(createdUid))
+          batch.delete(dbAdmin.collection("customers").doc(createdUid))
           await batch.commit().catch(() => null)
 
           const referralSnaps = await dbAdmin.collection("referrals").where("referredId", "==", createdUid).get()

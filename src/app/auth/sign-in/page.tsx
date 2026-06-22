@@ -14,7 +14,6 @@ import { Eye, EyeOff } from "lucide-react"
 import toast from "react-hot-toast"
 import { useRouter } from "next/navigation"
 
-// ✅ Validation schema
 const formSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password required"),
@@ -45,10 +44,12 @@ function getFirebaseLoginErrorMessage(code?: string) {
 export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [marketplaceMode, setMarketplaceMode] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    setMarketplaceMode(params.get("marketplace") === "1")
     if (params.get("verified") === "1") {
       toast.success("Email verified successfully. You can sign in now.")
     }
@@ -61,24 +62,16 @@ export default function SignInPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-  })
+  } = useForm<FormData>({ resolver: zodResolver(formSchema) })
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
-      // ✅ Attempt login
-      const cred = await signInWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      ).catch((err) => {
+      const cred = await signInWithEmailAndPassword(auth, data.email, data.password).catch((err) => {
         toast.error(getFirebaseLoginErrorMessage(err.code))
         throw err
       })
 
-      // ✅ Email verification check
       if (!cred.user.emailVerified) {
         toast.error("Please verify your email before logging in")
         router.push("/auth/verify-email")
@@ -86,23 +79,18 @@ export default function SignInPage() {
         return
       }
 
-      // ✅ Figure out the user's role and onboarding status
-      let role: "advertiser" | "earner" | "marketer" | "vendor" | null = null
-      const collections = ["advertisers", "earners", "vendors", "marketers"]
+      let role: "advertiser" | "earner" | "marketer" | "vendor" | "customer" | null = null
+      const collections = ["advertisers", "earners", "vendors", "customers", "marketers"]
       let onboarded = false
 
       for (const coll of collections) {
         const docRef = doc(db, coll, cred.user.uid)
         const snap = await getDoc(docRef)
         if (snap.exists()) {
-          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer" | "vendor"
-
-          // ✅ Update verified field
+          role = coll.slice(0, -1) as "advertiser" | "earner" | "marketer" | "vendor" | "customer"
           if (!snap.data().verified) {
             await updateDoc(docRef, { verified: true })
           }
-
-          // ✅ Check onboarding status
           onboarded = snap.data().onboarded || false
           break
         }
@@ -114,10 +102,11 @@ export default function SignInPage() {
         return
       }
 
-      // ✅ Redirect based on onboarding status
-      toast.success("Login successful 🎉")
+      toast.success("Login successful")
       if (role === "vendor") {
         router.push("/vendor")
+      } else if (role === "customer") {
+        router.push("/customer")
       } else if (!onboarded) {
         router.push(`/${role}/onboarding`)
       } else {
@@ -136,54 +125,31 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 p-6">
       <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8">
-        {/* Heading */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-extrabold text-white">Welcome Back</h1>
-          <p className="text-stone-300 mt-2">Sign in to continue</p>
+          <p className="text-stone-300 mt-2">
+            {marketplaceMode ? "Sign in to your marketplace account." : "Sign in to continue"}
+          </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Email */}
           <div>
             <Label className="text-stone-200">Email</Label>
-            <Input
-              type="email"
-              {...register("email")}
-              placeholder="you@example.com"
-              className="bg-white/20 border-white/30 text-white placeholder:text-stone-400"
-            />
-            {errors.email && (
-              <p className="text-sm text-red-300 mt-1">{errors.email.message}</p>
-            )}
+            <Input type="email" {...register("email")} placeholder="you@example.com" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400" />
+            {errors.email && <p className="text-sm text-red-300 mt-1">{errors.email.message}</p>}
           </div>
 
-          {/* Password */}
           <div>
             <Label className="text-stone-200">Password</Label>
             <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                {...register("password")}
-                placeholder="••••••••"
-                className="bg-white/20 border-white/30 text-white placeholder:text-stone-400 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-stone-300 hover:text-white"
-              >
+              <Input type={showPassword ? "text" : "password"} {...register("password")} placeholder="********" className="bg-white/20 border-white/30 text-white placeholder:text-stone-400 pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-stone-300 hover:text-white">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-red-300 mt-1">
-                {errors.password.message}
-              </p>
-            )}
+            {errors.password && <p className="text-sm text-red-300 mt-1">{errors.password.message}</p>}
           </div>
 
-          {/* Submit */}
           <Button
             type="submit"
             disabled={loading}
@@ -193,14 +159,10 @@ export default function SignInPage() {
           </Button>
         </form>
 
-        {/* Footer */}
         <div className="text-center mt-4">
           <p className="text-stone-400 text-sm">
             Forgot password?{" "}
-            <a
-              href="/auth/forgot-password"
-              className="text-amber-400 hover:underline"
-            >
+            <a href="/auth/forgot-password" className="text-amber-400 hover:underline">
               Reset it
             </a>
           </p>
@@ -208,9 +170,22 @@ export default function SignInPage() {
         <div className="text-center mt-4">
           <p className="text-stone-400 text-sm">
             Don&apos;t have an Account?{" "}
-            <a href="/auth/sign-up" className="text-amber-400 hover:underline">
+            <a href={marketplaceMode ? "/auth/sign-up?marketplace=1" : "/auth/sign-up"} className="text-amber-400 hover:underline">
               Sign Up
             </a>
+          </p>
+        </div>
+        <div className="text-center mt-3">
+          <p className="text-stone-400 text-xs">
+            {marketplaceMode ? (
+              <a href="/auth/sign-in" className="text-amber-400 hover:underline">
+                Back to main sign in
+              </a>
+            ) : (
+              <a href="/auth/sign-in?marketplace=1" className="text-amber-400 hover:underline">
+                Sign in to marketplace (vendor/customer)
+              </a>
+            )}
           </p>
         </div>
       </div>

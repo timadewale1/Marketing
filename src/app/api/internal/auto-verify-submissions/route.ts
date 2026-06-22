@@ -4,6 +4,7 @@ import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { EARNER_STRIKE_SYSTEM_ENABLED, toDateFromTimestampLike } from '@/lib/earner-suspension'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
+import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
 
 interface Submission {
   status?: string
@@ -149,11 +150,10 @@ export async function GET(request: Request) {
           const campaignReservedBudget = Number(campaign.reservedBudget || 0)
           let earnerAmount = Number(submission.earnerPrice || 0)
           if (!earnerAmount) {
-            earnerAmount = Math.round(Number(campaign.costPerLead || 0) / 2) || 0
+            earnerAmount = computeEarnerPayout(Number(campaign.costPerLead || 0)) || 0
           }
-
-          const fullAmount = earnerAmount * 2
           const reservedAmount = Number(submission.reservedAmount || 0)
+          const fullAmount = computeAdvertiserCharge(reservedAmount, Number(campaign.costPerLead || 0), earnerAmount)
           const advertiserId = String(submission.advertiserId || campaign.ownerId || '')
           const submissionUserId = String(submission.userId || '')
 
