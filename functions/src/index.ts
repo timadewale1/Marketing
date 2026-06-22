@@ -47,12 +47,8 @@ function getInternalApiBaseUrl() {
   if (explicit) {
     return explicit.replace(/\/+$/, "");
   }
-
-  const projectId = String(process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "").trim();
-  if (projectId) {
-    return `https://us-central1-${projectId}.cloudfunctions.net/internalApi`;
-  }
-
+  // Do not auto-target Cloud Functions URL because gen2 HTTPS endpoints may be IAM-protected.
+  // If needed, set INTERNAL_API_BASE_URL explicitly in functions env.
   return "";
 }
 
@@ -75,7 +71,7 @@ async function callInternalRoute(path: string) {
   const internalBase = getInternalApiBaseUrl();
   const appBase = APP_BASE_URL.replace(/\/$/, "");
   const targetCandidates = internalBase
-    ? [`${internalBase}${path}`, `${appBase}${path}`]
+    ? [`${appBase}${path}`, `${internalBase}${path}`]
     : [`${appBase}${path}`];
 
   let lastError: string | null = null;
