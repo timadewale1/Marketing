@@ -114,6 +114,11 @@ export default function EarnerDashboard() {
   }
 
   useEffect(() => {
+    let unsubProfile: (() => void) | null = null
+    let unsubWithdrawals: (() => void) | null = null
+    let unsubSubmissions: (() => void) | null = null
+    let unsubTransactions: (() => void) | null = null
+
     const unsub = auth.onAuthStateChanged(async (u) => {
       if (!u) {
         // Use replace instead of push to prevent back navigation
@@ -136,8 +141,13 @@ export default function EarnerDashboard() {
         router.replace("/earner/onboarding")
         return
       }
+      unsubProfile?.()
+      unsubWithdrawals?.()
+      unsubSubmissions?.()
+      unsubTransactions?.()
+
       // Profile and stats
-      const unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
+      unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
         if (snap.exists()) {
           const d = snap.data()
           setUserName(d.fullName || d.name || "User")
@@ -168,11 +178,8 @@ export default function EarnerDashboard() {
         }
       })
 
-      void Promise.all([
-        getDocs(query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150))),
-        getDocs(query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250))),
-        getDocs(query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250))),
-      ]).then(([withdrawSnap, submissionsSnap, txSnap]) => {
+      const withdrawalsQuery = query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150))
+      unsubWithdrawals = onSnapshot(withdrawalsQuery, (withdrawSnap) => {
         const withdrawData = withdrawSnap.docs.map((d) => {
           const dat = d.data() as Partial<WithdrawRecord>
           return {
@@ -183,7 +190,10 @@ export default function EarnerDashboard() {
           } as WithdrawRecord
         })
         setWithdrawHistory(withdrawData as WithdrawRecord[])
+      })
 
+      const submissionsQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250))
+      unsubSubmissions = onSnapshot(submissionsQuery, (submissionsSnap) => {
         type Sub = { id: string; status?: string }
         const subs: Sub[] = submissionsSnap.docs.map((d) => {
           const data = d.data() as Sub
@@ -193,7 +203,6 @@ export default function EarnerDashboard() {
         const pending = subs.filter((s) => s.status === "Pending" || s.status === "In Review").length
         const rejected = subs.filter((s) => s.status === "Rejected").length
         const approved = subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length
-
         setStats((prev) => ({
           ...prev,
           campaignSubmitted: submitted,
@@ -201,7 +210,10 @@ export default function EarnerDashboard() {
           campaignRejected: rejected,
           campaignApproved: approved,
         }))
+      })
 
+      const transactionsQuery = query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250))
+      unsubTransactions = onSnapshot(transactionsQuery, (txSnap) => {
         type Tx = { id: string; amount?: number; type?: string }
         const txs: Tx[] = txSnap.docs.map((d) => {
           const data = d.data() as Tx
@@ -211,8 +223,6 @@ export default function EarnerDashboard() {
         const paidLeads = txs.filter((t) => t.type === "lead" || t.type === "payment").length
         setTotalEarned(earned)
         setStats((prev) => ({ ...prev, leadsPaidFor: paidLeads || prev.leadsPaidFor }))
-      }).catch((error) => {
-        console.error("Failed to load earner dashboard data", error)
       })
 
       // Referrals
@@ -256,10 +266,16 @@ export default function EarnerDashboard() {
         })
 
       return () => {
-        unsubProfile()
+        if (unsubProfile) unsubProfile()
       }
     })
-    return () => unsub()
+    return () => {
+      unsub()
+      if (unsubProfile) unsubProfile()
+      if (unsubWithdrawals) unsubWithdrawals()
+      if (unsubSubmissions) unsubSubmissions()
+      if (unsubTransactions) unsubTransactions()
+    }
   }, [router])
 
   useEffect(() => {
@@ -302,6 +318,7 @@ export default function EarnerDashboard() {
       title: "Wallet",
       items: [
         { label: "Transactions", path: "/earner/transactions", icon: Wallet },
+        { label: "Purchase History", path: "/earner/purchases", icon: ListChecks },
         { label: "Bank Accounts", path: "/earner/bank", icon: Landmark },
         { label: "Task Price List", path: "/earner/pricelist", icon: ArrowDownCircle },
       ],

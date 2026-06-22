@@ -137,6 +137,14 @@ export default function AdvertiserReferralsPage() {
                     Paid when the referred earner completes activation.
                   </div>
                 </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium w-fit">
+                    10% of setup fee
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    Earn this when any Pamba vendor you referred pays their setup fee.
+                  </div>
+                </div>
               </div>
             </div>
 

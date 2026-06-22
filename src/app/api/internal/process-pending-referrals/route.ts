@@ -16,6 +16,7 @@ interface Referral {
 
 interface User {
   activated?: boolean
+  vendorPaymentStatus?: string
 }
 
 export async function GET(req: NextRequest) {
@@ -89,41 +90,58 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        // Check if referred user is activated (check both earners and advertisers)
-        const [referredEarnerSnap, referredAdvertiserSnap] = await Promise.all([
+        // Check referred account completion status based on referral condition.
+        const [referredEarnerSnap, referredAdvertiserSnap, referredVendorSnap] = await Promise.all([
           dbAdmin.collection('earners').doc(referredId).get(),
           dbAdmin.collection('advertisers').doc(referredId).get(),
+          dbAdmin.collection('vendors').doc(referredId).get(),
         ])
 
-        const referredUser = (referredEarnerSnap.exists
+        const referredActivationUser = (referredEarnerSnap.exists
           ? referredEarnerSnap.data()
           : referredAdvertiserSnap.data()) as User | undefined
+        const referredVendor = (referredVendorSnap.exists ? referredVendorSnap.data() : undefined) as User | undefined
 
-        if (!referredUser?.activated) {
-          console.log(
-            `[process-pending-referrals] Referral ${referralDoc.id} - referred user not yet activated`
-          )
+        const isActivationCondition = condition === 'activation'
+        const isVendorSetupCondition = condition === 'vendor_setup_fee' || condition === 'setup_fee'
+        const referredReady = isActivationCondition
+          ? Boolean(referredActivationUser?.activated)
+          : isVendorSetupCondition
+            ? String(referredVendor?.vendorPaymentStatus || '').toLowerCase() === 'paid'
+            : false
+
+        if (!referredReady) {
+          const reason = isVendorSetupCondition
+            ? 'Referred vendor setup fee not yet paid'
+            : 'Referred user not activated'
+          console.log(`[process-pending-referrals] Referral ${referralDoc.id} - ${reason}`)
           results.push({
             referralId: referralDoc.id,
             status: 'skipped',
             referredId,
-            reason: 'Referred user not activated',
+            reason,
           })
           skipped++
           continue
         }
 
-        // Find referrer (check both earners and advertisers)
-        const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+        // Find referrer (check earners, advertisers, vendors, and customers).
+        const [referrerEarnerSnap, referrerAdvertiserSnap, referrerVendorSnap, referrerCustomerSnap] = await Promise.all([
           dbAdmin.collection('earners').doc(referrerId).get(),
           dbAdmin.collection('advertisers').doc(referrerId).get(),
+          dbAdmin.collection('vendors').doc(referrerId).get(),
+          dbAdmin.collection('customers').doc(referrerId).get(),
         ])
 
         const referrerCollection = referrerAdvertiserSnap.exists
           ? 'advertisers'
           : referrerEarnerSnap.exists
             ? 'earners'
-            : null
+            : referrerVendorSnap.exists
+              ? 'vendors'
+              : referrerCustomerSnap.exists
+                ? 'customers'
+                : null
 
         if (!referrerCollection) {
           console.warn(
@@ -152,14 +170,21 @@ export async function GET(req: NextRequest) {
             return
           }
 
-          const bonus = Number(freshReferral.data()?.amount || 0)
+          const freshCondition = String(freshReferral.data()?.condition || 'activation').toLowerCase()
+          const bonus = freshCondition === 'activation'
+            ? normalizeActivationReferralPendingAmount()
+            : Number(freshReferral.data()?.amount || 0)
           if (bonus <= 0) return
 
           // Create transaction record
           const txCollection =
             referrerCollection === 'advertisers'
               ? 'advertiserTransactions'
-              : 'earnerTransactions'
+              : referrerCollection === 'earners'
+                ? 'earnerTransactions'
+                : referrerCollection === 'vendors'
+                  ? 'vendorTransactions'
+                  : 'customerTransactions'
           const txRef = dbAdmin.collection(txCollection).doc()
 
           transaction.set(txRef, {

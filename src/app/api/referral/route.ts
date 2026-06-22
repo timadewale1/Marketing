@@ -44,11 +44,21 @@ export async function POST(req: Request) {
         bonusPaid: false,
       }
 
-      const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+      const [referrerEarnerSnap, referrerAdvertiserSnap, referrerVendorSnap, referrerCustomerSnap] = await Promise.all([
         transaction.get(adminDb.collection('earners').doc(referrerId)),
         transaction.get(adminDb.collection('advertisers').doc(referrerId)),
+        transaction.get(adminDb.collection('vendors').doc(referrerId)),
+        transaction.get(adminDb.collection('customers').doc(referrerId)),
       ])
-      const referrerCollection = referrerAdvertiserSnap.exists ? 'advertisers' : referrerEarnerSnap.exists ? 'earners' : null
+      const referrerCollection = referrerAdvertiserSnap.exists
+        ? 'advertisers'
+        : referrerEarnerSnap.exists
+          ? 'earners'
+          : referrerVendorSnap.exists
+            ? 'vendors'
+            : referrerCustomerSnap.exists
+              ? 'customers'
+              : null
       if (referrerCollection) {
         transaction.set(
           adminDb.collection(referrerCollection).doc(referrerId),
@@ -60,19 +70,23 @@ export async function POST(req: Request) {
         )
       }
 
-      if (userType === 'earner') {
-        // Earner referral (â‚¦500 after activation)
+      if (userType === 'earner' || userType === 'advertiser') {
         transaction.set(referralRef, {
           ...referralDoc,
           amount: getReferralActivationBonusAmount(),
           condition: 'activation',
         })
-      } else if (userType === 'advertiser') {
-        // Advertiser referral (â‚¦500 after advertiser activation)
+      } else if (userType === 'vendor') {
         transaction.set(referralRef, {
           ...referralDoc,
-          amount: getReferralActivationBonusAmount(),
-          condition: 'activation',
+          amount: 1000,
+          condition: 'vendor_setup_fee',
+        })
+      } else if (userType === 'customer') {
+        transaction.set(referralRef, {
+          ...referralDoc,
+          amount: 0,
+          condition: 'none',
         })
       } else {
         throw new Error('Invalid user type')
@@ -126,17 +140,39 @@ export async function PUT(req: Request) {
       // Generate unique transaction ID
       const transactionId = `${referralId}-${action}-${Date.now()}`
 
-      // We'll determine whether the referrer is an earner or advertiser and update accordingly
+      // Determine where the referrer lives (earner/advertiser/vendor/customer)
       const earnerRef = adminDb.collection('earners').doc(referral.referrerId)
       const advertiserRef = adminDb.collection('advertisers').doc(referral.referrerId)
+      const vendorRef = adminDb.collection('vendors').doc(referral.referrerId)
+      const customerRef = adminDb.collection('customers').doc(referral.referrerId)
 
-      const earnerSnap = await transaction.get(earnerRef)
-      const advertiserSnap = await transaction.get(advertiserRef)
+      const [earnerSnap, advertiserSnap, vendorSnap, customerSnap] = await Promise.all([
+        transaction.get(earnerRef),
+        transaction.get(advertiserRef),
+        transaction.get(vendorRef),
+        transaction.get(customerRef),
+      ])
 
-      let targetCollectionName: string | null = null
-      if (earnerSnap.exists) targetCollectionName = 'earnerTransactions'
-      else if (advertiserSnap.exists) targetCollectionName = 'advertiserTransactions'
-      else throw new Error('Referrer account not found')
+      const referrerCollection = advertiserSnap.exists
+        ? 'advertisers'
+        : earnerSnap.exists
+          ? 'earners'
+          : vendorSnap.exists
+            ? 'vendors'
+            : customerSnap.exists
+              ? 'customers'
+              : null
+
+      if (!referrerCollection) throw new Error('Referrer account not found')
+
+      const targetCollectionName =
+        referrerCollection === 'advertisers'
+          ? 'advertiserTransactions'
+          : referrerCollection === 'earners'
+            ? 'earnerTransactions'
+            : referrerCollection === 'vendors'
+              ? 'vendorTransactions'
+              : 'customerTransactions'
 
       const txRef = adminDb.collection(targetCollectionName).doc(transactionId)
       const txSnap = await transaction.get(txRef)
@@ -144,45 +180,61 @@ export async function PUT(req: Request) {
 
       // Process payment based on referral type/action
       const condition = String(referral.condition || 'activation').toLowerCase()
-      const amount = condition === 'activation'
-        ? normalizeActivationReferralPendingAmount()
-        : Number(referral.amount || getReferralActivationBonusAmount())
+      const amount =
+        condition === 'activation'
+          ? normalizeActivationReferralPendingAmount()
+          : condition === 'vendor_setup_fee' || condition === 'setup_fee'
+            ? Number(referral.amount || 1000)
+            : Number(referral.amount || getReferralActivationBonusAmount())
       if (!(amount > 0)) throw new Error('Invalid referral amount')
 
-      const referrerCollection = earnerSnap.exists ? 'earners' : 'advertisers'
-      const referrerData = (earnerSnap.exists ? earnerSnap.data() : advertiserSnap.data()) as
+      const referrerData = (
+        referrerCollection === 'earners'
+          ? earnerSnap.data()
+          : referrerCollection === 'advertisers'
+            ? advertiserSnap.data()
+            : referrerCollection === 'vendors'
+              ? vendorSnap.data()
+              : customerSnap.data()
+      ) as
         | { fullName?: string; name?: string; businessName?: string; companyName?: string; email?: string }
         | undefined
-      await awardPointsInTransaction({
-        adminDb,
-        admin,
-        transaction,
-        userCollection: referrerCollection,
-        userId: referral.referrerId,
-        amount: REFERRAL_ACTIVATED_POINTS,
-        eventId: getPointsEventId('referral-activated', referralId),
-        type: 'referral_activated',
-        note: `Referral activation bonus for referring ${referral.referredId}`,
-        referenceId: referral.referredId,
-        extraUserUpdates: {
-          pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
-          pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        extraLedgerData: {
-          referralId,
-          referredUserId: referral.referredId,
-        },
-      })
+      if (condition === 'activation' && (referrerCollection === 'earners' || referrerCollection === 'advertisers')) {
+        await awardPointsInTransaction({
+          adminDb,
+          admin,
+          transaction,
+          userCollection: referrerCollection,
+          userId: referral.referrerId,
+          amount: REFERRAL_ACTIVATED_POINTS,
+          eventId: getPointsEventId('referral-activated', referralId),
+          type: 'referral_activated',
+          note: `Referral activation bonus for referring ${referral.referredId}`,
+          referenceId: referral.referredId,
+          extraUserUpdates: {
+            pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
+            pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          extraLedgerData: {
+            referralId,
+            referredUserId: referral.referredId,
+          },
+        })
+      }
 
       // Credit the referrer (earner or advertiser)
       const recoveryResult = await applyRecoveryAwareCreditInTransaction({
         adminDb,
         admin,
         transaction,
-        userCollection: earnerSnap.exists ? 'earners' : 'advertisers',
+        userCollection: referrerCollection,
         userId: referral.referrerId,
         amount,
-        transactionCollection: targetCollectionName as 'earnerTransactions' | 'advertiserTransactions',
+        transactionCollection: targetCollectionName as
+          | 'earnerTransactions'
+          | 'advertiserTransactions'
+          | 'vendorTransactions'
+          | 'customerTransactions',
         recoveryNote: 'Automatic recovery deduction from a previous reversal',
         transactionType: 'balance_recovery_deduction',
         transactionExtras: {
@@ -221,6 +273,8 @@ export async function PUT(req: Request) {
       if (!referralSnap.exists) return
       const referral = referralSnap.data()
       if (!referral || !referral.bonusPaid) return
+      const condition = String(referral.condition || 'activation').toLowerCase()
+      if (condition !== 'activation') return
 
       const earnerRef = adminDb.collection('earners').doc(referral.referrerId)
       const advertiserRef = adminDb.collection('advertisers').doc(referral.referrerId)

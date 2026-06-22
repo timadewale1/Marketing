@@ -109,7 +109,7 @@ export default function CustomerReferralsPage() {
         <Card className="bg-white/80 p-6">
           <h2 className="text-lg font-semibold text-stone-900">Share your invite link</h2>
           <p className="mt-2 text-sm text-stone-600">
-            Activation bonus: {referralPromo.activation} • Advertiser task bonus: {referralPromo.advertiserTask} • Vendor setup bonus: 10% of setup fee.
+            Activation bonus: {referralPromo.activation} • Advertiser task bonus: {referralPromo.advertiserTask} • Vendor setup bonus: 10% of setup fee for any Pamba vendor you refer.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input readOnly value={inviteLink} className="h-11 flex-1 rounded-xl border border-stone-200 px-3 text-sm" />
