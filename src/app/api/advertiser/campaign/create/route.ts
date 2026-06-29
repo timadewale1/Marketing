@@ -111,6 +111,17 @@ export async function POST(req: Request) {
         }, { status: 403 })
       }
     }
+    if (ownerCollection === 'vendors') {
+      const verificationStatus = String(advertiserData.vendorVerificationStatus || '').toLowerCase()
+      const setupPaid = String(advertiserData.vendorPaymentStatus || '').toLowerCase() === 'paid'
+      const isVerified = verificationStatus === 'verified' || verificationStatus === 'approved'
+      if (!isVerified || !setupPaid) {
+        return NextResponse.json({
+          success: false,
+          message: 'Vendor account must be verified and setup fee must be paid before creating tasks.',
+        }, { status: 403 })
+      }
+    }
     const advertiserName = String(
       advertiserData.fullName ||
       advertiserData.businessName ||

@@ -62,6 +62,7 @@ type AdvertiserRecord = {
   email: string;
   totalSpent: number;
   balance: number;
+  ownerType?: "advertiser" | "vendor";
 };
 
 type SubmissionRecord = {
@@ -246,6 +247,7 @@ export default function ClientCampaignDetail({ id }: Props) {
             getDoc(doc(db, "advertisers", ownerId)),
             getDoc(doc(db, "vendors", ownerId)),
           ]);
+          const ownerType: "advertiser" | "vendor" = advertiserSnap.exists() ? "advertiser" : "vendor";
           const ownerSnap = advertiserSnap.exists() ? advertiserSnap : vendorSnap;
           if (ownerSnap.exists()) {
             const data = ownerSnap.data();
@@ -255,6 +257,7 @@ export default function ClientCampaignDetail({ id }: Props) {
               email: String(data.email || ""),
               totalSpent: Number(data.totalSpent || 0),
               balance: Number(data.balance || data.walletBalance || 0),
+              ownerType,
             });
           } else {
             setAdvertiser(null);
@@ -615,8 +618,8 @@ export default function ClientCampaignDetail({ id }: Props) {
                 </div>
               </div>
               <Button asChild className="rounded-full bg-stone-900 text-white hover:bg-stone-800">
-                <Link href={`/admin/advertisers/${advertiser.id}`}>
-                  Open advertiser profile
+                <Link href={advertiser.ownerType === "vendor" ? `/admin/vendors/${advertiser.id}` : `/admin/advertisers/${advertiser.id}`}>
+                  Open {advertiser.ownerType === "vendor" ? "vendor" : "advertiser"} profile
                 </Link>
               </Button>
             </div>

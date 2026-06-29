@@ -152,6 +152,11 @@ export default function AdminVendorsPage() {
                     <p className="text-sm text-stone-600">{vendor.email || "No email"} {vendor.phone ? `• ${vendor.phone}` : ""}</p>
                     <p className="text-sm text-stone-600">Products: {vendor.productsPublishedCount.toLocaleString()}</p>
                     <p className="text-sm text-stone-600">Store status: {vendor.storeStatus || "awaiting_verification"}</p>
+                    <p className="text-sm">
+                      <Link href={`/admin/vendors/${vendor.id}`} className="text-blue-700 underline">
+                        Open vendor details
+                      </Link>
+                    </p>
                     {vendor.storefrontSlug ? <p className="text-sm text-stone-600">Shop slug: /marketplace/shop/{vendor.storefrontSlug}</p> : null}
                     {vendor.storefrontLink ? (
                       <p className="text-sm text-stone-600">
@@ -208,6 +213,11 @@ export default function AdminVendorsPage() {
                     </div>
                     <p className="mt-2 text-sm text-stone-600">{product.vendorName} • {product.category || "General"} • ₦{Number(product.price || 0).toLocaleString()}</p>
                     <p className="mt-1 line-clamp-2 text-sm text-stone-600">{product.description}</p>
+                    <p className="mt-1 text-sm">
+                      <Link href={`/admin/vendor-products/${product.id}`} className="text-blue-700 underline">
+                        Open product details
+                      </Link>
+                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" className="rounded-full" onClick={() => void updateProduct(product.id, { status: "active", visibleOnMarketplace: true })}>Approve</Button>
