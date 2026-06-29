@@ -102,6 +102,15 @@ export async function POST(req: Request) {
 
     let createdCampaignId = ''
     const advertiserData = ownerSnap.data() || {}
+    if (ownerCollection === 'advertisers') {
+      const taskCreationBlocked = Boolean(advertiserData.taskCreationBlocked)
+      if (taskCreationBlocked) {
+        return NextResponse.json({
+          success: false,
+          message: String(advertiserData.taskCreationBlockReason || 'Your account is restricted from creating tasks.'),
+        }, { status: 403 })
+      }
+    }
     const advertiserName = String(
       advertiserData.fullName ||
       advertiserData.businessName ||

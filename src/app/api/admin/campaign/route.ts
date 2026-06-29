@@ -34,17 +34,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Invalid campaign data' }, { status: 400 })
     }
 
-    // Get advertiser reference for balance updates
-    const advertiserId = campaign.ownerId
-    if (!advertiserId) {
+    const ownerId = String(campaign.ownerId || '').trim()
+    if (!ownerId) {
       return NextResponse.json({ success: false, message: 'Missing campaign owner' }, { status: 400 })
     }
 
-    const advertiserRef = adminDb.collection('advertisers').doc(advertiserId)
-    const advertiserSnap = await advertiserRef.get()
-
-    if (!advertiserSnap.exists) {
-      return NextResponse.json({ success: false, message: 'Advertiser not found' }, { status: 404 })
+    const advertiserRef = adminDb.collection('advertisers').doc(ownerId)
+    const vendorRef = adminDb.collection('vendors').doc(ownerId)
+    const [advertiserSnap, vendorSnap] = await Promise.all([advertiserRef.get(), vendorRef.get()])
+    const ownerRef = advertiserSnap.exists ? advertiserRef : (vendorSnap.exists ? vendorRef : null)
+    const ownerTxCollection = advertiserSnap.exists ? 'advertiserTransactions' : (vendorSnap.exists ? 'vendorTransactions' : null)
+    if (!ownerRef || !ownerTxCollection) {
+      return NextResponse.json({ success: false, message: 'Campaign owner account not found' }, { status: 404 })
     }
 
     const batch = adminDb.batch()
@@ -74,21 +75,20 @@ export async function POST(req: Request) {
           reservedBudget,
         })
 
-        // Decrement advertiser campaign count
-        batch.update(advertiserRef, {
+        batch.update(ownerRef, {
           campaignsCreated: admin.firestore.FieldValue.increment(-1)
         })
 
         // Refund remaining budget to advertiser wallet
         if (refundAmount > 0) {
-          batch.update(advertiserRef, {
+          batch.update(ownerRef, {
             balance: admin.firestore.FieldValue.increment(refundAmount)
           })
 
           // Log refund transaction
-          const txRef = adminDb.collection('advertiserTransactions').doc()
+          const txRef = adminDb.collection(ownerTxCollection).doc()
           batch.set(txRef, {
-            userId: advertiserId,
+            userId: ownerId,
             campaignId,
             campaignTitle: campaign.title,
             type: 'refund',
@@ -128,14 +128,14 @@ export async function POST(req: Request) {
         // When stopping, refund remaining budget
         if (campaign.budget > 0) {
           const refundAmount = campaign.budget
-          batch.update(advertiserRef, {
+          batch.update(ownerRef, {
             balance: admin.firestore.FieldValue.increment(refundAmount)
           })
 
           // Log refund transaction
-          const txRef = adminDb.collection('advertiserTransactions').doc()
+          const txRef = adminDb.collection(ownerTxCollection).doc()
           batch.set(txRef, {
-            userId: advertiserId,
+            userId: ownerId,
             campaignId,
             campaignTitle: campaign.title,
             type: 'refund',

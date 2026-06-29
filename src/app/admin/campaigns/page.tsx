@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Search, Sparkles } from "lucide-react";
-import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query, startAfter, where, type DocumentData, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,8 @@ type SubmissionProgressRecord = {
   status: string;
 };
 
-const ADMIN_CAMPAIGN_PAGE_LIMIT = 200;
+const ADMIN_CAMPAIGN_BATCH_SIZE = 200;
+const ADMIN_CAMPAIGN_MAX_LOAD = 4000;
 const ADMIN_CAMPAIGNS_CACHE_KEY = "admin:campaigns-page";
 
 function toMillis(value: unknown) {
@@ -81,10 +82,35 @@ export default function CampaignsPage() {
     const load = async () => {
       if (!cached) setLoading(true);
       try {
-        const [campaignSnap, pendingSubmissionSnap] = await Promise.all([
-          getDocs(
-            query(collection(db, "campaigns"), orderBy("createdAt", "desc"), limit(ADMIN_CAMPAIGN_PAGE_LIMIT))
-          ),
+        const loadAllCampaigns = async () => {
+          const docs: QueryDocumentSnapshot<DocumentData>[] = [];
+          let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+
+          while (docs.length < ADMIN_CAMPAIGN_MAX_LOAD) {
+            const nextQuery = cursor
+              ? query(
+                  collection(db, "campaigns"),
+                  orderBy("createdAt", "desc"),
+                  startAfter(cursor),
+                  limit(ADMIN_CAMPAIGN_BATCH_SIZE)
+                )
+              : query(
+                  collection(db, "campaigns"),
+                  orderBy("createdAt", "desc"),
+                  limit(ADMIN_CAMPAIGN_BATCH_SIZE)
+                );
+            const snap = await getDocs(nextQuery);
+            if (snap.empty) break;
+            docs.push(...snap.docs);
+            if (snap.docs.length < ADMIN_CAMPAIGN_BATCH_SIZE) break;
+            cursor = snap.docs[snap.docs.length - 1] || null;
+          }
+
+          return docs;
+        };
+
+        const [campaignDocs, pendingSubmissionSnap] = await Promise.all([
+          loadAllCampaigns(),
           getDocs(
             query(
               collection(db, "earnerSubmissions"),
@@ -96,7 +122,7 @@ export default function CampaignsPage() {
         ]);
 
         setCampaigns(
-          campaignSnap.docs.map((doc) => {
+          campaignDocs.map((doc) => {
             const data = doc.data();
             return {
               id: doc.id,

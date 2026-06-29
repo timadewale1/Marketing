@@ -242,11 +242,15 @@ export default function ClientCampaignDetail({ id }: Props) {
             : campaignRow?.ownerId) || "";
 
         if (ownerId) {
-          const advertiserSnap = await getDoc(doc(db, "advertisers", ownerId));
-          if (advertiserSnap.exists()) {
-            const data = advertiserSnap.data();
+          const [advertiserSnap, vendorSnap] = await Promise.all([
+            getDoc(doc(db, "advertisers", ownerId)),
+            getDoc(doc(db, "vendors", ownerId)),
+          ]);
+          const ownerSnap = advertiserSnap.exists() ? advertiserSnap : vendorSnap;
+          if (ownerSnap.exists()) {
+            const data = ownerSnap.data();
             setAdvertiser({
-              id: advertiserSnap.id,
+              id: ownerSnap.id,
               name: String(data.name || data.companyName || "Unknown advertiser"),
               email: String(data.email || ""),
               totalSpent: Number(data.totalSpent || 0),

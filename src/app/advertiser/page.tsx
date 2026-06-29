@@ -7,16 +7,11 @@ import { auth, db } from "@/lib/firebase"
 import toast, { Toaster } from "react-hot-toast"
 import {
   collection,
-  count,
-  sum,
   limit,
   query,
   where,
   onSnapshot,
   doc,
-  getAggregateFromServer,
-  getCountFromServer,
-  getDocs,
   orderBy,
 } from "firebase/firestore"
 
@@ -71,6 +66,8 @@ export default function AdvertiserDashboard() {
   const [profilePic, setProfilePic] = useState("")
   const [activatedReferralCount, setActivatedReferralCount] = useState(0)
   const [activated, setActivated] = useState<boolean>(true)
+  const [taskCreationBlocked, setTaskCreationBlocked] = useState(false)
+  const [taskCreationBlockReason, setTaskCreationBlockReason] = useState("")
   const [onboarded, setOnboarded] = useState<boolean>(false)
   const [stats, setStats] = useState({
     balance: 0,
@@ -117,6 +114,8 @@ export default function AdvertiserDashboard() {
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
+    let unsubCampaigns: (() => void) | null = null
+    let unsubSubmissions: (() => void) | null = null
 
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
       if (!u) {
@@ -144,6 +143,8 @@ export default function AdvertiserDashboard() {
         setName(profileData.name || "Advertiser")
         setProfilePic(profileData.profilePic || "")
         setActivated(nextActivated)
+        setTaskCreationBlocked(Boolean(profileData.taskCreationBlocked))
+        setTaskCreationBlockReason(String(profileData.taskCreationBlockReason || ""))
         setOnboarded(Boolean(profileData.onboarded))
         setActivatedReferralCount(Number(profileData.pointsActivatedReferralCount || 0))
         const profBal = Number(profileData.balance || 0)
@@ -167,69 +168,54 @@ export default function AdvertiserDashboard() {
         previousActivatedRef.current = nextActivated
       })
 
-      const [campaignsSnap, activeCampaignsSnap, campaignAggregateSnap, submissionsSnap] = await Promise.all([
-        getDocs(query(collection(db, "campaigns"), where("ownerId", "==", u.uid), orderBy("createdAt", "desc"), limit(200))),
-        getCountFromServer(query(collection(db, "campaigns"), where("ownerId", "==", u.uid), where("status", "==", "Active"))),
-        getAggregateFromServer(
-          query(collection(db, "campaigns"), where("ownerId", "==", u.uid)),
-          {
-            campaignCount: count(),
-            estimatedLeadsSum: sum("estimatedLeads"),
-          }
-        ),
-        getDocs(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), orderBy("createdAt", "desc"), limit(500))),
-      ])
+      unsubCampaigns?.()
+      unsubSubmissions?.()
 
-      const campaignData: Campaign[] = campaignsSnap.docs.map((campaignDoc) => ({
-        id: campaignDoc.id,
-        ...(campaignDoc.data() as Omit<Campaign, "id">),
-      }))
-      setCampaigns(campaignData)
-      setStats((prev) => ({
-        ...prev,
-        activeCampaigns: activeCampaignsSnap.data().count,
-        leadsPaidFor: Number(campaignAggregateSnap.data().estimatedLeadsSum || 0),
-      }))
+      const campaignsQuery = query(collection(db, "campaigns"), where("ownerId", "==", u.uid), orderBy("createdAt", "desc"), limit(200))
+      unsubCampaigns = onSnapshot(campaignsQuery, (campaignsSnap) => {
+        const campaignData: Campaign[] = campaignsSnap.docs.map((campaignDoc) => ({
+          id: campaignDoc.id,
+          ...(campaignDoc.data() as Omit<Campaign, "id">),
+        }))
+        setCampaigns(campaignData)
+        const activeCount = campaignData.filter((c) => String(c.status || "").toLowerCase() === "active").length
+        const leadsPaidFor = campaignData.reduce((sumValue, campaign) => sumValue + Number(campaign.estimatedLeads || 0), 0)
+        setStats((prev) => ({
+          ...prev,
+          activeCampaigns: activeCount,
+          leadsPaidFor,
+        }))
+      })
 
-      const submissionData: Submission[] = submissionsSnap.docs.map((submissionDoc) => ({
-        id: submissionDoc.id,
-        campaignId: String(submissionDoc.data().campaignId || ""),
-        status: String(submissionDoc.data().status || ""),
-      }))
-      setSubmissions(submissionData)
+      const submissionsQuery = query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), orderBy("createdAt", "desc"), limit(500))
+      unsubSubmissions = onSnapshot(submissionsQuery, (submissionsSnap) => {
+        const submissionData: Submission[] = submissionsSnap.docs.map((submissionDoc) => ({
+          id: submissionDoc.id,
+          campaignId: String(submissionDoc.data().campaignId || ""),
+          status: String(submissionDoc.data().status || ""),
+        }))
+        setSubmissions(submissionData)
 
-      void Promise.all([
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Pending"))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "In Review"))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Rejected"))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Verified"))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Completed"))),
-        getCountFromServer(query(collection(db, "earnerSubmissions"), where("advertiserId", "==", u.uid), where("status", "==", "Paid"))),
-      ])
-        .then(([
-          totalSnap,
-          pendingSnap,
-          inReviewSnap,
-          rejectedSnap,
-          verifiedSnap,
-          completedSnap,
-          paidSnap,
-        ]) => {
-          setStats((prev) => ({
-            ...prev,
-            leadsGenerated:
-              verifiedSnap.data().count + completedSnap.data().count + paidSnap.data().count,
-            campaignSubmitted: totalSnap.data().count,
-            campaignPending: pendingSnap.data().count + inReviewSnap.data().count,
-            campaignRejected: rejectedSnap.data().count,
-            campaignApproved:
-              verifiedSnap.data().count + completedSnap.data().count + paidSnap.data().count,
-          }))
-        })
-        .catch((error) => {
-          console.error("Failed to refresh advertiser submission stats", error)
-        })
+        const totalCount = submissionData.length
+        const pendingCount = submissionData.filter((submission) => {
+          const status = String(submission.status || "").toLowerCase()
+          return status === "pending" || status === "in review"
+        }).length
+        const rejectedCount = submissionData.filter((submission) => String(submission.status || "").toLowerCase() === "rejected").length
+        const approvedCount = submissionData.filter((submission) => {
+          const status = String(submission.status || "").toLowerCase()
+          return status === "verified" || status === "completed" || status === "paid"
+        }).length
+
+        setStats((prev) => ({
+          ...prev,
+          leadsGenerated: approvedCount,
+          campaignSubmitted: totalCount,
+          campaignPending: pendingCount,
+          campaignRejected: rejectedCount,
+          campaignApproved: approvedCount,
+        }))
+      })
     })
 
     return () => {
@@ -237,6 +223,8 @@ export default function AdvertiserDashboard() {
       previousActivatedRef.current = null
       activationReloadedRef.current = false
       if (unsubProfile) unsubProfile()
+      if (unsubCampaigns) unsubCampaigns()
+      if (unsubSubmissions) unsubSubmissions()
     }
   }, [router])
 
@@ -347,6 +335,7 @@ export default function AdvertiserDashboard() {
       title: "Wallet",
       items: [
         { label: "Wallet", path: "/advertiser/wallet", icon: WalletCards },
+        { label: "Purchase History", path: "/advertiser/purchases", icon: ListChecks },
         { label: "Bank", path: "/advertiser/bank", icon: Landmark },
         { label: "Transactions", path: "/advertiser/transactions", icon: Wallet },
       ],
@@ -478,6 +467,14 @@ export default function AdvertiserDashboard() {
             For wallet funding issues, contact us on WhatsApp: 07062991664
           </p>
         </div>
+        {taskCreationBlocked ? (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-700">Your account has been banned from creating tasks.</p>
+            <p className="mt-1 text-sm text-red-700">
+              {taskCreationBlockReason || "You can still withdraw funds and pay bills from your wallet."}
+            </p>
+          </div>
+        ) : null}
         {/* Top Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {statCards.map((card, i) => (
@@ -583,7 +580,7 @@ export default function AdvertiserDashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-stone-800">Your Tasks</h2>
           <Link href="/advertiser/create-campaign">
-            <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2">
+            <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 flex items-center gap-2" disabled={taskCreationBlocked}>
               <Plus size={16} />
               Create Task
             </Button>
@@ -670,7 +667,7 @@ export default function AdvertiserDashboard() {
             <div className="col-span-full flex flex-col items-center justify-center py-12">
               <p className="text-lg text-stone-600 mb-3">No active tasks found.</p>
               <Link href="/advertiser/create-campaign">
-                <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow">
+                <Button className="bg-amber-500 text-stone-900 hover:bg-amber-600 font-semibold px-6 py-3 rounded-xl shadow" disabled={taskCreationBlocked}>
                   <Plus size={18} className="mr-2" /> Create Your First Task
                 </Button>
               </Link>

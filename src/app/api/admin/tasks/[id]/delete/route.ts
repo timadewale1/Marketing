@@ -52,13 +52,19 @@ export async function POST(
       }
 
       const campaign = campaignSnap.data()
-      const advertiserId = campaign?.ownerId as string | undefined
-
-      if (!advertiserId) {
+      const ownerId = String(campaign?.ownerId || '').trim()
+      if (!ownerId) {
         throw new Error('Task has no owner ID')
       }
-
-      const advertiserRef = db.collection('advertisers').doc(advertiserId)
+      const advertiserRef = db.collection('advertisers').doc(ownerId)
+      const vendorRef = db.collection('vendors').doc(ownerId)
+      const advertiserSnap = await transaction.get(advertiserRef)
+      const vendorSnap = await transaction.get(vendorRef)
+      const ownerRef = advertiserSnap.exists ? advertiserRef : (vendorSnap.exists ? vendorRef : null)
+      const ownerTxCollection = advertiserSnap.exists ? 'advertiserTransactions' : (vendorSnap.exists ? 'vendorTransactions' : null)
+      if (!ownerRef || !ownerTxCollection) {
+        throw new Error('Task owner account was not found')
+      }
 
       if (campaign?.status === 'Deleted') {
         throw new Error('Task has already been deleted')
@@ -82,7 +88,7 @@ export async function POST(
       console.log('[delete-task][admin]', {
         taskId,
         adminId: userId,
-        advertiserId,
+        ownerId,
         totalBudget: campaign?.originalBudget || 0,
         refundableBudget,
         pendingReservedAmount,
@@ -91,14 +97,14 @@ export async function POST(
 
       // Refund unused budget to advertiser balance
       if (refundableBudget > 0) {
-        transaction.update(advertiserRef, {
+        transaction.update(ownerRef, {
           balance: adminSdk.firestore.FieldValue.increment(refundableBudget),
         })
 
         // Log transaction
-        const txRef = db.collection('advertiserTransactions').doc()
+        const txRef = db.collection(ownerTxCollection).doc()
         transaction.set(txRef, {
-          userId: advertiserId,
+          userId: ownerId,
           type: 'task_refund_admin',
           amount: refundableBudget,
           status: 'completed',
@@ -116,7 +122,7 @@ export async function POST(
         adminId: userId,
         action: 'delete_task',
         taskId,
-        advertiserId,
+        ownerId,
         refundedAmount: refundableBudget,
         pendingReservedAmount,
         taskTitle: campaign?.title,
