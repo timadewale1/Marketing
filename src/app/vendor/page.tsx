@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { PaymentSelector } from "@/components/payment-selector"
 import VendorPulseLoader from "@/components/vendor/VendorPulseLoader"
 import { AlertCircle, Camera, FileBadge2, FileText, ImageIcon, Package, ShieldCheck, Store, Wallet } from "lucide-react"
+import { NIGERIAN_BANKS } from "@/lib/banks"
 
 type VendorProfile = {
   name?: string
@@ -66,6 +67,11 @@ export default function VendorDashboardPage() {
   const [proofOfAddressUrl, setProofOfAddressUrl] = useState("")
   const [ninSlipUrl, setNinSlipUrl] = useState("")
   const [facialVerificationUrl, setFacialVerificationUrl] = useState("")
+  const [bankCode, setBankCode] = useState("")
+  const [bankName, setBankName] = useState("")
+  const [accountNumber, setAccountNumber] = useState("")
+  const [accountName, setAccountName] = useState("")
+  const [verifyingBank, setVerifyingBank] = useState(false)
   const [uploadingField, setUploadingField] = useState<"" | "proof" | "nin" | "face" | "cover">("")
 
   const [cameraActive, setCameraActive] = useState(false)
@@ -96,6 +102,11 @@ export default function VendorDashboardPage() {
     setProofOfAddressUrl(String(details.proofOfAddressUrl || ""))
     setNinSlipUrl(String(details.ninSlipUrl || ""))
     setFacialVerificationUrl(String(details.facialVerificationUrl || ""))
+    const profileBank = (nextProfile as unknown as { bank?: { bankCode?: string; bankName?: string; accountNumber?: string; accountName?: string } }).bank
+    setBankCode(String(profileBank?.bankCode || ""))
+    setBankName(String(profileBank?.bankName || ""))
+    setAccountNumber(String(profileBank?.accountNumber || ""))
+    setAccountName(String(profileBank?.accountName || ""))
   }
 
   useEffect(() => {
@@ -155,8 +166,39 @@ export default function VendorDashboardPage() {
     ninNumber &&
     proofOfAddressUrl &&
     ninSlipUrl &&
-    facialVerificationUrl
+    facialVerificationUrl &&
+    bankName &&
+    bankCode &&
+    accountNumber &&
+    accountName
   )
+
+  useEffect(() => {
+    const verifyBank = async () => {
+      if (accountNumber.length !== 10 || !bankCode) return
+      setVerifyingBank(true)
+      try {
+        const res = await fetch("/api/verify-bank", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountNumber, bankCode }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data?.status) {
+          setAccountName("")
+          toast.error(data?.message || "Could not verify bank account")
+          return
+        }
+        setAccountName(String(data?.data?.account_name || ""))
+        setBankName(String(data?.data?.bank_name || ""))
+      } catch {
+        setAccountName("")
+      } finally {
+        setVerifyingBank(false)
+      }
+    }
+    void verifyBank()
+  }, [accountNumber, bankCode])
 
   const uploadFile = async (field: "proof" | "nin" | "cover", file: File) => {
     if (!auth.currentUser) return
@@ -268,6 +310,10 @@ export default function VendorDashboardPage() {
           proofOfAddressUrl,
           ninSlipUrl,
           facialVerificationUrl,
+          bankCode,
+          bankName,
+          accountNumber,
+          accountName,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -402,9 +448,23 @@ export default function VendorDashboardPage() {
                   <Link href="/vendor/create-task">Create task</Link>
                 </Button>
                 {profile?.storefrontSlug ? (
-                  <Button asChild variant="outline" className="rounded-full">
-                    <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>View shop</Link>
-                  </Button>
+                  <>
+                    <Button asChild variant="outline" className="rounded-full">
+                      <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>View shop</Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        const shopUrl = `${window.location.origin}/marketplace/shop/${profile.storefrontSlug}`
+                        navigator.clipboard.writeText(shopUrl)
+                          .then(() => toast.success("Shop link copied"))
+                          .catch(() => toast.error("Could not copy shop link"))
+                      }}
+                    >
+                      Copy shop link
+                    </Button>
+                  </>
                 ) : (
                   <Button asChild variant="outline" className="rounded-full">
                     <Link href="/vendor/profile">Set shop link to enable view shop</Link>
@@ -508,6 +568,36 @@ export default function VendorDashboardPage() {
                 <input className="hidden" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && void uploadFile("cover", e.target.files[0])} />
                 <p className="text-stone-600">{storeCoverUrl ? "Uploaded" : uploadingField === "cover" ? "Uploading..." : "Tap to upload"}</p>
               </label>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-sm font-medium text-stone-900">Bank details (required)</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <select
+                  value={bankCode}
+                  onChange={(e) => {
+                    const code = e.target.value
+                    setBankCode(code)
+                    const found = NIGERIAN_BANKS.find((b) => b.code === code)
+                    setBankName(found?.name || "")
+                    setAccountName("")
+                  }}
+                  className="h-10 w-full rounded-xl border border-stone-300 px-3 text-sm text-stone-700 outline-none focus:border-cyan-400"
+                >
+                  <option value="">Select bank</option>
+                  {NIGERIAN_BANKS.map((bank) => (
+                    <option key={bank.code} value={bank.code}>
+                      {bank.name}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  placeholder="Account number"
+                />
+                <Input value={accountName} readOnly placeholder={verifyingBank ? "Verifying account..." : "Verified account name"} className="md:col-span-2" />
+              </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">

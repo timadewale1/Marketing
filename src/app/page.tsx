@@ -867,6 +867,7 @@ export default function PAMBALanding() {
           <div className="nav-actions">
             {/* <WhatsAppGroupButton /> */}
             <Link href="/auth/sign-in" className="btn-ghost">Login</Link>
+            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login to Marketplace</Link>
             <Link href="/auth/sign-up" className="btn-primary">Get Started <ArrowRight size={14} /></Link>
           </div>
           <button className="hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
@@ -881,6 +882,7 @@ export default function PAMBALanding() {
           {/* <WhatsAppGroupButton /> */}
           {navLinks.map(l => <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>{l.label}</a>)}
           <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>Login</Link>
+          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login to Marketplace</Link>
           <Link href="/auth/sign-up" onClick={() => setMobileOpen(false)} style={{color: "var(--amber)"}}>Get Started →</Link>
         </div>
       )}
@@ -1012,9 +1014,17 @@ export default function PAMBALanding() {
             </div>
           </div>
           <div className="mt-10 flex justify-center px-2 sm:px-0">
-            <Link href="/marketplace" className="btn-primary-lg">
-              Visit Marketplace <ArrowRight size={18} />
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/marketplace" className="btn-primary-lg">
+                Visit Marketplace <ArrowRight size={18} />
+              </Link>
+              <Link href="/marketplace/auth/sign-up?role=vendor" className="btn-outline-lg">
+                Become a Vendor
+              </Link>
+              <Link href="/marketplace/auth/sign-up?role=customer" className="btn-outline-lg">
+                Become a Customer
+              </Link>
+            </div>
           </div>
         </div>
       </section>

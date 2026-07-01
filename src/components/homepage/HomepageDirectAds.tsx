@@ -27,20 +27,27 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
 
   useEffect(() => {
     const load = async () => {
+      let cachedAds: HomepageDirectAd[] | null = null;
       try {
         const cached = window.sessionStorage.getItem(DIRECT_ADS_CACHE_KEY);
         if (cached) {
           const parsed = JSON.parse(cached) as { savedAt?: number; ads?: HomepageDirectAd[] };
           if (parsed.savedAt && Date.now() - parsed.savedAt < DIRECT_ADS_CACHE_TTL_MS && Array.isArray(parsed.ads)) {
+            cachedAds = parsed.ads;
             setAds(parsed.ads);
-            return;
           }
         }
 
         const response = await fetch("/api/homepage-direct-ads");
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.success) return;
-        const nextAds = result.ads || [];
+        const nextAds = (result.ads || []) as HomepageDirectAd[];
+        const unchanged =
+          Array.isArray(cachedAds) &&
+          cachedAds.length === nextAds.length &&
+          JSON.stringify(cachedAds.map((ad) => `${ad.id}:${ad.mediaUrl}:${ad.writeup}`)) ===
+            JSON.stringify(nextAds.map((ad) => `${ad.id}:${ad.mediaUrl}:${ad.writeup}`));
+        if (unchanged) return;
         setAds(nextAds);
         window.sessionStorage.setItem(DIRECT_ADS_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), ads: nextAds }));
       } catch (error) {

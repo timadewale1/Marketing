@@ -32,6 +32,7 @@ const TASK_TYPES = [
   "Video",
   "Social media live task",
   "Share my Product",
+  "Product Sharing Task",
   "other website tasks",
   "Survey",
   "App Download",

@@ -100,15 +100,44 @@ export async function processPendingActivationReferrals(
 
             const advRef = adminDb.collection('advertisers').doc(referrerId)
             const earnerRef = adminDb.collection('earners').doc(referrerId)
-            const [advSnap, earnerSnap] = await Promise.all([t.get(advRef), t.get(earnerRef)])
-            const referrerCollection = advSnap.exists ? 'advertisers' : earnerSnap.exists ? 'earners' : null
+            const vendorRef = adminDb.collection('vendors').doc(referrerId)
+            const customerRef = adminDb.collection('customers').doc(referrerId)
+            const [advSnap, earnerSnap, vendorSnap, customerSnap] = await Promise.all([
+              t.get(advRef),
+              t.get(earnerRef),
+              t.get(vendorRef),
+              t.get(customerRef),
+            ])
+            const referrerCollection = advSnap.exists
+              ? 'advertisers'
+              : earnerSnap.exists
+                ? 'earners'
+                : vendorSnap.exists
+                  ? 'vendors'
+                  : customerSnap.exists
+                    ? 'customers'
+                    : null
             if (!referrerCollection) {
               processed = true
               return
             }
 
-            const referrerRef = referrerCollection === 'advertisers' ? advRef : earnerRef
-            const referrerSnap = referrerCollection === 'advertisers' ? advSnap : earnerSnap
+            const referrerRef =
+              referrerCollection === 'advertisers'
+                ? advRef
+                : referrerCollection === 'earners'
+                  ? earnerRef
+                  : referrerCollection === 'vendors'
+                    ? vendorRef
+                    : customerRef
+            const referrerSnap =
+              referrerCollection === 'advertisers'
+                ? advSnap
+                : referrerCollection === 'earners'
+                  ? earnerSnap
+                  : referrerCollection === 'vendors'
+                    ? vendorSnap
+                    : customerSnap
             const referrerData = referrerSnap.data() || {}
             const pendingRecovery = Math.max(0, Number(referrerData.pendingBalanceRecovery || 0))
             const offsetApplied = Math.min(pendingRecovery, bonus)
@@ -116,26 +145,28 @@ export async function processPendingActivationReferrals(
             const remainingDebt = Math.max(0, pendingRecovery - offsetApplied)
             const timestamp = admin.firestore.FieldValue.serverTimestamp()
 
-            await awardPointsInTransaction({
-              adminDb,
-              admin,
-              transaction: t,
-              userCollection: referrerCollection,
-              userId: referrerId,
-              amount: REFERRAL_ACTIVATED_POINTS,
-              eventId: getPointsEventId('referral-activated', rDoc.id),
-              type: 'referral_activated',
-              note: `Referral activation bonus for referring ${userId}`,
-              referenceId: userId,
-              extraUserUpdates: {
-                pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
-                pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              extraLedgerData: {
-                referralId: rDoc.id,
-                referredUserId: userId,
-              },
-            })
+            if (referrerCollection === 'advertisers' || referrerCollection === 'earners') {
+              await awardPointsInTransaction({
+                adminDb,
+                admin,
+                transaction: t,
+                userCollection: referrerCollection,
+                userId: referrerId,
+                amount: REFERRAL_ACTIVATED_POINTS,
+                eventId: getPointsEventId('referral-activated', rDoc.id),
+                type: 'referral_activated',
+                note: `Referral activation bonus for referring ${userId}`,
+                referenceId: userId,
+                extraUserUpdates: {
+                  pointsActivatedReferralCount: admin.firestore.FieldValue.increment(1),
+                  pointsLastActivatedReferralAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                extraLedgerData: {
+                  referralId: rDoc.id,
+                  referredUserId: userId,
+                },
+              })
+            }
 
             t.update(referralRef, {
               status: 'completed',
@@ -146,7 +177,14 @@ export async function processPendingActivationReferrals(
               amount: bonus,
             })
 
-            const referrerTxCollection = referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+            const referrerTxCollection =
+              referrerCollection === 'advertisers'
+                ? 'advertiserTransactions'
+                : referrerCollection === 'earners'
+                  ? 'earnerTransactions'
+                  : referrerCollection === 'vendors'
+                    ? 'vendorTransactions'
+                    : 'customerTransactions'
             if (offsetApplied > 0) {
               t.set(adminDb.collection(referrerTxCollection).doc(), {
                 userId: referrerId,
@@ -382,18 +420,36 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
 
   const referrerEarnerRef = adminDb.collection('earners').doc(referrerId)
   const referrerAdvertiserRef = adminDb.collection('advertisers').doc(referrerId)
-  const [referrerEarnerSnap, referrerAdvertiserSnap] = await Promise.all([
+  const referrerVendorRef = adminDb.collection('vendors').doc(referrerId)
+  const referrerCustomerRef = adminDb.collection('customers').doc(referrerId)
+  const [referrerEarnerSnap, referrerAdvertiserSnap, referrerVendorSnap, referrerCustomerSnap] = await Promise.all([
     transaction.get(referrerEarnerRef),
     transaction.get(referrerAdvertiserRef),
+    transaction.get(referrerVendorRef),
+    transaction.get(referrerCustomerRef),
   ])
 
-  const referrerCollection = referrerAdvertiserSnap.exists ? 'advertisers' : referrerEarnerSnap.exists ? 'earners' : null
+  const referrerCollection = referrerAdvertiserSnap.exists
+    ? 'advertisers'
+    : referrerEarnerSnap.exists
+      ? 'earners'
+      : referrerVendorSnap.exists
+        ? 'vendors'
+        : referrerCustomerSnap.exists
+          ? 'customers'
+          : null
   if (!referrerCollection) {
     return { awarded: false, bonusAmount, referralId: referralDoc.id }
   }
 
   const referrerTransactionRef = adminDb.collection(
-    referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions'
+    referrerCollection === 'advertisers'
+      ? 'advertiserTransactions'
+      : referrerCollection === 'earners'
+        ? 'earnerTransactions'
+        : referrerCollection === 'vendors'
+          ? 'vendorTransactions'
+          : 'customerTransactions'
   ).doc(getPointsEventId('referral-first-task', referralDoc.id, campaignId))
   const existingTxSnap = await transaction.get(referrerTransactionRef)
   if (existingTxSnap.exists) {
@@ -407,7 +463,14 @@ export async function awardAdvertiserFirstTaskReferralBonusInTransaction(
     userCollection: referrerCollection,
     userId: referrerId,
     amount: bonusAmount,
-    transactionCollection: referrerCollection === 'advertisers' ? 'advertiserTransactions' : 'earnerTransactions',
+    transactionCollection:
+      referrerCollection === 'advertisers'
+        ? 'advertiserTransactions'
+        : referrerCollection === 'earners'
+          ? 'earnerTransactions'
+          : referrerCollection === 'vendors'
+            ? 'vendorTransactions'
+            : 'customerTransactions',
     recoveryNote: `Automatic recovery deduction from a previous reversal`,
     transactionType: 'balance_recovery_deduction',
     transactionExtras: {

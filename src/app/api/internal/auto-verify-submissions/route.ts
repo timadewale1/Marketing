@@ -29,6 +29,15 @@ interface Campaign {
   [key: string]: unknown
 }
 
+async function resolveOwnerRef(adminDb: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>['dbAdmin']>, ownerId: string) {
+  const advertiserRef = adminDb.collection('advertisers').doc(ownerId)
+  const vendorRef = adminDb.collection('vendors').doc(ownerId)
+  const [advertiserSnap, vendorSnap] = await Promise.all([advertiserRef.get(), vendorRef.get()])
+  if (advertiserSnap.exists) return advertiserRef
+  if (vendorSnap.exists) return vendorRef
+  return null
+}
+
 const TWENTY_FOUR_HOURS_MS = 1000 * 60 * 60 * 24
 const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
@@ -254,11 +263,14 @@ export async function GET(request: Request) {
                   t.update(campaignRef, {
                     reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
                   })
-                  if (advertiserId) {
-                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
-                      balance: admin.firestore.FieldValue.increment(reservedAmt),
-                    })
-                  }
+              if (advertiserId) {
+                const ownerRef = await resolveOwnerRef(adminDb, advertiserId)
+                if (ownerRef) {
+                  t.update(ownerRef, {
+                    balance: admin.firestore.FieldValue.increment(reservedAmt),
+                  })
+                }
+              }
                 } else {
                   t.update(campaignRef, {
                     reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
@@ -401,25 +413,29 @@ export async function GET(request: Request) {
           t.update(earnerRef, earnerUpdates)
 
           if (advertiserId) {
-            const advTxRef = adminDb.collection('advertiserTransactions').doc()
-            t.set(advTxRef, {
-              userId: advertiserId,
-              campaignId,
+            const ownerRef = await resolveOwnerRef(adminDb, advertiserId)
+            const ownerTxCollection = ownerRef && ownerRef.path.startsWith('vendors/') ? 'vendorTransactions' : 'advertiserTransactions'
+            if (ownerRef) {
+              const advTxRef = adminDb.collection(ownerTxCollection).doc()
+              t.set(advTxRef, {
+                userId: advertiserId,
+                campaignId,
               type: 'debit',
               amount: fullAmount,
               status: 'completed',
               note: `Payment for lead in ${submission.campaignTitle}`,
               createdAt: reviewNow,
             })
-            const advertiserUpdates: Record<string, unknown> = {
-              totalSpent: admin.firestore.FieldValue.increment(fullAmount),
-              leadsGenerated: admin.firestore.FieldValue.increment(1),
-              lastLeadAt: reviewNow,
+              const advertiserUpdates: Record<string, unknown> = {
+                totalSpent: admin.firestore.FieldValue.increment(fullAmount),
+                leadsGenerated: admin.firestore.FieldValue.increment(1),
+                lastLeadAt: reviewNow,
+              }
+              if (remainingToCover > 0) {
+                advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
+              }
+              t.update(ownerRef, advertiserUpdates)
             }
-            if (remainingToCover > 0) {
-              advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
-            }
-            t.update(adminDb.collection('advertisers').doc(advertiserId), advertiserUpdates)
           }
 
           outcome.value = 'verified'
@@ -480,9 +496,12 @@ export async function GET(request: Request) {
           })
 
           if (ownerId && refundAmount > 0) {
-            t.update(adminDb.collection('advertisers').doc(ownerId), {
-              balance: admin.firestore.FieldValue.increment(refundAmount),
-            })
+            const ownerRef = await resolveOwnerRef(adminDb, ownerId)
+            if (ownerRef) {
+              t.update(ownerRef, {
+                balance: admin.firestore.FieldValue.increment(refundAmount),
+              })
+            }
           }
         })
         expiredCampaigns += 1

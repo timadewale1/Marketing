@@ -5,13 +5,17 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
-import { LayoutDashboard, LogOut, Menu, Repeat, ShoppingBag, Store, X } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Menu, Repeat, ShoppingBag, Store, Wallet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth, db } from "@/lib/firebase";
 
 const CUSTOMER_NAV = [
   { label: "Dashboard", path: "/customer", icon: LayoutDashboard },
   { label: "Referrals", path: "/customer/referrals", icon: Repeat },
+  { label: "Purchases", path: "/customer/purchases", icon: ShoppingBag },
+  { label: "Bank", path: "/customer/bank", icon: CreditCard },
+  { label: "Transactions", path: "/customer/transactions", icon: CreditCard },
+  { label: "Wallet", path: "/customer/wallet", icon: Wallet },
   { label: "Marketplace", path: "/marketplace", icon: Store },
 ];
 

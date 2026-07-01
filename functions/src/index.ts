@@ -1398,7 +1398,7 @@ export const mailerApi = onRequest(async (req, res) => {
   }
 });
 
-export const internalApi = onRequest(async (req, res) => {
+export const internalApi = onRequest({ invoker: "public" }, async (req, res) => {
   if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ success: false, message: "Method not allowed" });
     return;

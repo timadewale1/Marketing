@@ -217,8 +217,8 @@ export function SignUpForm() {
               <SelectContent className="bg-stone-700 text-white">
                 {!marketplaceMode ? <SelectItem value="advertiser">Create Tasks</SelectItem> : null}
                 {!marketplaceMode ? <SelectItem value="earner">Earn by performing tasks</SelectItem> : null}
-                <SelectItem value="vendor">Pamba Vendor Store</SelectItem>
-                <SelectItem value="customer">Marketplace Customer</SelectItem>
+                {marketplaceMode ? <SelectItem value="vendor">Pamba Vendor Store</SelectItem> : null}
+                {marketplaceMode ? <SelectItem value="customer">Marketplace Customer</SelectItem> : null}
               </SelectContent>
             </Select>
             <p className="mt-2 text-xs text-stone-400">

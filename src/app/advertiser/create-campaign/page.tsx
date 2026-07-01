@@ -29,6 +29,7 @@ type CampaignType =
   | "Video"
   | "Social media live task"
   | "Share my Product"
+  | "Product Sharing Task"
   | "WhatsApp Status"
   | "WhatsApp Group Join"
   | "Telegram Group Join"
@@ -58,6 +59,7 @@ const CPL_MAP: Record<CampaignType, number> = {
   Video: 100,
     "Social media live task": 1000,
     "Share my Product": 150,
+    "Product Sharing Task": 150,
     "other website tasks": 100,
     Survey: 100,
     "App Download": 200,
@@ -82,15 +84,22 @@ const CPL_MAP: Record<CampaignType, number> = {
 
 export default function CreateCampaignPage() {
   const router = useRouter()
+  const [isVendorAccount, setIsVendorAccount] = useState(false)
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((user) => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         router.replace("/auth/sign-in")
         return
       }
       if (!user.emailVerified) {
         router.replace("/auth/verify-email")
+      }
+      try {
+        const vendorSnap = await getDoc(doc(db, "vendors", user.uid))
+        setIsVendorAccount(vendorSnap.exists())
+      } catch {
+        setIsVendorAccount(false)
       }
     })
     return () => unsub()
@@ -149,6 +158,7 @@ export default function CreateCampaignPage() {
   // derived values
   const activeBudget = priorityEnabled ? priorityBudget : budget
   const numericBudget = typeof activeBudget === "number" ? activeBudget : Number(activeBudget || 0)
+  const isProductSharingCategory = category === "Share my Product" || category === "Product Sharing Task"
   const currentCPL = category ? CPL_MAP[category as CampaignType] : 200
   const selectedMultiplier = priorityEnabled ? Math.min(10, Math.max(1, priorityMultiplier)) : 1
   
@@ -180,6 +190,14 @@ export default function CreateCampaignPage() {
       setBannerUrl(getThumbnailForCategory(category as string))
     }
   }, [step, category, bannerUrl])
+
+  React.useEffect(() => {
+    if (!isVendorAccount) return
+    if (!category) return
+    if (!["Social media live task", "Share my Product", "Product Sharing Task"].includes(category)) {
+      setCategory("")
+    }
+  }, [isVendorAccount, category])
 
   // compress images client-side
   const compressImage = async (file: File) => {
@@ -266,7 +284,7 @@ const compressed = await imageCompression(file, options)
       )
     if (step === 1) {
       if (category === "Video") return videoLink.trim().length > 5 
-      if (category === "Share my Product") return productLink.trim().length > 5
+      if (isProductSharingCategory) return productLink.trim().length > 5
       if (category === "Social media live task") return externalLink.trim().length > 5 || mediaUrl.trim().length > 5
       if (["Survey", "other website tasks", "App Download"].includes(category))
         return externalLink.trim().length > 5
@@ -275,7 +293,7 @@ const compressed = await imageCompression(file, options)
     if (step === 2) return numericBudget > 0 && numericBudget >= effectiveCPL && isBudgetMultiple
     if (step === 3) {
       // If this is a product campaign require face capture upload and address
-      if (category === "Share my Product") {
+      if (isProductSharingCategory) {
         return Boolean(faceImageUrl && addressLine.trim().length > 3 && city.trim().length > 1)
       }
       return true
@@ -395,7 +413,7 @@ const compressed = await imageCompression(file, options)
       category,
       bannerUrl,
       mediaUrl: category === "Video" ? videoLink : mediaUrl,
-      externalLink: category === "Share my Product" ? productLink : (externalLink || ""),
+      externalLink: isProductSharingCategory ? productLink : (externalLink || ""),
       budget: numericBudget,
       estimatedLeads,
       baseCostPerLead: currentCPL,
@@ -462,6 +480,18 @@ const compressed = await imageCompression(file, options)
         payInFlightRef.current = false
         return
       }
+      if (profileCollection === "vendors") {
+        const verificationStatus = String(advertiserProfile['vendorVerificationStatus'] || "").toLowerCase()
+        const setupPaid = String(advertiserProfile['vendorPaymentStatus'] || "").toLowerCase() === "paid"
+        const verified = verificationStatus === "verified" || verificationStatus === "approved"
+        if (!verified || !setupPaid) {
+          toast.error("Your vendor account must be verified and setup fee paid before creating tasks.")
+          setLoading(false)
+          payInFlightRef.current = false
+          router.push("/vendor")
+          return
+        }
+      }
     } catch (e) {
       console.warn('Failed to validate advertiser profile', e)
     }
@@ -481,7 +511,7 @@ const compressed = await imageCompression(file, options)
     const hasEnoughWalletBalance = Number.isFinite(advertiserWalletBalance) && advertiserWalletBalance >= numericBudget
 
     // If product campaign, attach face capture URL (preferred) and address
-    if (category === "Share my Product") {
+    if (isProductSharingCategory) {
       if (!faceImageUrl) {
         toast.error("Wait for the captured face image to finish uploading")
         setLoading(false)
@@ -777,7 +807,10 @@ const getEmbeddedVideo = (url: string) => {
                 onChange={(e) => setCategory(e.target.value as CampaignType)}
               >
                 <option value="">Select category</option>
-                {Object.keys(CPL_MAP).map((k) => (
+                {(isVendorAccount
+                  ? ["Social media live task", "Share my Product", "Product Sharing Task"]
+                  : Object.keys(CPL_MAP)
+                ).map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
               </select>
@@ -802,13 +835,13 @@ const getEmbeddedVideo = (url: string) => {
                 )
               }
 
-              {category === "Share my Product" && faceUploading && (
+              {isProductSharingCategory && faceUploading && (
                 <div className="mt-3 text-sm text-amber-600">Uploading face image{uploadProgress ? ` - ${uploadProgress}%` : '...'}</div>
               )}
-              {category === "Share my Product" && faceImageUrl && (
+              {isProductSharingCategory && faceImageUrl && (
                 <div className="mt-2 text-sm text-stone-600">Face image uploaded and attached to campaign</div>
               )}
-              {category === "Share my Product" && (
+              {isProductSharingCategory && (
                 <div>
                   <label className="text-sm font-medium text-stone-700 block mb-2">
                     Product Link
@@ -824,7 +857,7 @@ const getEmbeddedVideo = (url: string) => {
                 </div>
               )}
 
-              {category === "Share my Product" && (
+              {isProductSharingCategory && (
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-stone-700 block mb-2">
@@ -1229,7 +1262,7 @@ const getEmbeddedVideo = (url: string) => {
                     Open link
                   </a>
                 )}
-              {category === "Share my Product" && productLink && (
+              {isProductSharingCategory && productLink && (
                 <a
                   className="text-amber-600 underline mt-2 block"
                   href={productLink}
@@ -1347,7 +1380,7 @@ const getEmbeddedVideo = (url: string) => {
               </div>
 
               {/* Product-specific: face verification + address before payment */}
-              {category === "Share my Product" && (
+              {isProductSharingCategory && (
               <div className="mt-4 space-y-4 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
                   <h4 className="font-medium text-stone-800">Advertiser identity verification</h4>
                   <p className="text-sm text-stone-700">Before paying, capture your face using your device camera (upload not allowed) and provide your business address.</p>
@@ -1413,7 +1446,7 @@ const getEmbeddedVideo = (url: string) => {
                 <Button
                   className="bg-amber-600 text-white"
                   onClick={handlePay}
-                  disabled={loading || showPaymentSelector || (category === "Share my Product" && faceUploading)}
+                  disabled={loading || showPaymentSelector || (isProductSharingCategory && faceUploading)}
                 >
                   <CreditCard size={16} />{" "}
                     {loading
@@ -1586,9 +1619,3 @@ const getEmbeddedVideo = (url: string) => {
     </div>
   )
 }
-// removed stray helper
-
-
-
-
-

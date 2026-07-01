@@ -31,6 +31,7 @@ const VENDOR_NAV_SECTIONS = [
       { label: "Create Task", path: "/vendor/create-task", icon: PlusCircle },
       { label: "Wallet", path: "/vendor/wallet", icon: Wallet },
       { label: "Transactions", path: "/vendor/transactions", icon: ReceiptText },
+      { label: "Sales", path: "/vendor/sales", icon: ReceiptText },
       { label: "Referrals", path: "/vendor/referrals", icon: Repeat },
     ],
   },

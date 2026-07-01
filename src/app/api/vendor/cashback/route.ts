@@ -16,12 +16,13 @@ async function requireUser(req: Request) {
   const decoded = await admin.auth().verifyIdToken(idToken).catch(() => null)
   if (!decoded?.uid) return { error: NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 }) }
 
-  const [earnerSnap, advertiserSnap] = await Promise.all([
+  const [earnerSnap, advertiserSnap, customerSnap] = await Promise.all([
     dbAdmin.collection("earners").doc(decoded.uid).get(),
     dbAdmin.collection("advertisers").doc(decoded.uid).get(),
+    dbAdmin.collection("customers").doc(decoded.uid).get(),
   ])
-  const role = earnerSnap.exists ? "earner" : advertiserSnap.exists ? "advertiser" : null
-  const profile = earnerSnap.exists ? earnerSnap.data() : advertiserSnap.data()
+  const role = earnerSnap.exists ? "earner" : advertiserSnap.exists ? "advertiser" : customerSnap.exists ? "customer" : null
+  const profile = earnerSnap.exists ? earnerSnap.data() : advertiserSnap.exists ? advertiserSnap.data() : customerSnap.data()
 
   if (!role || !profile) return { error: NextResponse.json({ success: false, message: "User profile not found" }, { status: 404 }) }
 
@@ -120,12 +121,9 @@ export async function POST(req: Request) {
     }
 
     const remainingOrderCap = Math.max(0, ORDER_CAP_NAIRA - approvedOrderAmount)
-    if (remainingOrderCap <= 0) {
-      return NextResponse.json({ success: false, message: "You have reached the cashback order limit" }, { status: 400 })
-    }
-
-    const eligibleOrderAmount = Math.min(amount, remainingOrderCap)
+    const eligibleOrderAmount = Math.max(0, Math.min(amount, remainingOrderCap))
     const cashbackAmount = Math.floor(eligibleOrderAmount * CASHBACK_RATE)
+    const productData = productSnap.data() as Record<string, unknown>
     const now = auth.admin.firestore.FieldValue.serverTimestamp()
     const claimRef = auth.dbAdmin.collection("vendorPurchaseSubmissions").doc()
 
@@ -136,6 +134,7 @@ export async function POST(req: Request) {
       userName: String(auth.profile?.name || auth.profile?.fullName || "User"),
       userEmail: String(auth.profile?.email || ""),
       vendorName,
+      vendorId: String(productData.vendorId || ""),
       productId,
       amount,
       eligibleOrderAmount,

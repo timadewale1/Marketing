@@ -67,6 +67,10 @@ export async function PATCH(req: Request) {
     const proofOfAddressUrl = String(body.proofOfAddressUrl || "").trim()
     const ninSlipUrl = String(body.ninSlipUrl || "").trim()
     const facialVerificationUrl = String(body.facialVerificationUrl || "").trim()
+    const bankName = String(body.bankName || "").trim()
+    const bankCode = String(body.bankCode || "").trim()
+    const accountNumber = String(body.accountNumber || "").trim()
+    const accountName = String(body.accountName || "").trim()
     const storeCoverUrl = String(body.storeCoverUrl || "").trim()
     const shopLayout = String(body.shopLayout || "").trim().toLowerCase()
     const shopTheme = String(body.shopTheme || "").trim().toLowerCase()
@@ -81,7 +85,11 @@ export async function PATCH(req: Request) {
       ninNumber &&
       proofOfAddressUrl &&
       ninSlipUrl &&
-      facialVerificationUrl
+      facialVerificationUrl &&
+      bankName &&
+      bankCode &&
+      accountNumber &&
+      accountName
     )
 
     if (storefrontSlug.length > 0 && storefrontSlug.length < 3) {
@@ -126,6 +134,13 @@ export async function PATCH(req: Request) {
         proofOfAddressUrl: proofOfAddressUrl || null,
         ninSlipUrl: ninSlipUrl || null,
         facialVerificationUrl: facialVerificationUrl || null,
+      }
+      updates.bank = {
+        bankName: bankName || null,
+        bankCode: bankCode || null,
+        accountNumber: accountNumber || null,
+        accountName: accountName || null,
+        verified: Boolean(bankName && bankCode && accountNumber && accountName),
       }
       const verificationStatus = String(auth.vendorData.vendorVerificationStatus || "pending").toLowerCase()
       updates.vendorVerificationStatus = verificationStatus || "pending"

@@ -13,6 +13,7 @@ export default function PriceListPage() {
     Video: 100,
     "Social media live task": 1000,
     "Share my Product": 150,
+    "Product Sharing Task": 150,
     "other website tasks": 100,
     Survey: 100,
     "App Download": 200,

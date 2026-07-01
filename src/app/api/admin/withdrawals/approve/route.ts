@@ -4,7 +4,7 @@ import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { createTransferRecipient, initiateTransfer } from "@/services/paystack"
 import monnify from "@/services/monnify"
 
-type WithdrawalSource = "earner" | "advertiser" | "vendor"
+type WithdrawalSource = "earner" | "advertiser" | "vendor" | "customer"
 
 export async function POST(req: Request) {
   const adminSession = await requireAdminSession()
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const withdrawalId = String(body?.withdrawalId || "").trim()
     const source = String(body?.source || "").trim() as WithdrawalSource
 
-    if (!withdrawalId || !["earner", "advertiser", "vendor"].includes(source)) {
+    if (!withdrawalId || !["earner", "advertiser", "vendor", "customer"].includes(source)) {
       return NextResponse.json({ success: false, message: "Missing withdrawal details" }, { status: 400 })
     }
 
@@ -27,9 +27,30 @@ export async function POST(req: Request) {
     }
 
     const db = dbAdmin
-    const withdrawalCollection = source === "advertiser" ? "advertiserWithdrawals" : source === "vendor" ? "vendorWithdrawals" : "earnerWithdrawals"
-    const txCollection = source === "advertiser" ? "advertiserTransactions" : source === "vendor" ? "vendorTransactions" : "earnerTransactions"
-    const userCollection = source === "advertiser" ? "advertisers" : source === "vendor" ? "vendors" : "earners"
+    const withdrawalCollection =
+      source === "advertiser"
+        ? "advertiserWithdrawals"
+        : source === "vendor"
+          ? "vendorWithdrawals"
+          : source === "customer"
+            ? "customerWithdrawals"
+            : "earnerWithdrawals"
+    const txCollection =
+      source === "advertiser"
+        ? "advertiserTransactions"
+        : source === "vendor"
+          ? "vendorTransactions"
+          : source === "customer"
+            ? "customerTransactions"
+            : "earnerTransactions"
+    const userCollection =
+      source === "advertiser"
+        ? "advertisers"
+        : source === "vendor"
+          ? "vendors"
+          : source === "customer"
+            ? "customers"
+            : "earners"
     const withdrawalRef = db.collection(withdrawalCollection).doc(withdrawalId)
     const withdrawalSnap = await withdrawalRef.get()
 
@@ -173,7 +194,7 @@ export async function POST(req: Request) {
       type: "withdrawal_approved",
       title: "Withdrawal approved",
       body: `${recipientName} withdrawal of ₦${amount.toLocaleString()} was approved by admin.`,
-      link: source === "advertiser" ? `/admin/advertisers/${userId}` : source === "vendor" ? `/admin/vendors` : `/admin/earners/${userId}`,
+      link: source === "advertiser" ? `/admin/advertisers/${userId}` : source === "vendor" ? `/admin/vendors` : source === "customer" ? `/admin/users/${userId}` : `/admin/earners/${userId}`,
       read: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       actor: adminSession.email,

@@ -34,6 +34,10 @@ export async function proxyToBackendIfConfigured(
   request: Request,
   options: ProxyOptions = {}
 ): Promise<Response | null> {
+  if (path.startsWith("/api/internal/")) {
+    return null
+  }
+
   if (request.headers.get("x-skip-backend-proxy") === "1") {
     return null
   }

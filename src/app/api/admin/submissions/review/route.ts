@@ -33,6 +33,15 @@ type StrikeEmailPayload =
   | { type: 'added'; email: string; name?: string; strikeCount: number; reason?: string | null; suspended: boolean }
   | { type: 'removed'; email: string; name?: string; strikeCount: number }
 
+async function resolveOwnerRef(adminDb: FirebaseFirestore.Firestore, ownerId: string) {
+  const advertiserRef = adminDb.collection('advertisers').doc(ownerId)
+  const vendorRef = adminDb.collection('vendors').doc(ownerId)
+  const [advertiserSnap, vendorSnap] = await Promise.all([advertiserRef.get(), vendorRef.get()])
+  if (advertiserSnap.exists) return { ref: advertiserRef, collection: 'advertisers' as const }
+  if (vendorSnap.exists) return { ref: vendorRef, collection: 'vendors' as const }
+  return { ref: null, collection: null }
+}
+
 export async function POST(req: Request): Promise<Response> {
   const sessionResult = await requireAdminSession()
   if ('errorResponse' in sessionResult) {
@@ -163,8 +172,11 @@ export async function POST(req: Request): Promise<Response> {
         }
 
         if (flagPending && advertiserId) {
-          const advertiserFlagSnap = await t.get(adminDb.collection('advertisers').doc(String(advertiserId)))
-          advertiserUnfoundedFlags = Number(advertiserFlagSnap.data()?.unfoundedSubmissionFlags || 0)
+          const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
+          if (ownerInfo.ref) {
+            const advertiserFlagSnap = await t.get(ownerInfo.ref)
+            advertiserUnfoundedFlags = Number(advertiserFlagSnap.data()?.unfoundedSubmissionFlags || 0)
+          }
         }
 
         await awardPointsInTransaction({
@@ -268,35 +280,39 @@ export async function POST(req: Request): Promise<Response> {
         t.update(adminDb.collection('earners').doc(userId), earnerUpdates)
 
         // 4) Advertiser transaction + stats
-        if (advertiserId) {
-          const advTxRef = adminDb.collection('advertiserTransactions').doc()
-          t.set(advTxRef, {
-            userId: advertiserId,
-            campaignId: submission.campaignId,
+          if (advertiserId) {
+            const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
+            const txCollection = ownerInfo.collection === 'vendors' ? 'vendorTransactions' : 'advertiserTransactions'
+            if (ownerInfo.ref) {
+              const advTxRef = adminDb.collection(txCollection).doc()
+              t.set(advTxRef, {
+                userId: advertiserId,
+                campaignId: submission.campaignId,
             type: 'debit',
             amount: fullAmount,
             status: 'completed',
             note: `Payment for lead in ${submission.campaignTitle}`,
             createdAt: now,
           })
-          const advertiserUpdates: Record<string, unknown> = {
-            totalSpent: admin.firestore.FieldValue.increment(fullAmount),
-            leadsGenerated: admin.firestore.FieldValue.increment(1),
-            lastLeadAt: now,
-          }
-          if (remainingToCover > 0) {
-            advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
-          }
-          if (flagPending) {
-            advertiserUpdates.unfoundedSubmissionFlags = admin.firestore.FieldValue.increment(1)
-            if (advertiserUnfoundedFlags + 1 >= 5) {
-              advertiserUpdates.flaggingRestricted = true
-              advertiserUpdates.flaggingRestrictedAt = now
-              advertiserUpdates.flaggingRestrictionReason = 'Repeated submission flags were overruled by admin review'
+              const advertiserUpdates: Record<string, unknown> = {
+                totalSpent: admin.firestore.FieldValue.increment(fullAmount),
+                leadsGenerated: admin.firestore.FieldValue.increment(1),
+                lastLeadAt: now,
+              }
+              if (remainingToCover > 0) {
+                advertiserUpdates.balance = admin.firestore.FieldValue.increment(-remainingToCover)
+              }
+              if (flagPending) {
+                advertiserUpdates.unfoundedSubmissionFlags = admin.firestore.FieldValue.increment(1)
+                if (advertiserUnfoundedFlags + 1 >= 5) {
+                  advertiserUpdates.flaggingRestricted = true
+                  advertiserUpdates.flaggingRestrictedAt = now
+                  advertiserUpdates.flaggingRestrictionReason = 'Repeated submission flags were overruled by admin review'
+                }
+              }
+              t.update(ownerInfo.ref, advertiserUpdates)
             }
           }
-          t.update(adminDb.collection('advertisers').doc(advertiserId), advertiserUpdates)
-        }
       } else if (action === 'Rejected') {
         if (prevStatus === 'Rejected') return // idempotent
 
@@ -390,10 +406,13 @@ export async function POST(req: Request): Promise<Response> {
         }
 
         if (flagPending && advertiserId) {
-          t.set(adminDb.collection('advertisers').doc(String(advertiserId)), {
-            upheldSubmissionFlags: admin.firestore.FieldValue.increment(1),
-            lastSubmissionFlagUpheldAt: now,
-          }, { merge: true })
+          const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
+          if (ownerInfo.ref) {
+            t.set(ownerInfo.ref, {
+              upheldSubmissionFlags: admin.firestore.FieldValue.increment(1),
+              lastSubmissionFlagUpheldAt: now,
+            }, { merge: true })
+          }
         }
 
         if (wasVerified && earnerAmount > 0) {
@@ -429,10 +448,13 @@ export async function POST(req: Request): Promise<Response> {
               note: `Refund for rejected submission ${submission.campaignTitle}`,
               createdAt: now,
             })
-            t.update(adminDb.collection('advertisers').doc(advertiserId), {
-              totalSpent: admin.firestore.FieldValue.increment(-fullAmount),
-              leadsGenerated: admin.firestore.FieldValue.increment(-1),
-            })
+            const ownerInfo = await resolveOwnerRef(adminDb, advertiserId)
+            if (ownerInfo.ref) {
+              t.update(ownerInfo.ref, {
+                totalSpent: admin.firestore.FieldValue.increment(-fullAmount),
+                leadsGenerated: admin.firestore.FieldValue.increment(-1),
+              })
+            }
             // If this submission had a reservedAmount, return that reserved amount to budget; otherwise increment budget
             if (campaignSnap.exists) {
               const reservedAmt = Number(submission.reservedAmount || 0)
@@ -444,9 +466,12 @@ export async function POST(req: Request): Promise<Response> {
                     completedLeads: admin.firestore.FieldValue.increment(-1),
                   })
                   if (advertiserId) {
-                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
-                      balance: admin.firestore.FieldValue.increment(reservedAmt),
-                    })
+                    const ownerInfo = await resolveOwnerRef(adminDb, advertiserId)
+                    if (ownerInfo.ref) {
+                      t.update(ownerInfo.ref, {
+                        balance: admin.firestore.FieldValue.increment(reservedAmt),
+                      })
+                    }
                   }
                 } else {
                   t.update(campaignRef, {
@@ -463,9 +488,12 @@ export async function POST(req: Request): Promise<Response> {
                     completedLeads: admin.firestore.FieldValue.increment(-1),
                   })
                   if (advertiserId) {
-                    t.update(adminDb.collection('advertisers').doc(advertiserId), {
-                      balance: admin.firestore.FieldValue.increment(fullAmount),
-                    })
+                    const ownerInfo = await resolveOwnerRef(adminDb, advertiserId)
+                    if (ownerInfo.ref) {
+                      t.update(ownerInfo.ref, {
+                        balance: admin.firestore.FieldValue.increment(fullAmount),
+                      })
+                    }
                   }
                 } else {
                   t.update(campaignRef, {
@@ -489,9 +517,12 @@ export async function POST(req: Request): Promise<Response> {
             })
             const advertiserId = submission.advertiserId || campaignData2?.ownerId
             if (advertiserId) {
-              t.update(adminDb.collection('advertisers').doc(advertiserId), {
-                balance: admin.firestore.FieldValue.increment(reservedAmt),
-              })
+              const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
+              if (ownerInfo.ref) {
+                t.update(ownerInfo.ref, {
+                  balance: admin.firestore.FieldValue.increment(reservedAmt),
+                })
+              }
             }
           } else {
             t.update(campaignRef, {

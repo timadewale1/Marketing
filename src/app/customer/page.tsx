@@ -6,6 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel";
 import { Gift, Repeat, ShoppingBag, Store } from "lucide-react";
 
 type CustomerProfile = {
@@ -48,6 +49,15 @@ export default function CustomerDashboardPage() {
             <Button asChild variant="outline" className="rounded-full">
               <Link href="/customer/referrals">View referrals</Link>
             </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/customer/purchases">Purchase history</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/customer/wallet">Wallet</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/customer/bank">Bank details</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -82,6 +92,8 @@ export default function CustomerDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CashbackClaimPanel role="customer" />
     </div>
   );
 }

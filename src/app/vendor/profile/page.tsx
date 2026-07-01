@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import toast from "react-hot-toast"
 import VendorPulseLoader from "@/components/vendor/VendorPulseLoader"
 
 type VendorProfile = {
@@ -87,9 +88,21 @@ export default function VendorProfilePage() {
               <Link href="/vendor">Edit profile and shop settings</Link>
             </Button>
             {profile?.storefrontSlug ? (
-              <Button asChild variant="outline" className="rounded-full">
-                <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>Open my shop</Link>
-              </Button>
+              <>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>Open my shop</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => {
+                    const shopUrl = `${window.location.origin}/marketplace/shop/${profile.storefrontSlug}`
+                    navigator.clipboard.writeText(shopUrl).then(() => toast.success("Shop link copied")).catch(() => toast.error("Could not copy link"))
+                  }}
+                >
+                  Copy shop link
+                </Button>
+              </>
             ) : null}
           </div>
         </CardContent>
