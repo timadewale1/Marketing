@@ -183,7 +183,7 @@ export default function SignInPage() {
               </a>
             ) : (
               <a href="/auth/sign-in?marketplace=1" className="text-amber-400 hover:underline">
-                Sign in to marketplace (vendor/customer)
+                Sign in to marketplace (seller/buyer)
               </a>
             )}
           </p>

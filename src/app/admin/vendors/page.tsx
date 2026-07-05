@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { BadgeCheck, Package, ShieldCheck, Store, Wallet } from "lucide-react"
+import { Package, ShieldCheck, Store, Wallet } from "lucide-react"
 import toast from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import { AdminPageHeader, EmptyState, MetricCard, SectionCard, StatusBadge } from "@/app/admin/_components/admin-primitives"
@@ -79,23 +79,6 @@ export default function AdminVendorsPage() {
     return { pending, active, products: products.length, rentOverdue }
   }, [vendors, products])
 
-  const updateVendor = async (vendorId: string, payload: Record<string, unknown>) => {
-    try {
-      const res = await fetch("/api/admin/vendors", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorId, ...payload }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.success) throw new Error(data.message || "Failed to update vendor")
-      toast.success("Vendor updated")
-      await load()
-    } catch (error) {
-      console.error("Admin vendor update error", error)
-      toast.error(error instanceof Error ? error.message : "Could not update vendor")
-    }
-  }
-
   const updateProduct = async (productId: string, payload: Record<string, unknown>) => {
     try {
       const res = await fetch("/api/admin/vendor-products", {
@@ -152,44 +135,12 @@ export default function AdminVendorsPage() {
                     <p className="text-sm text-stone-600">{vendor.email || "No email"} {vendor.phone ? `• ${vendor.phone}` : ""}</p>
                     <p className="text-sm text-stone-600">Products: {vendor.productsPublishedCount.toLocaleString()}</p>
                     <p className="text-sm text-stone-600">Store status: {vendor.storeStatus || "awaiting_verification"}</p>
-                    <p className="text-sm">
-                      <Link href={`/admin/vendors/${vendor.id}`} className="text-blue-700 underline">
-                        Open vendor details
-                      </Link>
-                    </p>
                     {vendor.storefrontSlug ? <p className="text-sm text-stone-600">Shop slug: /marketplace/shop/{vendor.storefrontSlug}</p> : null}
-                    {vendor.storefrontLink ? (
-                      <p className="text-sm text-stone-600">
-                        Storefront link:{" "}
-                        <a className="text-blue-700 underline" href={vendor.storefrontLink} target="_blank" rel="noreferrer">
-                          Open link
-                        </a>
-                      </p>
-                    ) : null}
-                    <div className="mt-2 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-700">
-                      <p className="font-semibold text-stone-900">Verification details</p>
-                      <p className="mt-1">Address: {vendor.verificationDetails?.address || "Not submitted"}</p>
-                      <p className="mt-1">City/State: {[vendor.verificationDetails?.city, vendor.verificationDetails?.state].filter(Boolean).join(", ") || "Not submitted"}</p>
-                      <p className="mt-1">NIN: {vendor.verificationDetails?.ninNumber || "Not submitted"}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {vendor.verificationDetails?.proofOfAddressUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.proofOfAddressUrl} target="_blank" rel="noreferrer">Proof of address</a> : null}
-                        {vendor.verificationDetails?.ninSlipUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.ninSlipUrl} target="_blank" rel="noreferrer">NIN slip</a> : null}
-                        {vendor.verificationDetails?.facialVerificationUrl ? <a className="rounded-full border border-stone-300 px-3 py-1 text-xs" href={vendor.verificationDetails.facialVerificationUrl} target="_blank" rel="noreferrer">Facial verification</a> : null}
-                      </div>
-                    </div>
+                    {vendor.storefrontLink ? <p className="text-sm text-stone-600">Contact link: {vendor.storefrontLink}</p> : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button className="rounded-full bg-emerald-600 hover:bg-emerald-500" onClick={() => void updateVendor(vendor.id, { vendorVerificationStatus: "verified", storeStatus: "active" })}>
-                      <BadgeCheck className="mr-2 h-4 w-4" />
-                      Verify
-                    </Button>
-                    <Button variant="outline" className="rounded-full" onClick={() => void updateVendor(vendor.id, { vendorVerificationStatus: "pending" })}>
-                      Hold
-                    </Button>
-                    <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => void updateVendor(vendor.id, { vendorVerificationStatus: "rejected", storeStatus: "hidden" })}>
-                      Reject
-                    </Button>
-                  </div>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href={`/admin/vendors/${vendor.id}`}>Open profile</Link>
+                  </Button>
                 </div>
               </div>
             ))}

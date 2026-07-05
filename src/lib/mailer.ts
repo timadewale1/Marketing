@@ -606,6 +606,79 @@ export async function sendEarnerStrikeRemovedEmail({
   })
 }
 
+export async function sendVendorVerificationSubmittedEmail({
+  vendorName,
+  email,
+}: {
+  vendorName: string
+  email: string
+}) {
+  await sendEmail({
+    to: ADMIN_INBOX_EMAIL,
+    subject: `New vendor verification submitted by ${vendorName}`,
+    html: wrapEmail(
+      'New vendor verification submission',
+      `
+        <p>A new vendor verification form was submitted on Pamba.</p>
+        <p><strong>Vendor:</strong> ${vendorName}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p>Please open the vendor admin page to review the submitted documents and bank details.</p>
+      `,
+      'Open vendor admin',
+      `${APP_URL}/admin/vendors`
+    ),
+  })
+}
+
+export async function sendVendorVerificationApprovedEmail({
+  vendorName,
+  email,
+}: {
+  vendorName: string
+  email: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: `Your Pamba Store verification is approved`,
+    html: wrapEmail(
+      'Verification approved',
+      `
+        <p>Hi ${vendorName},</p>
+        <p>Your vendor verification has been approved.</p>
+        <p>You can now continue to the next setup step and complete your store payment flow on your dashboard.</p>
+      `,
+      'Open my vendor dashboard',
+      `${APP_URL}/vendor`
+    ),
+  })
+}
+
+export async function sendVendorVerificationRejectedEmail({
+  vendorName,
+  email,
+  reason,
+}: {
+  vendorName: string
+  email: string
+  reason: string
+}) {
+  await sendEmail({
+    to: email,
+    subject: `Your Pamba Store verification needs attention`,
+    html: wrapEmail(
+      'Verification needs attention',
+      `
+        <p>Hi ${vendorName},</p>
+        <p>Your vendor verification could not be approved yet.</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p>Please update your details and upload the required documents again so your review can continue.</p>
+      `,
+      'Review my dashboard',
+      `${APP_URL}/vendor`
+    ),
+  })
+}
+
 export async function sendProofResubmissionRequestedEmail({
   email,
   name,

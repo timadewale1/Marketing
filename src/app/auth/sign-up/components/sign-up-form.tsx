@@ -217,12 +217,12 @@ export function SignUpForm() {
               <SelectContent className="bg-stone-700 text-white">
                 {!marketplaceMode ? <SelectItem value="advertiser">Create Tasks</SelectItem> : null}
                 {!marketplaceMode ? <SelectItem value="earner">Earn by performing tasks</SelectItem> : null}
-                {marketplaceMode ? <SelectItem value="vendor">Pamba Vendor Store</SelectItem> : null}
-                {marketplaceMode ? <SelectItem value="customer">Marketplace Customer</SelectItem> : null}
+                {marketplaceMode ? <SelectItem value="vendor">Pamba marketplace seller</SelectItem> : null}
+                {marketplaceMode ? <SelectItem value="customer">Marketplace buyer</SelectItem> : null}
               </SelectContent>
             </Select>
             <p className="mt-2 text-xs text-stone-400">
-              Vendors can set up a storefront and list products. Customers can track marketplace purchases and referrals.
+              Sellers can set up a storefront and list products. Buyers can track marketplace purchases and referrals.
             </p>
           </div>
 
@@ -271,7 +271,7 @@ export function SignUpForm() {
               </a>
             ) : (
               <a href="/auth/sign-up?marketplace=1" className="text-amber-400 hover:underline">
-                Sign up to marketplace (vendor/customer)
+                Sign up to marketplace (seller/buyer)
               </a>
             )}
           </p>

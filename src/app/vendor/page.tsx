@@ -38,6 +38,7 @@ type VendorProfile = {
     ninSlipUrl?: string
     facialVerificationUrl?: string
   }
+  vendorVerificationRejectionReason?: string
 }
 
 function parseTimestampMs(value: unknown) {
@@ -406,6 +407,7 @@ export default function VendorDashboardPage() {
   }
 
   const statusText = isVendorVerified ? "Verified" : isRejected ? "Needs attention" : "Waiting for verification"
+  const rejectionReason = String(profile?.vendorVerificationRejectionReason || "").trim()
 
   if (loading) {
     return <VendorPulseLoader label="Loading your vendor dashboard..." />
@@ -534,6 +536,13 @@ export default function VendorDashboardPage() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
               Fill all fields below. After admin approval, this form will be replaced with your normal store dashboard.
             </p>
+            {isRejected && rejectionReason ? (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                <p className="font-semibold">Your previous verification was rejected.</p>
+                <p className="mt-1">Reason: {rejectionReason}</p>
+                <p className="mt-1">Please correct the issue and submit again.</p>
+              </div>
+            ) : null}
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
@@ -553,19 +562,19 @@ export default function VendorDashboardPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <label className="cursor-pointer rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm">
                 <span className="mb-2 inline-flex items-center gap-2 font-medium text-stone-900"><FileText className="h-4 w-4" /> Proof of address</span>
-                <input className="hidden" type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && void uploadFile("proof", e.target.files[0])} />
+                <input required className="hidden" type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && void uploadFile("proof", e.target.files[0])} />
                 <p className="text-stone-600">{proofOfAddressUrl ? "Uploaded" : uploadingField === "proof" ? "Uploading..." : "Tap to upload"}</p>
               </label>
 
               <label className="cursor-pointer rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm">
                 <span className="mb-2 inline-flex items-center gap-2 font-medium text-stone-900"><FileBadge2 className="h-4 w-4" /> NIN slip</span>
-                <input className="hidden" type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && void uploadFile("nin", e.target.files[0])} />
+                <input required className="hidden" type="file" accept="image/*,.pdf" onChange={(e) => e.target.files?.[0] && void uploadFile("nin", e.target.files[0])} />
                 <p className="text-stone-600">{ninSlipUrl ? "Uploaded" : uploadingField === "nin" ? "Uploading..." : "Tap to upload"}</p>
               </label>
 
               <label className="cursor-pointer rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm">
                 <span className="mb-2 inline-flex items-center gap-2 font-medium text-stone-900"><ImageIcon className="h-4 w-4" /> Store cover image</span>
-                <input className="hidden" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && void uploadFile("cover", e.target.files[0])} />
+                <input required className="hidden" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && void uploadFile("cover", e.target.files[0])} />
                 <p className="text-stone-600">{storeCoverUrl ? "Uploaded" : uploadingField === "cover" ? "Uploading..." : "Tap to upload"}</p>
               </label>
             </div>
@@ -574,6 +583,7 @@ export default function VendorDashboardPage() {
               <p className="text-sm font-medium text-stone-900">Bank details (required)</p>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <select
+                  required
                   value={bankCode}
                   onChange={(e) => {
                     const code = e.target.value
@@ -592,11 +602,12 @@ export default function VendorDashboardPage() {
                   ))}
                 </select>
                 <Input
+                  required
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   placeholder="Account number"
                 />
-                <Input value={accountName} readOnly placeholder={verifyingBank ? "Verifying account..." : "Verified account name"} className="md:col-span-2" />
+                <Input required value={accountName} readOnly placeholder={verifyingBank ? "Verifying account..." : "Verified account name"} className="md:col-span-2" />
               </div>
             </div>
 

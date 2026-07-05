@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Package, Wallet, TrendingUp, Store } from "lucide-react"
+import { Package, Wallet, TrendingUp, Store, BadgeCheck } from "lucide-react"
+import toast from "react-hot-toast"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { AdminPageHeader, EmptyState, MetricCard, SectionCard, StatusBadge } from "@/app/admin/_components/admin-primitives"
 
 type VendorDetail = {
@@ -19,6 +22,7 @@ type VendorDetail = {
   storefrontLink: string
   storeCoverUrl: string
   verificationDetails?: Record<string, unknown>
+  vendorVerificationRejectionReason?: string
   bank?: Record<string, unknown>
   productsPublishedCount: number
   balance: number
@@ -42,6 +46,8 @@ export default function AdminVendorDetailPage() {
   const [error, setError] = useState("")
   const [vendor, setVendor] = useState<VendorDetail | null>(null)
   const [products, setProducts] = useState<VendorProduct[]>([])
+  const [actionReason, setActionReason] = useState("")
+  const [savingAction, setSavingAction] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -61,6 +67,38 @@ export default function AdminVendorDetailPage() {
     }
     if (vendorId) void load()
   }, [vendorId])
+
+  const updateVendor = async (action: "approve" | "reject" | "hold") => {
+    if (action === "reject" && !actionReason.trim()) {
+      toast.error("Please add a rejection reason.")
+      return
+    }
+    setSavingAction(true)
+    try {
+      const res = await fetch(`/api/admin/vendors/${vendorId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          rejectionReason: actionReason.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) throw new Error(data.message || "Failed to update vendor")
+      toast.success(action === "approve" ? "Vendor approved" : action === "reject" ? "Vendor rejected" : "Vendor held")
+      setActionReason("")
+      const refresh = await fetch(`/api/admin/vendors/${vendorId}`, { cache: "no-store" })
+      const refreshed = await refresh.json().catch(() => ({}))
+      if (refresh.ok && refreshed.success) {
+        setVendor(refreshed.vendor || null)
+        setProducts(Array.isArray(refreshed.products) ? refreshed.products : [])
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update vendor")
+    } finally {
+      setSavingAction(false)
+    }
+  }
 
   if (loading) return <div className="h-56 animate-pulse rounded-3xl bg-stone-100" />
   if (!vendor) {
@@ -97,18 +135,48 @@ export default function AdminVendorDetailPage() {
       </div>
 
       <SectionCard title="Vendor information" description="Verification, bank, and store settings.">
-        <div className="space-y-2 text-sm text-stone-700">
-          <p>Store slug: {vendor.storefrontSlug || "Not set"}</p>
-          <p>
-            Store link:{" "}
-            {vendor.storefrontLink ? (
-              <a className="text-blue-700 underline" href={vendor.storefrontLink} target="_blank" rel="noreferrer">Open storefront</a>
-            ) : (
-              "Not set"
-            )}
-          </p>
-          <p>Verification details: {vendor.verificationDetails ? "Submitted" : "Not submitted"}</p>
-          <p>Bank details: {vendor.bank ? "Submitted" : "Not submitted"}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 text-sm text-stone-700">
+            <p>Store slug: {vendor.storefrontSlug || "Not set"}</p>
+            <p>
+              Store link:{" "}
+              {vendor.storefrontLink ? (
+                <a className="text-blue-700 underline" href={vendor.storefrontLink} target="_blank" rel="noreferrer">Open storefront</a>
+              ) : (
+                "Not set"
+              )}
+            </p>
+            <p>Verification details: {vendor.verificationDetails ? "Submitted" : "Not submitted"}</p>
+            <p>Bank details: {vendor.bank ? "Submitted" : "Not submitted"}</p>
+            {vendor.vendorVerificationRejectionReason ? (
+              <p className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-800">
+                <strong>Previous rejection reason:</strong> {vendor.vendorVerificationRejectionReason}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
+            <p className="text-sm font-semibold text-stone-900">Review action</p>
+            <p className="mt-1 text-sm text-stone-600">Use this area to approve, hold, or reject the vendor verification with a reason.</p>
+            <Textarea
+              value={actionReason}
+              onChange={(e) => setActionReason(e.target.value)}
+              placeholder="Add a rejection reason here when rejecting..."
+              className="mt-4 min-h-28"
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button className="rounded-full bg-emerald-600 hover:bg-emerald-500" onClick={() => void updateVendor("approve")} disabled={savingAction}>
+                <BadgeCheck className="mr-2 h-4 w-4" />
+                Approve
+              </Button>
+              <Button variant="outline" className="rounded-full" onClick={() => void updateVendor("hold")} disabled={savingAction}>
+                Hold
+              </Button>
+              <Button variant="outline" className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50" onClick={() => void updateVendor("reject")} disabled={savingAction}>
+                Reject
+              </Button>
+            </div>
+          </div>
         </div>
       </SectionCard>
 

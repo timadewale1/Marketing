@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { syncVendorStoreEligibility } from "@/lib/vendor-store"
+import { sendVendorVerificationSubmittedEmail } from "@/lib/mailer"
 
 async function requireVendor(req: Request) {
   const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
@@ -32,6 +33,7 @@ export async function GET(req: Request) {
     if (auth.vendorData.vendorPaymentStatus === undefined) bootstrapUpdates.vendorPaymentStatus = "unpaid"
     if (auth.vendorData.monthlyRentStatus === undefined) bootstrapUpdates.monthlyRentStatus = "unpaid"
     if (auth.vendorData.storeStatus === undefined) bootstrapUpdates.storeStatus = "awaiting_verification"
+    if (auth.vendorData.vendorVerificationRejectionReason === undefined) bootstrapUpdates.vendorVerificationRejectionReason = ""
     if (Object.keys(bootstrapUpdates).length > 0) {
       bootstrapUpdates.updatedAt = auth.admin.firestore.FieldValue.serverTimestamp()
       await auth.vendorRef.set(bootstrapUpdates, { merge: true })
@@ -142,9 +144,9 @@ export async function PATCH(req: Request) {
         accountName: accountName || null,
         verified: Boolean(bankName && bankCode && accountNumber && accountName),
       }
-      const verificationStatus = String(auth.vendorData.vendorVerificationStatus || "pending").toLowerCase()
-      updates.vendorVerificationStatus = verificationStatus || "pending"
-      updates.vendorVerified = verificationStatus === "verified" || verificationStatus === "approved"
+      updates.vendorVerificationStatus = "pending"
+      updates.vendorVerified = false
+      updates.vendorVerificationRejectionReason = String(auth.vendorData.vendorVerificationRejectionReason || "")
       updates.verificationSubmittedAt = auth.admin.firestore.FieldValue.serverTimestamp()
     }
 
@@ -152,6 +154,15 @@ export async function PATCH(req: Request) {
 
     const nextVendorSnap = await auth.vendorRef.get()
     await syncVendorStoreEligibility(auth.dbAdmin, auth.vendorId, nextVendorSnap.data() as Record<string, unknown>)
+
+    if (updateType === "verification") {
+      await sendVendorVerificationSubmittedEmail({
+        vendorName: String(auth.vendorData.name || auth.vendorData.companyName || "Vendor"),
+        email: String(auth.vendorData.email || ""),
+      }).catch((error) => {
+        console.error("[vendor][profile][PATCH] admin alert failed:", error)
+      })
+    }
 
     return NextResponse.json({ success: true, verificationComplete, updateType })
   } catch (error) {
