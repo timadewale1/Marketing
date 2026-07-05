@@ -287,9 +287,13 @@ export async function GET(request: Request) {
 
           let advertiserBalance = 0
           if (remainingToCover > 0 && advertiserId) {
-            const advertiserRef = adminDb.collection('advertisers').doc(advertiserId)
-            const advertiserSnap = await t.get(advertiserRef)
-            advertiserBalance = Number(advertiserSnap.data()?.balance || 0)
+            const ownerRef = await resolveOwnerRef(adminDb, advertiserId)
+            if (!ownerRef) {
+              remainingToCover = 0
+            } else {
+              const advertiserSnap = await t.get(ownerRef)
+              advertiserBalance = Number(advertiserSnap.data()?.balance || 0)
+            }
           }
 
           if (remainingToCover > 0 && advertiserBalance < remainingToCover) {
