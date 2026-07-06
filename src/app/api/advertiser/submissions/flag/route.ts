@@ -96,6 +96,8 @@ export async function POST(req: Request) {
     }
 
     const reviewStatus = String(submission.advertiserDecisionStatus || '').trim().toLowerCase()
+    const resubmissionSubmitted = String((submission as { resubmissionStatus?: string }).resubmissionStatus || '').toLowerCase() === 'submitted'
+      || Boolean((submission as { resubmissionSubmittedAt?: unknown }).resubmissionSubmittedAt)
     if (reviewStatus === 'approved' || reviewStatus === 'rejected' || reviewStatus === 'resubmission_requested') {
       if ((reviewStatus === 'approved' && action === 'Verified') || (reviewStatus === 'rejected' && action === 'Rejected')) {
         return NextResponse.json({ success: true, message: 'This submission was already reviewed' })
@@ -103,7 +105,11 @@ export async function POST(req: Request) {
       if (reviewStatus === 'resubmission_requested' && action === 'RequestResubmission') {
         return NextResponse.json({ success: true, message: 'This submission already has a resubmission request' })
       }
-      return NextResponse.json({ success: false, message: 'This submission has already been reviewed and cannot be changed' }, { status: 400 })
+      if (reviewStatus === 'resubmission_requested' && resubmissionSubmitted && (action === 'Verified' || action === 'Rejected')) {
+        // allow review of the fresh resubmission
+      } else {
+        return NextResponse.json({ success: false, message: 'This submission has already been reviewed and cannot be changed' }, { status: 400 })
+      }
     }
 
     if (String(submission.status || '') !== 'Pending') {

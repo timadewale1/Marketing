@@ -48,10 +48,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const status = String(submission.status || "")
+    const advertiserDecisionStatus = String((submission as { advertiserDecisionStatus?: string }).advertiserDecisionStatus || "").toLowerCase()
+    const resubmissionStatus = String((submission as { resubmissionStatus?: string }).resubmissionStatus || "").toLowerCase()
+    const resubmissionSubmittedAt = (submission as { resubmissionSubmittedAt?: unknown }).resubmissionSubmittedAt
+    const canOpenForReview =
+      advertiserDecisionStatus === "resubmission_requested" || resubmissionStatus === "submitted" || Boolean(resubmissionSubmittedAt)
     const updates: Record<string, unknown> = {}
 
     if (proofUrls.length > 0) {
-      if (status === "Verified" || status === "Rejected") {
+      if ((status === "Verified" || status === "Rejected") && !canOpenForReview) {
         return NextResponse.json({ success: false, message: "This submission can no longer be updated" }, { status: 400 })
       }
       const fingerprintRefs = proofHashes.map((hash: string) => dbAdmin.collection("proofFingerprints").doc(hash))
@@ -62,16 +67,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       updates.proofUrl = proofUrls[0]
       updates.proofUrls = proofUrls
       updates.proofHashes = proofHashes
-      if (String(submission.status || "").toLowerCase() === "pending" && String((submission as { advertiserDecisionStatus?: string }).advertiserDecisionStatus || "").toLowerCase() === "resubmission_requested") {
+      if (advertiserDecisionStatus === "resubmission_requested" || resubmissionStatus === "pending") {
         updates.resubmissionSubmittedAt = admin.firestore.FieldValue.serverTimestamp()
         updates.resubmissionStatus = "submitted"
         updates.reviewWindowStartedAt = admin.firestore.FieldValue.serverTimestamp()
         updates.advertiserDecisionStatus = "pending"
+        updates.status = "Pending"
+        updates.reviewedAt = admin.firestore.FieldValue.delete()
+        updates.reviewedBy = admin.firestore.FieldValue.delete()
+        updates.rejectionReason = admin.firestore.FieldValue.delete()
+        updates.finalDecisionAt = admin.firestore.FieldValue.delete()
+        updates.finalDecisionBy = admin.firestore.FieldValue.delete()
+        updates.finalDecisionSource = admin.firestore.FieldValue.delete()
       }
     }
 
     if (disputeReason.length > 0) {
-      if (status !== "Rejected") {
+      if (status !== "Rejected" && !canOpenForReview && advertiserDecisionStatus !== "resubmission_requested") {
         return NextResponse.json({ success: false, message: "You can only dispute a rejected submission" }, { status: 400 })
       }
       updates.earnerDisputeReason = disputeReason
