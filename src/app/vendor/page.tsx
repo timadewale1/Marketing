@@ -62,7 +62,6 @@ export default function VendorDashboardPage() {
   const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
   const [profile, setProfile] = useState<VendorProfile | null>(null)
   const [submittingVerification, setSubmittingVerification] = useState(false)
-  const [submittingSettings, setSubmittingSettings] = useState(false)
   const [showSetupPayment, setShowSetupPayment] = useState(false)
   const [showRentPayment, setShowRentPayment] = useState(false)
   const [guideStage, setGuideStage] = useState<"preverification" | "postverification" | null>(null)
@@ -377,42 +376,6 @@ export default function VendorDashboardPage() {
     }
   }
 
-  const saveStoreSettings = async () => {
-    if (!auth.currentUser) return
-    if (!storefrontLink || !storefrontSlug || !storeCoverUrl) {
-      toast.error("Please provide your store contact link, store link text, and cover image.")
-      return
-    }
-    setSubmittingSettings(true)
-    try {
-      const idToken = await auth.currentUser.getIdToken()
-      const res = await fetch("/api/vendor/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          updateType: "settings",
-          storefrontLink,
-          storefrontSlug,
-          storeCoverUrl,
-          shopLayout,
-          shopTheme,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.success) throw new Error(data.message || "Could not update store settings")
-      toast.success("Store settings updated")
-      await loadProfile(idToken)
-    } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : "Could not update settings")
-    } finally {
-      setSubmittingSettings(false)
-    }
-  }
-
   const registerVendorPaymentReference = async (
     reference: string,
     purpose: "setup_fee" | "monthly_rent",
@@ -494,13 +457,15 @@ export default function VendorDashboardPage() {
               <p className="max-w-3xl text-sm leading-6 text-stone-600">
                 Build your store and list products once your account is approved and your setup fee is complete.
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600" disabled={!canPublish}>
-                  <Link href="/vendor/products">Manage products</Link>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
+                  <Link href="/vendor/products">Manage and Add Products</Link>
                 </Button>
-                <Button asChild variant="outline" className="rounded-full">
-                  <Link href="/vendor/create-task">Create task</Link>
-                </Button>
+                {canPublish ? (
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/vendor/create-task">Create task</Link>
+                  </Button>
+                ) : null}
                 {profile?.storefrontSlug ? (
                   <>
                     <Button asChild variant="outline" className="rounded-full">
@@ -771,55 +736,7 @@ export default function VendorDashboardPage() {
             ) : null}
           </CardContent>
         </Card>
-      ) : (
-        <Card className="rounded-[28px] border-stone-200 bg-white">
-          <CardContent className="p-6 md:p-8">
-            <h2 className="text-xl font-semibold text-stone-900">Store settings</h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              Your account is verified. Manage your public shop details below.
-            </p>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Input value={storefrontLink} onChange={(e) => setStorefrontLink(e.target.value)} placeholder="Customer contact link (WhatsApp or website)" />
-              <Input value={storefrontSlug} onChange={(e) => setStorefrontSlug(e.target.value)} placeholder="Shop link name (example: glow-skincare)" />
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Shop layout style</label>
-                <select
-                  value={shopLayout}
-                  onChange={(e) => setShopLayout(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-stone-300 px-3 text-sm text-stone-700 outline-none focus:border-cyan-400"
-                >
-                  <option value="cards">Cards</option>
-                  <option value="spotlight">Spotlight</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Shop color mood</label>
-                <select
-                  value={shopTheme}
-                  onChange={(e) => setShopTheme(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-stone-300 px-3 text-sm text-stone-700 outline-none focus:border-cyan-400"
-                >
-                  <option value="classic">Classic</option>
-                  <option value="ocean">Ocean</option>
-                  <option value="sunset">Sunset</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="cursor-pointer rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-700">
-                <span className="mb-2 inline-flex items-center gap-2 font-medium text-stone-900"><ImageIcon className="h-4 w-4" /> Update store cover image</span>
-                <input className="hidden" type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && void uploadFile("cover", e.target.files[0])} />
-                <p>{storeCoverUrl ? "Cover uploaded" : uploadingField === "cover" ? "Uploading..." : "Tap to upload"}</p>
-              </label>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Button className="rounded-full bg-cyan-700 hover:bg-cyan-600" onClick={() => void saveStoreSettings()} disabled={submittingSettings}>
-                {submittingSettings ? "Saving..." : "Save shop settings"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      ) : null}
 
       {showSetupPayment ? (
         <PaymentSelector

@@ -42,7 +42,7 @@ const VENDOR_NAV_SECTIONS = [
     items: [
       { label: "Profile", path: "/vendor/profile", icon: UserCircle },
       { label: "Bank", path: "/vendor/bank", icon: Banknote },
-      { label: "Settings", path: "/vendor", icon: Settings },
+      { label: "Settings", path: "/vendor/profile", icon: Settings },
     ],
   },
 ]
@@ -53,6 +53,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [name, setName] = useState("Vendor")
   const [profilePic, setProfilePic] = useState("")
+  const [canCreateTask, setCanCreateTask] = useState(false)
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
@@ -66,6 +67,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         const data = snap.data() as Record<string, unknown>
         setName(String(data.name || "Vendor"))
         setProfilePic(String(data.profilePic || ""))
+        const verified = String(data.vendorVerificationStatus || "").toLowerCase()
+        const setupPaid = String(data.vendorPaymentStatus || "").toLowerCase() === "paid"
+        setCanCreateTask((verified === "verified" || verified === "approved") && setupPaid)
       })
     })
 
@@ -140,6 +144,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{section.title}</p>
               <div className="mt-2 space-y-1">
                 {section.items.map((item) => {
+                  if (item.path === "/vendor/create-task" && !canCreateTask) return null
                   const active = pathname === item.path
                   return (
                     <button

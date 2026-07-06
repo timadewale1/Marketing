@@ -41,6 +41,13 @@ export async function GET() {
       }
     }).sort((a, b) => b.updatedAtMs - a.updatedAtMs)
 
+    const productCounts = products.reduce<Record<string, number>>((acc, product) => {
+      const key = String(product.vendorId || "")
+      if (!key) return acc
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {})
+
     const vendors = vendorsSnap.docs.map((docItem) => {
       const data = docItem.data() as Record<string, unknown>
       return {
@@ -54,11 +61,12 @@ export async function GET() {
         shopLayout: String(data.shopLayout || "cards"),
         vendorVerificationStatus: String(data.vendorVerificationStatus || ""),
         monthlyRentStatus: String(data.monthlyRentStatus || ""),
+        productsCount: Number(productCounts[docItem.id] || 0),
         updatedAtMs: typeof data.updatedAt === "object" && data.updatedAt && "seconds" in data.updatedAt
           ? Number((data.updatedAt as { seconds?: number }).seconds || 0) * 1000
           : 0,
       }
-    }).sort((a, b) => b.updatedAtMs - a.updatedAtMs)
+    }).filter((vendor) => vendor.productsCount > 0).sort((a, b) => b.updatedAtMs - a.updatedAtMs)
 
     return NextResponse.json({
       success: true,

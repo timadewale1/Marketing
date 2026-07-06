@@ -128,6 +128,21 @@ export default function VendorProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card id="settings" className="rounded-3xl border-cyan-100 bg-white shadow-[0_24px_80px_-60px_rgba(8,145,178,0.25)]">
+        <CardContent className="p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700">Shop settings</p>
+          <h2 className="mt-2 text-xl font-semibold text-stone-900">Manage your storefront style</h2>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            Use the vendor dashboard to update your shop cover image, link name, layout style, and color mood. This page keeps the public profile and shop details easy to review.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
+              <Link href="/vendor">Open dashboard settings</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

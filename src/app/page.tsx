@@ -1018,11 +1018,11 @@ export default function PAMBALanding() {
               <Link href="/marketplace" className="btn-primary-lg">
                 Visit Marketplace <ArrowRight size={18} />
               </Link>
-              <Link href="/marketplace/auth/sign-up?role=vendor" className="btn-outline-lg">
-                Become a Vendor
+              <Link href="/marketplace/auth/sign-up?role=vendor" className="btn-outline-lg" style={{ background: "#111827", color: "#fff", borderColor: "#111827" }}>
+                Become a Seller
               </Link>
-              <Link href="/marketplace/auth/sign-up?role=customer" className="btn-outline-lg">
-                Become a Customer
+              <Link href="/marketplace/auth/sign-up?role=customer" className="btn-outline-lg" style={{ background: "#0891b2", color: "#fff", borderColor: "#0891b2" }}>
+                Become a Buyer
               </Link>
             </div>
           </div>
