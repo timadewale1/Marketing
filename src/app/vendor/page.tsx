@@ -48,6 +48,15 @@ function parseTimestampMs(value: unknown) {
   return Number((value as { seconds?: number }).seconds || 0) * 1000
 }
 
+function formatDateLabel(ms: number) {
+  if (!ms) return ""
+  return new Date(ms).toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
 export default function VendorDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
@@ -180,6 +189,18 @@ export default function VendorDashboardPage() {
   const dueAtMs = parseTimestampMs(profile?.monthlyRentDueAt)
   const rentDue = setupPaid && dueAtMs > 0 && Date.now() >= dueAtMs
   const rentPaid = String(profile?.monthlyRentStatus || "").toLowerCase() === "paid" && !rentDue
+  const rentBadgeLabel = !setupPaid
+    ? "Setup fee: Pending"
+    : rentDue
+      ? "Rent: Due now"
+      : dueAtMs > 0
+        ? `Rent due: ${formatDateLabel(dueAtMs)}`
+        : "Rent: First month free"
+  const rentCardLabel = !setupPaid
+    ? "Monthly rent"
+    : rentDue
+      ? "Monthly rent is due"
+      : "First month free"
   const canPublish = isVendorVerified && setupPaid && (!rentDue || rentPaid)
 
   const verificationComplete = Boolean(
@@ -507,9 +528,7 @@ export default function VendorDashboardPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge className="rounded-full border-cyan-200 bg-cyan-50 px-3 py-1 text-cyan-700">{statusText}</Badge>
-              <Badge className="rounded-full border-stone-200 bg-stone-50 px-3 py-1 text-stone-700">
-                Setup fee: {setupPaid ? "Paid" : "Pending"}
-              </Badge>
+              <Badge className="rounded-full border-stone-200 bg-stone-50 px-3 py-1 text-stone-700">{rentBadgeLabel}</Badge>
             </div>
           </div>
         </CardContent>
@@ -544,12 +563,16 @@ export default function VendorDashboardPage() {
         </Card>
       </div>
 
-      {setupPaid && dueAtMs > 0 && rentDue ? (
+      {setupPaid ? (
         <Card className="rounded-3xl border-rose-300 bg-rose-50/80 shadow-[0_20px_55px_-40px_rgba(225,29,72,0.65)]">
           <CardContent className="p-5">
-            <p className="text-base font-semibold text-rose-900">Monthly rent is now due to keep your store visible.</p>
+            <p className="text-base font-semibold text-rose-900">{rentCardLabel}</p>
             <p className="mt-1 text-sm text-rose-900/80">
-              Pay now so your products stay live in the marketplace.
+              {rentDue
+                ? "Pay now so your products stay live in the marketplace."
+                : dueAtMs > 0
+                  ? `Your first rent payment becomes due on ${formatDateLabel(dueAtMs)}.`
+                  : "Your first month is free after setup is completed."}
             </p>
             <div className="mt-3">
               <Button className="rounded-full bg-rose-600 hover:bg-rose-500" onClick={() => setShowRentPayment(true)}>
@@ -563,8 +586,8 @@ export default function VendorDashboardPage() {
       <ReviewCenter role="vendor" />
 
       {guideStage ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-950/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-[28px] border border-cyan-100 bg-white p-6 shadow-[0_30px_100px_-50px_rgba(8,145,178,0.8)]">
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-stone-950/60 px-4 py-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[28px] border border-cyan-100 bg-white p-6 shadow-[0_30px_100px_-50px_rgba(8,145,178,0.8)]">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-700">

@@ -18,7 +18,17 @@ type VendorProfile = {
   vendorVerificationStatus?: string
   vendorPaymentStatus?: string
   monthlyRentStatus?: string
+  monthlyRentDueAt?: { seconds?: number }
   storeStatus?: string
+}
+
+function formatDateLabel(ms: number) {
+  if (!ms) return ""
+  return new Date(ms).toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
 }
 
 export default function VendorProfilePage() {
@@ -50,6 +60,17 @@ export default function VendorProfilePage() {
 
   if (loading) return <VendorPulseLoader label="Loading vendor profile..." />
 
+  const setupPaid = String(profile?.vendorPaymentStatus || "").toLowerCase() === "paid"
+  const rentPaid = String(profile?.monthlyRentStatus || "").toLowerCase() === "paid"
+  const rentDueAtMs = Number(profile?.monthlyRentDueAt?.seconds || 0) * 1000
+  const rentBadgeLabel = !setupPaid
+    ? "Rent: First month free after setup"
+    : rentPaid
+      ? "Rent: Paid"
+      : rentDueAtMs
+        ? `Rent due: ${formatDateLabel(rentDueAtMs)}`
+        : "Rent: First month free"
+
   return (
     <div className="space-y-6">
       <Card className="rounded-[30px] border-cyan-100 bg-white shadow-[0_24px_80px_-60px_rgba(8,145,178,0.55)]">
@@ -62,10 +83,10 @@ export default function VendorProfilePage() {
               Verification: {String(profile?.vendorVerificationStatus || "pending")}
             </Badge>
             <Badge className="rounded-full border-stone-200 bg-stone-50 px-3 py-1 text-stone-700">
-              Setup fee: {String(profile?.vendorPaymentStatus || "unpaid")}
+              Setup fee: {setupPaid ? "Paid" : "Pending"}
             </Badge>
             <Badge className="rounded-full border-stone-200 bg-stone-50 px-3 py-1 text-stone-700">
-              Rent: {String(profile?.monthlyRentStatus || "unpaid")}
+              {rentBadgeLabel}
             </Badge>
             <Badge className="rounded-full border-stone-200 bg-stone-50 px-3 py-1 text-stone-700">
               Store: {String(profile?.storeStatus || "awaiting_verification")}
