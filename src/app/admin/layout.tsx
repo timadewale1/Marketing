@@ -22,6 +22,7 @@ import {
   Coins,
   ReceiptText,
   Store,
+  MessageSquareHeart,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -120,6 +121,11 @@ const NAVIGATION = [
     name: "Bills Profit",
     href: "/admin/bills-profit",
     icon: Coins,
+  },
+  {
+    name: "Reviews",
+    href: "/admin/reviews",
+    icon: MessageSquareHeart,
   },
   {
     name: "Withdrawals",

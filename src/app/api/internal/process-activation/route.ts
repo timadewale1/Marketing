@@ -1,20 +1,15 @@
 import { NextResponse } from "next/server"
 import { runFullActivationFlow } from "@/lib/paymentProcessing"
 import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
+import { verifyInternalApiSecret } from "@/lib/internal-api-auth"
 
 type UserRole = "earner" | "advertiser"
-
-function isAuthorized(request: Request) {
-  const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || "").trim()
-  if (!internalSecret) return true
-  return request.headers.get("authorization") === `Bearer ${internalSecret}`
-}
 
 export async function POST(request: Request) {
   const proxied = await proxyToBackendIfConfigured("/api/internal/process-activation", request, { internalAuth: true })
   if (proxied) return proxied
 
-  if (!isAuthorized(request)) {
+  if (!verifyInternalApiSecret(request)) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
   }
 

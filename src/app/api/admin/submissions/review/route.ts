@@ -6,6 +6,7 @@ import { getProofCleanupEligibleAt, runSubmissionProofCleanupIfDue } from '@/lib
 import { buildNextEarnerSuspension, EARNER_STRIKE_SUSPENSION_THRESHOLD, EARNER_STRIKE_SYSTEM_ENABLED } from '@/lib/earner-suspension'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
+import { queueReviewPrompt } from '@/lib/reviews'
 
 interface Submission {
   status?: string
@@ -280,20 +281,20 @@ export async function POST(req: Request): Promise<Response> {
         t.update(adminDb.collection('earners').doc(userId), earnerUpdates)
 
         // 4) Advertiser transaction + stats
-          if (advertiserId) {
-            const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
-            const txCollection = ownerInfo.collection === 'vendors' ? 'vendorTransactions' : 'advertiserTransactions'
-            if (ownerInfo.ref) {
-              const advTxRef = adminDb.collection(txCollection).doc()
-              t.set(advTxRef, {
-                userId: advertiserId,
-                campaignId: submission.campaignId,
-            type: 'debit',
-            amount: fullAmount,
-            status: 'completed',
-            note: `Payment for lead in ${submission.campaignTitle}`,
-            createdAt: now,
-          })
+        if (advertiserId) {
+          const ownerInfo = await resolveOwnerRef(adminDb, String(advertiserId))
+          const txCollection = ownerInfo.collection === 'vendors' ? 'vendorTransactions' : 'advertiserTransactions'
+          if (ownerInfo.ref) {
+            const advTxRef = adminDb.collection(txCollection).doc()
+            t.set(advTxRef, {
+              userId: advertiserId,
+              campaignId: submission.campaignId,
+              type: 'debit',
+              amount: fullAmount,
+              status: 'completed',
+              note: `Payment for lead in ${submission.campaignTitle}`,
+              createdAt: now,
+            })
               const advertiserUpdates: Record<string, unknown> = {
                 totalSpent: admin.firestore.FieldValue.increment(fullAmount),
                 leadsGenerated: admin.firestore.FieldValue.increment(1),
@@ -311,8 +312,43 @@ export async function POST(req: Request): Promise<Response> {
                 }
               }
               t.update(ownerInfo.ref, advertiserUpdates)
-            }
           }
+        }
+
+        if (submission.userId) {
+          const earnerProfileSnap = await adminDb.collection('earners').doc(String(submission.userId)).get()
+          const advertiserOwnerInfo = advertiserId ? await resolveOwnerRef(adminDb, String(advertiserId)) : null
+          const advertiserProfileSnap = advertiserOwnerInfo?.ref ? await advertiserOwnerInfo.ref.get() : null
+          const advertiserName = advertiserProfileSnap
+            ? String(advertiserProfileSnap.data()?.name || advertiserProfileSnap.data()?.fullName || 'Advertiser')
+            : String(campaign.ownerId || 'Advertiser')
+          const earnerName = String(earnerProfileSnap.data()?.fullName || earnerProfileSnap.data()?.name || earnerProfileSnap.data()?.email || 'Earner')
+          const reviewRole = advertiserOwnerInfo?.collection === 'vendors' ? 'vendor' : 'advertiser'
+          await Promise.all([
+            queueReviewPrompt(adminDb, {
+              userId: String(submission.userId),
+              role: 'earner',
+              targetType: 'campaign',
+              targetId: String(campaignId),
+              targetName: String(campaign?.title || submission.campaignTitle || 'Task'),
+              sourceId: subRef.id,
+              sourceLabel: `Approved task: ${String(campaign?.title || submission.campaignTitle || 'Task')}`,
+              message: `Your task "${String(campaign?.title || submission.campaignTitle || 'Task')}" was approved. Share your experience.`,
+            }),
+            advertiserId
+              ? queueReviewPrompt(adminDb, {
+                  userId: String(advertiserId),
+                  role: reviewRole as 'advertiser' | 'vendor',
+                  targetType: 'submission',
+                  targetId: subRef.id,
+                  targetName: earnerName,
+                  sourceId: subRef.id,
+                  sourceLabel: `Approved submission from ${earnerName}`,
+                  message: `A submission for "${String(campaign?.title || submission.campaignTitle || 'Task')}" was approved. Leave a quick review of the participation.`,
+                })
+              : Promise.resolve(),
+          ])
+        }
       } else if (action === 'Rejected') {
         if (prevStatus === 'Rejected') return // idempotent
 

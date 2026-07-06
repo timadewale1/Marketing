@@ -52,11 +52,14 @@ function getInternalApiBaseUrl() {
   return "";
 }
 
-function buildHeaders() {
+function buildHeaders(routePath?: string) {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "x-internal-source": "firebase-functions",
   };
+  if (routePath) {
+    headers["x-internal-route"] = routePath;
+  }
 
   const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || "").trim();
   if (internalSecret) {
@@ -67,7 +70,7 @@ function buildHeaders() {
 }
 
 async function callInternalRoute(path: string) {
-  const headers = buildHeaders();
+  const headers = buildHeaders(path);
   const internalBase = getInternalApiBaseUrl();
   const appBase = APP_BASE_URL.replace(/\/$/, "");
   const targetCandidates = internalBase
@@ -106,7 +109,7 @@ async function callInternalRoute(path: string) {
 
 async function callLegacyNextInternalRoute(path: string) {
   const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
-  const headers = buildHeaders();
+  const headers = buildHeaders(path);
   headers["x-skip-backend-proxy"] = "1";
 
   const response = await fetch(targetUrl, {
@@ -123,7 +126,7 @@ async function callLegacyNextInternalRoute(path: string) {
 
 async function callLegacyNextInternalPostRoute(path: string, payload: Record<string, unknown>) {
   const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
-  const headers = buildHeaders();
+  const headers = buildHeaders(path);
   headers["x-skip-backend-proxy"] = "1";
   headers["Content-Type"] = "application/json";
 

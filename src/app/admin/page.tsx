@@ -308,6 +308,20 @@ export default function Page() {
                 Review earners and advertisers who submit vendor purchase evidence for cashback.
               </p>
             </Link>
+            <Link
+              href="/admin/reviews"
+              className="rounded-3xl border border-stone-200 bg-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-sm"
+            >
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
+                Review management
+              </p>
+              <p className="mt-3 text-xl font-semibold text-stone-900">
+                Moderate dashboard reviews
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Search, filter, and delete feedback left by earners, advertisers, vendors, and customers.
+              </p>
+            </Link>
           </div>
         </SectionCard>
 

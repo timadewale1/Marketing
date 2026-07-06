@@ -2,16 +2,14 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { runSubmissionProofCleanupIfDue } from '@/lib/submission-proof-cleanup'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
+import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 
 export async function GET(req: Request) {
   try {
     const proxied = await proxyToBackendIfConfigured('/api/internal/submission-proof-cleanup', req, { internalAuth: true })
     if (proxied) return proxied
 
-    const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || '').trim()
-    const authHeader = req.headers.get('authorization') || ''
-
-    if (internalSecret && authHeader !== `Bearer ${internalSecret}`) {
+    if (!verifyInternalApiSecret(req)) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 

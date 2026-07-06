@@ -5,6 +5,8 @@ import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from
 import { EARNER_STRIKE_SYSTEM_ENABLED, toDateFromTimestampLike } from '@/lib/earner-suspension'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
+import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
+import { queueReviewPrompt } from '@/lib/reviews'
 
 interface Submission {
   status?: string
@@ -46,10 +48,7 @@ export async function GET(request: Request) {
   const proxied = await proxyToBackendIfConfigured('/api/internal/auto-verify-submissions', request, { internalAuth: true })
   if (proxied) return proxied
 
-  const authHeader = request.headers.get('authorization')
-  // Check both API_INTERNAL_SECRET and CRON_SECRET (matches the Cloud Function's buildHeaders logic)
-  const internalSecret = String(process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || '').trim()
-  if (internalSecret && authHeader !== `Bearer ${internalSecret}`) {
+  if (!verifyInternalApiSecret(request)) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
   }
 
@@ -447,6 +446,40 @@ export async function GET(request: Request) {
 
         if (outcome.value === 'verified') {
           verified += 1
+          try {
+            const earnerUserId = String(sDoc.data()?.userId || '')
+            const reviewedAdvertiserId = String(sDoc.data()?.advertiserId || '')
+            const campaignTitleForReview = String(sDoc.data()?.campaignTitle || 'Task')
+            const earnerNameSnap = await adminDb.collection('earners').doc(earnerUserId).get()
+            const ownerRef = reviewedAdvertiserId ? await resolveOwnerRef(adminDb, reviewedAdvertiserId) : null
+            const earnerName = String(earnerNameSnap.data()?.fullName || earnerNameSnap.data()?.name || earnerNameSnap.data()?.email || 'Earner')
+            await Promise.all([
+              queueReviewPrompt(adminDb, {
+                userId: earnerUserId,
+                role: 'earner',
+                targetType: 'campaign',
+                targetId: String(sDoc.data()?.campaignId || ''),
+                targetName: campaignTitleForReview,
+                sourceId: sDoc.id,
+                sourceLabel: `Completed task: ${campaignTitleForReview}`,
+                message: `Your task "${campaignTitleForReview}" was approved. Share your experience.`,
+              }),
+              reviewedAdvertiserId
+                ? queueReviewPrompt(adminDb, {
+                    userId: reviewedAdvertiserId,
+                    role: ownerRef?.path.startsWith('vendors/') ? 'vendor' : 'advertiser',
+                    targetType: 'submission',
+                    targetId: sDoc.id,
+                    targetName: earnerName,
+                    sourceId: sDoc.id,
+                    sourceLabel: `Approved submission from ${earnerName}`,
+                    message: `A submission for "${campaignTitleForReview}" was approved. Leave a quick review.`,
+                  })
+                : Promise.resolve(),
+            ])
+          } catch (error) {
+            console.error('[internal][auto-verify-submissions] review prompt creation failed', { submissionId: sDoc.id, error })
+          }
         } else if (outcome.value === 'skipped_flagged') {
           skippedFlagged += 1
         } else if (outcome.value === 'skipped_missing_campaign') {

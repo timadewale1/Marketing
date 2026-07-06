@@ -44,6 +44,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import WhatsAppChatButton from "@/components/WhatsAppChatButton"
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
+import ReviewCenter from "@/components/reviews/ReviewCenter"
 import { PointsPanel } from "@/components/points/PointsPanel"
 import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
 import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel"
@@ -630,6 +631,10 @@ export default function EarnerDashboard() {
 
         <div className="mt-10 mb-10">
           <HomepageDirectAds variant="compact" />
+        </div>
+
+        <div className="mb-10">
+          <ReviewCenter role="earner" />
         </div>
       </main>
 

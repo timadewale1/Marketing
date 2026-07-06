@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { onAuthStateChanged } from "firebase/auth"
+import { doc, onSnapshot } from "firebase/firestore"
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage"
 import toast from "react-hot-toast"
-import { auth, storage } from "@/lib/firebase"
+import { auth, db, storage } from "@/lib/firebase"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PaymentSelector } from "@/components/payment-selector"
 import VendorPulseLoader from "@/components/vendor/VendorPulseLoader"
+import ReviewCenter from "@/components/reviews/ReviewCenter"
 import { AlertCircle, Camera, FileBadge2, FileText, ImageIcon, Package, ShieldCheck, Store, Wallet } from "lucide-react"
 import { NIGERIAN_BANKS } from "@/lib/banks"
 
@@ -111,7 +113,10 @@ export default function VendorDashboardPage() {
   }
 
   useEffect(() => {
+    let unsubProfile: (() => void) | null = null
     const unsub = onAuthStateChanged(auth, async (user) => {
+      unsubProfile?.()
+      unsubProfile = null
       setUserId(user?.uid ?? null)
       if (!user) {
         setProfile(null)
@@ -122,6 +127,10 @@ export default function VendorDashboardPage() {
       try {
         const idToken = await user.getIdToken()
         await loadProfile(idToken)
+        unsubProfile = onSnapshot(doc(db, "vendors", user.uid), (snap) => {
+          if (!snap.exists()) return
+          setProfile(snap.data() as VendorProfile)
+        })
       } catch (error) {
         console.error(error)
         toast.error("Could not load vendor profile")
@@ -129,7 +138,10 @@ export default function VendorDashboardPage() {
         setLoading(false)
       }
     })
-    return () => unsub()
+    return () => {
+      unsubProfile?.()
+      unsub()
+    }
   }, [])
 
   useEffect(() => {
@@ -528,6 +540,8 @@ export default function VendorDashboardPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <ReviewCenter role="vendor" />
 
       {!isVendorVerified ? (
         <Card className="rounded-[28px] border-stone-200 bg-white">

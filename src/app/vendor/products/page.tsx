@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { onAuthStateChanged } from "firebase/auth"
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage"
+import { doc, onSnapshot } from "firebase/firestore"
 import { ArrowLeft, ImagePlus, Lock, Package, PencilLine, Store, Trash2, UploadCloud, X } from "lucide-react"
 import toast from "react-hot-toast"
-import { auth, storage } from "@/lib/firebase"
+import { auth, db, storage } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -88,7 +89,10 @@ export default function VendorProductsPage() {
   }
 
   useEffect(() => {
+    let unsubscribeProfile: (() => void) | null = null
     const unsub = onAuthStateChanged(auth, async (user) => {
+      unsubscribeProfile?.()
+      unsubscribeProfile = null
       setUserId(user?.uid ?? null)
       if (!user) {
         setProducts([])
@@ -97,6 +101,18 @@ export default function VendorProductsPage() {
       }
       try {
         const idToken = await user.getIdToken()
+        unsubscribeProfile = onSnapshot(doc(db, "vendors", user.uid), (snap) => {
+          if (!snap.exists()) return
+          const nextProfile = snap.data() as VendorProfileSummary
+          setProfile(nextProfile)
+          const setupPaid = String(nextProfile.vendorPaymentStatus || "").toLowerCase() === "paid"
+          const verified = String(nextProfile.vendorVerificationStatus || "").toLowerCase() === "verified" || String(nextProfile.vendorVerificationStatus || "").toLowerCase() === "approved"
+          const rentDue = setupPaid && toMillis(nextProfile.monthlyRentDueAt) > 0 && Date.now() >= toMillis(nextProfile.monthlyRentDueAt)
+          const canPublishNow = verified && setupPaid && !rentDue
+          if (canPublishNow) {
+            void loadProducts(idToken).catch((error) => console.error("Failed to refresh products after vendor update", error))
+          }
+        })
         await Promise.all([loadProfile(idToken), loadProducts(idToken)])
       } catch (error) {
         console.error(error)
@@ -105,7 +121,10 @@ export default function VendorProductsPage() {
         setLoading(false)
       }
     })
-    return () => unsub()
+    return () => {
+      unsubscribeProfile?.()
+      unsub()
+    }
   }, [])
 
   const resetForm = () => {

@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { requireAdminSession } from "@/lib/admin-session"
 import { VENDOR_PURCHASE_APPROVED_POINTS, awardPointsInTransaction, getPointsEventId } from "@/lib/points"
+import { queueReviewPrompt } from "@/lib/reviews"
 
 function resolveUserCollection(data: Record<string, unknown>) {
   const raw = String(data.userCollection || data.role || data.userType || "").toLowerCase()
@@ -65,6 +66,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             : userCollection === "customers"
               ? "customerTransactions"
               : "earnerTransactions"
+      const reviewRole = userCollection === "advertisers"
+        ? "advertiser"
+        : userCollection === "vendors"
+          ? "vendor"
+          : userCollection === "customers"
+            ? "customer"
+            : "earner"
       const txRef = dbAdmin.collection(transactionCollection).doc()
       const vendorId = String(claim.vendorId || "")
       const vendorSalesRef = vendorId ? dbAdmin.collection("vendorSales").doc() : null
@@ -116,7 +124,32 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             createdAt: FieldValue.serverTimestamp(),
           })
         }
-      })
+        })
+
+      await Promise.all([
+        queueReviewPrompt(dbAdmin, {
+          userId,
+          role: reviewRole,
+          targetType: "vendor",
+          targetId: String(claim.vendorId || ""),
+          targetName: String(claim.vendorName || "Vendor"),
+          sourceId: id,
+          sourceLabel: `Approved purchase claim for ${String(claim.productId || id)}`,
+          message: `Your purchase claim for ${String(claim.vendorName || "vendor")} was approved. Share your experience.`,
+        }),
+        String(claim.vendorId || "").trim()
+          ? queueReviewPrompt(dbAdmin, {
+              userId: String(claim.vendorId || ""),
+              role: "vendor",
+              targetType: "purchase",
+              targetId: id,
+              targetName: String(claim.userName || claim.userEmail || "Customer"),
+              sourceId: id,
+              sourceLabel: `Approved customer purchase for ${String(claim.productId || id)}`,
+              message: `A purchase claim for ${String(claim.productId || id)} was approved. Leave a quick review.`,
+            })
+          : Promise.resolve(),
+      ])
     } else {
       await claimRef.update(updates)
     }
