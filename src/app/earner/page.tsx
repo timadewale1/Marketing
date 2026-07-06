@@ -89,6 +89,7 @@ export default function EarnerDashboard() {
   const [rotIdx, setRotIdx] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showEarnerGroupPrompt, setShowEarnerGroupPrompt] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
 
@@ -121,6 +122,7 @@ export default function EarnerDashboard() {
     let unsubTransactions: (() => void) | null = null
 
     const unsub = auth.onAuthStateChanged(async (u) => {
+      setAuthReady(true)
       if (!u) {
         // Use replace instead of push to prevent back navigation
         router.replace("/auth/sign-in")
@@ -284,6 +286,16 @@ export default function EarnerDashboard() {
     return () => clearInterval(t)
   }, [])
 
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-stone-200 via-cyan-100 to-stone-300 px-6 py-8">
+        <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center rounded-[28px] border border-stone-200 bg-white/80 text-stone-600">
+          Loading earner dashboard...
+        </div>
+      </div>
+    )
+  }
+
   const totalWithdrawn = withdrawHistory.reduce((s, w) => s + (Number(w.amount) || 0), 0)
   const lastWithdraw = withdrawHistory[0]
   // Use referralStats and stats for cards
@@ -382,6 +394,10 @@ export default function EarnerDashboard() {
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
             For membership fee issues, contact us on WhatsApp: 07062991664
           </p>
+        </div>
+
+        <div className="mb-10">
+          <ReviewCenter role="earner" />
         </div>
   {/* Top Cards */}
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -631,10 +647,6 @@ export default function EarnerDashboard() {
 
         <div className="mt-10 mb-10">
           <HomepageDirectAds variant="compact" />
-        </div>
-
-        <div className="mb-10">
-          <ReviewCenter role="earner" />
         </div>
       </main>
 

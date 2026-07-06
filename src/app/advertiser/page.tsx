@@ -86,6 +86,7 @@ export default function AdvertiserDashboard() {
   const [showActivationPaymentSelector, setShowActivationPaymentSelector] = useState(false)
   const referralPromo = getReferralPromoCopy()
   const [showAdvertiserGroupPrompt, setShowAdvertiserGroupPrompt] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
   const activationReloadedRef = useRef(false)
   const previousActivatedRef = useRef<boolean | null>(null)
 
@@ -119,6 +120,7 @@ export default function AdvertiserDashboard() {
     let unsubSubmissions: (() => void) | null = null
 
     const unsubAuth = auth.onAuthStateChanged(async (u) => {
+      setAuthReady(true)
       if (!u) {
         router.replace("/auth/sign-in")
         return
@@ -232,6 +234,16 @@ export default function AdvertiserDashboard() {
   const handleLogout = async () => {
     await signOut(auth)
     router.push("/auth/sign-in")
+  }
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-stone-200 via-cyan-100 to-stone-300 px-6 py-8">
+        <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center rounded-[28px] border border-stone-200 bg-white/80 text-stone-600">
+          Loading advertiser dashboard...
+        </div>
+      </div>
+    )
   }
 
   // Stats cards
@@ -507,6 +519,10 @@ export default function AdvertiserDashboard() {
           </div>
         </div>
 
+        <div className="mb-10">
+          <ReviewCenter role="advertiser" />
+        </div>
+
         {userId ? (
           <div className="mb-10">
             <PointsPanel
@@ -678,10 +694,6 @@ export default function AdvertiserDashboard() {
 
         <div className="mt-10 mb-10">
           <HomepageDirectAds variant="compact" />
-        </div>
-
-        <div className="mb-10">
-          <ReviewCenter role="advertiser" />
         </div>
       </main>
       {showAdvertiserGroupPrompt && (

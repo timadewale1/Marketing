@@ -318,10 +318,6 @@ export async function POST(req: Request): Promise<Response> {
         if (submission.userId) {
           const earnerProfileSnap = await adminDb.collection('earners').doc(String(submission.userId)).get()
           const advertiserOwnerInfo = advertiserId ? await resolveOwnerRef(adminDb, String(advertiserId)) : null
-          const advertiserProfileSnap = advertiserOwnerInfo?.ref ? await advertiserOwnerInfo.ref.get() : null
-          const advertiserName = advertiserProfileSnap
-            ? String(advertiserProfileSnap.data()?.name || advertiserProfileSnap.data()?.fullName || 'Advertiser')
-            : String(campaign.ownerId || 'Advertiser')
           const earnerName = String(earnerProfileSnap.data()?.fullName || earnerProfileSnap.data()?.name || earnerProfileSnap.data()?.email || 'Earner')
           const reviewRole = advertiserOwnerInfo?.collection === 'vendors' ? 'vendor' : 'advertiser'
           await Promise.all([

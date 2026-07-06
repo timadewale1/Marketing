@@ -15,6 +15,7 @@ import {
   ReceiptText,
   Repeat,
   Settings,
+  BookOpen,
   UserCircle,
   Wallet,
   X,
@@ -27,6 +28,7 @@ const VENDOR_NAV_SECTIONS = [
     title: "Overview",
     items: [
       { label: "Dashboard", path: "/vendor", icon: LayoutDashboard },
+      { label: "Guide", path: "/vendor/guide", icon: BookOpen },
       { label: "Products", path: "/vendor/products", icon: Package },
       { label: "Create Task", path: "/vendor/create-task", icon: PlusCircle },
       { label: "Wallet", path: "/vendor/wallet", icon: Wallet },

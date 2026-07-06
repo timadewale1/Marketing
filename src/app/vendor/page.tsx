@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { PaymentSelector } from "@/components/payment-selector"
 import VendorPulseLoader from "@/components/vendor/VendorPulseLoader"
 import ReviewCenter from "@/components/reviews/ReviewCenter"
-import { AlertCircle, Camera, FileBadge2, FileText, ImageIcon, Package, ShieldCheck, Store, Wallet } from "lucide-react"
+import { AlertCircle, BookOpen, Camera, CheckCircle2, FileBadge2, FileText, ImageIcon, Package, ShieldCheck, Store, Wallet } from "lucide-react"
 import { NIGERIAN_BANKS } from "@/lib/banks"
 
 type VendorProfile = {
@@ -56,6 +56,7 @@ export default function VendorDashboardPage() {
   const [submittingSettings, setSubmittingSettings] = useState(false)
   const [showSetupPayment, setShowSetupPayment] = useState(false)
   const [showRentPayment, setShowRentPayment] = useState(false)
+  const [guideStage, setGuideStage] = useState<"preverification" | "postverification" | null>(null)
 
   const [storefrontLink, setStorefrontLink] = useState("")
   const [storefrontSlug, setStorefrontSlug] = useState("")
@@ -159,6 +160,18 @@ export default function VendorDashboardPage() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    const verificationStatus = String(profile?.vendorVerificationStatus || "").toLowerCase()
+    const verified = verificationStatus === "verified" || verificationStatus === "approved"
+    const stage = !verified ? "preverification" : "postverification"
+    const key = `vendor-guide-seen:${userId}:${stage}`
+    const seen = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
+    if (!seen) {
+      setGuideStage(stage)
+    }
+  }, [profile?.vendorPaymentStatus, profile?.vendorVerificationStatus, userId])
 
   const verificationStatusRaw = String(profile?.vendorVerificationStatus || "").toLowerCase()
   const isVendorVerified = verificationStatusRaw === "verified" || verificationStatusRaw === "approved"
@@ -421,6 +434,12 @@ export default function VendorDashboardPage() {
   const statusText = isVendorVerified ? "Verified" : isRejected ? "Needs attention" : "Waiting for verification"
   const rejectionReason = String(profile?.vendorVerificationRejectionReason || "").trim()
 
+  const dismissGuide = () => {
+    if (!userId || !guideStage || typeof window === "undefined") return
+    window.localStorage.setItem(`vendor-guide-seen:${userId}:${guideStage}`, "1")
+    setGuideStage(null)
+  }
+
   if (loading) {
     return <VendorPulseLoader label="Loading your vendor dashboard..." />
   }
@@ -542,6 +561,58 @@ export default function VendorDashboardPage() {
       ) : null}
 
       <ReviewCenter role="vendor" />
+
+      {guideStage ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-950/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-[28px] border border-cyan-100 bg-white p-6 shadow-[0_30px_100px_-50px_rgba(8,145,178,0.8)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-700">
+                  <BookOpen className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700">Vendor guide</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-stone-900">
+                    {guideStage === "preverification" ? "Complete your vendor setup first" : "Your store is ready for the next step"}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {guideStage === "preverification"
+                      ? "Fill the verification form now so the admin can review your store. You will be emailed when the review is approved or if anything needs correction."
+                      : "Your account is approved. You can now manage products, copy your shop link, publish tasks, and track store activity. You will also get email updates whenever your rent, setup, or verification status changes."}
+                  </p>
+                </div>
+              </div>
+              <button onClick={dismissGuide} className="rounded-full px-3 py-2 text-sm font-medium text-stone-500 hover:bg-stone-100">
+                Close
+              </button>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {guideStage === "preverification" ? (
+                <>
+                  <GuideItem title="Step 1: Fill every field" body="Add your shop link, shop link name, address, city, state, NIN, proof of address, NIN slip, store cover image, and live facial capture." />
+                  <GuideItem title="Step 2: Wait for approval" body="After submission, admin reviews your verification. You will get an email alert when they approve or reject it." />
+                </>
+              ) : (
+                <>
+                  <GuideItem title="Step 1: Manage your shop" body="Use your dashboard to update your shop link, store cover, and product settings. Copy your shop link any time to share it." />
+                  <GuideItem title="Step 2: Publish products and tasks" body="Once setup fee and rent are active, you can add products, create eligible tasks, and see your sales, transactions, and referrals." />
+                </>
+              )}
+              <GuideItem title="Email alerts" body="We send email notifications for verification approval or rejection, setup fee confirmation, rent reminders, and account status updates." />
+              <GuideItem title="Need details?" body="Open the vendor guide page any time from the sidebar to see the full step-by-step flow in one place." />
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
+                <Link href="/vendor/guide" onClick={dismissGuide}>Open full vendor guide</Link>
+              </Button>
+              <Button variant="outline" className="rounded-full" onClick={dismissGuide}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Got it
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!isVendorVerified ? (
         <Card className="rounded-[28px] border-stone-200 bg-white">
@@ -762,6 +833,15 @@ export default function VendorDashboardPage() {
           }}
         />
       ) : null}
+    </div>
+  )
+}
+
+function GuideItem({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+      <p className="text-sm font-semibold text-stone-900">{title}</p>
+      <p className="mt-1 text-sm leading-6 text-stone-600">{body}</p>
     </div>
   )
 }

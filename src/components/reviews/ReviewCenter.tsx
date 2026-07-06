@@ -179,6 +179,10 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
     }
   }
 
+  if (!prompts.length && !reviews.length) {
+    return null
+  }
+
   return (
     <div className="space-y-5">
       <Dialog open={Boolean(activePrompt)} onOpenChange={(open) => !open && closePrompt()}>
@@ -234,12 +238,10 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
               <Button
                 className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
                 onClick={() => {
-                  if (!prompts.length) {
-                    toast("There is no review prompt waiting right now.")
-                    return
-                  }
+                  if (!prompts.length) return
                   setPromptIndex(0)
                 }}
+                disabled={!prompts.length}
               >
                 <MessageSquareHeart className="mr-2 h-4 w-4" />
                 Leave a review
@@ -289,9 +291,7 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-stone-600">Reviews will appear here once people start sharing their experiences.</p>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
