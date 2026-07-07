@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import toast from "react-hot-toast"
+import { buildProductContactLink } from "@/lib/vendor-products"
 
 type ProductPayload = {
   success: boolean
@@ -53,7 +54,7 @@ export default function MarketplaceProductPage() {
   }
 
   const product = data.product
-  const contactLink = product.shopLink || data.vendor?.storefrontLink || ""
+  const contactLink = buildProductContactLink(product.contactMethod, product.contactDetails) || product.shopLink || data.vendor?.storefrontLink || ""
 
   const copyProductLink = async () => {
     if (typeof window === "undefined") return
@@ -66,18 +67,32 @@ export default function MarketplaceProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 px-6 py-10">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.12),_transparent_36%),linear-gradient(180deg,#fffaf0_0%,#faf5ea_100%)] px-6 py-10">
       <div className="mx-auto max-w-5xl space-y-6">
-        <Link href="/marketplace" className="inline-block rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700">
+        <Link href="/marketplace" className="inline-block rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-700 shadow-sm">
           Back to marketplace
         </Link>
 
-        <div className="rounded-3xl border border-stone-200 bg-white p-6">
+        <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white p-6 shadow-[0_24px_80px_-55px_rgba(28,25,23,0.35)]">
+          {product.images.length ? (
+            <div className="mb-6 grid gap-3 md:grid-cols-[1.35fr_0.65fr]">
+              <div className="overflow-hidden rounded-3xl border border-stone-200 bg-stone-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={product.images[0]} alt={product.title} className="h-full min-h-[280px] w-full object-cover" />
+              </div>
+              <div className="grid gap-3">
+                {product.images.slice(1, 4).map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={url} src={url} alt={product.title} className="min-h-[88px] w-full rounded-2xl object-cover ring-1 ring-stone-200" />
+                ))}
+              </div>
+            </div>
+          ) : null}
           <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{product.category || "General"}</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{product.title}</h1>
           <p className="mt-2 text-sm text-stone-600">Vendor: {product.vendorName}</p>
           <p className="mt-4 whitespace-pre-line text-sm leading-7 text-stone-700">{product.description}</p>
-          <p className="mt-5 text-2xl font-semibold text-stone-900">₦{Number(product.price || 0).toLocaleString()}</p>
+          <p className="mt-5 text-2xl font-semibold text-stone-900">{"₦"}{Number(product.price || 0).toLocaleString()}</p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             {data.vendor?.id ? (
@@ -86,7 +101,7 @@ export default function MarketplaceProductPage() {
               </Link>
             ) : null}
             {contactLink ? (
-              <a href={contactLink} target="_blank" rel="noopener noreferrer" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white">
+              <a href={contactLink} target="_blank" rel="noopener noreferrer" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white shadow-sm">
                 Contact vendor to buy
               </a>
             ) : null}
@@ -120,3 +135,8 @@ export default function MarketplaceProductPage() {
     </div>
   )
 }
+
+
+
+
+

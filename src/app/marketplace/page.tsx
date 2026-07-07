@@ -36,7 +36,9 @@ type MarketplaceVendor = {
 export default function MarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All")
-  const [vendorFilter, setVendorFilter] = useState("All")
+  const [priceSort, setPriceSort] = useState("featured")
+  const [minPrice, setMinPrice] = useState("")
+  const [maxPrice, setMaxPrice] = useState("")
   const [productPage, setProductPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [hasLiveProducts, setHasLiveProducts] = useState(false)
@@ -128,22 +130,32 @@ export default function MarketplacePage() {
 
   const q = searchQuery.toLowerCase()
   const categories = useMemo(() => ["All", ...Array.from(new Set(products.map((product) => product.category).filter(Boolean)))], [products])
-  const vendorNames = useMemo(() => ["All", ...Array.from(new Set(vendors.map((vendor) => vendor.name).filter(Boolean)))], [vendors])
+
   const visibleProducts = products.filter((product) => {
     const searchMatch = [product.title, product.description, product.category, product.vendorName].join(" ").toLowerCase().includes(q)
     const categoryMatch = categoryFilter === "All" || product.category === categoryFilter
-    const vendorMatch = vendorFilter === "All" || product.vendorName === vendorFilter
-    return searchMatch && categoryMatch && vendorMatch
+    const minMatch = !minPrice || Number(product.price || 0) >= Number(minPrice)
+    const maxMatch = !maxPrice || Number(product.price || 0) <= Number(maxPrice)
+    return searchMatch && categoryMatch && minMatch && maxMatch
   })
+
+  const sortedProducts = useMemo(() => {
+    const next = [...visibleProducts]
+    if (priceSort === "price-asc") return next.sort((a, b) => a.price - b.price)
+    if (priceSort === "price-desc") return next.sort((a, b) => b.price - a.price)
+    return next
+  }, [priceSort, visibleProducts])
+
   const visibleVendors = vendors.filter((vendor) =>
     [vendor.name, vendor.vendorVerificationStatus, vendor.monthlyRentStatus].join(" ").toLowerCase().includes(q)
   )
-  const totalProductPages = Math.max(1, Math.ceil(visibleProducts.length / PRODUCTS_PER_PAGE))
-  const paginatedProducts = visibleProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE)
+
+  const totalProductPages = Math.max(1, Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE))
+  const paginatedProducts = sortedProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE)
 
   useEffect(() => {
     setProductPage(1)
-  }, [searchQuery, categoryFilter, vendorFilter])
+  }, [searchQuery, categoryFilter, priceSort, minPrice, maxPrice])
 
   useEffect(() => {
     if (productPage > totalProductPages) setProductPage(totalProductPages)
@@ -181,7 +193,7 @@ export default function MarketplacePage() {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
+          <div className="mt-8 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr]">
             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
               <Search className="mb-2 h-4 w-4 text-stone-500" />
               <input
@@ -200,16 +212,22 @@ export default function MarketplacePage() {
                   </option>
                 ))}
               </select>
+              {/* Vendor filter is paused for now until vendor metadata is standardized. */}
             </div>
             <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600">
-              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Vendor filter</label>
-              <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="mt-2 w-full bg-transparent text-sm outline-none">
-                {vendorNames.map((vendorName) => (
-                  <option key={vendorName} value={vendorName}>
-                    {vendorName}
-                  </option>
-                ))}
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Price sort</label>
+              <select value={priceSort} onChange={(e) => setPriceSort(e.target.value)} className="mt-2 w-full bg-transparent text-sm outline-none">
+                <option value="featured">Featured</option>
+                <option value="price-asc">Low to high</option>
+                <option value="price-desc">High to low</option>
               </select>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600">
+              <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Price range</label>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} placeholder="Min" type="number" className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none" />
+                <input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max" type="number" className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -293,23 +311,35 @@ export default function MarketplacePage() {
                   <Link
                     key={product.id}
                     href={`/marketplace/product/${product.id}`}
-                    className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_-42px_rgba(28,25,23,0.4)] transition hover:-translate-y-1"
+                    className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-[0_20px_50px_-42px_rgba(28,25,23,0.4)] transition hover:-translate-y-1"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.28em] text-stone-500">{product.category}</p>
-                        <h3 className="mt-1 text-xl font-semibold text-stone-900">{product.title}</h3>
-                        <p className="mt-1 text-sm text-stone-500">{product.vendorName}</p>
-                      </div>
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Live</span>
-                    </div>
-                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">{product.description}</p>
-                    <p className="mt-3 text-lg font-semibold text-stone-900">₦{Number(product.price).toLocaleString()}</p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {product.images.slice(0, 3).map((url) => (
+                    <div className="aspect-[4/3] w-full bg-stone-100">
+                      {product.images[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img key={url} src={url} alt={product.title} className="h-14 w-14 rounded-xl object-cover" />
-                      ))}
+                        <img src={product.images[0]} alt={product.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#fff7ed,#fef3c7)] text-stone-500">
+                          No image yet
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.28em] text-stone-500">{product.category}</p>
+                          <h3 className="mt-1 text-xl font-semibold text-stone-900">{product.title}</h3>
+                          <p className="mt-1 text-sm text-stone-500">{product.vendorName}</p>
+                        </div>
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Live</span>
+                      </div>
+                      <p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">{product.description}</p>
+                      <p className="mt-3 text-lg font-semibold text-stone-900">{"₦"}{Number(product.price).toLocaleString()}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {product.images.slice(0, 3).map((url) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={url} src={url} alt={product.title} className="h-14 w-14 rounded-xl object-cover" />
+                        ))}
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -357,15 +387,10 @@ export default function MarketplacePage() {
                 <Link
                   key={vendor.id}
                   href={vendor.storefrontSlug ? `/marketplace/shop/${vendor.storefrontSlug}` : `/marketplace/vendor/${vendor.id}`}
-                  className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:-translate-y-0.5"
+                  className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5"
                 >
-                  {vendor.storeCoverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={vendor.storeCoverUrl} alt={`${vendor.name} cover`} className="mb-3 h-28 w-full rounded-xl object-cover ring-1 ring-stone-200" />
-                  ) : null}
                   <p className="font-semibold text-stone-900">{vendor.name}</p>
-                  <p className="mt-1 text-sm text-stone-600">Verification: {vendor.vendorVerificationStatus || "pending"}</p>
-                  <p className="mt-1 text-sm text-stone-600">Products: {vendor.productsCount || 0}</p>
+                  <p className="mt-1 text-sm text-stone-600">{vendor.productsCount || 0} products</p>
                 </Link>
               ))}
             </div>
@@ -375,3 +400,8 @@ export default function MarketplacePage() {
     </div>
   )
 }
+
+
+
+
+

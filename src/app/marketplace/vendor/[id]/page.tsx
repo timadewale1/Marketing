@@ -60,13 +60,21 @@ export default function MarketplaceVendorPage() {
       ? "bg-[linear-gradient(180deg,#e0f2fe_0%,#f0f9ff_100%)] border-sky-200"
       : data.vendor.shopTheme === "sunset"
         ? "bg-[linear-gradient(180deg,#fff7ed_0%,#fff1f2_100%)] border-orange-200"
-        : "bg-white border-stone-200"
+        : "bg-[linear-gradient(180deg,#fffaf0_0%,#faf5ea_100%)] border-stone-200"
+
+  const cardTone =
+    data.vendor.shopTheme === "ocean"
+      ? "border-sky-200 bg-white/95 shadow-[0_20px_50px_-40px_rgba(14,165,233,0.35)]"
+      : data.vendor.shopTheme === "sunset"
+        ? "border-orange-200 bg-white/95 shadow-[0_20px_50px_-40px_rgba(249,115,22,0.25)]"
+        : "border-stone-200 bg-white/95 shadow-sm"
 
   const products = Array.isArray(data.products) ? data.products : []
+
   return (
     <div className={`min-h-screen px-6 py-10 ${themeClass}`}>
       <div className="mx-auto max-w-6xl space-y-6">
-        <div className="rounded-3xl border border-stone-200 bg-white p-6">
+        <div className={`rounded-[32px] border p-6 ${cardTone}`}>
           {data.vendor.storeCoverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={data.vendor.storeCoverUrl} alt={`${data.vendor.name} cover`} className="mb-5 h-48 w-full rounded-2xl object-cover ring-1 ring-stone-200" />
@@ -79,7 +87,7 @@ export default function MarketplaceVendorPage() {
               Back to marketplace
             </Link>
             {data.vendor.storefrontLink ? (
-              <a href={data.vendor.storefrontLink} target="_blank" rel="noopener noreferrer" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white">
+              <a href={data.vendor.storefrontLink} target="_blank" rel="noopener noreferrer" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white shadow-sm">
                 Contact vendor
               </a>
             ) : null}
@@ -88,11 +96,21 @@ export default function MarketplaceVendorPage() {
 
         <div className={`grid gap-4 ${data.vendor.shopLayout === "spotlight" ? "md:grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3"}`}>
           {products.map((product) => (
-            <Link key={product.id} href={`/marketplace/product/${product.id}`} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5">
-              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{product.category || "General"}</p>
-              <h2 className="mt-1 text-lg font-semibold text-stone-900">{product.title}</h2>
-              <p className="mt-2 line-clamp-3 text-sm text-stone-600">{product.description}</p>
-              <p className="mt-3 text-lg font-semibold text-stone-900">₦{Number(product.price || 0).toLocaleString()}</p>
+            <Link key={product.id} href={`/marketplace/product/${product.id}`} className={`overflow-hidden rounded-[24px] border transition hover:-translate-y-0.5 ${cardTone}`}>
+              <div className="aspect-[4/3] w-full bg-stone-100">
+                {product.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.images[0]} alt={product.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-stone-500">No product image yet</div>
+                )}
+              </div>
+              <div className="p-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{product.category || "General"}</p>
+                <h2 className="mt-1 text-lg font-semibold text-stone-900">{product.title}</h2>
+                <p className="mt-2 line-clamp-3 text-sm text-stone-600">{product.description}</p>
+                <p className="mt-3 text-lg font-semibold text-stone-900">?{Number(product.price || 0).toLocaleString()}</p>
+              </div>
             </Link>
           ))}
           {!products.length ? (
@@ -106,3 +124,4 @@ export default function MarketplaceVendorPage() {
     </div>
   )
 }
+

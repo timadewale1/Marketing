@@ -486,7 +486,7 @@ export default function VendorDashboardPage() {
                   </>
                 ) : (
                   <Button asChild variant="outline" className="rounded-full">
-                    <Link href="/vendor/profile">Set shop link to enable view shop</Link>
+                    <Link href="/vendor/settings">Set shop link to enable view shop</Link>
                   </Button>
                 )}
               </div>

@@ -42,7 +42,7 @@ const VENDOR_NAV_SECTIONS = [
     items: [
       { label: "Profile", path: "/vendor/profile", icon: UserCircle },
       { label: "Bank", path: "/vendor/bank", icon: Banknote },
-      { label: "Settings", path: "/vendor/profile", icon: Settings },
+      { label: "Settings", path: "/vendor/settings", icon: Settings },
     ],
   },
 ]

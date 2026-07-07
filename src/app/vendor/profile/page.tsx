@@ -106,7 +106,7 @@ export default function VendorProfilePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
-              <Link href="/vendor">Edit profile and shop settings</Link>
+              <Link href="/vendor/settings">Edit profile and shop settings</Link>
             </Button>
             {profile?.storefrontSlug ? (
               <>
@@ -138,7 +138,7 @@ export default function VendorProfilePage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
-              <Link href="/vendor">Open dashboard settings</Link>
+              <Link href="/vendor/settings">Open dashboard settings</Link>
             </Button>
           </div>
         </CardContent>

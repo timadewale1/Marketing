@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { syncVendorStoreEligibility } from "@/lib/vendor-store"
+import { buildProductContactLink, normalizeProductContactMethod } from "@/lib/vendor-products"
 
 async function requireVendor(req: Request) {
   const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
@@ -28,7 +29,7 @@ async function requireVendor(req: Request) {
 }
 
 function parseImages(value: unknown) {
-  return Array.isArray(value) ? value.map((entry) => String(entry || "").trim()).filter(Boolean).slice(0, 6) : []
+  return Array.isArray(value) ? value.map((entry) => String(entry || "").trim()).filter(Boolean).slice(0, 5) : []
 }
 
 export async function PATCH(req: Request, context: { params: Promise<{ id: string }> }) {
@@ -57,12 +58,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const description = String(body.description ?? productData.description ?? "").trim()
     const price = Number(body.price ?? productData.price ?? 0)
     const category = String(body.category ?? productData.category ?? "General").trim()
-    const shopLink = String(body.shopLink ?? productData.shopLink ?? "").trim()
-    const contactMethod = String(body.contactMethod ?? productData.contactMethod ?? "whatsapp").trim().toLowerCase()
+    const contactMethod = normalizeProductContactMethod(body.contactMethod ?? productData.contactMethod ?? "whatsapp")
     const contactDetails = String(body.contactDetails ?? productData.contactDetails ?? "").trim()
     const images = parseImages(body.images ?? productData.images)
     const variations = parseImages(body.variations ?? productData.variations)
     const status = String(body.status ?? productData.status ?? "draft").trim().toLowerCase()
+    const shopLink = String(body.shopLink ?? productData.shopLink ?? buildProductContactLink(contactMethod, contactDetails)).trim()
 
     if (!title || !description || !Number.isFinite(price) || price <= 0) {
       return NextResponse.json({ success: false, message: "Title, description, and price are required" }, { status: 400 })
@@ -83,8 +84,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       description,
       price,
       category,
-      shopLink: shopLink || null,
-      contactMethod: contactMethod || "whatsapp",
+      shopLink: shopLink || buildProductContactLink(contactMethod, contactDetails) || null,
+      contactMethod,
       contactDetails: contactDetails || null,
       images,
       variations,

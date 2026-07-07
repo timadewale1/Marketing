@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import VendorPulseLoader from "@/components/vendor/VendorPulseLoader"
+import { buildProductContactLink, getContactHelperText, getContactPlaceholder, normalizeProductContactMethod, PRODUCT_CATEGORIES } from "@/lib/vendor-products"
 
 type Product = {
   id: string
@@ -54,7 +55,6 @@ export default function VendorProductsPage() {
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [category, setCategory] = useState("")
-  const [shopLink, setShopLink] = useState("")
   const [contactMethod, setContactMethod] = useState("whatsapp")
   const [contactDetails, setContactDetails] = useState("")
   const [variations, setVariations] = useState("")
@@ -134,7 +134,6 @@ export default function VendorProductsPage() {
     setDescription("")
     setPrice("")
     setCategory("")
-    setShopLink("")
     setContactMethod("whatsapp")
     setContactDetails("")
     setVariations("")
@@ -149,8 +148,7 @@ export default function VendorProductsPage() {
     setDescription(product.description)
     setPrice(String(product.price))
     setCategory(product.category || "")
-    setShopLink(product.shopLink || "")
-    setContactMethod(product.contactMethod || "whatsapp")
+    setContactMethod(normalizeProductContactMethod(product.contactMethod))
     setContactDetails(product.contactDetails || "")
     setVariations((product.variations || []).join(", "))
     setFiles(null)
@@ -166,7 +164,8 @@ export default function VendorProductsPage() {
     setUploading(true)
     try {
       const results: string[] = []
-      for (const file of Array.from(files).slice(0, 6)) {
+      const remainingSlots = Math.max(0, 5 - editingImages.length)
+      for (const file of Array.from(files).slice(0, remainingSlots)) {
         const safe = file.name.replace(/[^a-zA-Z0-9_.-]/g, "-")
         const storageRef = ref(storage, `vendorProducts/${uid}/${Date.now()}-${safe}`)
         await new Promise<void>((resolve, reject) => {
@@ -211,6 +210,7 @@ export default function VendorProductsPage() {
       const idToken = await auth.currentUser.getIdToken()
       const newImages = await uploadImages(auth.currentUser.uid)
       const images = [...editingImages, ...newImages]
+      const contactLink = buildProductContactLink(contactMethod, contactDetails)
 
       const res = await fetch(editingProductId ? `/api/vendor/products/${editingProductId}` : "/api/vendor/products", {
         method: editingProductId ? "PATCH" : "POST",
@@ -223,7 +223,7 @@ export default function VendorProductsPage() {
           description,
           price: Number(price),
           category,
-          shopLink,
+          shopLink: contactLink,
           contactMethod,
           contactDetails,
           images,
@@ -312,11 +312,49 @@ export default function VendorProductsPage() {
 
           <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Product title" className="rounded-2xl" disabled={isLocked} />
-            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (₦)" type="number" className="rounded-2xl" disabled={isLocked} />
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="rounded-2xl" disabled={isLocked} />
-            <Input value={shopLink} onChange={(e) => setShopLink(e.target.value)} placeholder="Contact link for this product" className="rounded-2xl" disabled={isLocked} />
-            <Input value={contactMethod} onChange={(e) => setContactMethod(e.target.value)} placeholder="Contact method (e.g. WhatsApp)" className="rounded-2xl" disabled={isLocked} />
-            <Input value={contactDetails} onChange={(e) => setContactDetails(e.target.value)} placeholder="Contact details (number/username)" className="rounded-2xl" disabled={isLocked} />
+            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (?)" type="number" className="rounded-2xl" disabled={isLocked} />
+            <div className="space-y-1">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-10 w-full rounded-2xl border border-stone-300 px-3 text-sm text-stone-700 outline-none focus:border-cyan-400"
+                disabled={isLocked}
+              >
+                <option value="">Select product category</option>
+                {PRODUCT_CATEGORIES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-stone-500">Choose a normal product category customers will understand.</p>
+            </div>
+            <div className="space-y-1">
+              <select
+                value={contactMethod}
+                onChange={(e) => setContactMethod(e.target.value)}
+                className="h-10 w-full rounded-2xl border border-stone-300 px-3 text-sm text-stone-700 outline-none focus:border-cyan-400"
+                disabled={isLocked}
+              >
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
+                <option value="telegram">Telegram</option>
+                <option value="email">Email</option>
+                <option value="website">Website</option>
+                <option value="other">Other</option>
+              </select>
+              <p className="text-xs text-stone-500">Pick the channel customers should use to reach you.</p>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Input
+                value={contactDetails}
+                onChange={(e) => setContactDetails(e.target.value)}
+                placeholder={getContactPlaceholder(contactMethod)}
+                className="rounded-2xl"
+                disabled={isLocked}
+              />
+              <p className="text-xs text-stone-500">{getContactHelperText(contactMethod)}</p>
+            </div>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Product description" className="min-h-[140px] rounded-2xl md:col-span-2" disabled={isLocked} />
             <Input value={variations} onChange={(e) => setVariations(e.target.value)} placeholder="Variations (comma separated)" className="rounded-2xl md:col-span-2" disabled={isLocked} />
 
@@ -349,8 +387,25 @@ export default function VendorProductsPage() {
                 <ImagePlus className="h-4 w-4 text-cyan-600" />
                 Upload product photos
               </span>
-              <span>Pick one or more images for your listing.</span>
-              <input type="file" accept="image/*" multiple onChange={(e) => setFiles(e.target.files)} className="hidden" disabled={isLocked} />
+              <span>Pick up to 5 images for your listing.</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const nextFiles = e.target.files
+                  if (nextFiles && nextFiles.length > 5) {
+                    toast("You can upload up to 5 product images.")
+                  }
+                  setFiles(nextFiles)
+                }}
+                className="hidden"
+                disabled={isLocked}
+              />
+              <span className="text-xs text-stone-500">
+                {editingImages.length > 0 ? `${editingImages.length} saved image${editingImages.length === 1 ? "" : "s"}` : "No saved images yet"}
+                {files?.length ? `, ${Math.min(files.length, Math.max(0, 5 - editingImages.length))} new selected` : ""}
+              </span>
             </label>
 
             <div className="md:col-span-2 flex flex-wrap gap-3">
@@ -385,7 +440,7 @@ export default function VendorProductsPage() {
                 </Badge>
               </div>
               <p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">{product.description}</p>
-              <p className="mt-3 text-lg font-semibold text-stone-900">₦{Number(product.price).toLocaleString()}</p>
+              <p className="mt-3 text-lg font-semibold text-stone-900">{"₦"}{Number(product.price).toLocaleString()}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {product.images.slice(0, 3).map((url) => (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -394,7 +449,9 @@ export default function VendorProductsPage() {
               </div>
               <div className="mt-4 text-sm text-stone-600">
                 <p><span className="font-medium text-stone-900">Contact:</span> {product.contactMethod} {product.contactDetails}</p>
-                <p className="mt-1 break-all"><span className="font-medium text-stone-900">Link:</span> {product.shopLink || "Not set"}</p>
+                <p className="mt-1 break-all">
+                  <span className="font-medium text-stone-900">Contact link:</span> {product.shopLink || buildProductContactLink(product.contactMethod, product.contactDetails) || "Not set"}
+                </p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => beginEdit(product)} disabled={isLocked}>
@@ -432,3 +489,8 @@ export default function VendorProductsPage() {
     </div>
   )
 }
+
+
+
+
+

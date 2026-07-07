@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { syncVendorStoreEligibility } from "@/lib/vendor-store"
+import { buildProductContactLink, normalizeProductContactMethod } from "@/lib/vendor-products"
 
 function toMillis(value: unknown) {
   if (!value) return 0
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
         category: String(data.category || ""),
         price: Number(data.price || 0),
         images: Array.isArray(data.images) ? data.images.map((value) => String(value || "")).filter(Boolean) : [],
-        contactMethod: String(data.contactMethod || "whatsapp"),
+        contactMethod: normalizeProductContactMethod(data.contactMethod),
         contactDetails: String(data.contactDetails || ""),
         status: String(data.status || "draft"),
         visibleOnMarketplace: Boolean(data.visibleOnMarketplace),
@@ -94,11 +95,11 @@ export async function POST(req: Request) {
     const description = String(body.description || "").trim()
     const price = Number(body.price || 0)
     const category = String(body.category || "").trim()
-    const shopLink = String(body.shopLink || "").trim()
-    const contactMethod = String(body.contactMethod || "whatsapp").trim().toLowerCase()
+    const contactMethod = normalizeProductContactMethod(body.contactMethod)
     const contactDetails = String(body.contactDetails || "").trim()
-    const images = Array.isArray(body.images) ? body.images.map((value) => String(value || "").trim()).filter(Boolean).slice(0, 6) : []
+    const images = Array.isArray(body.images) ? body.images.map((value) => String(value || "").trim()).filter(Boolean).slice(0, 5) : []
     const variations = Array.isArray(body.variations) ? body.variations.map((value) => String(value || "").trim()).filter(Boolean).slice(0, 12) : []
+    const shopLink = String(body.shopLink || buildProductContactLink(contactMethod, contactDetails)).trim()
 
     if (!title || !description || !Number.isFinite(price) || price <= 0) {
       return NextResponse.json({ success: false, message: "Title, description, and price are required" }, { status: 400 })
@@ -125,8 +126,8 @@ export async function POST(req: Request) {
       description,
       price,
       category: category || "General",
-      shopLink: shopLink || null,
-      contactMethod: contactMethod || "whatsapp",
+      shopLink: shopLink || buildProductContactLink(contactMethod, contactDetails) || null,
+      contactMethod,
       contactDetails: contactDetails || null,
       images,
       variations,
