@@ -312,7 +312,7 @@ export default function VendorProductsPage() {
 
           <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Product title" className="rounded-2xl" disabled={isLocked} />
-            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (?)" type="number" className="rounded-2xl" disabled={isLocked} />
+            <Input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (₦)" type="number" className="rounded-2xl" disabled={isLocked} />
             <div className="space-y-1">
               <select
                 value={category}

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
@@ -43,6 +43,15 @@ type VendorProfile = {
   vendorVerificationRejectionReason?: string
 }
 
+type VendorProductSummary = {
+  id: string
+  title: string
+  price: number
+  category: string
+  images: string[]
+  visibleOnMarketplace?: boolean
+}
+
 function parseTimestampMs(value: unknown) {
   if (!value || typeof value !== "object" || !("seconds" in value)) return 0
   return Number((value as { seconds?: number }).seconds || 0) * 1000
@@ -65,6 +74,7 @@ export default function VendorDashboardPage() {
   const [showSetupPayment, setShowSetupPayment] = useState(false)
   const [showRentPayment, setShowRentPayment] = useState(false)
   const [guideStage, setGuideStage] = useState<"preverification" | "postverification" | null>(null)
+  const [products, setProducts] = useState<VendorProductSummary[]>([])
 
   const [storefrontLink, setStorefrontLink] = useState("")
   const [storefrontSlug, setStorefrontSlug] = useState("")
@@ -121,6 +131,15 @@ export default function VendorDashboardPage() {
     setAccountName(String(profileBank?.accountName || ""))
   }
 
+  const loadProducts = async (idToken: string) => {
+    const res = await fetch("/api/vendor/products", {
+      headers: { Authorization: `Bearer ${idToken}` },
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.success) return
+    setProducts(Array.isArray(data.products) ? data.products.slice(0, 6) : [])
+  }
+
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -136,6 +155,7 @@ export default function VendorDashboardPage() {
       try {
         const idToken = await user.getIdToken()
         await loadProfile(idToken)
+        await loadProducts(idToken)
         unsubProfile = onSnapshot(doc(db, "vendors", user.uid), (snap) => {
           if (!snap.exists()) return
           setProfile(snap.data() as VendorProfile)
@@ -469,13 +489,13 @@ export default function VendorDashboardPage() {
                 {profile?.storefrontSlug ? (
                   <>
                     <Button asChild variant="outline" className="rounded-full">
-                      <Link href={`/marketplace/shop/${profile.storefrontSlug}`}>View shop</Link>
+                      <Link href={`/vendor/shop-preview/${profile.storefrontSlug}`}>View shop</Link>
                     </Button>
                     <Button
                       variant="outline"
                       className="rounded-full"
                       onClick={() => {
-                        const shopUrl = `${window.location.origin}/marketplace/shop/${profile.storefrontSlug}`
+                        const shopUrl = `${window.location.origin}/vendor/shop-preview/${profile.storefrontSlug}`
                         navigator.clipboard.writeText(shopUrl)
                           .then(() => toast.success("Shop link copied"))
                           .catch(() => toast.error("Could not copy shop link"))
@@ -511,7 +531,7 @@ export default function VendorDashboardPage() {
           <CardContent className="p-5">
             <Wallet className="h-5 w-5 text-cyan-600" />
             <p className="mt-3 text-xs uppercase tracking-[0.28em] text-stone-500">Setup fee</p>
-            <p className="mt-2 text-2xl font-semibold text-stone-900">{setupPaid ? "Paid" : "₦10,000"}</p>
+            <p className="mt-2 text-2xl font-semibold text-stone-900">{setupPaid ? "Paid" : `\u20A610,000`}</p>
             {isVendorVerified && !setupPaid ? (
               <Button className="mt-3 rounded-full bg-cyan-700 hover:bg-cyan-600" onClick={() => setShowSetupPayment(true)}>
                 Pay setup fee
@@ -528,6 +548,36 @@ export default function VendorDashboardPage() {
         </Card>
       </div>
 
+      <Card className="rounded-[28px] border-stone-200 bg-white">
+        <CardContent className="p-6 md:p-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-stone-900">Your available products</h2>
+              <p className="mt-1 text-sm text-stone-600">A live preview of products already published in your shop.</p>
+            </div>
+            <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
+              <Link href="/vendor/products">Add products</Link>
+            </Button>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {products.length ? (
+              products.map((product) => (
+                <div key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-stone-500">{product.category || "General"}</p>
+                  <h3 className="mt-1 text-lg font-semibold text-stone-900">{product.title}</h3>
+                  <p className="mt-2 line-clamp-3 text-sm text-stone-600">Preview from your live shop listing.</p>
+                  <p className="mt-3 text-lg font-semibold text-stone-900">{`\u20A6`}{Number(product.price).toLocaleString()}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6 text-sm text-stone-600 md:col-span-2 xl:col-span-3">
+                No products have been published yet. Add your first product to show it here.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {setupPaid ? (
         <Card className="rounded-3xl border-rose-300 bg-rose-50/80 shadow-[0_20px_55px_-40px_rgba(225,29,72,0.65)]">
           <CardContent className="p-5">
@@ -541,7 +591,7 @@ export default function VendorDashboardPage() {
             </p>
             <div className="mt-3">
               <Button className="rounded-full bg-rose-600 hover:bg-rose-500" onClick={() => setShowRentPayment(true)}>
-                Pay monthly rent (₦2,000)
+                Pay monthly rent ({`\u20A6`}2,000)
               </Button>
             </div>
           </CardContent>
@@ -785,3 +835,4 @@ function GuideItem({ title, body }: { title: string; body: string }) {
     </div>
   )
 }
+

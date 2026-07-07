@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Store } from "lucide-react"
+import { onAuthStateChanged } from "firebase/auth"
+import { Store, Plus } from "lucide-react"
+import { auth } from "@/lib/firebase"
 
 type VendorStorePayload = {
   success: boolean
@@ -31,18 +33,20 @@ type VendorStorePayload = {
   message?: string
 }
 
-export default function MarketplaceVendorPage() {
-  const params = useParams<{ id: string }>()
+export default function VendorShopPreviewPage() {
+  const params = useParams<{ slug: string }>()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<VendorStorePayload | null>(null)
+  const [isOwnVendor, setIsOwnVendor] = useState(false)
 
   useEffect(() => {
-    const id = String(params?.id || "")
-    if (!id) {
+    const slug = String(params?.slug || "")
+    if (!slug) {
       setLoading(false)
       return
     }
-    fetch(`/api/marketplace/vendor/${id}`, { cache: "no-store" })
+
+    fetch(`/api/marketplace/shop/${slug}`, { cache: "no-store" })
       .then(async (res) => {
         const payload = (await res.json().catch(() => ({}))) as VendorStorePayload
         setData(payload)
@@ -50,9 +54,16 @@ export default function MarketplaceVendorPage() {
       .finally(() => setLoading(false))
   }, [params])
 
-  if (loading) return <div className="min-h-screen bg-stone-50 p-8 text-stone-600">Loading vendor shop...</div>
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setIsOwnVendor(Boolean(user && data?.vendor?.id && user.uid === data.vendor.id))
+    })
+    return () => unsub()
+  }, [data?.vendor?.id])
+
+  if (loading) return <div className="min-h-screen bg-stone-50 p-8 text-stone-600">Loading your shop preview...</div>
   if (!data?.success || !data.vendor) {
-    return <div className="min-h-screen bg-stone-50 p-8 text-stone-700">{data?.message || "Vendor shop not available right now."}</div>
+    return <div className="min-h-screen bg-stone-50 p-8 text-stone-700">{data?.message || "Shop preview not available right now."}</div>
   }
 
   const themeClass =
@@ -77,24 +88,28 @@ export default function MarketplaceVendorPage() {
         <div className={`rounded-[32px] border p-6 ${cardTone}`}>
           {data.vendor.storeCoverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.vendor.storeCoverUrl} alt={`${data.vendor.name} cover`} className="mb-5 h-48 w-full rounded-2xl object-cover ring-1 ring-stone-200" />
+            <img src={data.vendor.storeCoverUrl} alt={`${data.vendor.name} cover`} className="mb-5 h-52 w-full rounded-2xl object-cover ring-1 ring-stone-200" />
           ) : null}
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Vendor shop</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Shop preview</p>
           <h1 className="mt-2 text-3xl font-semibold text-stone-900">{data.vendor.name}</h1>
           <p className="mt-2 text-sm text-stone-600">{[data.vendor.city, data.vendor.state].filter(Boolean).join(", ") || "Nigeria"}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/marketplace" className="rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700">
-              Back to marketplace
+            <Link href="/vendor" className="rounded-full border border-stone-300 px-4 py-2 text-sm text-stone-700">
+              Back to dashboard
             </Link>
-            {data.vendor.storefrontLink ? (
-              <a href={data.vendor.storefrontLink} target="_blank" rel="noopener noreferrer" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white shadow-sm">
-                Contact vendor
-              </a>
+            <Link href="/vendor/products" className="rounded-full bg-stone-900 px-4 py-2 text-sm text-white shadow-sm">
+              <Plus className="mr-2 inline h-4 w-4" />
+              Add products
+            </Link>
+            {isOwnVendor ? (
+              <Link href="/vendor/settings" className="rounded-full border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm text-cyan-800">
+                Edit shop settings
+              </Link>
             ) : null}
           </div>
         </div>
 
-        <div className={`grid gap-4 ${data.vendor.shopLayout === "spotlight" ? "md:grid-cols-1" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => (
             <Link key={product.id} href={`/marketplace/product/${product.id}`} className={`overflow-hidden rounded-[24px] border transition hover:-translate-y-0.5 ${cardTone}`}>
               <div className="aspect-[4/3] w-full bg-stone-100">
@@ -116,7 +131,7 @@ export default function MarketplaceVendorPage() {
           {!products.length ? (
             <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600 md:col-span-2 xl:col-span-3">
               <Store className="mx-auto mb-3 h-8 w-8 text-stone-400" />
-              No products are live in this shop yet.
+              Your shop is live, but you have not added any products yet.
             </div>
           ) : null}
         </div>
@@ -124,4 +139,3 @@ export default function MarketplaceVendorPage() {
     </div>
   )
 }
-
