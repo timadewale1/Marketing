@@ -201,12 +201,12 @@ export default function AvailableCampaignsPage() {
 
   const filteredCampaigns = campaigns
     .filter((campaign) => {
-      // Must have net available budget (total budget minus reserved submissions)
+      // `budget` already represents the remaining spendable balance on the task.
+      // `reservedBudget` is tracked separately for accounting and should not be
+      // subtracted here, otherwise fully valid active tasks disappear early.
       const costPerLead = Number(campaign.costPerLead || 0);
       const totalBudget = Number(campaign.budget || 0);
-      const reservedBudget = Number(campaign.reservedBudget || 0);
-      const netAvailableBudget = totalBudget - reservedBudget;
-      return costPerLead > 0 && netAvailableBudget >= costPerLead;
+      return costPerLead > 0 && totalBudget >= costPerLead;
     })
     .filter((campaign) => filterType === "All" || campaign.category === filterType)
     .filter((campaign) => !participatedIds.includes(campaign.id));
