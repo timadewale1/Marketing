@@ -31,6 +31,8 @@ export async function GET() {
         productId: String(data.productId || ""),
         amount: Number(data.amount || 0),
         cashbackAmount: Number(data.cashbackAmount || 0),
+        pointsAmount: Number(data.pointsAmount || 0),
+        rewardType: String(data.rewardType || "cashback"),
         status: String(data.status || "pending"),
         reason: String(data.reason || ""),
         createdAtMs: toMillis(data.createdAt),

@@ -143,7 +143,7 @@ export default function PAMBALanding() {
   const navLinks = [
     { label: "About", href: "#about" },
     { label: "Features", href: "#features" },
-    { label: "Marketplace", href: "#marketplace" },
+    { label: "Pamba Marketplace", href: "#marketplace" },
     { label: "How It Works", href: "#howitworks" },
     { label: "Pamba Bills", href: "#bills" },
     { label: "FAQ", href: "/faq" },
@@ -866,8 +866,9 @@ export default function PAMBALanding() {
           </ul>
           <div className="nav-actions">
             {/* <WhatsAppGroupButton /> */}
-            <Link href="/auth/sign-in" className="btn-ghost">Login</Link>
-            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login to Marketplace</Link>
+            <Link href="/auth/sign-in" className="btn-ghost">Login as Advertiser</Link>
+            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login as Seller</Link>
+            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login as Buyer</Link>
             <Link href="/auth/sign-up" className="btn-primary">Get Started <ArrowRight size={14} /></Link>
           </div>
           <button className="hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
@@ -881,8 +882,9 @@ export default function PAMBALanding() {
           <button className="mobile-close" onClick={() => setMobileOpen(false)}><X size={28} /></button>
           {/* <WhatsAppGroupButton /> */}
           {navLinks.map(l => <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>{l.label}</a>)}
-          <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>Login</Link>
-          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login to Marketplace</Link>
+          <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Advertiser</Link>
+          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Seller</Link>
+          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Buyer</Link>
           <Link href="/auth/sign-up" onClick={() => setMobileOpen(false)} style={{color: "var(--amber)"}}>Get Started →</Link>
         </div>
       )}
@@ -1019,10 +1021,10 @@ export default function PAMBALanding() {
                 Visit Marketplace <ArrowRight size={18} />
               </Link>
               <Link href="/marketplace/auth/sign-up?role=vendor" className="btn-outline-lg" style={{ background: "#111827", color: "#fff", borderColor: "#111827" }}>
-                Become a Seller
+                Login as Seller
               </Link>
               <Link href="/marketplace/auth/sign-up?role=customer" className="btn-outline-lg" style={{ background: "#0891b2", color: "#fff", borderColor: "#0891b2" }}>
-                Become a Buyer
+                Login as Buyer
               </Link>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { buildCustomFirebaseActionLink } from "@/lib/firebase-action-links"
-import { sendVerificationEmail } from "@/lib/mailer"
+import { sendVerificationEmail, sendVendorSignupAlertEmail } from "@/lib/mailer"
 import { getReferralActivationBonusAmount } from "@/lib/referral-rewards"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com"
@@ -173,6 +173,12 @@ export async function POST(req: Request) {
         pointsLastReferralAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true }).catch((error) => {
         console.error('[signup] referral counter update failed', error)
+      })
+    }
+
+    if (action === "vendor") {
+      await sendVendorSignupAlertEmail({ vendorName: name, email }).catch((error) => {
+        console.error('[signup] vendor signup admin alert failed', error)
       })
     }
 

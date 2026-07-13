@@ -3,6 +3,7 @@ import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 
 const ORDER_CAP_NAIRA = 50000
 const CASHBACK_RATE = 0.1
+const CASHBACK_POINTS_REWARD = 200
 
 async function requireUser(req: Request) {
   const idToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
@@ -43,6 +44,16 @@ async function getApprovedOrderAmount(dbAdmin: Awaited<ReturnType<typeof initFir
   }, 0)
 }
 
+async function getApprovedPurchaseCountForVendor(dbAdmin: NonNullable<Awaited<ReturnType<typeof initFirebaseAdmin>>["dbAdmin"]>, vendorId: string) {
+  if (!vendorId) return 0
+  const snap = await dbAdmin
+    .collection("vendorPurchaseSubmissions")
+    .where("vendorId", "==", vendorId)
+    .limit(10)
+    .get()
+  return snap.docs.some((docItem) => String(docItem.data()?.status || "").toLowerCase() === "approved") ? 1 : 0
+}
+
 export async function GET(req: Request) {
   try {
     const auth = await requireUser(req)
@@ -70,6 +81,8 @@ export async function GET(req: Request) {
         productId: String(data.productId || ""),
         amount: Number(data.amount || 0),
         cashbackAmount: Number(data.cashbackAmount || 0),
+        pointsAmount: Number(data.pointsAmount || 0),
+        rewardType: String(data.rewardType || "cashback"),
         status: String(data.status || "pending"),
         reviewerReason: String(data.reviewerReason || ""),
         createdAtMs: typeof data.createdAt === "object" && data.createdAt && "seconds" in data.createdAt ? Number((data.createdAt as { seconds?: number }).seconds || 0) * 1000 : 0,
@@ -122,8 +135,12 @@ export async function POST(req: Request) {
 
     const remainingOrderCap = Math.max(0, ORDER_CAP_NAIRA - approvedOrderAmount)
     const eligibleOrderAmount = Math.max(0, Math.min(amount, remainingOrderCap))
-    const cashbackAmount = Math.floor(eligibleOrderAmount * CASHBACK_RATE)
     const productData = productSnap.data() as Record<string, unknown>
+    const vendorId = String(productData.vendorId || "")
+    const approvedVendorPurchases = await getApprovedPurchaseCountForVendor(auth.dbAdmin, vendorId)
+    const rewardType = approvedVendorPurchases === 0 ? "cashback" : "points"
+    const cashbackAmount = rewardType === "cashback" ? Math.floor(eligibleOrderAmount * CASHBACK_RATE) : 0
+    const pointsAmount = rewardType === "points" ? CASHBACK_POINTS_REWARD : 0
     const now = auth.admin.firestore.FieldValue.serverTimestamp()
     const claimRef = auth.dbAdmin.collection("vendorPurchaseSubmissions").doc()
 
@@ -134,11 +151,13 @@ export async function POST(req: Request) {
       userName: String(auth.profile?.name || auth.profile?.fullName || "User"),
       userEmail: String(auth.profile?.email || ""),
       vendorName,
-      vendorId: String(productData.vendorId || ""),
+      vendorId,
       productId,
       amount,
       eligibleOrderAmount,
       cashbackAmount,
+      pointsAmount,
+      rewardType,
       proofUrls,
       status: "pending",
       reviewerReason: null,
@@ -146,7 +165,7 @@ export async function POST(req: Request) {
       updatedAt: now,
     })
 
-    return NextResponse.json({ success: true, claimId: claimRef.id, cashbackAmount, eligibleOrderAmount })
+    return NextResponse.json({ success: true, claimId: claimRef.id, cashbackAmount, pointsAmount, rewardType, eligibleOrderAmount })
   } catch (error) {
     console.error("[vendor][cashback][POST] error:", error)
     return NextResponse.json({ success: false, message: "Failed to submit cashback claim" }, { status: 500 })

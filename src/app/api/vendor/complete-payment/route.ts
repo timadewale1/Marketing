@@ -76,14 +76,7 @@ export async function POST(req: Request) {
     const dueAt = thirtyDaysFromNow(auth.admin)
     const setupPaid = String(auth.vendorData.vendorPaymentStatus || "").toLowerCase() === "paid"
     const verificationStatus = String(auth.vendorData.vendorVerificationStatus || "").toLowerCase()
-    const verified = verificationStatus === "verified" || verificationStatus === "approved"
-
-    if (purpose === "setup_fee" && !verified) {
-      return NextResponse.json({
-        success: false,
-        message: "Your verification must be approved before you can pay the setup fee.",
-      }, { status: 400 })
-    }
+    const rejected = verificationStatus === "rejected"
 
     await auth.dbAdmin.runTransaction(async (t) => {
       t.set(txRef, {
@@ -102,9 +95,11 @@ export async function POST(req: Request) {
         t.set(auth.vendorRef, {
           vendorPaymentStatus: "paid",
           vendorSetupPaidAt: now,
-          monthlyRentStatus: "paid",
           monthlyRentDueAt: dueAt || null,
-          storeStatus: verified ? "active" : "awaiting_verification",
+          vendorVerified: true,
+          vendorVerificationStatus: "verified",
+          vendorVerificationReviewedAt: now,
+          storeStatus: rejected ? "hidden" : "active",
           updatedAt: now,
         }, { merge: true })
       } else {
@@ -112,7 +107,7 @@ export async function POST(req: Request) {
           monthlyRentStatus: "paid",
           monthlyRentPaidAt: now,
           monthlyRentDueAt: dueAt || null,
-          storeStatus: setupPaid && verified ? "active" : String(auth.vendorData.storeStatus || "awaiting_verification"),
+          storeStatus: setupPaid && !rejected ? "active" : String(auth.vendorData.storeStatus || "awaiting_verification"),
           updatedAt: now,
         }, { merge: true })
       }

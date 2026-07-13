@@ -440,7 +440,7 @@ export default function EducationPage() {
                   ) : null}
                   <div className="flex gap-2">
                     <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startWaecPurchase(true)}>
-                      {processing ? 'Processing...' : 'Pay with Card'}
+                      {processing ? 'Processing...' : 'Pay with Monnify'}
                     </button>
                     {isLoggedIn && (
                       <button
@@ -483,7 +483,7 @@ export default function EducationPage() {
                   ) : null}
                   <div className="flex gap-2">
                     <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startWaecRegPurchase(true)}>
-                      {processing ? 'Processing...' : 'Pay with Card'}
+                      {processing ? 'Processing...' : 'Pay with Monnify'}
                     </button>
                     {isLoggedIn && (
                       <button
@@ -559,7 +559,7 @@ export default function EducationPage() {
 
                   <div className="flex gap-2">
                     <button disabled={processing || processingWallet} className="bg-amber-500 text-stone-900 px-4 py-2 rounded disabled:opacity-60" onClick={() => startJambPurchase(true)}>
-                      {processing ? 'Processing...' : 'Pay with Card'}
+                      {processing ? 'Processing...' : 'Pay with Monnify'}
                     </button>
                     {isLoggedIn && (
                       <button

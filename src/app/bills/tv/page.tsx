@@ -546,7 +546,7 @@ export default function TVPage() {
                             variant="outline"
                             className="w-full"
                           >
-                            Pay with Card
+                            Pay with Monnify
                           </Button>
                         </>
                       ) : (
@@ -555,7 +555,7 @@ export default function TVPage() {
                           disabled={processing}
                           className="h-12 w-full rounded-lg bg-amber-500 font-semibold text-stone-900 transition-all hover:bg-amber-600"
                         >
-                          {processing ? 'Processing...' : 'Proceed to Payment'}
+                          {processing ? 'Processing...' : 'Pay with Monnify'}
                         </Button>
                       )}
                     </div>

@@ -17,6 +17,9 @@ import ReviewCenter from "@/components/reviews/ReviewCenter"
 import { AlertCircle, BookOpen, Camera, CheckCircle2, FileBadge2, FileText, ImageIcon, Package, ShieldCheck, Store, Wallet } from "lucide-react"
 import { NIGERIAN_BANKS } from "@/lib/banks"
 
+const VENDOR_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/ETddDwf4Ta1EETHC0IV5nv?s=cl&p=a&ilr=1&amv=0"
+const VENDOR_WHATSAPP_JOINED_KEY = "pamba-vendor-whatsapp-joined"
+
 type VendorProfile = {
   name?: string
   email?: string
@@ -24,6 +27,7 @@ type VendorProfile = {
   vendorPaymentStatus?: string
   monthlyRentStatus?: string
   monthlyRentDueAt?: { seconds?: number }
+  verificationSubmittedAt?: unknown
   storeStatus?: string
   storefrontLink?: string
   storefrontSlug?: string
@@ -74,6 +78,7 @@ export default function VendorDashboardPage() {
   const [showSetupPayment, setShowSetupPayment] = useState(false)
   const [showRentPayment, setShowRentPayment] = useState(false)
   const [guideStage, setGuideStage] = useState<"preverification" | "postverification" | null>(null)
+  const [showVendorGroupPrompt, setShowVendorGroupPrompt] = useState(false)
   const [products, setProducts] = useState<VendorProductSummary[]>([])
 
   const [storefrontLink, setStorefrontLink] = useState("")
@@ -201,6 +206,23 @@ export default function VendorDashboardPage() {
     }
   }, [profile?.vendorPaymentStatus, profile?.vendorVerificationStatus, userId])
 
+  useEffect(() => {
+    try {
+      const joined = window.localStorage.getItem(VENDOR_WHATSAPP_JOINED_KEY)
+      if (!joined) setShowVendorGroupPrompt(true)
+    } catch {
+      setShowVendorGroupPrompt(true)
+    }
+  }, [])
+
+  const dismissVendorGroupPrompt = () => setShowVendorGroupPrompt(false)
+  const markVendorGroupJoined = () => {
+    setShowVendorGroupPrompt(false)
+    try {
+      window.localStorage.setItem(VENDOR_WHATSAPP_JOINED_KEY, "1")
+    } catch {}
+  }
+
   const verificationStatusRaw = String(profile?.vendorVerificationStatus || "").toLowerCase()
   const isVendorVerified = verificationStatusRaw === "verified" || verificationStatusRaw === "approved"
   const isRejected = verificationStatusRaw === "rejected"
@@ -220,8 +242,6 @@ export default function VendorDashboardPage() {
     : rentDue
       ? "Monthly rent is due"
       : "First month free"
-  const canPublish = isVendorVerified && setupPaid && (!rentDue || rentPaid)
-
   const verificationComplete = Boolean(
     storefrontLink &&
     storefrontSlug &&
@@ -238,6 +258,8 @@ export default function VendorDashboardPage() {
     accountNumber &&
     accountName
   )
+  const showSetupFeePrompt = Boolean(profile?.verificationSubmittedAt || isVendorVerified || verificationComplete)
+  const canPublish = isVendorVerified && setupPaid && (!rentDue || rentPaid)
 
   useEffect(() => {
     const verifyBank = async () => {
@@ -532,7 +554,7 @@ export default function VendorDashboardPage() {
             <Wallet className="h-5 w-5 text-cyan-600" />
             <p className="mt-3 text-xs uppercase tracking-[0.28em] text-stone-500">Setup fee</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">{setupPaid ? "Paid" : `\u20A610,000`}</p>
-            {isVendorVerified && !setupPaid ? (
+            {showSetupFeePrompt && !setupPaid ? (
               <Button className="mt-3 rounded-full bg-cyan-700 hover:bg-cyan-600" onClick={() => setShowSetupPayment(true)}>
                 Pay setup fee
               </Button>
@@ -581,7 +603,7 @@ export default function VendorDashboardPage() {
       {setupPaid ? (
         <Card className="rounded-3xl border-rose-300 bg-rose-50/80 shadow-[0_20px_55px_-40px_rgba(225,29,72,0.65)]">
           <CardContent className="p-5">
-            <p className="text-base font-semibold text-rose-900">{rentCardLabel}</p>
+              <p className="text-base font-semibold text-rose-900">{rentCardLabel}</p>
             <p className="mt-1 text-sm text-rose-900/80">
               {rentDue
                 ? "Pay now so your products stay live in the marketplace."
@@ -599,6 +621,36 @@ export default function VendorDashboardPage() {
       ) : null}
 
       <ReviewCenter role="vendor" />
+
+      {showVendorGroupPrompt ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-stone-950/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-cyan-200/20 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-7 text-white shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-300">Vendor updates</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">Join the vendor WhatsApp group for store updates.</h2>
+            <p className="mt-4 text-sm leading-7 text-stone-300">
+              Stay close to setup reminders, verification updates, rent notices, and product guidance without missing important vendor announcements.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={VENDOR_WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={markVendorGroupJoined}
+                className="inline-flex items-center justify-center rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-stone-900 transition hover:bg-cyan-300"
+              >
+                Join vendor group
+              </a>
+              <button
+                type="button"
+                onClick={dismissVendorGroupPrompt}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:border-cyan-300 hover:text-cyan-200"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {guideStage ? (
         <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-stone-950/60 px-4 py-4 backdrop-blur-sm sm:items-center">

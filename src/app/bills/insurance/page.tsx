@@ -431,12 +431,12 @@ export default function InsurancePage() {
                             {processingWallet ? 'Processing...' : walletBalance !== null && displayPrice > walletBalance ? 'Insufficient funds' : 'Pay from wallet'}
                           </Button>
                           <Button onClick={handleCardPurchase} disabled={processing || processingWallet} variant="outline" className="w-full">
-                            {processing ? 'Processing...' : 'Pay with Card'}
+                            {processing ? 'Processing...' : 'Pay with Monnify'}
                           </Button>
                         </>
                       ) : (
                         <Button onClick={handleCardPurchase} disabled={processing} className="h-12 w-full rounded-lg bg-amber-500 font-semibold text-stone-900 transition-all hover:bg-amber-600">
-                          {processing ? 'Processing...' : 'Proceed to Payment'}
+                          {processing ? 'Processing...' : 'Pay with Monnify'}
                         </Button>
                       )}
                     </div>

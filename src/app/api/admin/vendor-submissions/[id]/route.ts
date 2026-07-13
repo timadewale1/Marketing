@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { FieldValue } from "firebase-admin/firestore"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { requireAdminSession } from "@/lib/admin-session"
-import { VENDOR_PURCHASE_APPROVED_POINTS, awardPointsInTransaction, getPointsEventId } from "@/lib/points"
+import { awardPointsInTransaction, getPointsEventId } from "@/lib/points"
 import { queueReviewPrompt } from "@/lib/reviews"
 
 function resolveUserCollection(data: Record<string, unknown>) {
@@ -39,6 +39,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
     const claim = claimSnap.data() as Record<string, unknown>
     const userId = String(claim.userId || "")
     const cashbackAmount = Math.max(0, Number(claim.cashbackAmount || 0))
+    const pointsAmount = Math.max(0, Number(claim.pointsAmount || 0))
+    const rewardType = String(claim.rewardType || (cashbackAmount > 0 ? "cashback" : "points")).toLowerCase()
     const userCollection = resolveUserCollection(claim)
     const userRef = dbAdmin.collection(userCollection).doc(userId)
     const userSnap = await userRef.get()
@@ -57,7 +59,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       updatedAt: FieldValue.serverTimestamp(),
     }
 
-    if (action === "approve" && cashbackAmount > 0) {
+    if (action === "approve" && (cashbackAmount > 0 || pointsAmount > 0)) {
       const transactionCollection =
         userCollection === "advertisers"
           ? "advertiserTransactions"
@@ -77,16 +79,16 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       const vendorId = String(claim.vendorId || "")
       const vendorSalesRef = vendorId ? dbAdmin.collection("vendorSales").doc() : null
       await dbAdmin.runTransaction(async (transaction) => {
-        if (userCollection === "earners" || userCollection === "advertisers" || userCollection === "customers") {
+        if (rewardType === "points" && pointsAmount > 0) {
           await awardPointsInTransaction({
             adminDb: dbAdmin,
             admin,
             transaction,
             userCollection,
             userId,
-            amount: VENDOR_PURCHASE_APPROVED_POINTS,
-            eventId: getPointsEventId("vendor-purchase-approved", id),
-            type: "vendor_purchase_approved",
+            amount: pointsAmount,
+            eventId: getPointsEventId("vendor-purchase-points", id),
+            type: "vendor_purchase_points",
             note: `Points for approved marketplace purchase claim (${String(claim.productId || id)})`,
             referenceId: id,
             extraLedgerData: {
@@ -95,20 +97,22 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             },
           })
         }
-        transaction.update(userRef, {
-          balance: FieldValue.increment(cashbackAmount),
-          updatedAt: FieldValue.serverTimestamp(),
-        })
-        transaction.set(txRef, {
-          userId,
-          type: "vendor_cashback",
-          amount: cashbackAmount,
-          status: "completed",
-          note: `Vendor cashback approved for ${String(claim.vendorName || "vendor")}`,
-          reference: String(claim.productId || id),
-          createdAt: FieldValue.serverTimestamp(),
-          source: "vendor_cashback",
-        })
+        if (cashbackAmount > 0) {
+          transaction.update(userRef, {
+            balance: FieldValue.increment(cashbackAmount),
+            updatedAt: FieldValue.serverTimestamp(),
+          })
+          transaction.set(txRef, {
+            userId,
+            type: "vendor_cashback",
+            amount: cashbackAmount,
+            status: "completed",
+            note: `Vendor cashback approved for ${String(claim.vendorName || "vendor")}`,
+            reference: String(claim.productId || id),
+            createdAt: FieldValue.serverTimestamp(),
+            source: "vendor_cashback",
+          })
+        }
         transaction.update(claimRef, updates)
         if (vendorSalesRef && vendorId) {
           transaction.set(vendorSalesRef, {
@@ -120,6 +124,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             productId: String(claim.productId || ""),
             amount: Number(claim.amount || 0),
             cashbackAmount,
+            pointsAmount,
+            rewardType,
             approvedAt: FieldValue.serverTimestamp(),
             createdAt: FieldValue.serverTimestamp(),
           })

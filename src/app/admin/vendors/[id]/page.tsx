@@ -146,13 +146,31 @@ export default function AdminVendorDetailPage() {
                 "Not set"
               )}
             </p>
-            <p>Verification details: {vendor.verificationDetails ? "Submitted" : "Not submitted"}</p>
+            <p>Verification status: {vendor.vendorVerificationStatus || "pending"}</p>
+            <p>Setup fee: {vendor.vendorPaymentStatus || "unpaid"}</p>
+            <p>Rent status: {vendor.monthlyRentStatus || "unpaid"}</p>
             <p>Bank details: {vendor.bank ? "Submitted" : "Not submitted"}</p>
             {vendor.vendorVerificationRejectionReason ? (
               <p className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-800">
                 <strong>Previous rejection reason:</strong> {vendor.vendorVerificationRejectionReason}
               </p>
             ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-stone-200 bg-white p-4">
+            <p className="text-sm font-semibold text-stone-900">Submitted verification details</p>
+            {vendor.verificationDetails ? (
+              <div className="mt-3 grid gap-2 text-sm text-stone-700">
+                {Object.entries(vendor.verificationDetails).map(([key, value]) => (
+                  <div key={key} className="rounded-2xl border border-stone-100 bg-stone-50 p-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-stone-500">{key.replace(/([A-Z])/g, " $1")}</p>
+                    <p className="mt-1 break-all text-stone-800">{String(value || "Not provided")}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-stone-600">No verification documents have been submitted yet.</p>
+            )}
           </div>
 
           <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">

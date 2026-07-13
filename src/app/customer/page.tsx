@@ -44,7 +44,7 @@ export default function CustomerDashboardPage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild className="rounded-full bg-cyan-700 hover:bg-cyan-600">
-              <Link href="/marketplace">Explore marketplace</Link>
+              <Link href="/marketplace">Shop now</Link>
             </Button>
             <Button asChild variant="outline" className="rounded-full">
               <Link href="/customer/referrals">View referrals</Link>

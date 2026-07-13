@@ -93,7 +93,6 @@ export async function PATCH(req: Request) {
       accountNumber &&
       accountName
     )
-
     if (storefrontSlug.length > 0 && storefrontSlug.length < 3) {
       return NextResponse.json({ success: false, message: "Store link slug must be at least 3 characters" }, { status: 400 })
     }
@@ -148,6 +147,7 @@ export async function PATCH(req: Request) {
       updates.vendorVerified = false
       updates.vendorVerificationRejectionReason = String(auth.vendorData.vendorVerificationRejectionReason || "")
       updates.verificationSubmittedAt = auth.admin.firestore.FieldValue.serverTimestamp()
+      updates.vendorSetupFeePrompt = true
     }
 
     await auth.vendorRef.set(updates, { merge: true })

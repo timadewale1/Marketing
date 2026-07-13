@@ -182,10 +182,10 @@ export default function MarketplacePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="rounded-full bg-stone-900 text-white shadow-lg shadow-stone-900/10 hover:bg-stone-800">
-                <Link href="/marketplace/auth/sign-up?role=vendor">Become a Seller</Link>
+                <Link href="/marketplace/auth/sign-up?role=vendor">Login as Seller</Link>
               </Button>
               <Button asChild className="rounded-full bg-cyan-600 text-white shadow-lg shadow-cyan-700/10 hover:bg-cyan-700">
-                <Link href="/marketplace/auth/sign-up?role=customer">Become a Buyer</Link>
+                <Link href="/marketplace/auth/sign-up?role=customer">Login as Buyer</Link>
               </Button>
               <Button asChild variant="outline" className="rounded-full border-stone-300 bg-white/90 shadow-sm">
                 <Link href="/marketplace/auth/sign-in">Login to Marketplace</Link>
@@ -370,10 +370,10 @@ export default function MarketplacePage() {
             </div>
             <div className="relative mt-6 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="rounded-full bg-stone-900 text-white shadow-lg shadow-stone-900/10 hover:bg-stone-800">
-                <Link href="/marketplace/auth/sign-up?role=vendor">Become a Seller</Link>
+                <Link href="/marketplace/auth/sign-up?role=vendor">Login as Seller</Link>
               </Button>
               <Button asChild className="rounded-full bg-cyan-600 text-white shadow-lg shadow-cyan-700/10 hover:bg-cyan-700">
-                <Link href="/marketplace/auth/sign-up?role=customer">Become a Buyer</Link>
+                <Link href="/marketplace/auth/sign-up?role=customer">Login as Buyer</Link>
               </Button>
             </div>
           </div>

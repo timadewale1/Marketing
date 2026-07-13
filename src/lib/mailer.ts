@@ -630,6 +630,30 @@ export async function sendVendorVerificationSubmittedEmail({
   })
 }
 
+export async function sendVendorSignupAlertEmail({
+  vendorName,
+  email,
+}: {
+  vendorName: string
+  email: string
+}) {
+  await sendEmail({
+    to: ADMIN_INBOX_EMAIL,
+    subject: `New vendor signup from ${vendorName}`,
+    html: wrapEmail(
+      "New vendor signup",
+      `
+        <p>A new vendor account was created on Pamba.</p>
+        <p><strong>Vendor:</strong> ${vendorName}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p>Please review the account once verification documents are submitted.</p>
+      `,
+      "Open vendor admin",
+      `${APP_URL}/admin/vendors`
+    ),
+  })
+}
+
 export async function sendVendorVerificationApprovedEmail({
   vendorName,
   email,

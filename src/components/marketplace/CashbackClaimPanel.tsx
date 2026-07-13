@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage"
@@ -17,6 +17,8 @@ type CashbackSubmission = {
   productId: string
   amount: number
   cashbackAmount: number
+  pointsAmount?: number
+  rewardType?: string
   status: string
 }
 
@@ -137,9 +139,9 @@ export default function CashbackClaimPanel({ role }: Props) {
   return (
     <div className="rounded-3xl border border-amber-100 bg-white/80 p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Vendor cashback</p>
-      <h3 className="mt-2 text-xl font-semibold text-stone-900">Claim 10% cashback from Pamba Marketplace purchases</h3>
+      <h3 className="mt-2 text-xl font-semibold text-stone-900">Claim first-purchase cashback or 200 points from Pamba Marketplace purchases</h3>
       <p className="mt-2 text-sm text-stone-600">
-        Submit your purchase proof, vendor name, and product ID. Cashback applies until your first ₦50,000 in qualified orders.
+        Submit your purchase proof, vendor name, and product ID. The first approved purchase from a vendor earns 10% cashback, while later approved purchases earn 200 points until your first ₦50,000 in eligible orders is reached.
       </p>
       <p className="mt-2 text-sm font-medium text-stone-700">Remaining eligible order cap: ₦{remainingCap.toLocaleString()}</p>
 
@@ -165,7 +167,11 @@ export default function CashbackClaimPanel({ role }: Props) {
           {submissions.map((item) => (
             <p key={item.id} className="text-sm text-stone-700">
               {item.vendorName} • {item.productId} • ₦{Number(item.amount || 0).toLocaleString()} • {item.status}
-              {item.status === "approved" ? ` • Cashback ₦${Number(item.cashbackAmount || 0).toLocaleString()}` : ""}
+              {item.rewardType === "points"
+                ? ` • Points ${Number(item.pointsAmount || 0).toLocaleString()}`
+                : item.status === "approved"
+                  ? ` • Cashback ₦${Number(item.cashbackAmount || 0).toLocaleString()}`
+                  : ""}
             </p>
           ))}
         </div>

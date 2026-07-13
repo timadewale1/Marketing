@@ -497,7 +497,7 @@ export default function DataPage() {
                       {isLoggedIn ? (
                         <>
                           <Button onClick={handleWalletPurchase} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance)} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
-                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Card</Button>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet} variant="outline" className="w-full">Pay with Monnify</Button>
                         </>
                       ) : (
                         <>
@@ -518,7 +518,7 @@ export default function DataPage() {
                       {isLoggedIn ? (
                         <>
                           <Button onClick={() => handleUsufPurchase('usuf_wallet')} disabled={processing || processingWallet || (walletBalance !== null && displayPrice() > walletBalance) || !selectedUsufPlan} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-stone-900 font-semibold rounded-lg transition-all">{processingWallet ? 'Processing...' : (walletBalance !== null && displayPrice() > walletBalance ? 'Insufficient funds' : 'Pay from wallet')}</Button>
-                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet || !selectedUsufPlan} variant="outline" className="w-full">Pay with Card</Button>
+                          <Button onClick={async () => { if (!phone) { toast.error('Please enter phone number'); return } await handlePurchase() }} disabled={processing || processingWallet || !selectedUsufPlan} variant="outline" className="w-full">Pay with Monnify</Button>
                         </>
                       ) : (
                         <>
