@@ -107,6 +107,60 @@ async function callInternalRoute(path: string) {
   throw new Error(`Scheduled call failed for ${path}${lastError ? `: ${lastError}` : ""}`);
 }
 
+async function callRecoverySweepWithLock(triggerSource: string) {
+  const db = admin.firestore();
+  const lockRef = db.collection("_system").doc("recoverySweepLock");
+  const now = Date.now();
+  const lockWindowMs = 5 * 60 * 1000;
+
+  const acquired = await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(lockRef);
+    const data = snap.data() as { lockedUntil?: FirebaseFirestore.Timestamp | Date; lastTriggeredAt?: FirebaseFirestore.Timestamp | Date } | undefined;
+    const lockedUntil = data?.lockedUntil && typeof (data.lockedUntil as FirebaseFirestore.Timestamp).toDate === "function"
+      ? (data.lockedUntil as FirebaseFirestore.Timestamp).toDate().getTime()
+      : data?.lockedUntil instanceof Date
+        ? data.lockedUntil.getTime()
+        : 0;
+
+    if (lockedUntil > now) {
+      return false;
+    }
+
+    transaction.set(
+      lockRef,
+      {
+        lockedUntil: new Date(now + lockWindowMs),
+        lastTriggeredAt: new Date(now),
+        lastTriggerSource: triggerSource,
+        updatedAt: new Date(now),
+      },
+      { merge: true },
+    );
+
+    return true;
+  });
+
+  if (!acquired) {
+    console.log(`[scheduler] recovery sweep skipped due to active lock`, { triggerSource });
+    return { skipped: true };
+  }
+
+  try {
+    return await callInternalRoute("/api/internal/recovery-sweep");
+  } finally {
+    await lockRef.set(
+      {
+        lockedUntil: new Date(0),
+        releasedAt: new Date(),
+        updatedAt: new Date(),
+      },
+      { merge: true },
+    ).catch((error) => {
+      console.warn("[scheduler] failed to release recovery sweep lock", { triggerSource, error });
+    });
+  }
+}
+
 async function callLegacyNextInternalRoute(path: string) {
   const targetUrl = `${APP_BASE_URL.replace(/\/$/, "")}${path}`;
   const headers = buildHeaders(path);
@@ -285,7 +339,7 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
 });
 
 export const retryPendingMonnifyPayments = onSchedule("every 15 minutes", async () => {
-  await callInternalRoute("/api/internal/recovery-sweep");
+  await callRecoverySweepWithLock("retryPendingMonnifyPayments");
 });
 
 function normalizeReferences(values: unknown[]) {
@@ -1259,7 +1313,7 @@ export const wakeRecoveryOnCreatedWalletFunding = onDocumentCreated("advertiserT
   // If this is a NEW wallet_funding transaction with pending status, trigger recovery immediately
   if (type === "wallet_funding" && status === "pending") {
     console.log(`[trigger] Detected NEW pending wallet funding: ${event.params.transactionId}, triggering immediate recovery`);
-    await callInternalRoute("/api/internal/recovery-sweep");
+    await callRecoverySweepWithLock("created-wallet-funding");
     return;
   }
 });
@@ -1275,7 +1329,7 @@ export const wakeRecoveryOnCreatedActivation = onDocumentCreated("activationAtte
   // If this is a NEW activation attempt with pending status, trigger recovery immediately
   if (status === "pending") {
     console.log(`[trigger] Detected NEW pending activation: ${event.params.attemptId}, triggering immediate recovery`);
-    await callInternalRoute("/api/internal/recovery-sweep");
+    await callRecoverySweepWithLock("created-activation");
     return;
   }
 });
@@ -1306,7 +1360,7 @@ export const wakeRecoveryOnPendingWalletFunding = onDocumentUpdated("advertiserT
   // Trigger recovery when wallet funding becomes pending OR when new reference data arrives while pending.
   if (type === "wallet_funding" && afterStatus === "pending" && (beforeStatus !== "pending" || refsDidChange)) {
     console.log(`[trigger] Detected new pending wallet funding: ${event.params.transactionId}, triggering immediate recovery`);
-    await callInternalRoute("/api/internal/recovery-sweep");
+    await callRecoverySweepWithLock("updated-wallet-funding");
     return;
   }
 
@@ -1329,7 +1383,7 @@ export const wakeRecoveryOnPendingActivation = onDocumentUpdated("activationAtte
   // Trigger recovery when activation becomes pending OR when new reference data arrives while pending.
   if (afterStatus === "pending" && (beforeStatus !== "pending" || refsDidChange)) {
     console.log(`[trigger] Detected new pending activation: ${event.params.attemptId}, triggering immediate recovery`);
-    await callInternalRoute("/api/internal/recovery-sweep");
+    await callRecoverySweepWithLock("updated-activation");
     return;
   }
 
