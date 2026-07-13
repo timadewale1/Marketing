@@ -3,12 +3,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { collection, doc, getDoc, limit, onSnapshot, query, where } from "firebase/firestore";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PackageSearch } from "lucide-react";
 import { PageLoader } from "@/components/ui/loader";
 import { computeEarnerPayout } from "@/lib/task-pricing";
 
@@ -65,6 +66,7 @@ export default function AvailableCampaignsPage() {
   const [participatedIds, setParticipatedIds] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [authReady, setAuthReady] = useState(false);
   const activationReloadedRef = useRef(false);
   const previousActivatedRef = useRef<boolean | null>(null);
   const campaignsPerPage = 3;
@@ -83,9 +85,24 @@ export default function AvailableCampaignsPage() {
   };
 
   useEffect(() => {
-    const u = auth.currentUser;
     let unsubProfile: (() => void) | null = null;
-    if (u) {
+    let unsubCampaigns: (() => void) | null = null;
+    let unsubParticipations: (() => void) | null = null;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setAuthReady(true)
+      unsubProfile?.()
+      unsubCampaigns?.()
+      unsubParticipations?.()
+      unsubProfile = null
+      unsubCampaigns = null
+      unsubParticipations = null
+
+      if (!u) {
+        router.replace("/auth/sign-in");
+        setActivated(false);
+        setActivatingLoading(false);
+        return;
+      }
       if (!u.emailVerified) {
         router.replace("/auth/verify-email");
         setActivated(false);
@@ -123,62 +140,47 @@ export default function AvailableCampaignsPage() {
         previousActivatedRef.current = nextActivated;
         setActivatingLoading(false);
       });
-    } else {
-      setActivated(false);
-      setActivatingLoading(false);
-    }
 
-    const liveCampaignsQuery = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(150));
-    const unsubCampaigns = onSnapshot(liveCampaignsQuery, { includeMetadataChanges: true }, (snapshot) => {
-      // Avoid rendering stale cached campaign states that can briefly show exhausted tasks.
-      if (snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
-        return;
-      }
-      const mapped = snapshot.docs.map((campaignDoc) => {
-        const data = campaignDoc.data() as Partial<Campaign>;
-        return {
-          id: campaignDoc.id,
-          title: data.title || "Untitled task",
-          category: data.category,
-          budget: data.budget,
-          reservedBudget: data.reservedBudget,
-          costPerLead: data.costPerLead,
-          baseCostPerLead: data.baseCostPerLead,
-          priorityEnabled: data.priorityEnabled,
-          priorityMultiplier: data.priorityMultiplier,
-          reward: data.reward,
-          bannerUrl: data.bannerUrl,
-          status: data.status,
-          createdAt: data.createdAt,
-        } as Campaign;
+      const liveCampaignsQuery = query(collection(db, "campaigns"), where("status", "==", "Active"), limit(1000));
+      unsubCampaigns = onSnapshot(liveCampaignsQuery, { includeMetadataChanges: true }, (snapshot) => {
+        const mapped = snapshot.docs.map((campaignDoc) => {
+          const data = campaignDoc.data() as Partial<Campaign>;
+          return {
+            id: campaignDoc.id,
+            title: data.title || "Untitled task",
+            category: data.category,
+            budget: data.budget,
+            reservedBudget: data.reservedBudget,
+            costPerLead: data.costPerLead,
+            baseCostPerLead: data.baseCostPerLead,
+            priorityEnabled: data.priorityEnabled,
+            priorityMultiplier: data.priorityMultiplier,
+            reward: data.reward,
+            bannerUrl: data.bannerUrl,
+            status: data.status,
+            createdAt: data.createdAt,
+          } as Campaign;
+        });
+
+        mapped.sort((a, b) => {
+          const aPriority = Number(a.priorityMultiplier || 1) > 1 ? 1 : 0;
+          const bPriority = Number(b.priorityMultiplier || 1) > 1 ? 1 : 0;
+          if (bPriority !== aPriority) return bPriority - aPriority;
+          const aPay = Number(a.costPerLead || 0);
+          const bPay = Number(b.costPerLead || 0);
+          if (bPay !== aPay) return bPay - aPay;
+          const aTime = getCampaignDate(a.createdAt)?.getTime() || 0;
+          const bTime = getCampaignDate(b.createdAt)?.getTime() || 0;
+          return bTime - aTime;
+        });
+
+        setCampaigns(mapped);
+        setCurrentPage(1);
+        setLoading(false);
       });
 
-      mapped.sort((a, b) => {
-        const aPriority = Number(a.priorityMultiplier || 1) > 1 ? 1 : 0;
-        const bPriority = Number(b.priorityMultiplier || 1) > 1 ? 1 : 0;
-        if (bPriority !== aPriority) return bPriority - aPriority;
-        const aPay = Number(a.costPerLead || 0);
-        const bPay = Number(b.costPerLead || 0);
-        if (bPay !== aPay) return bPay - aPay;
-        const aTime = getCampaignDate(a.createdAt)?.getTime() || 0;
-        const bTime = getCampaignDate(b.createdAt)?.getTime() || 0;
-        return bTime - aTime;
-      });
-
-      setCampaigns(mapped);
-      setCurrentPage(1);
-      setLoading(false);
-    });
-
-    let unsubParticipations: (() => void) | null = null;
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const participationsQuery = query(
-        collection(db, "earnerSubmissions"),
-        where("userId", "==", currentUser.uid),
-        limit(250)
-      );
-      type SubmissionStub = { campaignId?: string };
+      const participationsQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(1000));
+      type SubmissionStub = { campaignId?: string; status?: string };
       unsubParticipations = onSnapshot(participationsQuery, (snapshot) => {
         setParticipatedIds(
           snapshot.docs
@@ -186,12 +188,14 @@ export default function AvailableCampaignsPage() {
             .filter(Boolean) as string[]
         );
       });
-    }
+
+    });
 
     return () => {
-      unsubCampaigns();
-      if (unsubParticipations) unsubParticipations();
+      unsub();
       if (unsubProfile) unsubProfile();
+      if (unsubCampaigns) unsubCampaigns();
+      if (unsubParticipations) unsubParticipations();
     };
   }, [router]);
 
@@ -282,7 +286,7 @@ export default function AvailableCampaignsPage() {
           </div>
         </Card>
 
-        {activatingLoading || loading ? (
+        {!authReady || activatingLoading || loading ? (
           <PageLoader />
         ) : activated === false ? (
           activationRequiredCard
@@ -317,7 +321,7 @@ export default function AvailableCampaignsPage() {
             {filteredCampaigns.length === 0 ? (
               <Card className="border-none bg-white/80 p-10 shadow-lg backdrop-blur">
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="mb-6 text-6xl">ðŸ“­</div>
+                  <PackageSearch className="mb-6 h-16 w-16 text-stone-400" />
                   <h3 className="text-3xl font-bold text-stone-800">No Available Tasks</h3>
                   <p className="mt-2 text-lg text-stone-600">Nothing is open right now.</p>
                   <p className="mt-2 max-w-md text-sm leading-6 text-stone-500">

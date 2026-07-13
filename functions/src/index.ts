@@ -74,7 +74,7 @@ async function callInternalRoute(path: string) {
   const internalBase = getInternalApiBaseUrl();
   const appBase = APP_BASE_URL.replace(/\/$/, "");
   const targetCandidates = internalBase
-    ? [`${appBase}${path}`, `${internalBase}${path}`]
+    ? [`${internalBase}${path}`]
     : [`${appBase}${path}`];
 
   let lastError: string | null = null;
@@ -284,7 +284,7 @@ export const autoVerifySubmissions = onSchedule("every 60 minutes", async () => 
   }
 });
 
-export const retryPendingMonnifyPayments = onSchedule("every 5 minutes", async () => {
+export const retryPendingMonnifyPayments = onSchedule("every 15 minutes", async () => {
   await callInternalRoute("/api/internal/recovery-sweep");
 });
 
