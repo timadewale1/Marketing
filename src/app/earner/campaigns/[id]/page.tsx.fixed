@@ -95,7 +95,10 @@ export default function CampaignDetailPage() {
       return false;
     }
 
-    // Check if campaign is active and has budget
+    // Check if campaign is active and still has spendable budget.
+    // `budget` is the live remaining balance; do not subtract reserved funds here
+    // because reserved funds have already been removed from `budget` when the task
+    // was reserved.
     if (campaignData?.status !== "Active" || (campaignData?.budget || 0) < (campaignData?.costPerLead || 0)) {
       return false;
     }

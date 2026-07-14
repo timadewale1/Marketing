@@ -396,9 +396,9 @@ export default function AvailableCampaignsPage() {
                                   const freshStatus = String(fresh.status || "");
                                   const freshCost = Number(fresh.costPerLead || 0);
                                   const freshBudget = Number(fresh.budget || 0);
-                                  const freshReserved = Number(fresh.reservedBudget || 0);
-                                  const freshNetAvailable = freshBudget - freshReserved;
-                                  if (freshStatus !== "Active" || freshCost <= 0 || freshNetAvailable < freshCost) {
+                                  // `budget` is the remaining spendable amount. Reserved funds are
+                                  // already deducted from it, so do not subtract reservedBudget again.
+                                  if (freshStatus !== "Active" || freshCost <= 0 || freshBudget < freshCost) {
                                     toast.error("This task budget is exhausted.");
                                     setCampaigns((prev) => prev.filter((item) => item.id !== campaign.id));
                                     return;
