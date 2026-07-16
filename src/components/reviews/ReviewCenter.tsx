@@ -259,14 +259,15 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
 
       <Card className="rounded-[28px] border-stone-200 bg-white/90 shadow-sm">
         <CardContent className="p-5 md:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Community voices</p>
-              <h3 className="mt-1 text-lg font-semibold text-stone-900">Recent reviews</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
+          <div className="rounded-[24px] border border-amber-200 bg-gradient-to-r from-amber-100 via-white to-cyan-50 p-4 md:p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Share your feedback</p>
+                <h3 className="mt-1 text-lg font-semibold text-stone-900">Leave a review anytime</h3>
+                <p className="mt-1 text-sm text-stone-600">Tell us how your experience went, even if you did not get a prompt first.</p>
+              </div>
               <Button
-                className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
+                className="rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-500"
                 onClick={() => {
                   setPromptIndex(0)
                   setDialogOpen(true)
@@ -275,6 +276,15 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
                 <MessageSquareHeart className="mr-2 h-4 w-4" />
                 Leave a review
               </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Community voices</p>
+              <h3 className="mt-1 text-lg font-semibold text-stone-900">Recent reviews</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="icon"
