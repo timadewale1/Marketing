@@ -39,6 +39,22 @@ function getSessionDismissKey(promptId: string) {
   return `pamba-review-dismissed-${promptId}`
 }
 
+function getFallbackPrompt(role: ReviewRole): ReviewPrompt {
+  const roleLabel = role === "vendor" ? "vendor" : role === "advertiser" ? "advertiser" : role === "customer" ? "customer" : "earner"
+  const targetLabel = role === "vendor" ? "your vendor experience" : role === "advertiser" ? "your advertiser experience" : role === "customer" ? "your customer experience" : "your earner experience"
+  return {
+    id: `fallback-${role}`,
+    userId: "",
+    role,
+    targetType: "campaign",
+    targetId: `platform-${role}`,
+    targetName: `Pamba ${roleLabel} experience`,
+    sourceId: `${role}-dashboard`,
+    sourceLabel: `${roleLabel.charAt(0).toUpperCase()}${roleLabel.slice(1)} dashboard`,
+    message: `Tell us how ${targetLabel} on Pamba is going.`,
+  }
+}
+
 function ReviewStars({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return (
     <div className="flex items-center gap-1">
@@ -66,8 +82,14 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
   const [promptIndex, setPromptIndex] = useState(0)
   const [reviewIndex, setReviewIndex] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const activePrompt = useMemo(() => prompts[promptIndex] || null, [prompts, promptIndex])
+  const fallbackPrompt = useMemo(() => getFallbackPrompt(role), [role])
+  const activePrompt = useMemo(() => {
+    if (prompts[promptIndex]) return prompts[promptIndex]
+    if (dialogOpen) return fallbackPrompt
+    return null
+  }, [prompts, promptIndex, dialogOpen, fallbackPrompt])
 
   useEffect(() => {
     setMounted(true)
@@ -127,8 +149,11 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
     } catch {
       // ignore
     }
-    setPrompts((current) => current.filter((prompt) => prompt.id !== activePrompt.id))
+    if (prompts.some((prompt) => prompt.id === activePrompt.id)) {
+      setPrompts((current) => current.filter((prompt) => prompt.id !== activePrompt.id))
+    }
     setPromptIndex(0)
+    setDialogOpen(false)
   }
 
   const submitReview = async () => {
@@ -170,7 +195,10 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
       toast.success("Thanks for your review")
       setComment("")
       setRating(5)
-      setPrompts((current) => current.filter((prompt) => prompt.id !== activePrompt.id))
+      if (prompts.some((prompt) => prompt.id === activePrompt.id)) {
+        setPrompts((current) => current.filter((prompt) => prompt.id !== activePrompt.id))
+      }
+      setDialogOpen(false)
     } catch (error) {
       console.error(error)
       toast.error(error instanceof Error ? error.message : "Failed to submit review")
@@ -179,13 +207,15 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
     }
   }
 
-  if (!prompts.length && !reviews.length) {
-    return null
-  }
-
   return (
     <div className="space-y-5">
-      <Dialog open={Boolean(activePrompt)} onOpenChange={(open) => !open && closePrompt()}>
+      <Dialog open={Boolean(activePrompt)} onOpenChange={(open) => {
+        if (!open) {
+          closePrompt()
+        } else {
+          setDialogOpen(true)
+        }
+      }}>
         <DialogContent className="max-w-xl rounded-[28px] border-stone-200 bg-white p-0">
           <div className="bg-gradient-to-r from-amber-50 via-white to-cyan-50 px-6 py-5">
             <DialogHeader>
@@ -238,10 +268,9 @@ export default function ReviewCenter({ role }: { role: ReviewRole }) {
               <Button
                 className="rounded-full bg-stone-900 text-white hover:bg-stone-800"
                 onClick={() => {
-                  if (!prompts.length) return
                   setPromptIndex(0)
+                  setDialogOpen(true)
                 }}
-                disabled={!prompts.length}
               >
                 <MessageSquareHeart className="mr-2 h-4 w-4" />
                 Leave a review
