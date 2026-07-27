@@ -40,7 +40,7 @@ async function resolveOwnerRef(adminDb: NonNullable<Awaited<ReturnType<typeof in
   return null
 }
 
-const TWENTY_FOUR_HOURS_MS = 1000 * 60 * 60 * 24
+const THIRTY_SIX_HOURS_MS = 1000 * 60 * 60 * 36
 const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
 
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
   if (!admin) {
     return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
   }
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - TWENTY_FOUR_HOURS_MS)
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - THIRTY_SIX_HOURS_MS)
 
   try {
     const snap = await adminDb

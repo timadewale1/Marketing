@@ -925,7 +925,7 @@ export default function CampaignDetailsPage() {
               View submitted proofs of participation for your tasks.
             </p>
             <p className="mt-2 text-xs uppercase tracking-[0.2em] text-amber-700">
-              Any submission not reviewed within 24 hours will be automatically verified.
+              Any submission not reviewed within 36 hours will be automatically verified.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

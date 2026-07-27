@@ -159,7 +159,7 @@ export default function TransactionsPage() {
                 ₦{availableBalance.toLocaleString()}
               </p>
               <p className="text-sm text-stone-600 mt-1">
-                Minimum withdrawal: ₦1,000
+                Minimum withdrawal: ₦500
               </p>
               {!activated ? (
                 <p className="text-sm text-stone-600 mt-1">

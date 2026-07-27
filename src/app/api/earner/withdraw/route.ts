@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     }
 
     const balance = Number(earner?.balance || 0)
-    if (amount < 1000) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦1,000' }, { status: 400 })
+    if (amount < 500) return NextResponse.json({ success: false, message: 'Minimum withdrawal is ₦500' }, { status: 400 })
     if (balance < amount) return NextResponse.json({ success: false, message: 'Insufficient balance' }, { status: 400 })
 
     const existingWithdrawalsSnap = await db.collection('earnerWithdrawals').where('userId', '==', userId).get()
