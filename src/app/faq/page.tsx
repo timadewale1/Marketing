@@ -59,7 +59,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: "What is the minimum withdrawal amount?",
-    answer: "The minimum withdrawal amount is ₦1,000. Withdrawals are processed to verified Nigerian bank accounts only."
+    answer: "The minimum withdrawal amount is ₦500. Withdrawals are processed to verified Nigerian bank accounts only."
   },
   {
     question: "How are earnings calculated?",

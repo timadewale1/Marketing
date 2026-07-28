@@ -56,7 +56,7 @@ export default function TermsOfServicePage() {
                 For earners:
               </p>
               <ul className="list-disc pl-6">
-                <li>Minimum withdrawal amount is ₦1,000</li>
+                <li>Minimum withdrawal amount is ₦500</li>
                 <li>Withdrawals are processed to verified Nigerian bank accounts only</li>
                 <li>We reserve the right to delay or reject suspicious withdrawal requests</li>
               </ul>
