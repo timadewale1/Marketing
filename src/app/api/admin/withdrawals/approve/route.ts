@@ -87,9 +87,11 @@ export async function POST(req: Request) {
     const recipientName = String(bank.accountName || withdrawal.fullName || withdrawal.name || "Pamba User").trim()
 
     if (provider === "monnify") {
+      const payoutReference = `${withdrawalRef.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
       const disbursementResponse = await monnify.initiateDisbursement({
         amount: net,
-        reference: withdrawalRef.id,
+        reference: payoutReference,
         narration: `Withdrawal for ${recipientName}`,
         destinationBankCode: String(bank.bankCode || ""),
         destinationAccountNumber: String(bank.accountNumber || ""),

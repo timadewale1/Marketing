@@ -1,4 +1,5 @@
 import { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
+import { buildMonnifyReference, isDuplicateMonnifyReferenceError } from '@/lib/monnify-reference-utils'
 
 const BASE = process.env.MONNIFY_BASE_URL!
 const API_KEY = process.env.MONNIFY_API_KEY!
@@ -752,43 +753,60 @@ export async function initiateDisbursement({
   destinationAccountName: string
 }) {
   const token = await getAuthToken()
+  const maxAttempts = 2
+  let lastError: unknown = null
 
-  const body = {
-    amount,
-    reference,
-    narration,
-    destinationBankCode,
-    destinationAccountNumber,
-    destinationAccountName,
-    currency: 'NGN',
-    sourceAccountNumber: MONNIFY_WALLET_ACCOUNT,
-  }
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const currentReference = attempt === 1 ? reference : buildMonnifyReference(reference, attempt)
 
-  const disbursementResponse = await retryRequest(async () => {
-    const res = await fetch(`${BASE}/api/v2/disbursements/single`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
-
-    const json = await res.json().catch((err) => {
-      throw new Error(`Monnify disbursement response JSON parse failed: ${err}`)
-    })
-
-    console.log(`Monnify disbursement response: ${res.status}`, JSON.stringify(json).substring(0, 500))
-
-    if (!res.ok || !json.requestSuccessful) {
-      throw new Error(`Monnify disbursement failed: ${JSON.stringify(json)}`)
+    const body = {
+      amount,
+      reference: currentReference,
+      narration,
+      destinationBankCode,
+      destinationAccountNumber,
+      destinationAccountName,
+      currency: 'NGN',
+      sourceAccountNumber: MONNIFY_WALLET_ACCOUNT,
     }
 
-    return json
-  }, 3, 500)
+    try {
+      const disbursementResponse = await retryRequest(async () => {
+        const res = await fetch(`${BASE}/api/v2/disbursements/single`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+        })
 
-  return disbursementResponse.responseBody
+        const json = await res.json().catch((err) => {
+          throw new Error(`Monnify disbursement response JSON parse failed: ${err}`)
+        })
+
+        console.log(`Monnify disbursement response attempt ${attempt}: ${res.status}`, JSON.stringify(json).substring(0, 500))
+
+        if (!res.ok || !json.requestSuccessful) {
+          throw new Error(`Monnify disbursement failed: ${JSON.stringify(json)}`)
+        }
+
+        return json
+      }, 2, 500)
+
+      return disbursementResponse.responseBody
+    } catch (error) {
+      lastError = error
+      if (!isDuplicateMonnifyReferenceError(error) || attempt >= maxAttempts) {
+        throw error
+      }
+
+      console.warn(`Monnify duplicate reference detected for ${reference}; retrying with ${currentReference}`)
+    }
+  }
+
+  throw lastError
 }
 
 export async function checkDisbursementStatus(reference: string) {
