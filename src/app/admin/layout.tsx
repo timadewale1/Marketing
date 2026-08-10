@@ -58,6 +58,11 @@ const NAVIGATION = [
     icon: Users,
   },
   {
+    name: "Fund Users",
+    href: "/admin/funder-users",
+    icon: Wallet,
+  },
+  {
     name: "Campaigns",
     href: "/admin/campaigns",
     icon: BarChart2,

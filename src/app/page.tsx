@@ -199,34 +199,44 @@ export default function PAMBALanding() {
           box-shadow: 0 1px 0 rgba(245,158,11,0.2);
         }
         .nav-inner {
-          max-width: 1200px; margin: 0 auto; padding: 0 24px;
+          max-width: 1280px; margin: 0 auto; padding: 0 20px;
           display: flex; align-items: center; justify-content: space-between;
+          gap: 20px;
         }
         .nav-logo {
           font-family: 'Sora', sans-serif;
-          font-size: 1.5rem; font-weight: 800;
+          font-size: 1.4rem; font-weight: 800;
           color: var(--white); text-decoration: none;
           display: flex; align-items: center; gap: 8px;
           letter-spacing: -0.02em;
+          min-width: 0;
         }
         .nav-logo span { color: var(--amber); }
         .nav-links {
-          display: flex; align-items: center; gap: 32px;
+          display: flex; align-items: center; gap: 22px;
           list-style: none;
+          flex-wrap: wrap;
+          justify-content: center;
         }
         .nav-links a {
-          color: rgba(255,255,255,0.75);
-          text-decoration: none; font-size: 0.9rem; font-weight: 500;
-          transition: color 0.2s;
+          color: rgba(255,255,255,0.78);
+          text-decoration: none; font-size: 0.88rem; font-weight: 600;
+          transition: color 0.2s, transform 0.2s;
+          white-space: nowrap;
         }
-        .nav-links a:hover { color: var(--amber); }
-        .nav-actions { display: flex; gap: 12px; }
+        .nav-links a:hover { color: var(--amber); transform: translateY(-1px); }
+        .nav-actions {
+          display: flex; gap: 10px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
         .btn-ghost {
-          background: transparent; border: 1px solid rgba(255,255,255,0.25);
-          color: var(--white); padding: 8px 20px; border-radius: 8px;
-          font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.875rem;
+          background: transparent; border: 1px solid rgba(255,255,255,0.2);
+          color: var(--white); padding: 8px 16px; border-radius: 10px;
+          font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.84rem;
           cursor: pointer; transition: all 0.2s; text-decoration: none;
           display: inline-flex; align-items: center;
+          min-width: 0;
         }
         .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
         .btn-primary {
@@ -354,13 +364,48 @@ export default function PAMBALanding() {
         .section.reviews-bg .section-header {
           margin-bottom: 24px;
         }
-        .reviews-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+        .reviews-control-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        .review-nav-btn {
+          width: 44px;
+          height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          border: 1px solid rgba(15,23,42,0.1);
+          background: white;
+          color: #334155;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .review-nav-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 20px rgba(15,23,42,0.08);
+        }
+        .reviews-track {
+          display: flex;
           gap: 24px;
-          margin-top: 32px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 12px;
+          margin-top: 8px;
+        }
+        .reviews-track::-webkit-scrollbar {
+          height: 8px;
+        }
+        .reviews-track::-webkit-scrollbar-thumb {
+          background: rgba(148,163,184,0.4);
+          border-radius: 999px;
         }
         .review-card {
+          min-width: min(380px, 100%);
+          flex: 0 0 auto;
+          scroll-snap-align: start;
           background: #fff;
           border: 1px solid rgba(148,163,184,0.2);
           border-radius: 28px;
@@ -395,6 +440,25 @@ export default function PAMBALanding() {
           font-size: 0.875rem;
           color: #64748b;
         }
+        .review-dots {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          margin-top: 24px;
+        }
+        .review-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 999px;
+          background: rgba(71,85,105,0.25);
+          border: none;
+          cursor: pointer;
+          transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .review-dot.active {
+          background: #1d4ed8;
+          transform: scale(1.15);
+        }
         .reviews-loading,
         .reviews-empty {
           margin-top: 24px;
@@ -402,13 +466,16 @@ export default function PAMBALanding() {
           text-align: center;
         }
         @media (max-width: 992px) {
-          .reviews-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+          .review-card {
+            min-width: min(320px, 100%);
           }
         }
         @media (max-width: 720px) {
-          .reviews-grid {
-            grid-template-columns: 1fr;
+          .reviews-control-row {
+            justify-content: center;
+          }
+          .review-card {
+            min-width: min(280px, 100%);
           }
         }
         .updates-wrap {
@@ -859,6 +926,13 @@ export default function PAMBALanding() {
           .hiw-steps { grid-template-columns: repeat(2, 1fr); }
           .hiw-steps::before { display: none; }
           .footer-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 900px) {
+          .nav-links { gap: 16px; }
+          .nav-links a { font-size: 0.82rem; }
+          .nav-actions { gap: 8px; }
+          .btn-ghost { padding: 8px 14px; }
+          .btn-primary { padding: 8px 16px; }
         }
         @media (max-width: 768px) {
           .nav-links, .nav-actions { display: none; }
