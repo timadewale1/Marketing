@@ -153,15 +153,18 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
         }
         .homepage-direct-ads-media {
           position: relative;
-          aspect-ratio: 16 / 9;
+          height: 240px;
+          max-height: 280px;
           background: #0c0a09;
+          overflow: hidden;
         }
         .homepage-direct-ads-media img,
         .homepage-direct-ads-media video {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           display: block;
+          background: #0c0a09;
         }
         .homepage-direct-ads-content {
           padding: 18px 18px 20px;

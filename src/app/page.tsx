@@ -11,6 +11,7 @@ import {
 import BillsCard from "@/components/bills/BillsCard";
 import WhatsAppChatButton from "@/components/WhatsAppChatButton";
 import HomepageDirectAds from "@/components/homepage/HomepageDirectAds";
+import HomepageReviews from "@/components/homepage/HomepageReviews";
 
 const HOMEPAGE_TELEGRAM_URL = "https://t.me/pambaadvertisement";
 const HOMEPAGE_TELEGRAM_JOINED_KEY = "pamba-home-telegram-joined";
@@ -345,6 +346,70 @@ export default function PAMBALanding() {
         .homepage-direct-ads-wrap {
           padding: 28px 0 58px;
           background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+        }
+        .section.reviews-bg {
+          background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+          padding: 60px 0;
+        }
+        .section.reviews-bg .section-header {
+          margin-bottom: 24px;
+        }
+        .reviews-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 24px;
+          margin-top: 32px;
+        }
+        .review-card {
+          background: #fff;
+          border: 1px solid rgba(148,163,184,0.2);
+          border-radius: 28px;
+          padding: 28px;
+          box-shadow: 0 24px 50px rgba(15,23,42,0.06);
+        }
+        .review-rating {
+          display: flex;
+          gap: 6px;
+          color: #f59e0b;
+        }
+        .review-star {
+          width: 18px;
+          height: 18px;
+        }
+        .review-comment {
+          margin-top: 18px;
+          color: #334155;
+          line-height: 1.75;
+        }
+        .review-meta {
+          margin-top: 20px;
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          color: #475569;
+          font-size: 0.9rem;
+        }
+        .review-target {
+          margin-top: 14px;
+          font-size: 0.875rem;
+          color: #64748b;
+        }
+        .reviews-loading,
+        .reviews-empty {
+          margin-top: 24px;
+          color: #475569;
+          text-align: center;
+        }
+        @media (max-width: 992px) {
+          .reviews-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 720px) {
+          .reviews-grid {
+            grid-template-columns: 1fr;
+          }
         }
         .updates-wrap {
           background: linear-gradient(180deg, #fafaf9 0%, #f5f5f4 100%);
@@ -1112,6 +1177,8 @@ export default function PAMBALanding() {
       <div className="homepage-direct-ads-wrap">
         <HomepageDirectAds />
       </div>
+
+      <HomepageReviews />
 
       {/* ── FEATURES ── */}
       <section className="section features-bg" id="features">
