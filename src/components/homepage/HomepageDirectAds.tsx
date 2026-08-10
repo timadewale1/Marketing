@@ -23,6 +23,7 @@ const DIRECT_ADS_CACHE_TTL_MS = 10 * 60 * 1000;
 export default function HomepageDirectAds({ variant = "homepage" }: HomepageDirectAdsProps) {
   const [ads, setAds] = useState<HomepageDirectAd[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, string>>({});
   const railRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -57,6 +58,22 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
 
     load().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const ratioCache: Record<string, string> = {};
+    ads.forEach((ad) => {
+      if (ad.mediaType !== "image") return;
+      const image = new Image();
+      image.src = ad.mediaUrl;
+      image.onload = () => {
+        const ratio = image.naturalWidth && image.naturalHeight ? `${image.naturalWidth}/${image.naturalHeight}` : "4/5";
+        if (ratioCache[ad.id] !== ratio) {
+          ratioCache[ad.id] = ratio;
+          setMediaAspectRatios((current) => ({ ...current, [ad.id]: ratio }));
+        }
+      };
+    });
+  }, [ads]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -153,15 +170,17 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
         }
         .homepage-direct-ads-media {
           position: relative;
-          height: 240px;
-          max-height: 280px;
+          width: 100%;
+          aspect-ratio: 4 / 5;
           background: #0c0a09;
           overflow: hidden;
+          display: grid;
+          place-items: center;
         }
         .homepage-direct-ads-media img,
         .homepage-direct-ads-media video {
-          width: 100%;
-          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
           object-fit: contain;
           display: block;
           background: #0c0a09;
@@ -282,7 +301,10 @@ export default function HomepageDirectAds({ variant = "homepage" }: HomepageDire
                   className={`homepage-direct-ads-card ${isActive ? "active" : ""}`}
                   onClick={() => setActiveId(ad.id)}
                 >
-                  <div className="homepage-direct-ads-media">
+                  <div
+                    className="homepage-direct-ads-media"
+                    style={{ aspectRatio: mediaAspectRatios[ad.id] || "4 / 5" }}
+                  >
                     {ad.mediaType === "video" ? (
                       <video
                         src={ad.mediaUrl}
