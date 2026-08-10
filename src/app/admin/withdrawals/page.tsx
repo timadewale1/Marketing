@@ -153,12 +153,14 @@ export default function WithdrawalsPage() {
     });
   }, []);
 
+  const isActionablePendingStatus = (status: string) =>
+    status === "pending" || status === "pending_admin_approval" || status === "processing";
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return withdrawals.filter((withdrawal) => {
       const normalizedStatus = String(withdrawal.status || "").toLowerCase();
-      const isActionablePending =
-        normalizedStatus === "pending" || normalizedStatus === "pending_admin_approval";
+      const isActionablePending = isActionablePendingStatus(normalizedStatus);
       const matchesStatus =
         statusFilter === "all"
           ? true
@@ -177,7 +179,7 @@ export default function WithdrawalsPage() {
   const stats = {
     pending: withdrawals.filter((withdrawal) => {
       const status = String(withdrawal.status || "").toLowerCase();
-      return status === "pending" || status === "pending_admin_approval";
+      return isActionablePendingStatus(status);
     }).length,
     sent: withdrawals.filter((withdrawal) => {
       const status = String(withdrawal.status || "").toLowerCase();
@@ -209,6 +211,34 @@ export default function WithdrawalsPage() {
     } catch (error) {
       console.error("Failed to approve withdrawal", error);
       toast.error(error instanceof Error ? error.message : "Failed to update withdrawal");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const reverseWithdrawal = async (withdrawal: Withdrawal) => {
+    try {
+      setProcessingId(withdrawal.id);
+      const response = await fetch("/api/admin/withdrawals/reverse", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withdrawalId: withdrawal.id, source: withdrawal.source }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to reverse withdrawal");
+      }
+
+      setWithdrawals((current) =>
+        current.map((item) =>
+          item.id === withdrawal.id ? { ...item, status: "cancelled" } : item
+        )
+      );
+      toast.success("Withdrawal request reversed successfully");
+    } catch (error) {
+      console.error("Failed to reverse withdrawal", error);
+      toast.error(error instanceof Error ? error.message : "Failed to reverse withdrawal");
     } finally {
       setProcessingId(null);
     }
@@ -282,10 +312,15 @@ export default function WithdrawalsPage() {
                         Open user
                       </Link>
                     </Button>
-                    {withdrawal.status !== "sent" && withdrawal.status !== "completed" ? (
-                      <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" disabled={processingId === withdrawal.id} onClick={() => approveWithdrawal(withdrawal)}>
-                        Approve & send
-                      </Button>
+                    {isActionablePendingStatus(withdrawal.status.toLowerCase()) ? (
+                      <>
+                        <Button className="rounded-full bg-stone-900 text-white hover:bg-stone-800" disabled={processingId === withdrawal.id} onClick={() => approveWithdrawal(withdrawal)}>
+                          Approve & send
+                        </Button>
+                        <Button className="rounded-full border border-red-200 text-red-700 bg-red-50 hover:bg-red-100" disabled={processingId === withdrawal.id} onClick={() => reverseWithdrawal(withdrawal)}>
+                          Reverse request
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </div>

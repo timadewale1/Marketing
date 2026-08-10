@@ -65,6 +65,36 @@ export default function AdvertiserTransactionsPage() {
     }
   }
 
+  const cancelWithdrawal = async (withdrawalId: string) => {
+    if (!confirm('Are you sure you want to cancel this withdrawal request?')) {
+      return
+    }
+    const u = auth.currentUser
+    if (!u) {
+      toast.error('Login required')
+      return
+    }
+
+    try {
+      const idToken = await u.getIdToken()
+      const res = await fetch('/api/advertiser/withdraw/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ withdrawalId }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        toast.error(data?.message || 'Failed to cancel withdrawal')
+        return
+      }
+      toast.success(data?.message || 'Withdrawal request cancelled')
+      try { router.refresh() } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Cancel withdrawal error', err)
+      toast.error('Failed to cancel withdrawal request')
+    }
+  }
+
   useEffect(() => {
     const u = auth.currentUser;
     if (!u) {
@@ -238,7 +268,7 @@ export default function AdvertiserTransactionsPage() {
                           statusToCheck = (withdrawalStatusMap[tx.withdrawalId] as string | undefined) || statusToCheck;
                         }
 
-                        const isPending = statusToCheck === 'pending' || statusToCheck === 'processing';
+                        const isPending = statusToCheck === 'pending' || statusToCheck === 'processing' || statusToCheck === 'pending_admin_approval';
                         const isCompleted = statusToCheck === 'completed' || statusToCheck === 'sent';
 
                         if (isPending) {
@@ -264,6 +294,13 @@ export default function AdvertiserTransactionsPage() {
                       </div>
                     </div>
                   </div>
+                  {tx.type === 'withdrawal_request' && tx.withdrawalId && (withdrawalStatusMap[tx.withdrawalId] === 'pending' || withdrawalStatusMap[tx.withdrawalId] === 'processing' || withdrawalStatusMap[tx.withdrawalId] === 'pending_admin_approval') ? (
+                    <div className="mt-3 text-right">
+                      <Button size="sm" variant="outline" onClick={() => cancelWithdrawal(tx.withdrawalId!)}>
+                        Cancel withdrawal
+                      </Button>
+                    </div>
+                  ) : null}
                 </Card>
               )
               })}

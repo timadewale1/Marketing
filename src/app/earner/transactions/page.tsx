@@ -117,7 +117,6 @@ export default function TransactionsPage() {
     }
 
     try {
-      // Call server API to process withdrawal immediately via Paystack
       const idToken = await u.getIdToken()
       const res = await fetch('/api/earner/withdraw', {
         method: 'POST',
@@ -137,6 +136,43 @@ export default function TransactionsPage() {
     } catch (err) {
       console.error(err)
       toast.error('Failed to process withdrawal')
+    }
+  };
+
+  const cancelWithdrawal = async (withdrawalId?: string): Promise<void> => {
+    if (!withdrawalId) {
+      toast.error('Unable to cancel withdrawal request');
+      return;
+    }
+    if (!confirm('Are you sure you want to cancel this withdrawal request?')) {
+      return;
+    }
+    const u = auth.currentUser;
+    if (!u) {
+      toast.error('Login required');
+      return;
+    }
+
+    try {
+      const idToken = await u.getIdToken();
+      const res = await fetch('/api/earner/withdraw/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ withdrawalId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast.error(data?.message || 'Failed to cancel withdrawal');
+        return;
+      }
+      toast.success(data?.message || 'Withdrawal request cancelled');
+      router.refresh();
+    } catch (err) {
+      console.error('Cancel withdrawal failed', err);
+      toast.error('Failed to cancel withdrawal request');
     }
   };
 
@@ -268,6 +304,13 @@ export default function TransactionsPage() {
                           </div>
                         </div>
                       </div>
+                      {tx.type === 'withdrawal_request' && tx.withdrawalId && (withdrawalStatusMap[tx.withdrawalId] === 'pending' || withdrawalStatusMap[tx.withdrawalId] === 'processing' || withdrawalStatusMap[tx.withdrawalId] === 'pending_admin_approval') ? (
+                        <div className="mt-3 text-right">
+                          <Button size="sm" variant="outline" onClick={() => cancelWithdrawal(tx.withdrawalId)}>
+                            Cancel withdrawal
+                          </Button>
+                        </div>
+                      ) : null}
                     </Card>
                     )
                   })}
