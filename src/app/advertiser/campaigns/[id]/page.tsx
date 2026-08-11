@@ -986,9 +986,9 @@ export default function CampaignDetailsPage() {
                       resubmissionSubmittedAt={submission.resubmissionSubmittedAt}
                       earnerDisputeReason={submission.earnerDisputeReason}
                     />
-                    {submission.status === "Pending" && !["approved", "rejected", "auto_verified", "upheld", "overruled"].includes(
+                    {((submission.status === "Pending" && !["approved", "rejected", "auto_verified", "upheld", "overruled", "resubmission_requested"].includes(
                       String(submission.advertiserDecisionStatus || submission.advertiserFlagStatus || "").trim().toLowerCase()
-                    ) ? (
+                    )) || (submission.status === "Rejected" && String(submission.advertiserDecisionStatus || submission.advertiserFlagStatus || "").trim().toLowerCase() === "rejected")) ? (
                       <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-3">
                         <p className="text-sm font-semibold text-stone-800">Advertiser review</p>
                       <p className="text-xs text-stone-500">
