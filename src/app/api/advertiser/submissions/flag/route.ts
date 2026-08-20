@@ -199,7 +199,16 @@ export async function POST(req: Request) {
         remainingToCover = Math.max(0, fullAmount - budgetToConsume)
       }
 
+      const advertiserDecisionStatus = String(submission.advertiserDecisionStatus || '').trim().toLowerCase()
+      const isReverifyAttempt =
+        String(submission.status || '').trim().toLowerCase() === 'rejected' ||
+        advertiserDecisionStatus === 'rejected' ||
+        (advertiserDecisionStatus === 'resubmission_requested' && resubmissionSubmitted)
+
       if (action === 'Verified') {
+        if (isReverifyAttempt && campaignBudget < fullAmount) {
+          throw new Error('Task budget is exhausted. Please top up before re-verifying this proof.')
+        }
         if (remainingToCover > 0 && advertiserBalance < remainingToCover) {
           throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
         }

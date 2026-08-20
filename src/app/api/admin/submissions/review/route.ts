@@ -126,6 +126,11 @@ export async function POST(req: Request): Promise<Response> {
         const fullAmount = computeAdvertiserCharge(reservedAmount, Number(campaign.costPerLead || 0), earnerAmount)
         const advertiserId = submission.advertiserId || campaign.ownerId
         const flagPending = String(submission.advertiserFlagStatus || '') === 'pending'
+        const advertiserDecisionStatus = String(submission.advertiserDecisionStatus || '').trim().toLowerCase()
+        const isReverifyAttempt =
+          String(prevStatus || '').trim().toLowerCase() === 'rejected' ||
+          advertiserDecisionStatus === 'rejected' ||
+          advertiserDecisionStatus === 'resubmission_requested'
         let reservedBudgetAdjustment = 0
         let reservedToConsume = 0
         let budgetToConsume = 0
@@ -170,6 +175,10 @@ export async function POST(req: Request): Promise<Response> {
 
         if (remainingToCover > 0 && advertiserBalance < remainingToCover) {
           throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
+        }
+
+        if (action === 'Verified' && isReverifyAttempt && campaignBudget < fullAmount) {
+          throw new Error('Task budget is exhausted. Please top up before re-verifying this proof.')
         }
 
         if (flagPending && advertiserId) {

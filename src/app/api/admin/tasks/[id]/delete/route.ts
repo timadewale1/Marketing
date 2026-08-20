@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
 
 /**
  * DELETE /api/admin/tasks/[id]/delete
@@ -83,7 +84,7 @@ export async function POST(
         Number(campaign?.reservedBudget || 0),
         pendingReservedAmount
       )
-      const refundableBudget = Math.max(0, Number(campaign?.budget || 0))
+      const refundableBudget = await computeSafeCampaignRefundAmount(db, taskId, campaign || {})
 
       console.log('[delete-task][admin]', {
         taskId,

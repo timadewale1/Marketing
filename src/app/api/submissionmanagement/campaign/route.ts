@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
 import { requireSubmissionManagementSession } from '@/lib/submissionmanagement-session'
+import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
 
 export async function POST(req: Request) {
   try {
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
           0
         )
         const reservedBudget = Math.max(Number(campaign.reservedBudget || 0), pendingReservedAmount)
-        const refundAmount = Math.max(0, Number(campaign.budget || 0))
+        const refundAmount = await computeSafeCampaignRefundAmount(adminDb, campaignId, campaign)
 
         batch.update(campaignRef, {
           status: 'Deleted',

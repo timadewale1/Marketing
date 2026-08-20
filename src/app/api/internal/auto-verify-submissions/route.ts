@@ -7,6 +7,7 @@ import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing'
 import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { queueReviewPrompt } from '@/lib/reviews'
+import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
 
 interface Submission {
   status?: string
@@ -522,7 +523,7 @@ export async function GET(request: Request) {
           if (!expiresAtDate || expiresAtDate.getTime() > Date.now()) return
 
           const ownerId = String(campaign.ownerId || '')
-          const refundAmount = Math.max(0, Math.floor(Number(campaign.budget || 0) + Number(campaign.reservedBudget || 0)))
+          const refundAmount = await computeSafeCampaignRefundAmount(adminDb, campaignDoc.id, campaign)
 
           t.update(campaignRef, {
             status: 'Expired',

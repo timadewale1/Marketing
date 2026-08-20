@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore'
+import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
 
 // Handle all campaign status changes with proper balance syncing
 export async function POST(req: Request) {
@@ -60,11 +61,11 @@ export async function POST(req: Request) {
             (sum, submissionDoc) => sum + Number(submissionDoc.data()?.reservedAmount || 0),
             0
           )
-          const reservedBudget = Math.max(
-            Number(campaign.reservedBudget || 0),
-            pendingReservedAmount
-          )
-          const refundAmount = Math.max(0, Number(campaign.budget || 0))
+        const reservedBudget = Math.max(
+          Number(campaign.reservedBudget || 0),
+          pendingReservedAmount
+        )
+        const refundAmount = await computeSafeCampaignRefundAmount(adminDb, campaignId, campaign)
 
           // Mark campaign as deleted
           transaction.update(campaignRef, {
@@ -167,7 +168,7 @@ export async function POST(req: Request) {
         case 'stop': {
           // When stopping, refund remaining budget
           if (campaign.budget > 0) {
-            const refundAmount = campaign.budget
+            const refundAmount = await computeSafeCampaignRefundAmount(adminDb, campaignId, campaign)
             transaction.update(advertiserRef, {
               balance: admin.firestore.FieldValue.increment(refundAmount)
             })
