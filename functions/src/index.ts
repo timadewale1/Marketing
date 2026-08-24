@@ -669,11 +669,15 @@ async function runDirectAutoVerifySubmissions() {
   const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000;
 const AUTO_VERIFY_BATCH_LIMIT = 100;
 
-async function computeSafeCampaignRefundAmount(dbAdmin: any, campaignId: string, campaign: Record<string, unknown>) {
+async function computeSafeCampaignRefundAmount(
+  dbAdmin: FirebaseFirestore.Firestore,
+  campaignId: string,
+  campaign: Record<string, unknown>
+) {
   const txSnap = await dbAdmin.collection("advertiserTransactions").where("campaignId", "==", campaignId).get();
-  const txs = txSnap.docs.map((doc) => doc.data() as { type?: string; amount?: number | string });
-  const topUps = txs.reduce((sum, tx) => tx.type === "campaign_top_up" ? sum + Math.abs(Number(tx.amount || 0)) : sum, 0);
-  const debits = txs.reduce((sum, tx) => tx.type === "debit" ? sum + Math.abs(Number(tx.amount || 0)) : sum, 0);
+  const txs = txSnap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => doc.data() as { type?: string; amount?: number | string });
+  const topUps = txs.reduce((sum: number, tx: { type?: string; amount?: number | string }) => tx.type === "campaign_top_up" ? sum + Math.abs(Number(tx.amount || 0)) : sum, 0);
+  const debits = txs.reduce((sum: number, tx: { type?: string; amount?: number | string }) => tx.type === "debit" ? sum + Math.abs(Number(tx.amount || 0)) : sum, 0);
   const recordedBudget = Math.max(0, Number(campaign.originalBudget || campaign.budget || 0));
   const ledgerBasedCap = Math.max(0, recordedBudget + topUps - debits);
   const liveBudget = Math.max(0, Number(campaign.budget || 0));
@@ -827,7 +831,7 @@ async function computeSafeCampaignRefundAmount(dbAdmin: any, campaignId: string,
         }
 
         if (resubmissionExpired) {
-          const finalRejectionReason = "The requested resubmission was not received within 8 hours.";
+          const finalRejectionReason = "The requested resubmission was not received within 24 hours.";
           if (!submissionUserId) throw new Error("Submission missing userId");
           const earnerRef = db.collection("earners").doc(submissionUserId);
           const earnerSnapshot = await t.get(earnerRef);
@@ -1066,7 +1070,7 @@ async function computeSafeCampaignRefundAmount(dbAdmin: any, campaignId: string,
         if (!expiresAtDate || expiresAtDate.getTime() > Date.now()) return;
 
         const ownerId = String(campaign.ownerId || "");
-        const refundAmount = await computeSafeCampaignRefundAmount(dbAdmin, campaignDoc.id, campaign);
+        const refundAmount = await computeSafeCampaignRefundAmount(db, campaignDoc.id, campaign);
 
         t.update(campaignRef, {
           status: "Expired",

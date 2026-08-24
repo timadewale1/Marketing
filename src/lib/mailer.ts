@@ -716,7 +716,7 @@ export async function sendProofResubmissionRequestedEmail({
   reason: string
   dueAt?: Date | string | null
 }) {
-  const dueText = dueAt ? new Date(dueAt).toLocaleString() : 'within 8 hours'
+  const dueText = dueAt ? new Date(dueAt).toLocaleString() : 'within 24 hours'
   await sendEmail({
     to: email,
     subject: `Update your proof for ${taskTitle}`,

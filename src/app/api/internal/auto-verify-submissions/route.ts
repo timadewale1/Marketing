@@ -41,7 +41,7 @@ async function resolveOwnerRef(adminDb: NonNullable<Awaited<ReturnType<typeof in
   return null
 }
 
-const THIRTY_SIX_HOURS_MS = 1000 * 60 * 60 * 36
+const FORTY_EIGHT_HOURS_MS = 1000 * 60 * 60 * 48
 const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000
 const AUTO_VERIFY_BATCH_LIMIT = 100
 
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   if (!admin) {
     return NextResponse.json({ success: false, message: 'Firebase admin unavailable' }, { status: 500 })
   }
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - THIRTY_SIX_HOURS_MS)
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - FORTY_EIGHT_HOURS_MS)
 
   try {
     const snap = await adminDb
@@ -207,7 +207,7 @@ export async function GET(request: Request) {
         }
 
           if (resubmissionExpired) {
-            const finalRejectionReason = 'The requested resubmission was not received within 8 hours.'
+            const finalRejectionReason = 'The requested resubmission was not received within 24 hours.'
             if (!submissionUserId) throw new Error('Submission missing userId')
             const earnerRef = adminDb.collection('earners').doc(submissionUserId)
             const earnerSnapshot = await t.get(earnerRef)

@@ -136,7 +136,7 @@ export async function POST(req: Request) {
     const earnerName = String(earnerData?.fullName || earnerData?.name || '').trim() || undefined
     const strikeEmailPayload: { current?: StrikeEmailPayload } = {}
     let resubmissionEmailPayload: { email: string; name?: string; taskTitle: string; reason: string; dueAt: Date } | null = null
-    const resubmissionDueAt = new Date(now.getTime() + 8 * 60 * 60 * 1000)
+    const resubmissionDueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     await db.runTransaction(async (t) => {
       const campaignId = String(submission.campaignId || '')
