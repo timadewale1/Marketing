@@ -74,7 +74,7 @@ async function callInternalRoute(path: string) {
   const internalBase = getInternalApiBaseUrl();
   const appBase = APP_BASE_URL.replace(/\/$/, "");
   const targetCandidates = internalBase
-    ? [`${internalBase}${path}`]
+    ? [`${internalBase}${path}`, `${appBase}${path}`]
     : [`${appBase}${path}`];
 
   let lastError: string | null = null;
