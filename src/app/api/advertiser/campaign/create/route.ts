@@ -5,6 +5,7 @@ import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { HIGH_VALUE_TASK_POINTS, HIGH_VALUE_TASK_THRESHOLD, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { awardAdvertiserFirstTaskReferralBonusInTransaction } from '@/lib/paymentProcessing'
 import { computeEarnerPayout } from '@/lib/task-pricing'
+import { normalizeExternalLink } from '@/lib/external-link'
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
 
     const budget = Number(campaignData.budget || 0)
     const category = String(campaignData.category || '')
-    const externalLink = String(campaignData.externalLink || '').trim()
+    const externalLink = normalizeExternalLink(campaignData.externalLink)
     const mediaUrl = String(campaignData.mediaUrl || '').trim()
     if (!budget || budget <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid campaign budget' }, { status: 400 })

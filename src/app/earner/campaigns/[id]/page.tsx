@@ -22,6 +22,7 @@ import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
 import { getCampaignProofSampleUrls } from "@/lib/proofs";
+import { normalizeExternalLink } from "@/lib/external-link";
 import { computeEarnerPayout } from "@/lib/task-pricing";
 
 type Campaign = {
@@ -648,14 +649,19 @@ if (todayCount >= (campaignData?.dailyLimit || Infinity)) {
                     <h5 className="text-sm font-medium mb-2">
                       {campaign.category === 'Advertise Product' ? 'Product Link' : 'Task Link'}
                     </h5>
+                    {(() => {
+                      const href = normalizeExternalLink(campaign.externalLink)
+                      return (
                     <a
-                      href={campaign.externalLink}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-amber-600 hover:underline break-all"
                     >
                       {campaign.externalLink}
                     </a>
+                      )
+                    })()}
                   </div>
                 )}
 

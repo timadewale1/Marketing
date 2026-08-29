@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { registerActivationReference } from "@/lib/activation-client"
 import { ADVERTISER_ACTIVATION_REQUIRED } from "@/lib/platform-config"
 import { computeEarnerPayout } from "@/lib/task-pricing"
+import { normalizeExternalLink } from "@/lib/external-link"
 import {
   FileText,
   ArrowRight,
@@ -1255,7 +1256,7 @@ const getEmbeddedVideo = (url: string) => {
                 externalLink && (
                   <a
                     className="text-amber-600 underline mt-2 block"
-                    href={externalLink}
+                    href={normalizeExternalLink(externalLink)}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -1265,7 +1266,7 @@ const getEmbeddedVideo = (url: string) => {
               {isProductSharingCategory && productLink && (
                 <a
                   className="text-amber-600 underline mt-2 block"
-                  href={productLink}
+                  href={normalizeExternalLink(productLink)}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -1277,7 +1278,7 @@ const getEmbeddedVideo = (url: string) => {
                   {externalLink ? (
                     <a
                       className="text-amber-600 underline block break-all"
-                      href={externalLink}
+                      href={normalizeExternalLink(externalLink)}
                       target="_blank"
                       rel="noreferrer"
                     >

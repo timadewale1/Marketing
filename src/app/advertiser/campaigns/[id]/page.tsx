@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { summarizeCampaignProgress } from "@/lib/campaign-progress"
 import { getCampaignProofSampleUrls, getProofUrls } from "@/lib/proofs"
+import { normalizeExternalLink } from "@/lib/external-link"
 import { SubmissionReviewStatus } from "@/components/submission-review-status"
 import toast from "react-hot-toast"
 
@@ -584,7 +585,7 @@ export default function CampaignDetailsPage() {
                 />
               ) : campaign.externalLink ? (
                 <a
-                  href={campaign.externalLink}
+                  href={normalizeExternalLink(campaign.externalLink)}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-3 inline-flex items-center gap-2 break-all text-sm text-amber-700 underline"

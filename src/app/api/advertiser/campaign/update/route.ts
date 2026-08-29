@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import { normalizeExternalLink } from '@/lib/external-link'
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     const normalizedCampaignId = String(campaignId || '').trim()
     const normalizedTitle = String(title || '').trim()
     const normalizedDescription = String(description || '').trim()
-    const normalizedExternalLink = String(externalLink || '').trim()
+    const normalizedExternalLink = normalizeExternalLink(externalLink)
     const normalizedMediaUrl = String(mediaUrl || '').trim()
     const normalizedProofSampleUrls = Array.isArray(participationProofSampleUrls)
       ? participationProofSampleUrls.map((value) => String(value || '').trim()).filter(Boolean)

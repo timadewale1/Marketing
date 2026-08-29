@@ -23,6 +23,7 @@ import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { PageLoader } from "@/components/ui/loader";
 import Image from "next/image";
+import { normalizeExternalLink } from "@/lib/external-link";
 
 type Campaign = {
   id: string;
@@ -356,7 +357,7 @@ export default function CampaignDetailPage() {
                   <div className="mb-3">
                     <h5 className="text-sm font-medium mb-2">Campaign Link</h5>
                     <a
-                      href={campaign.externalLink}
+                      href={normalizeExternalLink(campaign.externalLink)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gold-600 hover:underline break-all"
