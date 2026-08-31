@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     })
     await logPaymentLifecycle({
       scope: "activation",
-      status: "registered",
+      status: "created",
       source: "activation/register-reference",
       provider,
       role,
@@ -66,6 +66,15 @@ export async function POST(req: Request) {
       reference,
       references: [reference],
       amount: 2000,
+      lifecycle: {
+        paymentReference: reference,
+        paymentType: "activation",
+        finalStatus: "pending",
+        timestamps: {
+          createdAt: new Date().toISOString(),
+          pendingAt: new Date().toISOString(),
+        },
+      },
     })
 
     return NextResponse.json({ success: true })

@@ -172,6 +172,14 @@ export async function POST(req: NextRequest) {
         reference: effectiveReference,
         references: referenceCandidates,
         amount: safeAmount,
+        lifecycle: {
+          paymentReference: effectiveReference,
+          monnifyTransactionReference: typeof transactionReference === 'string' ? transactionReference : null,
+          paymentType: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
+          webhookReceivedAt: new Date().toISOString(),
+          monnifyVerificationResult: paymentStatus,
+          finalStatus: 'pending',
+        },
         details: { webhookStatus: String(status || ''), eventType: String(eventType || '') },
       })
 
@@ -203,6 +211,22 @@ export async function POST(req: NextRequest) {
             amount: safeAmount,
             transactionReference: transactionReference || null,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
+          await logPaymentLifecycle({
+            scope: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
+            status: 'monnify_confirmed',
+            source: 'webhooks/monnify/transaction',
+            provider: 'monnify',
+            email: customerEmail,
+            reference: referenceCandidates[0] || effectiveReference,
+            references: referenceCandidates,
+            amount: safeAmount,
+            lifecycle: {
+              paymentReference: referenceCandidates[0] || effectiveReference,
+              monnifyTransactionReference: typeof transactionReference === 'string' ? transactionReference : null,
+              monnifyVerificationResult: paymentStatus,
+              finalStatus: 'monnify_confirmed',
+            },
           })
           // Check if this is a wallet funding transaction (advertiser first, then earner)
           const walletTxDoc = await findPendingWalletTransactionByReferences(

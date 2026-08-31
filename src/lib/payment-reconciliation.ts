@@ -2,6 +2,11 @@ import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 
 type ReconciliationScope = "activation" | "wallet_funding" | "campaign_payment" | "recovery"
 type ReconciliationStatus =
+  | "created"
+  | "pending"
+  | "monnify_confirmed"
+  | "processing"
+  | "completed"
   | "registered"
   | "callback_received"
   | "pending_confirmation"
@@ -9,6 +14,12 @@ type ReconciliationStatus =
   | "completed"
   | "webhook_received"
   | "webhook_processed"
+  | "webhook_failed"
+  | "reference_not_found"
+  | "monnify_not_confirmed"
+  | "processing_failed"
+  | "firestore_update_failed"
+  | "manual_review"
   | "retry_started"
   | "retry_completed"
   | "retry_failed"
@@ -29,6 +40,18 @@ type LogPaymentLifecycleInput = {
   amount?: number | null
   transactionId?: string | null
   details?: Record<string, unknown>
+  lifecycle?: {
+    paymentReference?: string | null
+    monnifyTransactionReference?: string | null
+    webhookReceivedAt?: string | null
+    monnifyVerificationResult?: string | null
+    processorAttemptCount?: number | null
+    lastError?: string | null
+    lastProcessingAttempt?: string | null
+    finalStatus?: string | null
+    paymentType?: string | null
+    timestamps?: Record<string, unknown>
+  }
 }
 
 function normalizeReferences(reference: string | null | undefined, references: string[] = []) {
@@ -44,6 +67,7 @@ export async function logPaymentLifecycle(input: LogPaymentLifecycleInput) {
     await dbAdmin.collection("paymentReconciliationLogs").add({
       scope: input.scope,
       status: input.status,
+      lifecycleStatus: input.status,
       source: input.source,
       provider: input.provider || null,
       role: input.role || null,
@@ -54,6 +78,16 @@ export async function logPaymentLifecycle(input: LogPaymentLifecycleInput) {
       amount: typeof input.amount === "number" ? input.amount : null,
       transactionId: input.transactionId || null,
       details: input.details || {},
+      paymentReference: input.lifecycle?.paymentReference || references[0] || null,
+      paymentType: input.lifecycle?.paymentType || input.scope || null,
+      monnifyTransactionReference: input.lifecycle?.monnifyTransactionReference || null,
+      webhookReceivedAt: input.lifecycle?.webhookReceivedAt || null,
+      monnifyVerificationResult: input.lifecycle?.monnifyVerificationResult || null,
+      processorAttemptCount: input.lifecycle?.processorAttemptCount ?? null,
+      lastError: input.lifecycle?.lastError || null,
+      lastProcessingAttempt: input.lifecycle?.lastProcessingAttempt || null,
+      finalStatus: input.lifecycle?.finalStatus || input.status,
+      timestamps: input.lifecycle?.timestamps || {},
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     })
   } catch (error) {

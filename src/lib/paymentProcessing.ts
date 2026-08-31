@@ -12,6 +12,7 @@ import {
 } from '@/lib/referral-rewards'
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
+import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
 type UserRole = 'earner' | 'advertiser'
@@ -509,6 +510,7 @@ export async function processActivationWithRetry(
   const adminDb = dbAdmin as AdminFirestore
   const activationReferences = [...new Set([reference, ...extraReferences].filter(Boolean))]
   const primaryReference = activationReferences[0] || reference
+  let resolvedRole: UserRole | null = null
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -521,6 +523,26 @@ export async function processActivationWithRetry(
       const userDoc = earnerSnap.exists ? earnerSnap : advertiserSnap
       const userType = earnerSnap.exists ? 'earners' : 'advertisers'
       const role: UserRole = userType === 'earners' ? 'earner' : 'advertiser'
+      resolvedRole = role
+
+      await logPaymentLifecycle({
+        scope: 'activation',
+        status: attempt === 1 ? 'processing' : 'retry_started',
+        source: 'paymentProcessing/processActivationWithRetry',
+        provider,
+        role,
+        userId,
+        reference: primaryReference,
+        references: activationReferences,
+        amount: activationPaymentAmount,
+        lifecycle: {
+          paymentReference: primaryReference,
+          paymentType: 'activation',
+          processorAttemptCount: attempt,
+          lastProcessingAttempt: new Date().toISOString(),
+          finalStatus: 'processing',
+        },
+      })
       
       if (userDoc.exists && userDoc.data()?.activated) {
         console.log(`[activation][retry] user ${userId} already activated`)
@@ -532,6 +554,24 @@ export async function processActivationWithRetry(
           references: activationReferences,
         })
         await processPendingActivationReferrals(adminDb, admin, userId)
+        await logPaymentLifecycle({
+          scope: 'activation',
+          status: 'completed',
+          source: 'paymentProcessing/processActivationWithRetry',
+          provider,
+          role,
+          userId,
+          reference: primaryReference,
+          references: activationReferences,
+          amount: activationPaymentAmount,
+          lifecycle: {
+            paymentReference: primaryReference,
+            paymentType: 'activation',
+            processorAttemptCount: attempt,
+            lastProcessingAttempt: new Date().toISOString(),
+            finalStatus: 'completed',
+          },
+        })
         return { success: true, alreadyActivated: true }
       }
 
@@ -604,12 +644,49 @@ export async function processActivationWithRetry(
       })
 
       await processPendingActivationReferrals(adminDb, admin, userId)
+      await logPaymentLifecycle({
+        scope: 'activation',
+        status: 'completed',
+        source: 'paymentProcessing/processActivationWithRetry',
+        provider,
+        role,
+        userId,
+        reference: primaryReference,
+        references: activationReferences,
+        amount: activationPaymentAmount,
+        lifecycle: {
+          paymentReference: primaryReference,
+          paymentType: 'activation',
+          processorAttemptCount: attempt,
+          lastProcessingAttempt: new Date().toISOString(),
+          finalStatus: 'completed',
+        },
+      })
 
       console.log(`[activation][retry] success for user ${userId}`)
       return { success: true, attempt }
 
     } catch (error) {
       console.error(`[activation][retry] attempt ${attempt} failed for ${userId}:`, error)
+      await logPaymentLifecycle({
+        scope: 'activation',
+        status: 'processing_failed',
+        source: 'paymentProcessing/processActivationWithRetry',
+        provider,
+        role: resolvedRole || 'advertiser',
+        userId,
+        reference: primaryReference,
+        references: activationReferences,
+        amount: activationPaymentAmount,
+        lifecycle: {
+          paymentReference: primaryReference,
+          paymentType: 'activation',
+          processorAttemptCount: attempt,
+          lastProcessingAttempt: new Date().toISOString(),
+          lastError: error instanceof Error ? error.message : String(error),
+          finalStatus: 'processing_failed',
+        },
+      })
 
       if (attempt >= maxRetries) {
         throw new Error(`Activation failed after ${maxRetries} attempts: ${error}`)
@@ -707,6 +784,24 @@ export async function processWalletFundingWithRetry(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[wallet-funding][retry] attempt ${attempt} for ${userType} ${userId}, amount: ${amount}`)
+      await logPaymentLifecycle({
+        scope: 'wallet_funding',
+        status: attempt === 1 ? 'processing' : 'retry_started',
+        source: 'paymentProcessing/processWalletFundingWithRetry',
+        provider,
+        role: userType === 'advertiser' ? 'advertiser' : userType === 'vendor' ? 'vendor' : userType === 'customer' ? 'customer' : 'earner',
+        userId,
+        reference: primaryReference,
+        references: referenceCandidates,
+        amount,
+        lifecycle: {
+          paymentReference: primaryReference,
+          paymentType: 'wallet_funding',
+          processorAttemptCount: attempt,
+          lastProcessingAttempt: new Date().toISOString(),
+          finalStatus: 'processing',
+        },
+      })
 
       const userFundingSnap = await adminDb.collection(collectionName)
         .where('userId', '==', userId)
@@ -755,6 +850,24 @@ export async function processWalletFundingWithRetry(
         })
 
         console.log(`[wallet-funding][retry] success for ${userType} ${userId}`)
+        await logPaymentLifecycle({
+          scope: 'wallet_funding',
+          status: 'completed',
+          source: 'paymentProcessing/processWalletFundingWithRetry',
+          provider,
+          role: userType === 'advertiser' ? 'advertiser' : userType === 'vendor' ? 'vendor' : userType === 'customer' ? 'customer' : 'earner',
+          userId,
+          reference: primaryReference,
+          references: referenceCandidates,
+          amount,
+          lifecycle: {
+            paymentReference: primaryReference,
+            paymentType: 'wallet_funding',
+            processorAttemptCount: attempt,
+            lastProcessingAttempt: new Date().toISOString(),
+            finalStatus: 'completed',
+          },
+        })
         return { success: true, attempt, txId }
       }
 
@@ -857,6 +970,25 @@ export async function processWalletFundingWithRetry(
 
     } catch (error) {
       console.error(`[wallet-funding][retry] attempt ${attempt} failed for ${userId}:`, error)
+      await logPaymentLifecycle({
+        scope: 'wallet_funding',
+        status: 'processing_failed',
+        source: 'paymentProcessing/processWalletFundingWithRetry',
+        provider,
+        role: userType === 'advertiser' ? 'advertiser' : userType === 'vendor' ? 'vendor' : userType === 'customer' ? 'customer' : 'earner',
+        userId,
+        reference: primaryReference,
+        references: referenceCandidates,
+        amount,
+        lifecycle: {
+          paymentReference: primaryReference,
+          paymentType: 'wallet_funding',
+          processorAttemptCount: attempt,
+          lastProcessingAttempt: new Date().toISOString(),
+          lastError: error instanceof Error ? error.message : String(error),
+          finalStatus: 'processing_failed',
+        },
+      })
 
       if (attempt >= maxRetries) {
         throw new Error(`Wallet funding failed after ${maxRetries} attempts: ${error}`)

@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
     await logPaymentLifecycle({
       scope: "wallet_funding",
-      status: "registered",
+      status: "created",
       source: "wallet/register-funding-reference",
       provider,
       role: "advertiser",
@@ -91,6 +91,15 @@ export async function POST(req: Request) {
       reference,
       references: [reference],
       amount,
+      lifecycle: {
+        paymentReference: reference,
+        paymentType: "wallet_funding",
+        finalStatus: "pending",
+        timestamps: {
+          createdAt: new Date().toISOString(),
+          pendingAt: new Date().toISOString(),
+        },
+      },
     })
 
     return NextResponse.json({ success: true })
