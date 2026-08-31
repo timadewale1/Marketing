@@ -23,6 +23,7 @@ import {
   ReceiptText,
   Store,
   MessageSquareHeart,
+  GitBranch,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -101,6 +102,11 @@ const NAVIGATION = [
     name: "Payments",
     href: "/admin/payments",
     icon: ReceiptText,
+  },
+  {
+    name: "Payment Lifecycle",
+    href: "/admin/payment-lifecycle",
+    icon: GitBranch,
   },
   {
     name: "Direct Ads",
