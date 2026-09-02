@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
         // 2️⃣ Validate account
       const validateRes = await fetch(
-  `${base}/api/v1/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,
+  `${base}/api/v2/disbursements/account/validate?accountNumber=${accountNumber}&bankCode=${bankCode}`,
   {
     method: "GET",
     headers: {
