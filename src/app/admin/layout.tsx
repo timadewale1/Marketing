@@ -99,14 +99,14 @@ const NAVIGATION = [
     icon: Landmark,
   },
   {
-    name: "Payments",
-    href: "/admin/payments",
-    icon: ReceiptText,
-  },
-  {
     name: "Payment Lifecycle",
     href: "/admin/payment-lifecycle",
     icon: GitBranch,
+  },
+  {
+    name: "Payments",
+    href: "/admin/payments",
+    icon: ReceiptText,
   },
   {
     name: "Direct Ads",

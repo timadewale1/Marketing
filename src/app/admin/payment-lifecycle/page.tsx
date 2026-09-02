@@ -50,7 +50,7 @@ type PageInfo = {
   cursorId: string | null;
 };
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 15;
 
 function currency(amount: number) {
   return `₦${amount.toLocaleString()}`;
@@ -175,7 +175,7 @@ export default function AdminPaymentLifecyclePage() {
             <Input
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Search by email, reference, or user ID"
+              placeholder="Exact email, reference, or user ID"
               className="h-11 rounded-2xl border-stone-200 bg-white pl-10"
             />
           </div>
@@ -211,7 +211,16 @@ export default function AdminPaymentLifecyclePage() {
             </SelectContent>
           </Select>
           <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-            Each log keeps the payment reference, Monnify reference, attempt count, and final state so we can trace the exact failure point.
+            Filters are exact on search terms so we can trace the right payment quickly without pulling unrelated logs.
+          </div>
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              className="h-11 rounded-2xl border-stone-200 bg-white"
+              onClick={() => setFilters({ scope: "all", status: "all", search: "" })}
+            >
+              Clear filters
+            </Button>
           </div>
         </div>
       </SectionCard>

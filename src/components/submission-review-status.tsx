@@ -39,7 +39,7 @@ export function SubmissionReviewStatus({
       : status === "rejected"
         ? "Advertiser rejected this proof."
         : status === "auto_verified"
-            ? "Automatically verified after 36 hours without advertiser review."
+            ? "Automatically verified after 48 hours without advertiser review."
             : status === "pending"
               ? "Advertiser review is pending."
               : status === "resubmission_requested"

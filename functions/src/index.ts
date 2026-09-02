@@ -665,7 +665,7 @@ async function runDirectSubmissionProofCleanup() {
 
 async function runDirectAutoVerifySubmissions() {
   const db = admin.firestore();
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 48 * 60 * 60 * 1000);
   const EARNER_AUTO_ACTIVATION_THRESHOLD = 2000;
 const AUTO_VERIFY_BATCH_LIMIT = 100;
 

@@ -65,7 +65,7 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const pageSize = Math.min(50, Math.max(5, Number(searchParams.get("pageSize") || 20)))
+  const pageSize = Math.min(50, Math.max(5, Number(searchParams.get("pageSize") || 15)))
   const cursorCreatedAt = searchParams.get("cursorCreatedAt")
   const scope = normalizeText(searchParams.get("scope")) as PaymentScope | "all"
   const statusFilter = normalizeText(searchParams.get("status")) || "all"
@@ -82,6 +82,7 @@ export async function GET(req: Request) {
         queries.push(baseRef.where("userId", "==", search).limit(pageSize).get())
         queries.push(baseRef.where("reference", "==", search).limit(pageSize).get())
         queries.push(baseRef.where("paymentReference", "==", search).limit(pageSize).get())
+        queries.push(baseRef.where("monnifyTransactionReference", "==", search).limit(pageSize).get())
       }
 
       const snapshots = await Promise.all(queries)
@@ -91,8 +92,9 @@ export async function GET(req: Request) {
         const data = doc.data()
         const rowScope = String(data.scope || "recovery").toLowerCase()
         const rowStatus = String(data.status || "").toLowerCase()
+        const rowFinalStatus = String(data.finalStatus || data.lifecycle?.finalStatus || "").toLowerCase()
         if (scope !== "all" && rowScope !== scope) return false
-        if (statusFilter !== "all" && rowStatus !== statusFilter) return false
+        if (statusFilter !== "all" && rowStatus !== statusFilter && rowFinalStatus !== statusFilter) return false
         return true
       })
 
