@@ -364,12 +364,12 @@ export async function getTransactionsSearch({
     size: String(size),
   })
 
-  return monnifyGet<Record<string, unknown>>(`/api/v1/transactions/search?${query.toString()}`)
+  return monnifyGet<Record<string, unknown>>(`/api/v2/transactions/search?${query.toString()}`)
 }
 
 export async function getSettlementInformationForTransaction(transactionReference: string) {
   return monnifyGet<Record<string, unknown>>(
-    `/api/v1/settlement-detail?transactionReference=${encodeURIComponent(transactionReference)}`
+    `/api/v2/settlement-detail?transactionReference=${encodeURIComponent(transactionReference)}`
   )
 }
 

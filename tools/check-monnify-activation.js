@@ -47,8 +47,8 @@ async function main() {
   if (query.includes("|") || query.startsWith("TX_") || query.startsWith("MNFY")) {
     const byRef = []
     for (const url of [
-      `${base}/api/v1/transactions/query?transactionReference=${encodeURIComponent(query)}`,
-      `${base}/api/v1/sdk/transactions/query/${env.MONNIFY_CONTRACT_CODE}?transactionReference=${encodeURIComponent(query)}&shouldIncludePaymentSessionInfo=true`,
+      `${base}/api/v2/transactions/query?transactionReference=${encodeURIComponent(query)}`,
+      `${base}/api/v2/sdk/transactions/query/${env.MONNIFY_CONTRACT_CODE}?transactionReference=${encodeURIComponent(query)}&shouldIncludePaymentSessionInfo=true`,
     ]) {
       const res = await fetch(url, {
         headers: {
