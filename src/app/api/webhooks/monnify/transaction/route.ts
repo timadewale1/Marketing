@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
         rawAmount,
       })
       await logPaymentLifecycle({
-        scope: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
+        scope: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
         status: 'webhook_received',
         source: 'webhooks/monnify/transaction',
         provider: 'monnify',
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         lifecycle: {
           paymentReference: effectiveReference,
           monnifyTransactionReference: typeof transactionReference === 'string' ? transactionReference : null,
-          paymentType: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
+          paymentType: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
           webhookReceivedAt: new Date().toISOString(),
           monnifyVerificationResult: paymentStatus,
           finalStatus: 'pending',
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
           })
           await logPaymentLifecycle({
-            scope: safeAmount >= 2000 ? 'activation' : 'wallet_funding',
+            scope: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
             status: 'monnify_confirmed',
             source: 'webhooks/monnify/transaction',
             provider: 'monnify',
@@ -314,7 +314,7 @@ export async function POST(req: NextRequest) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 2000)
+                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 4500)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -338,7 +338,7 @@ export async function POST(req: NextRequest) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 2000)
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 4500)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',

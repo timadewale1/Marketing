@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
+import { awardMultiLevelReferralBonuses } from "@/lib/multi-level-referral"
 import { applyRecoveryAwareDebitInTransaction } from "@/lib/balance-recovery"
 import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
 import { computeAdvertiserCharge, computeEarnerPayout } from "@/lib/task-pricing"
@@ -316,6 +317,13 @@ export async function POST(req: Request): Promise<Response> {
 
     await userRef.set(updates, { merge: true })
     await processPendingActivationReferrals(dbAdmin, admin, userId)
+    
+    // Award multi-level referral bonuses
+    try {
+      await awardMultiLevelReferralBonuses(dbAdmin, admin, userId, 4500)
+    } catch (err) {
+      console.warn('[admin-activation] multi-level referral bonus processing failed:', err)
+    }
 
     const attemptRef = dbAdmin.collection("activationAttempts").doc(getActivationAttemptDocId(role, userId))
     const attemptSnap = await attemptRef.get()

@@ -223,6 +223,29 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /serviceAccounts/{uid} {
+      allow create: if isSelf(uid);
+      allow get: if isAdmin() || isSelf(uid);
+      allow update: if isAdmin() || isSelf(uid);
+      allow delete: if isAdmin() || isSelf(uid);
+    }
+
+    match /serviceConnections/{connectionId} {
+      allow create: if isAdmin() || (signedIn() && request.resource.data.customerId == request.auth.uid);
+      allow get, list: if isAdmin() || (signedIn() && (resource.data.customerId == request.auth.uid || resource.data.providerId == request.auth.uid));
+      allow update, delete: if isAdmin();
+    }
+
+    match /servicePayments/{paymentId} {
+      allow create: if isAdmin() || (signedIn() && request.resource.data.userId == request.auth.uid);
+      allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /serviceLinkRequests/{requestId} {
+      allow read, write: if false;
+    }
+
     match /vtpassTransactions/{transactionId} {
       allow read, write: if isAdmin();
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { processPendingActivationReferrals } from '@/lib/paymentProcessing'
+import { awardMultiLevelReferralBonuses } from '@/lib/multi-level-referral'
 import { TASK_APPROVAL_POINTS, awardPointsInTransaction, getPointsEventId } from '@/lib/points'
 import { EARNER_STRIKE_SYSTEM_ENABLED, toDateFromTimestampLike } from '@/lib/earner-suspension'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
@@ -495,6 +496,13 @@ export async function GET(request: Request) {
     for (const userId of autoActivatedUserIds) {
       try {
         await processPendingActivationReferrals(adminDb, admin, userId)
+        
+        // Award multi-level referral bonuses
+        try {
+          await awardMultiLevelReferralBonuses(adminDb, admin, userId, 4500)
+        } catch (err) {
+          console.warn('[auto-verify] multi-level referral bonus failed for user', userId, err)
+        }
       } catch (error) {
         console.error('[internal][auto-verify-submissions] referral payout failed for auto-activated earner', { userId, error })
       }

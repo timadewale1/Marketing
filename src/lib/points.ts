@@ -10,7 +10,7 @@ export const REFERRAL_ACTIVATED_POINTS = 50
 export const VENDOR_PURCHASE_APPROVED_POINTS = 200
 export const HIGH_VALUE_TASK_POINTS = 200
 export const HIGH_VALUE_TASK_THRESHOLD = 5000
-export const POINTS_CREDITING_PAUSED = false
+export const POINTS_CREDITING_PAUSED = true
 
 export type PointsUserCollection = 'earners' | 'advertisers' | 'customers' | 'vendors'
 export type PointsRedeemTarget = 'wallet' | 'withdraw' | 'bills' | 'tasks'
@@ -205,6 +205,10 @@ export async function redeemPointsInTransaction({
   note,
   extraLedgerData,
 }: RedeemPointsArgs) {
+  if (POINTS_CREDITING_PAUSED) {
+    throw new Error('Points are temporarily paused. Please try again later.')
+  }
+
   const safeAmount = Math.floor(Number(amount || 0))
   if (safeAmount <= 0) throw new Error('Invalid redemption amount')
   if (safeAmount < POINTS_REDEEM_MINIMUM) throw new Error(`Minimum redemption amount is ${POINTS_REDEEM_MINIMUM} points`)

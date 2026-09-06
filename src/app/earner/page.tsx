@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import React, { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
-import { signOut } from "firebase/auth"
-import { auth, db } from "@/lib/firebase"
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 
 // Activity type removed (we now use earnerSubmissions and earnerTransactions directly)
 import {
@@ -16,13 +16,13 @@ import {
   onSnapshot,
   query,
   where,
-} from "firebase/firestore"
-import Image from "next/image"
-import toast from 'react-hot-toast'
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import BillsCard from '@/components/bills/BillsCard'
-import { Button } from "@/components/ui/button"
+} from "firebase/firestore";
+import Image from "next/image";
+import toast from "react-hot-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import BillsCard from "@/components/bills/BillsCard";
+import { Button } from "@/components/ui/button";
 import {
   Wallet,
   TrendingUp,
@@ -40,35 +40,43 @@ import {
   Landmark,
   Gift,
   LayoutDashboard,
-} from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import WhatsAppChatButton from "@/components/WhatsAppChatButton"
-import HomepageDirectAds from "@/components/homepage/HomepageDirectAds"
-import ReviewCenter from "@/components/reviews/ReviewCenter"
-import { PointsPanel } from "@/components/points/PointsPanel"
-import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition"
-import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel"
-import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points"
-import { getReferralPromoCopy } from "@/lib/referral-rewards"
+  BriefcaseBusiness,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import WhatsAppChatButton from "@/components/WhatsAppChatButton";
+import HomepageDirectAds from "@/components/homepage/HomepageDirectAds";
+import ReviewCenter from "@/components/reviews/ReviewCenter";
+import { PointsPanel } from "@/components/points/PointsPanel";
+import WeeklyReferralRecognition from "@/components/referrals/WeeklyReferralRecognition";
+import CashbackClaimPanel from "@/components/marketplace/CashbackClaimPanel";
+import { getPointsBadgeClass, getPointsStarLabel } from "@/lib/points";
+import { getReferralPromoCopy } from "@/lib/referral-rewards";
+import PlatformUpdatesPrompt from "@/components/PlatformUpdatesPrompt";
 
-const EARNER_WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/GnxIXIyfkEmFlrsVhwOHgR"
-const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined"
+const EARNER_WHATSAPP_GROUP_URL =
+  "https://chat.whatsapp.com/GnxIXIyfkEmFlrsVhwOHgR";
+const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined";
 
 type WithdrawRecord = {
-  id: string
-  amount: number
-  createdAt?: import("firebase/firestore").Timestamp | Date | { seconds: number; nanoseconds: number } | string | undefined
-  status?: string
-}
-
-
+  id: string;
+  amount: number;
+  createdAt?:
+    | import("firebase/firestore").Timestamp
+    | Date
+    | { seconds: number; nanoseconds: number }
+    | string
+    | undefined;
+  status?: string;
+};
 
 export default function EarnerDashboard() {
-  const router = useRouter()
-  const [userName, setUserName] = useState("User")
-  const [profilePic, setProfilePic] = useState("")
-  const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
-  const referralPromo = getReferralPromoCopy()
+  const router = useRouter();
+  const [userName, setUserName] = useState("User");
+  const [profilePic, setProfilePic] = useState("");
+  const [userId, setUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null,
+  );
+  const referralPromo = getReferralPromoCopy();
   const [stats, setStats] = useState({
     balance: 0,
     pointsBalance: 0,
@@ -79,82 +87,87 @@ export default function EarnerDashboard() {
     campaignPending: 0,
     campaignRejected: 0,
     campaignApproved: 0,
-  })
-  const [activated, setActivated] = useState<boolean>(false)
-  const [accountStatus, setAccountStatus] = useState<string>('active')
+  });
+  const [activated, setActivated] = useState<boolean>(false);
+  const [accountStatus, setAccountStatus] = useState<string>("active");
 
-  const [totalEarned, setTotalEarned] = useState(0)
-  const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([])
-  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, completedReferrals: 0, pendingBonuses: 0, totalReferralEarnings: 0 })
-  const [rotIdx, setRotIdx] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showEarnerGroupPrompt, setShowEarnerGroupPrompt] = useState(false)
-  const [authReady, setAuthReady] = useState(false)
-  const activationReloadedRef = useRef(false)
-  const previousActivatedRef = useRef<boolean | null>(null)
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [withdrawHistory, setWithdrawHistory] = useState<WithdrawRecord[]>([]);
+  const [referralStats, setReferralStats] = useState({
+    totalReferrals: 0,
+    completedReferrals: 0,
+    pendingBonuses: 0,
+    totalReferralEarnings: 0,
+  });
+  const [rotIdx, setRotIdx] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showEarnerGroupPrompt, setShowEarnerGroupPrompt] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const activationReloadedRef = useRef(false);
+  const previousActivatedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     try {
-      const joined = window.localStorage.getItem(EARNER_WHATSAPP_JOINED_KEY)
-      if (!joined) setShowEarnerGroupPrompt(true)
+      const joined = window.localStorage.getItem(EARNER_WHATSAPP_JOINED_KEY);
+      if (!joined) setShowEarnerGroupPrompt(true);
     } catch {
-      setShowEarnerGroupPrompt(true)
+      setShowEarnerGroupPrompt(true);
     }
-  }, [])
+  }, []);
 
   const dismissEarnerGroupPrompt = () => {
-    setShowEarnerGroupPrompt(false)
-  }
+    setShowEarnerGroupPrompt(false);
+  };
 
   const markEarnerGroupJoined = () => {
-    setShowEarnerGroupPrompt(false)
+    setShowEarnerGroupPrompt(false);
     try {
-      window.localStorage.setItem(EARNER_WHATSAPP_JOINED_KEY, "1")
+      window.localStorage.setItem(EARNER_WHATSAPP_JOINED_KEY, "1");
     } catch {
       // ignore storage failures
     }
-  }
+  };
 
   useEffect(() => {
-    let unsubProfile: (() => void) | null = null
-    let unsubWithdrawals: (() => void) | null = null
-    let unsubSubmissions: (() => void) | null = null
-    let unsubTransactions: (() => void) | null = null
+    let unsubProfile: (() => void) | null = null;
+    let unsubWithdrawals: (() => void) | null = null;
+    let unsubSubmissions: (() => void) | null = null;
+    let unsubTransactions: (() => void) | null = null;
 
     const unsub = auth.onAuthStateChanged(async (u) => {
-      setAuthReady(true)
+      setAuthReady(true);
       if (!u) {
         // Use replace instead of push to prevent back navigation
-        router.replace("/auth/sign-in")
-        return
+        router.replace("/auth/sign-in");
+        return;
       }
-      setUserId(u.uid)
+      setUserId(u.uid);
       if (!u.emailVerified) {
-        router.replace("/auth/verify-email")
-        return
+        router.replace("/auth/verify-email");
+        return;
       }
-      
+
       // Check if user exists in earners collection
-      const earnerDoc = await getDoc(doc(db, "earners", u.uid))
+      const earnerDoc = await getDoc(doc(db, "earners", u.uid));
       if (!earnerDoc.exists()) {
-        router.replace("/auth/sign-in")
-        return
+        router.replace("/auth/sign-in");
+        return;
       }
       if (!earnerDoc.data()?.onboarded) {
-        router.replace("/earner/onboarding")
-        return
+        router.replace("/earner/onboarding");
+        return;
       }
-      unsubProfile?.()
-      unsubWithdrawals?.()
-      unsubSubmissions?.()
-      unsubTransactions?.()
+      unsubProfile?.();
+      unsubWithdrawals?.();
+      unsubSubmissions?.();
+      unsubTransactions?.();
 
       // Profile and stats
       unsubProfile = onSnapshot(doc(db, "earners", u.uid), (snap) => {
         if (snap.exists()) {
-          const d = snap.data()
-          setUserName(d.fullName || d.name || "User")
-          setProfilePic(d.profilePic || "")
+          const d = snap.data();
+          setUserName(d.fullName || d.name || "User");
+          setProfilePic(d.profilePic || "");
           setStats((prev) => ({
             ...prev,
             balance: d.balance || 0,
@@ -162,129 +175,178 @@ export default function EarnerDashboard() {
             leadsGenerated: d.leadsGenerated || 0,
             leadsPaidFor: d.leadsPaidFor || 0,
             pointsBalance: d.pointsBalance || 0,
-          }))
-          const nextActivated = !!d.activated
-          setActivated(nextActivated)
-          setAccountStatus(String(d.status || 'active'))
+          }));
+          const nextActivated = !!d.activated;
+          setActivated(nextActivated);
+          setAccountStatus(String(d.status || "active"));
 
           if (
             previousActivatedRef.current === false &&
             nextActivated &&
             !activationReloadedRef.current
           ) {
-            activationReloadedRef.current = true
-            toast.success("Your membership is now confirmed. Refreshing your dashboard...")
-            setTimeout(() => window.location.reload(), 700)
+            activationReloadedRef.current = true;
+            toast.success(
+              "Your membership is now confirmed. Refreshing your dashboard...",
+            );
+            setTimeout(() => window.location.reload(), 700);
           }
 
-          previousActivatedRef.current = nextActivated
+          previousActivatedRef.current = nextActivated;
         }
-      })
+      });
 
-      const withdrawalsQuery = query(collection(db, "earnerWithdrawals"), where("userId", "==", u.uid), limit(150))
+      const withdrawalsQuery = query(
+        collection(db, "earnerWithdrawals"),
+        where("userId", "==", u.uid),
+        limit(150),
+      );
       unsubWithdrawals = onSnapshot(withdrawalsQuery, (withdrawSnap) => {
         const withdrawData = withdrawSnap.docs.map((d) => {
-          const dat = d.data() as Partial<WithdrawRecord>
+          const dat = d.data() as Partial<WithdrawRecord>;
           return {
             id: d.id,
             amount: dat.amount || 0,
             createdAt: dat.createdAt,
             status: dat.status,
-          } as WithdrawRecord
-        })
-        setWithdrawHistory(withdrawData as WithdrawRecord[])
-      })
+          } as WithdrawRecord;
+        });
+        setWithdrawHistory(withdrawData as WithdrawRecord[]);
+      });
 
-      const submissionsQuery = query(collection(db, "earnerSubmissions"), where("userId", "==", u.uid), limit(250))
+      const submissionsQuery = query(
+        collection(db, "earnerSubmissions"),
+        where("userId", "==", u.uid),
+        limit(250),
+      );
       unsubSubmissions = onSnapshot(submissionsQuery, (submissionsSnap) => {
-        type Sub = { id: string; status?: string }
+        type Sub = { id: string; status?: string };
         const subs: Sub[] = submissionsSnap.docs.map((d) => {
-          const data = d.data() as Sub
-          return { id: d.id, status: data.status }
-        })
-        const submitted = subs.length
-        const pending = subs.filter((s) => s.status === "Pending" || s.status === "In Review").length
-        const rejected = subs.filter((s) => s.status === "Rejected").length
-        const approved = subs.filter((s) => ["Completed", "Paid", "Verified"].includes(s.status || "")).length
+          const data = d.data() as Sub;
+          return { id: d.id, status: data.status };
+        });
+        const submitted = subs.length;
+        const pending = subs.filter(
+          (s) => s.status === "Pending" || s.status === "In Review",
+        ).length;
+        const rejected = subs.filter((s) => s.status === "Rejected").length;
+        const approved = subs.filter((s) =>
+          ["Completed", "Paid", "Verified"].includes(s.status || ""),
+        ).length;
         setStats((prev) => ({
           ...prev,
           campaignSubmitted: submitted,
           campaignPending: pending,
           campaignRejected: rejected,
           campaignApproved: approved,
-        }))
-      })
+        }));
+      });
 
-      const transactionsQuery = query(collection(db, "earnerTransactions"), where("userId", "==", u.uid), limit(250))
+      const transactionsQuery = query(
+        collection(db, "earnerTransactions"),
+        where("userId", "==", u.uid),
+        limit(250),
+      );
       unsubTransactions = onSnapshot(transactionsQuery, (txSnap) => {
-        type Tx = { id: string; amount?: number; type?: string }
+        type Tx = { id: string; amount?: number; type?: string };
         const txs: Tx[] = txSnap.docs.map((d) => {
-          const data = d.data() as Tx
-          return { id: d.id, amount: data.amount, type: data.type }
-        })
-        const earned = txs.reduce((s, t) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0)
-        const paidLeads = txs.filter((t) => t.type === "lead" || t.type === "payment").length
-        setTotalEarned(earned)
-        setStats((prev) => ({ ...prev, leadsPaidFor: paidLeads || prev.leadsPaidFor }))
-      })
+          const data = d.data() as Tx;
+          return { id: d.id, amount: data.amount, type: data.type };
+        });
+        const earned = txs.reduce(
+          (s, t) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0),
+          0,
+        );
+        const paidLeads = txs.filter(
+          (t) => t.type === "lead" || t.type === "payment",
+        ).length;
+        setTotalEarned(earned);
+        setStats((prev) => ({
+          ...prev,
+          leadsPaidFor: paidLeads || prev.leadsPaidFor,
+        }));
+      });
 
       // Referrals
       void Promise.all([
-        getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid))),
-        getCountFromServer(query(collection(db, "referrals"), where("referrerId", "==", u.uid), where("status", "==", "completed"))),
-      ]).then(([totalSnap, completedSnap]) => {
-        setReferralStats((prev) => ({
-          ...prev,
-          totalReferrals: totalSnap.data().count,
-          completedReferrals: completedSnap.data().count,
-        }))
-      }).catch((error) => {
-        console.error("Failed to load dashboard referral counts", error)
-      })
-
-      void getDocs(query(collection(db, "referrals"), where("referrerId", "==", u.uid), limit(250)))
-        .then((snap) => {
-          let completedReferrals = 0
-          let pendingBonuses = 0
-          let earnings = 0
-          snap.docs.forEach((d) => {
-            type ReferralRecord = { status?: string; amount?: number; bonusPaid?: boolean }
-            const r = d.data() as ReferralRecord
-            const amount = Number(r.amount || 0)
-            if (r.status === 'completed') {
-              completedReferrals += 1
-              earnings += amount
-            }
-            if (!r.bonusPaid) pendingBonuses += amount
-          })
+        getCountFromServer(
+          query(collection(db, "referrals"), where("referrerId", "==", u.uid)),
+        ),
+        getCountFromServer(
+          query(
+            collection(db, "referrals"),
+            where("referrerId", "==", u.uid),
+            where("status", "==", "completed"),
+          ),
+        ),
+      ])
+        .then(([totalSnap, completedSnap]) => {
           setReferralStats((prev) => ({
             ...prev,
-            completedReferrals: Math.max(prev.completedReferrals, completedReferrals),
-            pendingBonuses,
-            totalReferralEarnings: earnings,
-          }))
+            totalReferrals: totalSnap.data().count,
+            completedReferrals: completedSnap.data().count,
+          }));
         })
         .catch((error) => {
-          console.error("Failed to load referral list", error)
+          console.error("Failed to load dashboard referral counts", error);
+        });
+
+      void getDocs(
+        query(
+          collection(db, "referrals"),
+          where("referrerId", "==", u.uid),
+          limit(250),
+        ),
+      )
+        .then((snap) => {
+          let completedReferrals = 0;
+          let pendingBonuses = 0;
+          let earnings = 0;
+          snap.docs.forEach((d) => {
+            type ReferralRecord = {
+              status?: string;
+              amount?: number;
+              bonusPaid?: boolean;
+            };
+            const r = d.data() as ReferralRecord;
+            const amount = Number(r.amount || 0);
+            if (r.status === "completed") {
+              completedReferrals += 1;
+              earnings += amount;
+            }
+            if (!r.bonusPaid) pendingBonuses += amount;
+          });
+          setReferralStats((prev) => ({
+            ...prev,
+            completedReferrals: Math.max(
+              prev.completedReferrals,
+              completedReferrals,
+            ),
+            pendingBonuses,
+            totalReferralEarnings: earnings,
+          }));
         })
+        .catch((error) => {
+          console.error("Failed to load referral list", error);
+        });
 
       return () => {
-        if (unsubProfile) unsubProfile()
-      }
-    })
+        if (unsubProfile) unsubProfile();
+      };
+    });
     return () => {
-      unsub()
-      if (unsubProfile) unsubProfile()
-      if (unsubWithdrawals) unsubWithdrawals()
-      if (unsubSubmissions) unsubSubmissions()
-      if (unsubTransactions) unsubTransactions()
-    }
-  }, [router])
+      unsub();
+      if (unsubProfile) unsubProfile();
+      if (unsubWithdrawals) unsubWithdrawals();
+      if (unsubSubmissions) unsubSubmissions();
+      if (unsubTransactions) unsubTransactions();
+    };
+  }, [router]);
 
   useEffect(() => {
-    const t = setInterval(() => setRotIdx((i) => (i + 1) % 3), 3500)
-    return () => clearInterval(t)
-  }, [])
+    const t = setInterval(() => setRotIdx((i) => (i + 1) % 3), 3500);
+    return () => clearInterval(t);
+  }, []);
 
   if (!authReady) {
     return (
@@ -293,30 +355,37 @@ export default function EarnerDashboard() {
           Loading earner dashboard...
         </div>
       </div>
-    )
+    );
   }
 
-  const totalWithdrawn = withdrawHistory.reduce((s, w) => s + (Number(w.amount) || 0), 0)
-  const lastWithdraw = withdrawHistory[0]
+  const totalWithdrawn = withdrawHistory.reduce(
+    (s, w) => s + (Number(w.amount) || 0),
+    0,
+  );
+  const lastWithdraw = withdrawHistory[0];
   // Use referralStats and stats for cards
 
   const handleLogout = async () => {
-    await signOut(auth)
-    router.push("/auth/sign-in")
-  }
+    await signOut(auth);
+    router.push("/auth/sign-in");
+  };
 
   const handleGoToTasks = () => {
-    if (accountStatus === 'suspended') {
-      toast.error('Your account is suspended. Please contact support for review.')
-      return
+    if (accountStatus === "suspended") {
+      toast.error(
+        "Your account is suspended. Please contact support for review.",
+      );
+      return;
     }
     if (!activated) {
-      toast.error('Please pay your one-time membership fee before performing tasks.')
-      router.push("/earner/transactions")
-      return
+      toast.error(
+        "Please pay your one-time membership fee before performing tasks.",
+      );
+      router.push("/earner/transactions");
+      return;
     }
-    router.push("/earner/campaigns")
-  }
+    router.push("/earner/campaigns");
+  };
 
   const earnerNavSections = [
     {
@@ -324,29 +393,47 @@ export default function EarnerDashboard() {
       items: [
         { label: "Dashboard", path: "/earner", icon: LayoutDashboard },
         { label: "Available Tasks", path: "/earner/campaigns", icon: Grid },
-        { label: "Done Tasks", path: "/earner/campaigns/done", icon: ListChecks },
+        {
+          label: "Done Tasks",
+          path: "/earner/campaigns/done",
+          icon: ListChecks,
+        },
       ],
     },
     {
       title: "Wallet",
       items: [
         { label: "Transactions", path: "/earner/transactions", icon: Wallet },
-        { label: "Purchase History", path: "/earner/purchases", icon: ListChecks },
+        {
+          label: "Purchase History",
+          path: "/earner/purchases",
+          icon: ListChecks,
+        },
         { label: "Bank Accounts", path: "/earner/bank", icon: Landmark },
-        { label: "Task Price List", path: "/earner/pricelist", icon: ArrowDownCircle },
+        {
+          label: "Task Price List",
+          path: "/earner/pricelist",
+          icon: ArrowDownCircle,
+        },
       ],
     },
     {
       title: "Account",
       items: [
         { label: "Referrals", path: "/earner/referrals", icon: Gift },
+        {
+          label: "Skills & Services",
+          path: "/skills-services",
+          icon: BriefcaseBusiness,
+        },
         { label: "Profile", path: "/earner/profile", icon: User },
       ],
     },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-100 to-stone-300 flex flex-col">
+      <PlatformUpdatesPrompt />
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white/60 backdrop-blur sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -356,13 +443,21 @@ export default function EarnerDashboard() {
           >
             <Menu size={20} />
           </button>
-          <h1 className="font-semibold text-stone-800 text-lg">Earner Dashboard</h1>
+          <h1 className="font-semibold text-stone-800 text-lg">
+            Earner Dashboard
+          </h1>
         </div>
 
         {/* Bills & Utilities (moved into cards) */}
         <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-amber-400">
           {profilePic ? (
-            <Image src={profilePic} alt="profile" width={80} height={80} className="w-full h-full object-cover" />
+            <Image
+              src={profilePic}
+              alt="profile"
+              width={80}
+              height={80}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-amber-300 font-bold text-stone-900">
               {userName.charAt(0)}
@@ -373,8 +468,12 @@ export default function EarnerDashboard() {
 
       <main className="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
         <div className="mb-8 rounded-3xl border border-white/40 bg-white/55 p-6 backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Welcome back</p>
-          <h2 className="mt-2 text-3xl font-semibold text-stone-900">{userName}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
+            Welcome back
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold text-stone-900">
+            {userName}
+          </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
             {activated
               ? "Keep the momentum going. Check fresh tasks, track your proof queue, and keep earning."
@@ -389,7 +488,8 @@ export default function EarnerDashboard() {
             </Badge>
           </div>
           <p className="mt-3 max-w-2xl text-xs leading-5 text-stone-500">
-            Refer an advertiser and you can also earn {referralPromo.advertiserTask} when they create a task.
+            Refer an advertiser and you can also earn{" "}
+            {referralPromo.advertiserTask} when they create a task.
           </p>
           <p className="mt-1 max-w-2xl text-sm font-semibold leading-5 text-stone-700">
             For membership fee issues, contact us on WhatsApp: 07062991664
@@ -399,8 +499,8 @@ export default function EarnerDashboard() {
         <div className="mb-10">
           <ReviewCenter role="earner" />
         </div>
-  {/* Top Cards */}
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        {/* Top Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {/* Balance */}
           <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
             <CardContent className="p-6 flex items-center gap-5">
@@ -408,44 +508,55 @@ export default function EarnerDashboard() {
                 <Wallet size={28} className="text-amber-700" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm text-stone-600 font-medium">Available Balance</h3>
+                <h3 className="text-sm text-stone-600 font-medium">
+                  Available Balance
+                </h3>
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{stats.balance.toLocaleString()}
                 </p>
                 {!activated ? (
                   <p className="mt-2 text-xs leading-5 text-stone-600">
-                    Your account must pay the one-time membership fee before you can perform tasks, withdraw funds, or use your wallet balance for bills.
+                    Your account must pay the one-time membership fee before you
+                    can perform tasks, withdraw funds, or use your wallet
+                    balance for bills.
                   </p>
                 ) : null}
                 {!activated ? (
-                  <p className="mt-2 text-xs font-semibold leading-5 text-stone-700">
-                  </p>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-stone-700"></p>
                 ) : null}
-                  <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    className="bg-amber-500 text-stone-900 flex-none"
+                    onClick={() => router.push("/earner/transactions")}
+                  >
+                    Withdraw
+                  </Button>
+                  {!activated ? (
                     <Button
                       size="sm"
-                      className="bg-amber-500 text-stone-900 flex-none"
+                      variant="outline"
+                      className="flex-none"
                       onClick={() => router.push("/earner/transactions")}
                     >
-                      Withdraw
+                      Pay Membership Fee
                     </Button>
-                    {!activated ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-none"
-                        onClick={() => router.push("/earner/transactions")}
-                      >
-                        Pay Membership Fee
-                      </Button>
-                    ) : null}
-                    <Button size="sm" variant="outline" className="flex-none" onClick={handleGoToTasks}>Perform Tasks</Button>
-                  </div>
-                  {accountStatus === 'suspended' ? (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                      Your account is currently suspended. Please contact support for review.
-                    </div>
                   ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-none"
+                    onClick={handleGoToTasks}
+                  >
+                    Perform Tasks
+                  </Button>
+                </div>
+                {accountStatus === "suspended" ? (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    Your account is currently suspended. Please contact support
+                    for review.
+                  </div>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -472,7 +583,9 @@ export default function EarnerDashboard() {
                       <TrendingUp size={28} className="text-green-800" />
                     </div>
                     <div>
-                      <h3 className="text-sm text-stone-600 font-medium">Total Withdrawn</h3>
+                      <h3 className="text-sm text-stone-600 font-medium">
+                        Total Withdrawn
+                      </h3>
                       <p className="text-2xl font-bold text-stone-900">
                         ₦{totalWithdrawn.toLocaleString()}
                       </p>
@@ -493,7 +606,9 @@ export default function EarnerDashboard() {
                       <ArrowDownCircle size={28} className="text-blue-800" />
                     </div>
                     <div>
-                      <h3 className="text-sm text-stone-600 font-medium">Last Withdraw</h3>
+                      <h3 className="text-sm text-stone-600 font-medium">
+                        Last Withdraw
+                      </h3>
                       <p className="text-xl font-bold text-stone-900">
                         ₦
                         {lastWithdraw
@@ -517,15 +632,19 @@ export default function EarnerDashboard() {
                       <Users size={28} className="text-amber-800" />
                     </div>
                     <div>
-                      <h3 className="text-sm text-stone-600 font-medium">Referrals</h3>
+                      <h3 className="text-sm text-stone-600 font-medium">
+                        Referrals
+                      </h3>
                       <p className="text-2xl font-bold text-stone-900">
-                        {referralStats.completedReferrals} / {referralStats.totalReferrals}
+                        {referralStats.completedReferrals} /{" "}
+                        {referralStats.totalReferrals}
                       </p>
                       <p className="text-xs text-stone-600 mt-1">
                         Completed referrals / total
                       </p>
                       <p className="text-xs text-stone-600 mt-1">
-                        Earnings: ₦{referralStats.totalReferralEarnings.toLocaleString()}
+                        Earnings: ₦
+                        {referralStats.totalReferralEarnings.toLocaleString()}
                       </p>
                       <p className="text-xs text-stone-600 mt-1">
                         Pending bonuses: ₦{referralStats.pendingBonuses}
@@ -544,7 +663,9 @@ export default function EarnerDashboard() {
                 <CheckCircle size={28} className="text-purple-800" />
               </div>
               <div>
-                <h3 className="text-sm text-stone-600 font-medium">Total Earned</h3>
+                <h3 className="text-sm text-stone-600 font-medium">
+                  Total Earned
+                </h3>
                 <p className="text-2xl font-bold text-stone-900">
                   ₦{Number(totalEarned || 0).toLocaleString()}
                 </p>
@@ -558,16 +679,27 @@ export default function EarnerDashboard() {
           {/* Strike card temporarily disabled */}
           <Card className="bg-white/70 backdrop-blur border-none shadow-md hover:shadow-lg transition-all">
             <CardContent className="p-6 flex items-center gap-5">
-              <div className={`p-3 rounded-2xl ${accountStatus === 'suspended' ? 'bg-red-200' : 'bg-stone-200'}`}>
-                <Clock size={28} className={`${accountStatus === 'suspended' ? 'text-red-800' : 'text-stone-700'}`} />
+              <div
+                className={`p-3 rounded-2xl ${accountStatus === "suspended" ? "bg-red-200" : "bg-stone-200"}`}
+              >
+                <Clock
+                  size={28}
+                  className={`${accountStatus === "suspended" ? "text-red-800" : "text-stone-700"}`}
+                />
               </div>
               <div>
-                <h3 className="text-sm text-stone-600 font-medium">Account Status</h3>
+                <h3 className="text-sm text-stone-600 font-medium">
+                  Account Status
+                </h3>
                 <p className="text-2xl font-bold text-stone-900">
-                  {accountStatus === 'suspended' ? 'Suspended' : 'Active'}
+                  {accountStatus === "suspended" ? "Suspended" : "Active"}
                 </p>
-                <p className={`text-xs mt-1 ${accountStatus === 'suspended' ? 'text-red-600' : 'text-stone-500'}`}>
-                  {accountStatus === 'suspended' ? 'Account suspended' : 'Account in good standing'}
+                <p
+                  className={`text-xs mt-1 ${accountStatus === "suspended" ? "text-red-600" : "text-stone-500"}`}
+                >
+                  {accountStatus === "suspended"
+                    ? "Account suspended"
+                    : "Account in good standing"}
                 </p>
               </div>
             </CardContent>
@@ -612,21 +744,37 @@ export default function EarnerDashboard() {
           className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-md"
         >
           <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-stone-800">Task Stats</h3>
-              <Button
-                size="sm"
-                className="bg-stone-900 text-white"
-                onClick={() => router.push("/earner/campaigns")}
-              >
-                View Tasks
-              </Button>
-            </div>
+            <h3 className="text-lg font-semibold text-stone-800">Task Stats</h3>
+            <Button
+              size="sm"
+              className="bg-stone-900 text-white"
+              onClick={() => router.push("/earner/campaigns")}
+            >
+              View Tasks
+            </Button>
+          </div>
           <div className="divide-y divide-stone-200">
             {[
-                { label: "Submitted", icon: <Grid size={18} />, value: stats.campaignSubmitted },
-                { label: "Pending", icon: <Clock size={18} />, value: stats.campaignPending },
-                { label: "Approved", icon: <CheckCircle size={18} />, value: stats.campaignApproved },
-                { label: "Rejected", icon: <XCircle size={18} />, value: stats.campaignRejected },
+              {
+                label: "Submitted",
+                icon: <Grid size={18} />,
+                value: stats.campaignSubmitted,
+              },
+              {
+                label: "Pending",
+                icon: <Clock size={18} />,
+                value: stats.campaignPending,
+              },
+              {
+                label: "Approved",
+                icon: <CheckCircle size={18} />,
+                value: stats.campaignApproved,
+              },
+              {
+                label: "Rejected",
+                icon: <XCircle size={18} />,
+                value: stats.campaignRejected,
+              },
             ].map((item) => (
               <motion.div
                 key={item.label}
@@ -639,7 +787,9 @@ export default function EarnerDashboard() {
                   <div className="p-2 bg-stone-100 rounded-lg">{item.icon}</div>
                   <span className="font-medium">{item.label}</span>
                 </div>
-                <div className="font-bold text-stone-900 text-lg">{item.value}</div>
+                <div className="font-bold text-stone-900 text-lg">
+                  {item.value}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -664,13 +814,27 @@ export default function EarnerDashboard() {
               <div className="mb-6 rounded-3xl border border-amber-200 bg-white/80 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">Earner menu</p>
-                    <h3 className="mt-2 text-lg font-bold text-stone-800">{userName}</h3>
-                    <p className="mt-1 text-xs text-stone-500">{activated ? "Membership confirmed" : "Membership fee required"}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
+                      Earner menu
+                    </p>
+                    <h3 className="mt-2 text-lg font-bold text-stone-800">
+                      {userName}
+                    </h3>
+                    <p className="mt-1 text-xs text-stone-500">
+                      {activated
+                        ? "Membership confirmed"
+                        : "Membership fee required"}
+                    </p>
                   </div>
                   <div className="h-12 w-12 overflow-hidden rounded-2xl border border-amber-200 bg-amber-100">
                     {profilePic ? (
-                      <Image src={profilePic} alt="profile" width={48} height={48} className="h-full w-full object-cover" />
+                      <Image
+                        src={profilePic}
+                        alt="profile"
+                        width={48}
+                        height={48}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center font-bold text-stone-900">
                         {userName.charAt(0)}
@@ -692,16 +856,21 @@ export default function EarnerDashboard() {
 
               <div className="space-y-4 overflow-y-auto pr-1">
                 {earnerNavSections.map((section) => (
-                  <div key={section.title} className="rounded-2xl border border-stone-200 bg-white/70 p-3">
-                    <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">{section.title}</p>
+                  <div
+                    key={section.title}
+                    className="rounded-2xl border border-stone-200 bg-white/70 p-3"
+                  >
+                    <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">
+                      {section.title}
+                    </p>
                     <div className="mt-2 space-y-1">
                       {section.items.map((item) => (
                         <button
                           key={item.path}
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-stone-700 transition hover:bg-amber-50 hover:text-stone-900"
                           onClick={() => {
-                            setSidebarOpen(false)
-                            router.push(item.path)
+                            setSidebarOpen(false);
+                            router.push(item.path);
                           }}
                         >
                           <item.icon size={16} className="text-amber-700" />
@@ -731,12 +900,16 @@ export default function EarnerDashboard() {
       {showEarnerGroupPrompt && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-stone-950/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[28px] border border-amber-200/20 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-7 text-white shadow-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300">Earner Updates</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300">
+              Earner Updates
+            </p>
             <h2 className="mt-3 text-3xl font-semibold leading-tight text-white">
               Join the earner WhatsApp group for task updates.
             </h2>
             <p className="mt-3 text-sm leading-6 text-stone-300">
-              Get quick notices, platform reminders, and helpful updates from Pamba. If you do not join now, we will remind you next time you open the dashboard.
+              Get quick notices, platform reminders, and helpful updates from
+              Pamba. If you do not join now, we will remind you next time you
+              open the dashboard.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <a
@@ -761,5 +934,5 @@ export default function EarnerDashboard() {
       )}
       <WhatsAppChatButton />
     </div>
-  )
+  );
 }

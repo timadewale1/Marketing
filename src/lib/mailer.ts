@@ -1,83 +1,89 @@
-import nodemailer from 'nodemailer'
-import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
+import nodemailer from "nodemailer";
+import { initFirebaseAdmin } from "@/lib/firebaseAdmin";
 
-const SMTP_SERVICE = process.env.SMTP_SERVICE || 'gmail'
-const SMTP_USER = process.env.SMTP_USER
-const SMTP_PASS = process.env.SMTP_PASS
-const SMTP_FROM = process.env.SMTP_FROM
-const MAILER_API_URL = process.env.MAILER_API_URL
-const MAILER_API_SECRET = process.env.MAILER_API_SECRET
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.pambaadverts.com'
-const ADMIN_INBOX_EMAIL = process.env.ADMIN_INBOX_EMAIL || 'pambaadverts@gmail.com'
+const SMTP_SERVICE = process.env.SMTP_SERVICE || "gmail";
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_FROM = process.env.SMTP_FROM;
+const MAILER_API_URL = process.env.MAILER_API_URL;
+const MAILER_API_SECRET = process.env.MAILER_API_SECRET;
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://www.pambaadverts.com";
+const ADMIN_INBOX_EMAIL =
+  process.env.ADMIN_INBOX_EMAIL || "pambaadverts@gmail.com";
 
-let transporterPromise: Promise<nodemailer.Transporter | null> | null = null
-let lastVerifyError: string | null = null
-let lastVerifiedAt: number | null = null
+let transporterPromise: Promise<nodemailer.Transporter | null> | null = null;
+let lastVerifyError: string | null = null;
+let lastVerifiedAt: number | null = null;
 
-const MAILER_CONFIG_ERROR = 'Mailer not configured: SMTP_USER/SMTP_PASS/SMTP_FROM required'
+const MAILER_CONFIG_ERROR =
+  "Mailer not configured: SMTP_USER/SMTP_PASS/SMTP_FROM required";
 
 const resolveErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string') return error
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
   try {
-    return JSON.stringify(error)
+    return JSON.stringify(error);
   } catch (_error) {
-    return 'Unknown error'
+    return "Unknown error";
   }
-}
+};
 
 async function getTransporter() {
-  if (transporterPromise) return transporterPromise
+  if (transporterPromise) return transporterPromise;
 
   transporterPromise = (async () => {
     if (!SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
-      lastVerifyError = MAILER_CONFIG_ERROR
-      lastVerifiedAt = Date.now()
-      console.warn(MAILER_CONFIG_ERROR)
-      return null
+      lastVerifyError = MAILER_CONFIG_ERROR;
+      lastVerifiedAt = Date.now();
+      console.warn(MAILER_CONFIG_ERROR);
+      return null;
     }
 
-    const smtpHost = process.env.SMTP_HOST
-    const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined
-    const smtpSecure = smtpPort === 465
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT
+      ? Number(process.env.SMTP_PORT)
+      : undefined;
+    const smtpSecure = smtpPort === 465;
 
-    const transporter = smtpHost && smtpPort
-      ? nodemailer.createTransport({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpSecure,
-          auth: {
-            user: SMTP_USER,
-            pass: SMTP_PASS,
-          },
-        })
-      : nodemailer.createTransport({
-          service: SMTP_SERVICE,
-          auth: {
-            user: SMTP_USER,
-            pass: SMTP_PASS,
-          },
-        })
+    const transporter =
+      smtpHost && smtpPort
+        ? nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            auth: {
+              user: SMTP_USER,
+              pass: SMTP_PASS,
+            },
+          })
+        : nodemailer.createTransport({
+            service: SMTP_SERVICE,
+            auth: {
+              user: SMTP_USER,
+              pass: SMTP_PASS,
+            },
+          });
 
     try {
-      await transporter.verify()
-      lastVerifyError = null
-      lastVerifiedAt = Date.now()
-      console.log('SMTP transporter verified successfully')
+      await transporter.verify();
+      lastVerifyError = null;
+      lastVerifiedAt = Date.now();
+      console.log("SMTP transporter verified successfully");
     } catch (error) {
-      lastVerifyError = resolveErrorMessage(error)
-      lastVerifiedAt = Date.now()
-      console.error('SMTP transporter verification failed:', error)
+      lastVerifyError = resolveErrorMessage(error);
+      lastVerifiedAt = Date.now();
+      console.error("SMTP transporter verification failed:", error);
     }
 
-    return transporter
-  })()
+    return transporter;
+  })();
 
-  return transporterPromise
+  return transporterPromise;
 }
 
 export async function getMailerDiagnostics() {
-  const configured = Boolean(SMTP_USER && SMTP_PASS && SMTP_FROM)
+  const configured = Boolean(SMTP_USER && SMTP_PASS && SMTP_FROM);
   if (!configured) {
     return {
       configured: false,
@@ -86,11 +92,13 @@ export async function getMailerDiagnostics() {
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
       lastVerifyError,
-      lastVerifiedAt: lastVerifiedAt ? new Date(lastVerifiedAt).toISOString() : null,
-    }
+      lastVerifiedAt: lastVerifiedAt
+        ? new Date(lastVerifiedAt).toISOString()
+        : null,
+    };
   }
 
-  await getTransporter()
+  await getTransporter();
 
   return {
     configured: true,
@@ -98,17 +106,19 @@ export async function getMailerDiagnostics() {
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
     lastVerifyError,
-    lastVerifiedAt: lastVerifiedAt ? new Date(lastVerifiedAt).toISOString() : null,
-  }
+    lastVerifiedAt: lastVerifiedAt
+      ? new Date(lastVerifiedAt).toISOString()
+      : null,
+  };
 }
 
 export async function assertMailerReady() {
-  const diagnostics = await getMailerDiagnostics()
+  const diagnostics = await getMailerDiagnostics();
   if (!diagnostics.configured) {
-    throw new Error(diagnostics.message || MAILER_CONFIG_ERROR)
+    throw new Error(diagnostics.message || MAILER_CONFIG_ERROR);
   }
   if (diagnostics.lastVerifyError) {
-    throw new Error(`SMTP verification failed: ${diagnostics.lastVerifyError}`)
+    throw new Error(`SMTP verification failed: ${diagnostics.lastVerifyError}`);
   }
 }
 
@@ -117,31 +127,34 @@ async function sendEmail({
   subject,
   html,
 }: {
-  to: string
-  subject: string
-  html: string
+  to: string;
+  subject: string;
+  html: string;
 }) {
   if (MAILER_API_URL) {
     const response = await fetch(MAILER_API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'content-type': 'application/json',
-        ...(MAILER_API_SECRET ? { 'x-mailer-secret': MAILER_API_SECRET } : {}),
+        "content-type": "application/json",
+        ...(MAILER_API_SECRET ? { "x-mailer-secret": MAILER_API_SECRET } : {}),
       },
       body: JSON.stringify({ to, subject, html }),
-    })
+    });
 
-    const payload = await response.json().catch(() => ({}))
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.success === false) {
-      throw new Error(payload?.message || `Mailer API request failed with status ${response.status}`)
+      throw new Error(
+        payload?.message ||
+          `Mailer API request failed with status ${response.status}`,
+      );
     }
 
-    return payload
+    return payload;
   }
 
-  const transporter = await getTransporter()
+  const transporter = await getTransporter();
   if (!transporter) {
-    throw new Error('SMTP transporter not available')
+    throw new Error("SMTP transporter not available");
   }
 
   return transporter.sendMail({
@@ -149,30 +162,35 @@ async function sendEmail({
     to,
     subject,
     html,
-  })
+  });
 }
 
 export async function sendEmailsInBatches<T>(
   items: T[],
   sender: (item: T) => Promise<void>,
-  chunkSize = 20
+  chunkSize = 20,
 ) {
-  const errors: Array<{ item: T; error: unknown }> = []
+  const errors: Array<{ item: T; error: unknown }> = [];
 
   for (let index = 0; index < items.length; index += chunkSize) {
-    const chunk = items.slice(index, index + chunkSize)
-    const results = await Promise.allSettled(chunk.map((item) => sender(item)))
+    const chunk = items.slice(index, index + chunkSize);
+    const results = await Promise.allSettled(chunk.map((item) => sender(item)));
     results.forEach((result, chunkIndex) => {
-      if (result.status === 'rejected') {
-        errors.push({ item: chunk[chunkIndex], error: result.reason })
+      if (result.status === "rejected") {
+        errors.push({ item: chunk[chunkIndex], error: result.reason });
       }
-    })
+    });
   }
 
-  return errors
+  return errors;
 }
 
-function wrapEmail(title: string, body: string, ctaLabel?: string, ctaUrl?: string) {
+function wrapEmail(
+  title: string,
+  body: string,
+  ctaLabel?: string,
+  ctaUrl?: string,
+) {
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; background: #f8fafc; padding: 24px;">
       <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -190,12 +208,12 @@ function wrapEmail(title: string, body: string, ctaLabel?: string, ctaUrl?: stri
                   </a>
                 </p>
                 <p style="font-size: 13px; color: #6b7280; word-break: break-word;">${ctaUrl}</p>`
-              : ''
+              : ""
           }
         </div>
       </div>
     </div>
-  `
+  `;
 }
 
 export async function sendNewTaskEmail({
@@ -205,31 +223,32 @@ export async function sendNewTaskEmail({
   taskId,
   availableSlots,
 }: {
-  email: string
-  name?: string
-  taskTitle: string
-  taskId: string
-  availableSlots?: number
+  email: string;
+  name?: string;
+  taskTitle: string;
+  taskId: string;
+  availableSlots?: number;
 }) {
-  const taskUrl = `${APP_URL}/earner/campaigns/${taskId}`
-  const slotsText = typeof availableSlots === 'number' && availableSlots > 0
-    ? `<p>There are currently <strong>${availableSlots}</strong> slot${availableSlots === 1 ? '' : 's'} available for this task.</p>`
-    : ''
+  const taskUrl = `${APP_URL}/earner/campaigns/${taskId}`;
+  const slotsText =
+    typeof availableSlots === "number" && availableSlots > 0
+      ? `<p>There are currently <strong>${availableSlots}</strong> slot${availableSlots === 1 ? "" : "s"} available for this task.</p>`
+      : "";
   await sendEmail({
     to: email,
     subject: `New Task on Pamba: ${taskTitle}`,
     html: wrapEmail(
-      'A new task is live',
+      "A new task is live",
       `
-        <p>Hi ${name ? String(name) : 'there'},</p>
+        <p>Hi ${name ? String(name) : "there"},</p>
         <p>A new task is now live on Pamba: <strong>${taskTitle}</strong>.</p>
         ${slotsText}
         <p>Be fast in applying so you do not miss out before the slots fill up.</p>
       `,
-      'Participate now',
-      taskUrl
+      "Participate now",
+      taskUrl,
     ),
-  })
+  });
 }
 
 export async function sendActivationReminderEmail({
@@ -237,31 +256,31 @@ export async function sendActivationReminderEmail({
   name,
   role,
 }: {
-  email: string
-  name?: string
-  role: 'earner' | 'advertiser'
+  email: string;
+  name?: string;
+  role: "earner" | "advertiser";
 }) {
-  const destination = `${APP_URL}/${role}`
+  const destination = `${APP_URL}/${role}`;
   const actionText =
-    role === 'earner'
-      ? 'activate your earner account so you can start completing tasks and earning'
-      : 'activate your advertiser account so you can start creating campaigns'
+    role === "earner"
+      ? "activate your earner account so you can start completing tasks and earning"
+      : "activate your advertiser account so you can start creating campaigns";
 
   await sendEmail({
     to: email,
     subject: `Complete your ${role} activation on Pamba`,
     html: wrapEmail(
-      'Complete your activation',
+      "Complete your activation",
       `
-        <p>Hi ${name ? String(name) : 'there'},</p>
+        <p>Hi ${name ? String(name) : "there"},</p>
         <p>This is a reminder to ${actionText}.</p>
-        ${role === 'earner' ? '<p>There are multiple tasks already waiting for you on the platform, and once your account is activated you can jump in, complete them, and start earning money.</p>' : ''}
+        ${role === "earner" ? "<p>There are multiple tasks already waiting for you on the platform, and once your account is activated you can jump in, complete them, and start earning money.</p>" : ""}
         <p>Once activation is complete, your dashboard will unlock the full workflow for your account.</p>
       `,
-      'Open my dashboard',
-      destination
+      "Open my dashboard",
+      destination,
     ),
-  })
+  });
 }
 
 export async function sendVerificationEmail({
@@ -269,9 +288,9 @@ export async function sendVerificationEmail({
   name,
   verificationUrl,
 }: {
-  email: string
-  name?: string
-  verificationUrl: string
+  email: string;
+  name?: string;
+  verificationUrl: string;
 }) {
   await sendEmail({
     to: email,
@@ -284,9 +303,34 @@ export async function sendVerificationEmail({
         <p>If the button does not open properly in your mail app, copy and paste the link below into your browser.</p>
       `,
       "Verify my email",
-      verificationUrl
+      verificationUrl,
     ),
-  })
+  });
+}
+
+export async function sendServiceAccountLinkEmail({
+  email,
+  name,
+  linkUrl,
+}: {
+  email: string;
+  name?: string;
+  linkUrl: string;
+}) {
+  await sendEmail({
+    to: email,
+    subject: "Confirm your Pamba Skills & Services account",
+    html: wrapEmail(
+      "Confirm your service account",
+      `
+        <p>Hi ${name ? String(name) : "there"},</p>
+        <p>Someone requested to link your existing Pamba account to PAMBA Skills & Services.</p>
+        <p>Confirm this request to finish setting up your service account. If you did not request this, you can ignore this email.</p>
+      `,
+      "Confirm service account",
+      linkUrl,
+    ),
+  });
 }
 
 export async function sendPasswordResetLinkEmail({
@@ -294,9 +338,9 @@ export async function sendPasswordResetLinkEmail({
   name,
   resetUrl,
 }: {
-  email: string
-  name?: string
-  resetUrl: string
+  email: string;
+  name?: string;
+  resetUrl: string;
 }) {
   await sendEmail({
     to: email,
@@ -309,9 +353,9 @@ export async function sendPasswordResetLinkEmail({
         <p>If you did not request this, you can safely ignore this email and your account will stay unchanged.</p>
       `,
       "Reset my password",
-      resetUrl
+      resetUrl,
     ),
-  })
+  });
 }
 
 export async function sendAdminUpdateEmail({
@@ -320,10 +364,10 @@ export async function sendAdminUpdateEmail({
   subject,
   message,
 }: {
-  email: string
-  name?: string
-  subject: string
-  message: string
+  email: string;
+  name?: string;
+  subject: string;
+  message: string;
 }) {
   await sendEmail({
     to: email,
@@ -331,11 +375,11 @@ export async function sendAdminUpdateEmail({
     html: wrapEmail(
       subject,
       `
-        <p>Hi ${name ? String(name) : 'there'},</p>
+        <p>Hi ${name ? String(name) : "there"},</p>
         <div style="white-space: pre-wrap;">${message}</div>
-      `
+      `,
     ),
-  })
+  });
 }
 
 export async function sendDirectAdvertRequestEmail({
@@ -347,33 +391,33 @@ export async function sendDirectAdvertRequestEmail({
   duration,
   message,
 }: {
-  businessName: string
-  contactName: string
-  email: string
-  phone: string
-  advertType?: string | null
-  duration?: string | null
-  message?: string | null
+  businessName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  advertType?: string | null;
+  duration?: string | null;
+  message?: string | null;
 }) {
   await sendEmail({
     to: ADMIN_INBOX_EMAIL,
     subject: `New direct advert request from ${businessName}`,
     html: wrapEmail(
-      'New direct advert request',
+      "New direct advert request",
       `
         <p>A new direct advert request was submitted on Pamba.</p>
         <p><strong>Business:</strong> ${businessName}</p>
         <p><strong>Contact person:</strong> ${contactName}</p>
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Advert type:</strong> ${advertType || 'Not specified'}</p>
-        <p><strong>Requested duration:</strong> ${duration || 'Not specified'}</p>
-        <p><strong>Message:</strong><br/>${message || 'No extra message supplied.'}</p>
+        <p><strong>Advert type:</strong> ${advertType || "Not specified"}</p>
+        <p><strong>Requested duration:</strong> ${duration || "Not specified"}</p>
+        <p><strong>Message:</strong><br/>${message || "No extra message supplied."}</p>
       `,
-      'Open admin requests',
-      `${APP_URL}/admin/direct-ad-requests`
+      "Open admin requests",
+      `${APP_URL}/admin/direct-ad-requests`,
     ),
-  })
+  });
 }
 
 export async function sendDirectAdvertAcceptedEmail({
@@ -381,48 +425,50 @@ export async function sendDirectAdvertAcceptedEmail({
   contactName,
   email,
 }: {
-  businessName: string
-  contactName?: string | null
-  email: string
+  businessName: string;
+  contactName?: string | null;
+  email: string;
 }) {
   const buildDirectAdvertPackages = () => {
-    const selectedDurations = [3, 4, 5, 6, 7, 10, 14, 21, 30, 45, 60]
-    const weeklyRate = 10000 / 7
+    const selectedDurations = [3, 4, 5, 6, 7, 10, 14, 21, 30, 45, 60];
+    const weeklyRate = 10000 / 7;
     const computedPrice = (days: number) => {
-      if (days === 3) return 5000
-      if (days === 7) return 10000
+      if (days === 3) return 5000;
+      if (days === 7) return 10000;
       if (days < 7) {
-        const perDayBetweenAnchors = (10000 - 5000) / (7 - 3)
-        return Math.ceil((5000 + (days - 3) * perDayBetweenAnchors) / 500) * 500
+        const perDayBetweenAnchors = (10000 - 5000) / (7 - 3);
+        return (
+          Math.ceil((5000 + (days - 3) * perDayBetweenAnchors) / 500) * 500
+        );
       }
-      return Math.ceil((days * weeklyRate) / 500) * 500
-    }
+      return Math.ceil((days * weeklyRate) / 500) * 500;
+    };
 
     return selectedDurations.map((days) => ({
       days,
       price: computedPrice(days),
-    }))
-  }
+    }));
+  };
 
   const packageCards = buildDirectAdvertPackages()
     .map(
       (pkg) => `
         <div style="border: 1px solid #fde68a; border-radius: 14px; padding: 14px 16px; background: #fffbeb;">
           <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.22em; color: #92400e;">Package</div>
-          <div style="margin-top: 8px; font-size: 22px; font-weight: 700; color: #111827;">${pkg.days} day${pkg.days === 1 ? '' : 's'}</div>
+          <div style="margin-top: 8px; font-size: 22px; font-weight: 700; color: #111827;">${pkg.days} day${pkg.days === 1 ? "" : "s"}</div>
           <div style="margin-top: 4px; font-size: 16px; font-weight: 600; color: #b45309;">₦${pkg.price.toLocaleString()}</div>
         </div>
-      `
+      `,
     )
-    .join('')
+    .join("");
 
   await sendEmail({
     to: email,
     subject: `${businessName}, let’s get your direct advert live on Pamba`,
     html: wrapEmail(
-      'Your direct advert request is in',
+      "Your direct advert request is in",
       `
-        <p>Hi ${contactName ? String(contactName) : 'there'},</p>
+        <p>Hi ${contactName ? String(contactName) : "there"},</p>
         <p>Thank you for reaching out to Pamba for <strong>${businessName}</strong>. We are excited about the opportunity to help you put your brand in front of the right audience.</p>
         <p>Your request has been received successfully, and we would love to move you to the next step by helping you choose the advert duration that fits your campaign goals best.</p>
         <div style="margin: 24px 0; padding: 18px; border-radius: 16px; background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(146,64,14,0.08)); border: 1px solid #fcd34d;">
@@ -442,10 +488,10 @@ export async function sendDirectAdvertAcceptedEmail({
         <p>We are looking forward to helping your advert gain strong visibility on Pamba, and we will be happy to guide you to the best-fit option for your campaign.</p>
         <p>Once you reply with your preferred package, we will take it from there.</p>
       `,
-      'Visit Pamba',
-      APP_URL
+      "Visit Pamba",
+      APP_URL,
     ),
-  })
+  });
 }
 
 export async function sendContactAlertEmail({
@@ -453,15 +499,15 @@ export async function sendContactAlertEmail({
   email,
   message,
 }: {
-  name: string
-  email: string
-  message: string
+  name: string;
+  email: string;
+  message: string;
 }) {
   await sendEmail({
     to: ADMIN_INBOX_EMAIL,
     subject: `New contact form message from ${name}`,
     html: wrapEmail(
-      'New contact form message',
+      "New contact form message",
       `
         <p>A new message was sent through the contact page.</p>
         <p><strong>Name:</strong> ${name}</p>
@@ -469,10 +515,10 @@ export async function sendContactAlertEmail({
         <p><strong>Message:</strong></p>
         <div style="white-space: pre-wrap;">${message}</div>
       `,
-      'Open admin notifications',
-      `${APP_URL}/admin/notifications`
+      "Open admin notifications",
+      `${APP_URL}/admin/notifications`,
     ),
-  })
+  });
 }
 
 export async function sendNewTaskNotificationToEarners({
@@ -480,71 +526,83 @@ export async function sendNewTaskNotificationToEarners({
   campaignTitle,
   availableSlots,
 }: {
-  campaignId: string
-  campaignTitle: string
-  availableSlots?: number
+  campaignId: string;
+  campaignTitle: string;
+  availableSlots?: number;
 }) {
-  const notificationsDisabled = true
+  const notificationsDisabled = true;
   if (notificationsDisabled) {
-    console.log('New task email alerts to earners are temporarily disabled', {
+    console.log("New task email alerts to earners are temporarily disabled", {
       campaignId,
       campaignTitle,
       availableSlots,
-    })
+    });
 
-    return { attempted: 0, sent: 0, failed: 0, disabled: true }
+    return { attempted: 0, sent: 0, failed: 0, disabled: true };
   }
 
-  const { dbAdmin } = await initFirebaseAdmin()
+  const { dbAdmin } = await initFirebaseAdmin();
   if (!dbAdmin) {
-    console.warn('sendNewTaskNotificationToEarners: dbAdmin unavailable')
-    return { attempted: 0, sent: 0, failed: 0 }
+    console.warn("sendNewTaskNotificationToEarners: dbAdmin unavailable");
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 
-  const snapshot = await dbAdmin.collection('earners').get()
+  const snapshot = await dbAdmin.collection("earners").get();
 
   const recipients = snapshot.docs
     .map((doc) => {
-      const data = doc.data() as { email?: string; name?: string; fullName?: string; status?: string }
+      const data = doc.data() as {
+        email?: string;
+        name?: string;
+        fullName?: string;
+        status?: string;
+      };
       return {
         id: doc.id,
         email: data.email?.trim(),
         name: data.fullName || data.name,
-        status: String(data.status || 'active').toLowerCase(),
-      }
+        status: String(data.status || "active").toLowerCase(),
+      };
     })
-    .filter((recipient) => recipient.email && recipient.status !== 'suspended')
+    .filter((recipient) => recipient.email && recipient.status !== "suspended");
 
   if (recipients.length === 0) {
-    console.log('No earner emails found for new task notification')
-    return { attempted: 0, sent: 0, failed: 0 }
+    console.log("No earner emails found for new task notification");
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 
-  const failures = await sendEmailsInBatches(recipients, async (recipient) => {
-    await sendNewTaskEmail({
-      email: recipient.email as string,
-      name: recipient.name,
-      taskTitle: campaignTitle,
-      taskId: campaignId,
-      availableSlots,
-    })
-  }, 20)
+  const failures = await sendEmailsInBatches(
+    recipients,
+    async (recipient) => {
+      await sendNewTaskEmail({
+        email: recipient.email as string,
+        name: recipient.name,
+        taskTitle: campaignTitle,
+        taskId: campaignId,
+        availableSlots,
+      });
+    },
+    20,
+  );
 
   if (failures.length > 0) {
     console.error(
-      'New task notification failures:',
+      "New task notification failures:",
       failures.map((failure) => ({
         id: (failure.item as { id: string }).id,
-        error: failure.error instanceof Error ? failure.error.message : String(failure.error),
-      }))
-    )
+        error:
+          failure.error instanceof Error
+            ? failure.error.message
+            : String(failure.error),
+      })),
+    );
   }
 
   return {
     attempted: recipients.length,
     sent: recipients.length - failures.length,
     failed: failures.length,
-  }
+  };
 }
 
 export async function sendEarnerStrikeEmail({
@@ -554,15 +612,17 @@ export async function sendEarnerStrikeEmail({
   reason,
   suspended = false,
 }: {
-  email: string
-  name?: string
-  strikeCount: number
-  reason?: string | null
-  suspended?: boolean
+  email: string;
+  name?: string;
+  strikeCount: number;
+  reason?: string | null;
+  suspended?: boolean;
 }) {
   await sendEmail({
     to: email,
-    subject: suspended ? "Your Pamba earner account has been suspended" : `Strike ${strikeCount} recorded on your Pamba account`,
+    subject: suspended
+      ? "Your Pamba earner account has been suspended"
+      : `Strike ${strikeCount} recorded on your Pamba account`,
     html: wrapEmail(
       suspended ? "Account suspended" : "Strike recorded",
       `
@@ -576,9 +636,9 @@ export async function sendEarnerStrikeEmail({
         }
       `,
       "Open my dashboard",
-      `${APP_URL}/earner`
+      `${APP_URL}/earner`,
     ),
-  })
+  });
 }
 
 export async function sendEarnerStrikeRemovedEmail({
@@ -586,9 +646,9 @@ export async function sendEarnerStrikeRemovedEmail({
   name,
   strikeCount,
 }: {
-  email: string
-  name?: string
-  strikeCount: number
+  email: string;
+  name?: string;
+  strikeCount: number;
 }) {
   await sendEmail({
     to: email,
@@ -601,41 +661,41 @@ export async function sendEarnerStrikeRemovedEmail({
         <p>Your current strike count is <strong>${strikeCount}</strong>.</p>
       `,
       "Open my dashboard",
-      `${APP_URL}/earner`
+      `${APP_URL}/earner`,
     ),
-  })
+  });
 }
 
 export async function sendVendorVerificationSubmittedEmail({
   vendorName,
   email,
 }: {
-  vendorName: string
-  email: string
+  vendorName: string;
+  email: string;
 }) {
   await sendEmail({
     to: ADMIN_INBOX_EMAIL,
     subject: `New vendor verification submitted by ${vendorName}`,
     html: wrapEmail(
-      'New vendor verification submission',
+      "New vendor verification submission",
       `
         <p>A new vendor verification form was submitted on Pamba.</p>
         <p><strong>Vendor:</strong> ${vendorName}</p>
         <p><strong>Email:</strong> ${email}</p>
         <p>Please open the vendor admin page to review the submitted documents and bank details.</p>
       `,
-      'Open vendor admin',
-      `${APP_URL}/admin/vendors`
+      "Open vendor admin",
+      `${APP_URL}/admin/vendors`,
     ),
-  })
+  });
 }
 
 export async function sendVendorSignupAlertEmail({
   vendorName,
   email,
 }: {
-  vendorName: string
-  email: string
+  vendorName: string;
+  email: string;
 }) {
   await sendEmail({
     to: ADMIN_INBOX_EMAIL,
@@ -649,32 +709,32 @@ export async function sendVendorSignupAlertEmail({
         <p>Please review the account once verification documents are submitted.</p>
       `,
       "Open vendor admin",
-      `${APP_URL}/admin/vendors`
+      `${APP_URL}/admin/vendors`,
     ),
-  })
+  });
 }
 
 export async function sendVendorVerificationApprovedEmail({
   vendorName,
   email,
 }: {
-  vendorName: string
-  email: string
+  vendorName: string;
+  email: string;
 }) {
   await sendEmail({
     to: email,
     subject: `Your Pamba Store verification is approved`,
     html: wrapEmail(
-      'Verification approved',
+      "Verification approved",
       `
         <p>Hi ${vendorName},</p>
         <p>Your vendor verification has been approved.</p>
         <p>You can now continue to the next setup step and complete your store payment flow on your dashboard.</p>
       `,
-      'Open my vendor dashboard',
-      `${APP_URL}/vendor`
+      "Open my vendor dashboard",
+      `${APP_URL}/vendor`,
     ),
-  })
+  });
 }
 
 export async function sendVendorVerificationRejectedEmail({
@@ -682,25 +742,25 @@ export async function sendVendorVerificationRejectedEmail({
   email,
   reason,
 }: {
-  vendorName: string
-  email: string
-  reason: string
+  vendorName: string;
+  email: string;
+  reason: string;
 }) {
   await sendEmail({
     to: email,
     subject: `Your Pamba Store verification needs attention`,
     html: wrapEmail(
-      'Verification needs attention',
+      "Verification needs attention",
       `
         <p>Hi ${vendorName},</p>
         <p>Your vendor verification could not be approved yet.</p>
         <p><strong>Reason:</strong> ${reason}</p>
         <p>Please update your details and upload the required documents again so your review can continue.</p>
       `,
-      'Review my dashboard',
-      `${APP_URL}/vendor`
+      "Review my dashboard",
+      `${APP_URL}/vendor`,
     ),
-  })
+  });
 }
 
 export async function sendProofResubmissionRequestedEmail({
@@ -710,18 +770,18 @@ export async function sendProofResubmissionRequestedEmail({
   reason,
   dueAt,
 }: {
-  email: string
-  name?: string
-  taskTitle: string
-  reason: string
-  dueAt?: Date | string | null
+  email: string;
+  name?: string;
+  taskTitle: string;
+  reason: string;
+  dueAt?: Date | string | null;
 }) {
-  const dueText = dueAt ? new Date(dueAt).toLocaleString() : 'within 24 hours'
+  const dueText = dueAt ? new Date(dueAt).toLocaleString() : "within 24 hours";
   await sendEmail({
     to: email,
     subject: `Update your proof for ${taskTitle}`,
     html: wrapEmail(
-      'Proof update requested',
+      "Proof update requested",
       `
         <p>Hi ${name ? String(name) : "there"},</p>
         <p>The advertiser has requested an updated proof for <strong>${taskTitle}</strong>.</p>
@@ -729,9 +789,9 @@ export async function sendProofResubmissionRequestedEmail({
         <p>Please log in and upload your updated proof before <strong>${dueText}</strong>. If you do not respond in time, the submission may be rejected automatically.</p>
       `,
       "Open my dashboard",
-      `${APP_URL}/earner/campaigns/done`
+      `${APP_URL}/earner/campaigns/done`,
     ),
-  })
+  });
 }
 
 export async function sendProofResubmissionSubmittedEmail({
@@ -739,24 +799,24 @@ export async function sendProofResubmissionSubmittedEmail({
   name,
   taskTitle,
 }: {
-  email: string
-  name?: string
-  taskTitle: string
+  email: string;
+  name?: string;
+  taskTitle: string;
 }) {
   await sendEmail({
     to: email,
     subject: `Proof updated for ${taskTitle}`,
     html: wrapEmail(
-      'Proof resubmitted',
+      "Proof resubmitted",
       `
         <p>Hi ${name ? String(name) : "there"},</p>
         <p>The earner has uploaded an updated proof for <strong>${taskTitle}</strong>.</p>
         <p>Please log in to review the new proof and continue with the decision.</p>
       `,
       "Open campaign review",
-      `${APP_URL}/advertiser/campaigns`
+      `${APP_URL}/advertiser/campaigns`,
     ),
-  })
+  });
 }
 
 export async function sendAdminActionEmail({
@@ -765,10 +825,10 @@ export async function sendAdminActionEmail({
   message,
   adminPath,
 }: {
-  subject: string
-  title: string
-  message: string
-  adminPath: string
+  subject: string;
+  title: string;
+  message: string;
+  adminPath: string;
 }) {
   await sendEmail({
     to: ADMIN_INBOX_EMAIL,
@@ -777,7 +837,7 @@ export async function sendAdminActionEmail({
       title,
       `<div style="white-space: pre-wrap;">${message}</div>`,
       "Open admin page",
-      `${APP_URL}${adminPath.startsWith("/") ? adminPath : `/${adminPath}`}`
+      `${APP_URL}${adminPath.startsWith("/") ? adminPath : `/${adminPath}`}`,
     ),
-  })
+  });
 }

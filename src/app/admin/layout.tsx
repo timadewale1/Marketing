@@ -24,6 +24,7 @@ import {
   Store,
   MessageSquareHeart,
   GitBranch,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { Bell, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
@@ -72,6 +73,11 @@ const NAVIGATION = [
     name: "Vendors",
     href: "/admin/vendors",
     icon: Store,
+  },
+  {
+    name: "Skills & Services",
+    href: "/admin/skills-services",
+    icon: BriefcaseBusiness,
   },
   {
     name: "Vendor Claims",

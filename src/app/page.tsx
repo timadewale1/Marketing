@@ -4,9 +4,22 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight, Target, UserCheck, Wallet, Users, TrendingUp,
-  CheckCircle, Megaphone, Clipboard, SlidersHorizontal, ChevronDown,
-  Zap, Shield, Play, Menu, X
+  ArrowRight,
+  Target,
+  UserCheck,
+  Wallet,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  Megaphone,
+  Clipboard,
+  SlidersHorizontal,
+  ChevronDown,
+  Zap,
+  Shield,
+  Play,
+  Menu,
+  X,
 } from "lucide-react";
 import BillsCard from "@/components/bills/BillsCard";
 import WhatsAppChatButton from "@/components/WhatsAppChatButton";
@@ -19,36 +32,43 @@ const HOMEPAGE_TELEGRAM_JOINED_KEY = "pamba-home-telegram-joined";
 // ─── Social Media SVG Icons ───────────────────────────────────────────────────
 const FacebookIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
   </svg>
 );
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
   </svg>
 );
 const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
   </svg>
 );
 const WhatsAppIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
   </svg>
 );
 const YouTubeIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-    <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
   </svg>
 );
 
 // ─── Animation hook ───────────────────────────────────────────────────────────
-function useInView<T extends HTMLElement = HTMLDivElement>(threshold: number = 0.15): [React.RefObject<T>, boolean] {
+function useInView<T extends HTMLElement = HTMLDivElement>(
+  threshold: number = 0.15,
+): [React.RefObject<T>, boolean] {
   const ref = useRef<T>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold });
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) setVisible(true);
+      },
+      { threshold },
+    );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
   }, [threshold]);
@@ -69,20 +89,32 @@ function TypedText({ strings }: { strings: string[] }) {
         else setTimeout(() => setDeleting(true), 1800);
       } else {
         if (text.length > 0) setText(text.slice(0, -1));
-        else { setDeleting(false); setIdx((idx + 1) % strings.length); }
+        else {
+          setDeleting(false);
+          setIdx((idx + 1) % strings.length);
+        }
       }
     }, speed);
     return () => clearTimeout(timeout);
   }, [text, deleting, idx, strings]);
   return (
     <span className="typed-text">
-      {text}<span className="cursor">|</span>
+      {text}
+      <span className="cursor">|</span>
     </span>
   );
 }
 
 // ─── Stat Counter ─────────────────────────────────────────────────────────────
-function CountUp({ end, suffix = "", prefix = "" }: { end: number; suffix?: string; prefix?: string }) {
+function CountUp({
+  end,
+  suffix = "",
+  prefix = "",
+}: {
+  end: number;
+  suffix?: string;
+  prefix?: string;
+}) {
   const [count, setCount] = useState(0);
   const [ref, visible] = useInView();
   useEffect(() => {
@@ -91,12 +123,20 @@ function CountUp({ end, suffix = "", prefix = "" }: { end: number; suffix?: stri
     const step = end / 60;
     const timer = setInterval(() => {
       start += step;
-      if (start >= end) { setCount(end); clearInterval(timer); }
-      else setCount(Math.floor(start));
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else setCount(Math.floor(start));
     }, 20);
     return () => clearInterval(timer);
   }, [visible, end]);
-  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
+  return (
+    <span ref={ref}>
+      {prefix}
+      {count.toLocaleString()}
+      {suffix}
+    </span>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -143,10 +183,9 @@ export default function PAMBALanding() {
 
   const navLinks = [
     { label: "About", href: "#about" },
-    { label: "Features", href: "#features" },
-    { label: "Pamba Marketplace", href: "#marketplace" },
+    { label: "Marketplace", href: "#marketplace" },
+    { label: "Skills & Services", href: "/skills-services" },
     { label: "How It Works", href: "#howitworks" },
-    { label: "Pamba Bills", href: "#bills" },
     { label: "FAQ", href: "/faq" },
   ];
 
@@ -190,7 +229,7 @@ export default function PAMBALanding() {
         .navbar {
           position: fixed; top: 0; left: 0; right: 0; z-index: 100;
           transition: all 0.3s ease;
-          padding: 20px 0;
+          padding: 14px 0;
         }
         .navbar.scrolled {
           background: rgba(28,25,23,0.95);
@@ -199,9 +238,11 @@ export default function PAMBALanding() {
           box-shadow: 0 1px 0 rgba(245,158,11,0.2);
         }
         .nav-inner {
-          max-width: 1280px; margin: 0 auto; padding: 0 20px;
+          max-width: 1240px; margin: 0 auto; padding: 10px 16px;
           display: flex; align-items: center; justify-content: space-between;
-          gap: 20px;
+          gap: 16px; border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 18px; background: rgba(28,25,23,0.42);
+          backdrop-filter: blur(18px);
         }
         .nav-logo {
           font-family: 'Sora', sans-serif;
@@ -213,26 +254,25 @@ export default function PAMBALanding() {
         }
         .nav-logo span { color: var(--amber); }
         .nav-links {
-          display: flex; align-items: center; gap: 22px;
+          display: flex; align-items: center; gap: 6px;
           list-style: none;
-          flex-wrap: wrap;
           justify-content: center;
         }
         .nav-links a {
           color: rgba(255,255,255,0.78);
-          text-decoration: none; font-size: 0.88rem; font-weight: 600;
+          text-decoration: none; font-size: 0.8rem; font-weight: 600;
+          padding: 8px 10px; border-radius: 9px;
           transition: color 0.2s, transform 0.2s;
           white-space: nowrap;
         }
-        .nav-links a:hover { color: var(--amber); transform: translateY(-1px); }
+        .nav-links a:hover { color: var(--amber); background: rgba(245,158,11,0.1); transform: translateY(-1px); }
         .nav-actions {
-          display: flex; gap: 10px;
-          flex-wrap: wrap;
+          display: flex; gap: 8px;
           justify-content: flex-end;
         }
         .btn-ghost {
           background: transparent; border: 1px solid rgba(255,255,255,0.2);
-          color: var(--white); padding: 8px 16px; border-radius: 10px;
+          color: var(--white); padding: 8px 12px; border-radius: 10px;
           font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: 0.84rem;
           cursor: pointer; transition: all 0.2s; text-decoration: none;
           display: inline-flex; align-items: center;
@@ -928,8 +968,8 @@ export default function PAMBALanding() {
           .footer-grid { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 900px) {
-          .nav-links { gap: 16px; }
-          .nav-links a { font-size: 0.82rem; }
+          .nav-links { gap: 2px; }
+          .nav-links a { font-size: 0.76rem; padding: 7px 6px; }
           .nav-actions { gap: 8px; }
           .btn-ghost { padding: 8px 14px; }
           .btn-primary { padding: 8px 16px; }
@@ -971,10 +1011,12 @@ export default function PAMBALanding() {
         <div className="welcome-modal-backdrop">
           <div className="welcome-modal">
             <div className="welcome-modal-kicker">Welcome To Pamba</div>
-            <h2 className="welcome-modal-title">Join the Pamba Telegram channel for updates.</h2>
+            <h2 className="welcome-modal-title">
+              Join the Pamba Telegram channel for updates.
+            </h2>
             <p className="welcome-modal-copy">
-              We share important platform updates, opportunities, and announcements there so you do
-              not miss anything useful.
+              We share important platform updates, opportunities, and
+              announcements there so you do not miss anything useful.
             </p>
             <div className="welcome-modal-actions">
               <a
@@ -986,7 +1028,11 @@ export default function PAMBALanding() {
               >
                 Join Telegram Channel
               </a>
-              <button type="button" className="welcome-modal-secondary" onClick={dismissWelcomePrompt}>
+              <button
+                type="button"
+                className="welcome-modal-secondary"
+                onClick={dismissWelcomePrompt}
+              >
                 Continue to homepage
               </button>
             </div>
@@ -998,19 +1044,35 @@ export default function PAMBALanding() {
       <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-inner">
           <Link href="/" className="nav-logo">
-            <Image src="/Pamba.png" alt="PAMBA" width={110} height={44} style={{objectFit:"contain"}} />
+            <Image
+              src="/Pamba.png"
+              alt="PAMBA"
+              width={110}
+              height={44}
+              style={{ objectFit: "contain" }}
+            />
           </Link>
           <ul className="nav-links">
-            {navLinks.map(l => <li key={l.label}><a href={l.href}>{l.label}</a></li>)}
+            {navLinks.map((l) => (
+              <li key={l.label}>
+                <a href={l.href}>{l.label}</a>
+              </li>
+            ))}
           </ul>
           <div className="nav-actions">
             {/* <WhatsAppGroupButton /> */}
-            <Link href="/auth/sign-in" className="btn-ghost">Login as Advertiser</Link>
-            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login as Seller</Link>
-            <Link href="/marketplace/auth/sign-in" className="btn-ghost">Login as Buyer</Link>
-            <Link href="/auth/sign-up" className="btn-primary">Get Started <ArrowRight size={14} /></Link>
+            <Link href="/auth/sign-in" className="btn-ghost">
+              Login
+            </Link>
+            <Link href="/auth/sign-up" className="btn-primary">
+              Get Started <ArrowRight size={14} />
+            </Link>
           </div>
-          <button className="hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <button
+            className="hamburger"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+          >
             <Menu size={24} />
           </button>
         </div>
@@ -1018,20 +1080,38 @@ export default function PAMBALanding() {
 
       {mobileOpen && (
         <div className="mobile-menu">
-          <button className="mobile-close" onClick={() => setMobileOpen(false)}><X size={28} /></button>
+          <button className="mobile-close" onClick={() => setMobileOpen(false)}>
+            <X size={28} />
+          </button>
           {/* <WhatsAppGroupButton /> */}
-          {navLinks.map(l => <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>{l.label}</a>)}
-          <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Advertiser</Link>
-          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Seller</Link>
-          <Link href="/marketplace/auth/sign-in" onClick={() => setMobileOpen(false)}>Login as Buyer</Link>
-          <Link href="/auth/sign-up" onClick={() => setMobileOpen(false)} style={{color: "var(--amber)"}}>Get Started →</Link>
+          {navLinks.map((l) => (
+            <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
+              {l.label}
+            </a>
+          ))}
+          <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>
+            Login
+          </Link>
+          <Link
+            href="/auth/sign-up"
+            onClick={() => setMobileOpen(false)}
+            style={{ color: "var(--amber)" }}
+          >
+            Get Started →
+          </Link>
         </div>
       )}
 
       {/* ── HERO ── */}
       <section className="hero">
         <div className="hero-image-bg">
-          <Image src="/hero-bg.jpg" alt="Marketing task illustration" fill className="object-cover" priority />
+          <Image
+            src="/hero-bg.jpg"
+            alt="Marketing task illustration"
+            fill
+            className="object-cover"
+            priority
+          />
           <div className="hero-image-overlay" />
         </div>
         <div className="hero-grain" />
@@ -1040,18 +1120,22 @@ export default function PAMBALanding() {
           <div className={`fade-up ${heroVisible ? "visible" : ""}`}>
             <div className="hero-badge">
               <div className="hero-badge-dot" />
-              Nigeria&apos;s Trusted Advertising Platform
             </div>
             <h1>
-              <TypedText strings={[
-                "Earn Money Through Social Impact",
-                "Get Paid for Engagements",
-                "Monetize Your Social Reach",
-                "Grow Your Brand & Earn",
-              ]} />
+              <TypedText
+                strings={[
+                  "Earn Money Through Social Impact",
+                  "Get Paid for Engagements",
+                  "Monetize Your Social Reach",
+                  "Grow Your Brand & Earn",
+                ]}
+              />
             </h1>
             <p className="hero-sub">
-              PAMBA connects businesses with real audiences. Advertisers gain genuine visibility - users earn by completing simple marketing tasks. Earnings go straight to your wallet, withdrawable to your bank or usable for bills.
+              PAMBA connects businesses with real audiences. Advertisers gain
+              genuine visibility - users earn by completing simple marketing
+              tasks. Earnings go straight to your wallet, withdrawable to your
+              bank or usable for bills.
             </p>
             <div className="hero-cta">
               <Link href="/auth/sign-up" className="btn-primary-lg">
@@ -1063,35 +1147,55 @@ export default function PAMBALanding() {
             </div>
             <div className="hero-stats">
               <div className="hero-stat">
-                <span className="hero-stat-val"><CountUp end={10000} suffix="+" prefix="" /></span>
+                <span className="hero-stat-val">
+                  <CountUp end={10000} suffix="+" prefix="" />
+                </span>
                 <span className="hero-stat-label">Active Users</span>
               </div>
               <div className="hero-divider" />
               <div className="hero-stat">
-                <span className="hero-stat-val">₦<CountUp end={10} suffix="M+" /></span>
+                <span className="hero-stat-val">
+                  ₦<CountUp end={10} suffix="M+" />
+                </span>
                 <span className="hero-stat-label">Paid Out</span>
               </div>
               <div className="hero-divider" />
               <div className="hero-stat">
-                <span className="hero-stat-val"><CountUp end={500} suffix="+" /></span>
+                <span className="hero-stat-val">
+                  <CountUp end={500} suffix="+" />
+                </span>
                 <span className="hero-stat-label">Tasks Available</span>
               </div>
             </div>
           </div>
 
-          <div className={`hero-card-grid fade-up fade-up-2 ${heroVisible ? "visible" : ""}`}>
+          <div
+            className={`hero-card-grid fade-up fade-up-2 ${heroVisible ? "visible" : ""}`}
+          >
             <div className="hero-card">
-              <div className="hero-card-icon"><Zap size={20} /></div>
+              <div className="hero-card-icon">
+                <Zap size={20} />
+              </div>
               <h4>Instant Wallet Credits</h4>
-              <p>Approved task submissions are credited to your wallet immediately - no waiting periods.</p>
+              <p>
+                Approved task submissions are credited to your wallet
+                immediately - no waiting periods.
+              </p>
             </div>
             <div className="hero-card">
-              <div className="hero-card-icon"><Shield size={20} /></div>
+              <div className="hero-card-icon">
+                <Shield size={20} />
+              </div>
               <h4>CAC Registered</h4>
-              <p>Fully incorporated with Nigeria&apos;s Corporate Affairs Commission.</p>
+              <p>
+                Fully incorporated with Nigeria&apos;s Corporate Affairs
+                Commission.
+              </p>
             </div>
             <div className="hero-card">
-              <div className="hero-card-icon"><Users size={20} /></div>
+              <div className="hero-card-icon">
+                <Users size={20} />
+              </div>
               <h4>Referral Bonuses</h4>
               <p>Earn when your referrals activate their accounts.</p>
             </div>
@@ -1112,10 +1216,22 @@ export default function PAMBALanding() {
           <div>
             <h3>⚠️ Important Safety Notice</h3>
             <div className="safety-list">
-              <div className="safety-item"><span className="dot-red">✕</span> Never send money to personal bank accounts claiming to represent PAMBA</div>
-              <div className="safety-item"><span className="dot-red">✕</span> We never request money for investment, registration, or profit promises</div>
-              <div className="safety-item"><span className="dot-green">✓</span> All payments only via our official website through <strong>Monnify</strong></div>
-              <div className="safety-item"><span className="dot-amber">→</span> Report suspicious messages to us immediately</div>
+              <div className="safety-item">
+                <span className="dot-red">✕</span> Never send money to personal
+                bank accounts claiming to represent PAMBA
+              </div>
+              <div className="safety-item">
+                <span className="dot-red">✕</span> We never request money for
+                investment, registration, or profit promises
+              </div>
+              <div className="safety-item">
+                <span className="dot-green">✓</span> All payments only via our
+                official website through <strong>Monnify</strong>
+              </div>
+              <div className="safety-item">
+                <span className="dot-amber">→</span> Report suspicious messages
+                to us immediately
+              </div>
             </div>
           </div>
         </div>
@@ -1126,31 +1242,52 @@ export default function PAMBALanding() {
         <div className="section-inner">
           <div className="section-header center">
             <div className="section-label">Pamba Marketplace</div>
-            <h2 className="section-title">A new place for vendors, products, and storefronts</h2>
+            <h2 className="section-title">
+              A new place for vendors, products, and storefronts
+            </h2>
             <p className="section-sub">
-              Soon, shoppers will be able to browse vendors, view products, and open store links straight from Pamba.
+              Soon, shoppers will be able to browse vendors, view products, and
+              open store links straight from Pamba.
             </p>
           </div>
           <div className="updates-grid">
             <div className="updates-card">
               <h3>For vendors</h3>
-              <p>Set up a shop, list products with images and descriptions, and share your own store link anywhere.</p>
+              <p>
+                Set up a shop, list products with images and descriptions, and
+                share your own store link anywhere.
+              </p>
             </div>
             <div className="updates-card">
               <h3>For buyers</h3>
-              <p>Search products and vendors in one place, then copy a product link and reach the seller directly.</p>
+              <p>
+                Search products and vendors in one place, then copy a product
+                link and reach the seller directly.
+              </p>
             </div>
             <div className="updates-card">
               <h3>For earners and advertisers</h3>
-              <p>Earn cashback when you buy from participating vendors, with the feature unlocking as products go live.</p>
+              <p>
+                Earn cashback when you buy from participating vendors, with the
+                feature unlocking as products go live.
+              </p>
             </div>
             <div className="updates-card updates-card-highlight">
               <h3>Explore the marketplace</h3>
-              <p>Browse vendor shops, open product links, and discover what is available as stores come online.</p>
+              <p>
+                Browse vendor shops, open product links, and discover what is
+                available as stores come online.
+              </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">Search shops</span>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">View products</span>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">Open storefronts</span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">
+                  Search shops
+                </span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">
+                  View products
+                </span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2">
+                  Open storefronts
+                </span>
               </div>
             </div>
           </div>
@@ -1159,11 +1296,71 @@ export default function PAMBALanding() {
               <Link href="/marketplace" className="btn-primary-lg">
                 Visit Marketplace <ArrowRight size={18} />
               </Link>
-              <Link href="/marketplace/auth/sign-up?role=vendor" className="btn-outline-lg" style={{ background: "#111827", color: "#fff", borderColor: "#111827" }}>
+              <Link
+                href="/marketplace/auth/sign-up?role=vendor"
+                className="btn-outline-lg"
+                style={{
+                  background: "#111827",
+                  color: "#fff",
+                  borderColor: "#111827",
+                }}
+              >
                 Login as Seller
               </Link>
-              <Link href="/marketplace/auth/sign-up?role=customer" className="btn-outline-lg" style={{ background: "#0891b2", color: "#fff", borderColor: "#0891b2" }}>
+              <Link
+                href="/marketplace/auth/sign-up?role=customer"
+                className="btn-outline-lg"
+                style={{
+                  background: "#0891b2",
+                  color: "#fff",
+                  borderColor: "#0891b2",
+                }}
+              >
                 Login as Buyer
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="updates-wrap" id="skills-services">
+        <div className="section-inner">
+          <div className="section-header center">
+            <div className="section-label">Pamba Skills & Services</div>
+            <h2 className="section-title">
+              Find the right skill. Get discovered for your service.
+            </h2>
+            <p className="section-sub">
+              A dedicated directory for professionals, artisans, freelancers,
+              businesses, and customers. Browse profiles, explore past work, and
+              connect directly.
+            </p>
+          </div>
+          <div className="updates-grid">
+            <div className="updates-card">
+              <h3>For service providers</h3>
+              <p>
+                Build a detailed profile with your skills, services, location,
+                availability, experience, and portfolio. Activate once for
+                ₦1,000 to become discoverable.
+              </p>
+            </div>
+            <div className="updates-card">
+              <h3>For customers</h3>
+              <p>
+                Search available professionals, review their profiles and past
+                work, then pay ₦1,000 only when you are ready to unlock their
+                contact details.
+              </p>
+            </div>
+            <div className="updates-card updates-card-highlight">
+              <h3>Simple and direct</h3>
+              <p>
+                PAMBA connects both sides. Customers and providers agree on the
+                work, price, and delivery directly.
+              </p>
+              <Link href="/skills-services" className="btn-primary-lg mt-5">
+                Explore Skills & Services <ArrowRight size={18} />
               </Link>
             </div>
           </div>
@@ -1174,27 +1371,43 @@ export default function PAMBALanding() {
         <div className="section-inner">
           <div className="section-header center">
             <div className="section-label">Latest Updates</div>
-            <h2 className="section-title">A few things we improved recently</h2>
+            <h2 className="section-title">What&apos;s new on PAMBA</h2>
             <p className="section-sub">
-              We keep making the platform smoother, more rewarding, and easier to use for everyone.
+              We keep making the platform smoother, more rewarding, and easier
+              to use for everyone.
             </p>
           </div>
           <div className="updates-grid">
             <div className="updates-card">
-              <h3>More ways to earn rewards</h3>
-              <p>You can now earn points for everyday activity like logging in, referring others, completing tasks, and paying bills.</p>
+              <h3>Four-level referral rewards</h3>
+              <p>
+                Referral rewards now follow up to four levels, with clear
+                amounts and transaction notes showing who each bonus came
+                through.
+              </p>
             </div>
             <div className="updates-card">
-              <h3>Weekly referral recognition</h3>
-              <p>Every week, top referrers can be recognized for bringing in active users and helping the platform grow.</p>
+              <h3>Updated activation experience</h3>
+              <p>
+                The activation flow now uses the updated ₦4,500 membership fee
+                and records referral credits with a clearer audit trail.
+              </p>
             </div>
             <div className="updates-card">
-              <h3>Better account control</h3>
-              <p>You can now reset your password from your profile page, without needing to go through a separate reset page.</p>
+              <h3>Skills & Services directory</h3>
+              <p>
+                Professionals can list their skills and portfolio, while
+                customers can search profiles and unlock contact details through
+                a monitored connection flow.
+              </p>
             </div>
             <div className="updates-card">
-              <h3>Coming soon: Vendors & rewards</h3>
-              <p>Big things are on the way. Soon, vendors will show up right on dashboards, and earners will earn points for supporting real businesses on Pamba.</p>
+              <h3>Clearer account updates</h3>
+              <p>
+                Earners and advertisers now receive a simple update notice when
+                they sign in, so important referral, activation, and service
+                changes are easy to understand.
+              </p>
             </div>
           </div>
         </div>
@@ -1207,25 +1420,44 @@ export default function PAMBALanding() {
             <div className={`fade-up ${aboutVisible ? "visible" : ""}`}>
               <div className="about-left">
                 <div className="section-label">About PAMBA</div>
-                <h2 className="section-title" style={{color: "var(--white)"}}>Built for Nigerians.<br />Trusted Nationwide.</h2>
+                <h2 className="section-title" style={{ color: "var(--white)" }}>
+                  Built for Nigerians.
+                  <br />
+                  Trusted Nationwide.
+                </h2>
                 <p className="section-sub">
-                  PAMBA is a fully registered digital advertising and services platform, duly incorporated with the Corporate Affairs Commission (CAC) of Nigeria - connecting advertisers, businesses, content creators, and everyday users through compliant digital marketing.
+                  PAMBA is a fully registered digital advertising and services
+                  platform, duly incorporated with the Corporate Affairs
+                  Commission (CAC) of Nigeria - connecting advertisers,
+                  businesses, content creators, and everyday users through
+                  compliant digital marketing.
                 </p>
               </div>
               <div className="about-cards">
                 <div className="about-card">
                   <h4>Our Mission</h4>
                   <h3>Secure, Compliant Advertising Ecosystem</h3>
-                  <p>To provide a technology-driven digital advertising ecosystem that connects advertisers with real audiences, enables individuals to earn through legitimate marketing, and supports seamless payments and bill services.</p>
+                  <p>
+                    To provide a technology-driven digital advertising ecosystem
+                    that connects advertisers with real audiences, enables
+                    individuals to earn through legitimate marketing, and
+                    supports seamless payments and bill services.
+                  </p>
                 </div>
                 <div className="about-card">
                   <h4>Our Vision</h4>
                   <h3>Nigeria&apos;s Most Trusted Ad Platform</h3>
-                  <p>To empower businesses to grow, promote innovative products and services, and create sustainable earning opportunities through transparent digital engagement.</p>
+                  <p>
+                    To empower businesses to grow, promote innovative products
+                    and services, and create sustainable earning opportunities
+                    through transparent digital engagement.
+                  </p>
                 </div>
               </div>
             </div>
-            <div className={`about-right fade-up fade-up-2 ${aboutVisible ? "visible" : ""}`}>
+            <div
+              className={`about-right fade-up fade-up-2 ${aboutVisible ? "visible" : ""}`}
+            >
               <div className="about-stat-card">
                 <div className="big-num">₦10M+</div>
                 <div className="big-label">Total Earnings Paid to Users</div>
@@ -1240,8 +1472,18 @@ export default function PAMBALanding() {
                   <div className="label">Tasks Created</div>
                 </div>
               </div>
-              <div className="about-mini-stat" style={{textAlign: "center"}}>
-                <div className="num" style={{fontSize: "1.1rem", fontFamily: "Sora, sans-serif", fontWeight: 700, color: "rgba(255,255,255,0.7)"}}>CAC Registered · Monnify Powered · Instant Payouts</div>
+              <div className="about-mini-stat" style={{ textAlign: "center" }}>
+                <div
+                  className="num"
+                  style={{
+                    fontSize: "1.1rem",
+                    fontFamily: "Sora, sans-serif",
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,0.7)",
+                  }}
+                >
+                  CAC Registered · Monnify Powered · Instant Payouts
+                </div>
               </div>
             </div>
           </div>
@@ -1257,21 +1499,56 @@ export default function PAMBALanding() {
       {/* ── FEATURES ── */}
       <section className="section features-bg" id="features">
         <div className="section-inner">
-          <div className={`section-header center fade-up ${featuresVisible ? "visible" : ""}`} ref={featuresRef}>
+          <div
+            className={`section-header center fade-up ${featuresVisible ? "visible" : ""}`}
+            ref={featuresRef}
+          >
             <div className="section-label">Platform Features</div>
-            <h2 className="section-title">Everything You Need to Earn & Advertise</h2>
-            <p className="section-sub">A platform built for advertisers and earners alike - with real-time payouts, bill payments, and a referral engine.</p>
+            <h2 className="section-title">
+              Everything You Need to Earn & Advertise
+            </h2>
+            <p className="section-sub">
+              A platform built for advertisers and earners alike - with
+              real-time payouts, bill payments, and a referral engine.
+            </p>
           </div>
           <div className="features-grid">
             {[
-              { icon: <Zap size={24}/>, title: "Instant Withdrawals", desc: "Earnings are credited the moment your task is approved. Withdraw directly to your Nigerian bank account - fast manual processing with automated transfers coming soon." },
-              { icon: <Users size={24}/>, title: "Referral Bonuses", desc: "Earn every time someone you invite activates their account or makes their first advertiser payment. Stack referrals to scale your income passively." },
-              { icon: <Wallet size={24}/>, title: "Pay Bills & Utilities", desc: "Use your PAMBA wallet to pay airtime, data, electricity, and other utilities directly. Earn, spend, and transact - all from one place." },
-              { icon: <Target size={24}/>, title: "Targeted Task Creation", desc: "Advertisers define demographics, budgets, and cost-per-lead. Tasks reach exactly the right users, ensuring quality engagements for your brand." },
-              { icon: <CheckCircle size={24}/>, title: "Verified Engagements", desc: "Every task submission is reviewed before payment. Advertisers only pay for validated, real interactions - no bots, no fraud." },
-              { icon: <TrendingUp size={24}/>, title: "Real-Time Analytics", desc: "Monitor campaign performance, track task completions, and optimize your budget in real-time through your advertiser dashboard." },
+              {
+                icon: <Zap size={24} />,
+                title: "Instant Withdrawals",
+                desc: "Earnings are credited the moment your task is approved. Withdraw directly to your Nigerian bank account - fast manual processing with automated transfers coming soon.",
+              },
+              {
+                icon: <Users size={24} />,
+                title: "Referral Bonuses",
+                desc: "Earn every time someone you invite activates their account or makes their first advertiser payment. Stack referrals to scale your income passively.",
+              },
+              {
+                icon: <Wallet size={24} />,
+                title: "Pay Bills & Utilities",
+                desc: "Use your PAMBA wallet to pay airtime, data, electricity, and other utilities directly. Earn, spend, and transact - all from one place.",
+              },
+              {
+                icon: <Target size={24} />,
+                title: "Targeted Task Creation",
+                desc: "Advertisers define demographics, budgets, and cost-per-lead. Tasks reach exactly the right users, ensuring quality engagements for your brand.",
+              },
+              {
+                icon: <CheckCircle size={24} />,
+                title: "Verified Engagements",
+                desc: "Every task submission is reviewed before payment. Advertisers only pay for validated, real interactions - no bots, no fraud.",
+              },
+              {
+                icon: <TrendingUp size={24} />,
+                title: "Real-Time Analytics",
+                desc: "Monitor campaign performance, track task completions, and optimize your budget in real-time through your advertiser dashboard.",
+              },
             ].map((f, i) => (
-              <div key={i} className={`feature-card fade-up fade-up-${Math.min(i+1,5)} ${featuresVisible ? "visible" : ""}`}>
+              <div
+                key={i}
+                className={`feature-card fade-up fade-up-${Math.min(i + 1, 5)} ${featuresVisible ? "visible" : ""}`}
+              >
                 <div className="feature-icon">{f.icon}</div>
                 <h3>{f.title}</h3>
                 <p>{f.desc}</p>
@@ -1284,10 +1561,15 @@ export default function PAMBALanding() {
       {/* ── HOW IT WORKS ── */}
       <section className="section hiw-bg" id="howitworks">
         <div className="section-inner" ref={howRef}>
-          <div className={`section-header center fade-up ${howVisible ? "visible" : ""}`}>
+          <div
+            className={`section-header center fade-up ${howVisible ? "visible" : ""}`}
+          >
             <div className="section-label">How It Works</div>
             <h2 className="section-title">Simple Steps. Real Earnings.</h2>
-            <p className="section-sub">Whether you&apos;re here to earn or to advertise, getting started takes less than 5 minutes.</p>
+            <p className="section-sub">
+              Whether you&apos;re here to earn or to advertise, getting started
+              takes less than 5 minutes.
+            </p>
           </div>
 
           <HowItWorksTabs howVisible={howVisible} />
@@ -1307,7 +1589,10 @@ export default function PAMBALanding() {
           <div className="section-header center">
             <div className="section-label">Bills & Utilities</div>
             <h2 className="section-title">Pay Bills With Your Wallet</h2>
-            <p className="section-sub">Use your earnings directly to pay for airtime, data, TV subscriptions, electricity, and more.</p>
+            <p className="section-sub">
+              Use your earnings directly to pay for airtime, data, TV
+              subscriptions, electricity, and more.
+            </p>
           </div>
           <div className="bills-wrapper">
             <BillsCard />
@@ -1320,13 +1605,20 @@ export default function PAMBALanding() {
         <div className="cta-inner">
           <div className={`fade-up ${ctaVisible ? "visible" : ""}`}>
             <h2>Ready to Start Your Journey?</h2>
-            <p>Join thousands of Nigerians already earning through PAMBA. Start completing tasks or launch your first campaign today.</p>
+            <p>
+              Join thousands of Nigerians already earning through PAMBA. Start
+              completing tasks or launch your first campaign today.
+            </p>
             <div className="cta-btns">
               <Link href="/auth/sign-up" className="btn-dark">
                 Start Earning/Create Task <ArrowRight size={16} />
               </Link>
-              <Link href="/auth/sign-in" className="btn-white">Login to Account</Link>
-              <Link href="/advertise-directly" className="btn-white">Advertise Directly on Homepage</Link>
+              <Link href="/auth/sign-in" className="btn-white">
+                Login to Account
+              </Link>
+              <Link href="/advertise-directly" className="btn-white">
+                Advertise Directly on Homepage
+              </Link>
             </div>
           </div>
         </div>
@@ -1338,40 +1630,104 @@ export default function PAMBALanding() {
           <div className="footer-grid">
             <div>
               <Link href="/" className="footer-logo-img">
-                <Image src="/Pamba.png" alt="PAMBA" width={120} height={48} style={{objectFit:"contain"}} />
+                <Image
+                  src="/Pamba.png"
+                  alt="PAMBA"
+                  width={120}
+                  height={48}
+                  style={{ objectFit: "contain" }}
+                />
               </Link>
-              <p className="footer-tagline">Nigeria&apos;s trusted digital advertising platform. Earn, advertise, and pay bills - all in one place.</p>
+              <p className="footer-tagline">
+                Nigeria&apos;s trusted digital advertising platform. Earn,
+                advertise, and pay bills - all in one place.
+              </p>
               <div className="footer-social">
-                <a href="https://www.facebook.com/share/17sDa24NET/" title="Facebook" target="_blank" rel="noopener noreferrer"><FacebookIcon /></a>
-                <a href="https://www.instagram.com/pambaadverts" title="Instagram" target="_blank" rel="noopener noreferrer"><InstagramIcon /></a>
-                <a href="https://www.tiktok.com/@pambaadverts" title="TikTok" target="_blank" rel="noopener noreferrer"><TikTokIcon /></a>
-                <a href="https://wa.me/message/LVWEYWZSTQBQI1" title="WhatsApp" target="_blank" rel="noopener noreferrer"><WhatsAppIcon /></a>
-                <a href="https://www.youtube.com/@pambaadvertisementcompany" title="YouTube" target="_blank" rel="noopener noreferrer"><YouTubeIcon /></a>
+                <a
+                  href="https://www.facebook.com/share/17sDa24NET/"
+                  title="Facebook"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FacebookIcon />
+                </a>
+                <a
+                  href="https://www.instagram.com/pambaadverts"
+                  title="Instagram"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <InstagramIcon />
+                </a>
+                <a
+                  href="https://www.tiktok.com/@pambaadverts"
+                  title="TikTok"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <TikTokIcon />
+                </a>
+                <a
+                  href="https://wa.me/message/LVWEYWZSTQBQI1"
+                  title="WhatsApp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <WhatsAppIcon />
+                </a>
+                <a
+                  href="https://www.youtube.com/@pambaadvertisementcompany"
+                  title="YouTube"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <YouTubeIcon />
+                </a>
               </div>
             </div>
             <div className="footer-col">
               <h4>Platform</h4>
               <ul>
-                <li><Link href="/auth/sign-up">Start Earning</Link></li>
-                <li><Link href="/auth/sign-up">Create Tasks</Link></li>
-                <li><Link href="/advertise-directly">Advertise Directly</Link></li>
-                <li><a href="#bills">Pamba Bills</a></li>
+                <li>
+                  <Link href="/auth/sign-up">Start Earning</Link>
+                </li>
+                <li>
+                  <Link href="/auth/sign-up">Create Tasks</Link>
+                </li>
+                <li>
+                  <Link href="/advertise-directly">Advertise Directly</Link>
+                </li>
+                <li>
+                  <a href="#bills">Pamba Bills</a>
+                </li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Account</h4>
               <ul>
-                <li><Link href="/auth/sign-in">Login</Link></li>
-                <li><Link href="/auth/sign-up">Sign Up</Link></li>
-                <li><Link href="/faq">FAQ</Link></li>
-                <li><Link href="/contact">Contact Us</Link></li>
+                <li>
+                  <Link href="/auth/sign-in">Login</Link>
+                </li>
+                <li>
+                  <Link href="/auth/sign-up">Sign Up</Link>
+                </li>
+                <li>
+                  <Link href="/faq">FAQ</Link>
+                </li>
+                <li>
+                  <Link href="/contact">Contact Us</Link>
+                </li>
               </ul>
             </div>
             <div className="footer-col">
               <h4>Legal</h4>
               <ul>
-                <li><Link href="/terms">Terms of Service</Link></li>
-                <li><Link href="/privacy">Privacy Policy</Link></li>
+                <li>
+                  <Link href="/terms">Terms of Service</Link>
+                </li>
+                <li>
+                  <Link href="/privacy">Privacy Policy</Link>
+                </li>
               </ul>
             </div>
           </div>
@@ -1385,7 +1741,6 @@ export default function PAMBALanding() {
         </div>
       </footer>
       <WhatsAppChatButton />
-
     </>
   );
 }
@@ -1395,17 +1750,57 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
   const [tab, setTab] = useState("earner");
 
   const earnerSteps = [
-    { num: "01", icon: <UserCheck size={20}/>, title: "Sign Up & Activate", desc: "Create your free account and activate with a one-time ₦2,000 fee to unlock all available tasks." },
-    { num: "02", icon: <Target size={20}/>, title: "Browse Tasks", desc: "Explore available tasks - YouTube views, social follows, website visits, app downloads, and more." },
-    { num: "03", icon: <CheckCircle size={20}/>, title: "Complete & Submit", desc: "Follow the task instructions carefully and submit your proof of completion for review." },
-    { num: "04", icon: <Wallet size={20}/>, title: "Get Paid Instantly", desc: "Once approved, earnings are credited to your wallet and ready to withdraw to your bank account." },
+    {
+      num: "01",
+      icon: <UserCheck size={20} />,
+      title: "Sign Up & Activate",
+      desc: "Create your free account and activate with a one-time ₦2,000 fee to unlock all available tasks.",
+    },
+    {
+      num: "02",
+      icon: <Target size={20} />,
+      title: "Browse Tasks",
+      desc: "Explore available tasks - YouTube views, social follows, website visits, app downloads, and more.",
+    },
+    {
+      num: "03",
+      icon: <CheckCircle size={20} />,
+      title: "Complete & Submit",
+      desc: "Follow the task instructions carefully and submit your proof of completion for review.",
+    },
+    {
+      num: "04",
+      icon: <Wallet size={20} />,
+      title: "Get Paid Instantly",
+      desc: "Once approved, earnings are credited to your wallet and ready to withdraw to your bank account.",
+    },
   ];
 
   const advertiserSteps = [
-    { num: "01", icon: <Megaphone size={20}/>, title: "Sign Up & Fund", desc: "Create an advertiser account, verify your details, and fund your wallet via Monnify to get started." },
-    { num: "02", icon: <Clipboard size={20}/>, title: "Create a Task", desc: "Define your objective, upload creatives, set your budget, target demographics, and cost-per-lead." },
-    { num: "03", icon: <SlidersHorizontal size={20}/>, title: "Target & Optimize", desc: "Choose who sees your task, set pacing, and monitor real-time performance to optimize for quality." },
-    { num: "04", icon: <CheckCircle size={20}/>, title: "Launch & Track", desc: "Review submissions, approve quality leads, and pay only for validated, verified results." },
+    {
+      num: "01",
+      icon: <Megaphone size={20} />,
+      title: "Sign Up & Fund",
+      desc: "Create an advertiser account, verify your details, and fund your wallet via Monnify to get started.",
+    },
+    {
+      num: "02",
+      icon: <Clipboard size={20} />,
+      title: "Create a Task",
+      desc: "Define your objective, upload creatives, set your budget, target demographics, and cost-per-lead.",
+    },
+    {
+      num: "03",
+      icon: <SlidersHorizontal size={20} />,
+      title: "Target & Optimize",
+      desc: "Choose who sees your task, set pacing, and monitor real-time performance to optimize for quality.",
+    },
+    {
+      num: "04",
+      icon: <CheckCircle size={20} />,
+      title: "Launch & Track",
+      desc: "Review submissions, approve quality leads, and pay only for validated, verified results.",
+    },
   ];
 
   const steps = tab === "earner" ? earnerSteps : advertiserSteps;
@@ -1413,12 +1808,25 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
   return (
     <>
       <div className="hiw-tabs">
-        <button className={`hiw-tab ${tab === "earner" ? "active" : ""}`} onClick={() => setTab("earner")}>For Earners</button>
-        <button className={`hiw-tab ${tab === "advertiser" ? "active" : ""}`} onClick={() => setTab("advertiser")}>For Advertisers</button>
+        <button
+          className={`hiw-tab ${tab === "earner" ? "active" : ""}`}
+          onClick={() => setTab("earner")}
+        >
+          For Earners
+        </button>
+        <button
+          className={`hiw-tab ${tab === "advertiser" ? "active" : ""}`}
+          onClick={() => setTab("advertiser")}
+        >
+          For Advertisers
+        </button>
       </div>
       <div className="hiw-steps">
         {steps.map((s, i) => (
-          <div key={s.num} className={`hiw-step fade-up fade-up-${i+1} ${howVisible ? "visible" : ""}`}>
+          <div
+            key={s.num}
+            className={`hiw-step fade-up fade-up-${i + 1} ${howVisible ? "visible" : ""}`}
+          >
             <div className="hiw-step-num">{s.num}</div>
             <h4>{s.title}</h4>
             <p>{s.desc}</p>
