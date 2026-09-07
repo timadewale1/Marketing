@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  BriefcaseBusiness,
+  CircleDollarSign,
   Target,
   UserCheck,
   Wallet,
@@ -19,6 +21,7 @@ import {
   Shield,
   Play,
   Menu,
+  Search,
   X,
 } from "lucide-react";
 import BillsCard from "@/components/bills/BillsCard";
@@ -1867,8 +1870,8 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
     {
       num: "02",
       icon: <Target size={20} />,
-      title: "List or hire services",
-      desc: "Service providers can create their profile, while customers can hire professionals and businesses quickly.",
+      title: "Open a storefront",
+      desc: "Vendors can list products and shoppers can browse shops, product categories, and storefront links.",
     },
     {
       num: "03",
@@ -1884,7 +1887,61 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
     },
   ];
 
-  const steps = tab === "earner" ? earnerSteps : tab === "advertiser" ? advertiserSteps : marketplaceSteps;
+  const skillsServicesSteps = [
+    {
+      num: "01",
+      icon: <Search size={20} />,
+      title: "Search the directory",
+      desc: "Find providers by skill, category, location, and the services they offer.",
+    },
+    {
+      num: "02",
+      icon: <Users size={20} />,
+      title: "Review real profiles",
+      desc: "Compare provider experience, availability, portfolio work, and profile details.",
+    },
+    {
+      num: "03",
+      icon: <BriefcaseBusiness size={20} />,
+      title: "List your own service",
+      desc: "Create a provider profile so customers can discover your skills and contact you.",
+    },
+    {
+      num: "04",
+      icon: <CheckCircle size={20} />,
+      title: "Connect and agree",
+      desc: "Unlock contact details when needed, then agree on the work, price, and delivery directly.",
+    },
+  ];
+
+  const billsSteps = [
+    {
+      num: "01",
+      icon: <Wallet size={20} />,
+      title: "Fund your wallet",
+      desc: "Receive approved task earnings or fund your PAMBA wallet through an available payment option.",
+    },
+    {
+      num: "02",
+      icon: <Zap size={20} />,
+      title: "Choose a bill",
+      desc: "Select airtime, data, TV, electricity, or another supported utility from the Bills area.",
+    },
+    {
+      num: "03",
+      icon: <CheckCircle size={20} />,
+      title: "Enter and verify details",
+      desc: "Provide the phone, meter, smartcard, or account information required by the biller.",
+    },
+    {
+      num: "04",
+      icon: <CircleDollarSign size={20} />,
+      title: "Pay from your wallet",
+      desc: "Confirm the transaction and receive the bill service through the connected provider.",
+    },
+  ];
+
+  const steps = tab === "earner" ? earnerSteps : tab === "advertiser" ? advertiserSteps : tab === "marketplace" ? marketplaceSteps : tab === "skills" ? skillsServicesSteps : billsSteps;
 
   return (
     <>
@@ -1902,10 +1959,22 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
           For Advertisers
         </button>
         <button
-          className="hiw-tab"
+          className={`hiw-tab ${tab === "marketplace" ? "active" : ""}`}
           onClick={() => setTab("marketplace")}
         >
-          Marketplace & Bills
+          Marketplace
+        </button>
+        <button
+          className={`hiw-tab ${tab === "skills" ? "active" : ""}`}
+          onClick={() => setTab("skills")}
+        >
+          Skills & Services
+        </button>
+        <button
+          className={`hiw-tab ${tab === "bills" ? "active" : ""}`}
+          onClick={() => setTab("bills")}
+        >
+          Bills & Utilities
         </button>
       </div>
       <div className="hiw-steps">
