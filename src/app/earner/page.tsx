@@ -423,7 +423,7 @@ export default function EarnerDashboard() {
         { label: "Referrals", path: "/earner/referrals", icon: Gift },
         {
           label: "Pamba Business Network",
-          path: "/earner/pamba-business-network",
+          path: "/pamba-business-network",
           icon: BriefcaseBusiness,
         },
         {

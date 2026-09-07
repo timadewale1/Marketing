@@ -436,7 +436,7 @@ export default function AdvertiserDashboard() {
         { label: "Referrals", path: "/advertiser/referrals", icon: Gift },
         {
           label: "Pamba Business Network",
-          path: "/advertiser/pamba-business-network",
+          path: "/pamba-business-network",
           icon: BriefcaseBusiness,
         },
         {

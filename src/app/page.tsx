@@ -222,7 +222,7 @@ export default function PAMBALanding() {
       links: [
         { label: "About", href: "#about" },
         { label: "How it works", href: "#howitworks" },
-        { label: "Pamba Business Network", href: "/earner/pamba-business-network" },
+        { label: "Pamba Business Network", href: "/pamba-business-network" },
         { label: "FAQ", href: "/faq" },
       ],
     },
