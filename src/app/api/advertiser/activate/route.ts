@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         userId: userId || null,
         reference,
         references: referenceCandidates,
-        amount: 2000,
+        amount: 4500,
       })
       try {
         const { admin, dbAdmin } = await initFirebaseAdmin()
@@ -78,8 +78,8 @@ export async function POST(req: Request) {
         // The SDK only fires onComplete after successful payment
         console.log('Monnify SDK activation verification - trusting SDK callback')
         
-        // Set paidAmount to 2000 (membership fee)
-        paidAmount = 2000
+        // Set paidAmount to 4500 (membership fee)
+        paidAmount = 4500
         
         // If monnifyResponse was provided, validate it has the expected structure
         if (monnifyResponse) {
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
               paymentStatus: 'PAID',
               verificationResult: null,
             }
-            paidAmount = Number((monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.responseBody?.amount || (monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.data?.amount || 2000)
+            paidAmount = Number((monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.responseBody?.amount || (monnifyResponse as { responseBody?: { amount?: number }; data?: { amount?: number } } | undefined)?.data?.amount || 4500)
             console.log('Monnify SDK reported immediate success, activating without waiting for retry window')
           } else {
             monnifyConfirmation = await confirmMonnifyPaymentWithRetries(
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
             } else {
               console.log('Monnify server verification successful')
               const responseBody = monnifyConfirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
-              paidAmount = Number(responseBody?.amount || 2000)
+              paidAmount = Number(responseBody?.amount || 4500)
             }
           }
         } catch (verifyError) {
@@ -187,7 +187,7 @@ export async function POST(req: Request) {
           userId,
           reference,
           references: referenceCandidates,
-          amount: paidAmount || 2000,
+          amount: paidAmount || 4500,
           details: { paymentStatus: confirmation.paymentStatus || null },
         })
         return NextResponse.json({
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
       }
 
       const responseBody = confirmation.verificationResult?.responseBody as MonnifyVerificationResponse['responseBody'] | undefined
-      paidAmount = Number(responseBody?.amount || 2000)
+      paidAmount = Number(responseBody?.amount || 4500)
     }
 
     if (paidAmount <= 0) {
@@ -221,7 +221,7 @@ export async function POST(req: Request) {
           userId,
           reference,
           references: referenceCandidates,
-          amount: paidAmount || 2000,
+          amount: paidAmount || 4500,
         })
         if (result.alreadyActivated) {
           return NextResponse.json({ success: true, completed: true, message: 'Membership already confirmed' })
@@ -239,7 +239,7 @@ export async function POST(req: Request) {
         userId,
         reference,
         references: referenceCandidates,
-        amount: paidAmount || 2000,
+        amount: paidAmount || 4500,
         details: { message: activationError instanceof Error ? activationError.message : String(activationError) },
       })
       return NextResponse.json({ 

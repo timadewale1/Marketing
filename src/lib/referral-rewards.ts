@@ -2,14 +2,14 @@ const REFERRAL_PROMO_START_AT = new Date("2026-06-08T00:00:00+01:00")
 const REFERRAL_PROMO_END_AT = new Date("2026-06-21T23:59:59+01:00")
 
 // Multi-level referral system (as of 2026-09-03)
-// Level 1 (Direct referrer): ₦2,000
+// Level 1 (Direct referrer): ₦2,000 (legacy reference kept here for history; current activation fee is ₦4,500)
 // Level 2: ₦500
-// Level 3: ₦300  
+// Level 3: ₦300
 // Level 4: ₦200
 // Total distributed: ₦3,000 out of ₦4,500 membership fee
 
 const LEGACY_ACTIVATION_REFERRAL_AMOUNT = 500
-const LEVEL_1_REFERRAL_AMOUNT = 2000  // Updated for new system
+const LEVEL_1_REFERRAL_AMOUNT = 2000
 const PROMO_ACTIVATION_REFERRAL_AMOUNT = 1000
 const LEGACY_ADVERTISER_TASK_REFERRAL_RATE = 0.1
 const PROMO_ADVERTISER_TASK_REFERRAL_RATE = 0.2
@@ -42,8 +42,15 @@ export function getAdvertiserTaskReferralBonusAmount(campaignBudget: number, now
 }
 
 export function getReferralPromoCopy(now: Date = new Date()) {
+  const levelSummary = [
+    'Level 1: ₦2,000',
+    'Level 2: ₦500',
+    'Level 3: ₦300',
+    'Level 4: ₦200',
+  ].join(' • ')
+
   return {
-    activation: `${getReferralActivationBonusLabel(now)} per activated earner`,
+    activation: `${levelSummary} • Up to ₦3,000 across 4 levels`,
     advertiserTask: `${getAdvertiserTaskReferralLabel(now)} of every task budget`,
   }
 }

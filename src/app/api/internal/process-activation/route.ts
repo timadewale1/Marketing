@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const references = Array.isArray(body.references)
       ? body.references.map((value) => String(value || "").trim()).filter(Boolean)
       : []
-    const amount = Number(body.amount || 2000)
+    const amount = Number(body.amount || 4500)
 
     if (!userId || !reference) {
       return NextResponse.json({ success: false, message: "userId and reference are required" }, { status: 400 })

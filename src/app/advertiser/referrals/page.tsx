@@ -122,27 +122,27 @@ export default function AdvertiserReferralsPage() {
               <h3 className="font-medium text-stone-800">Earn by referring others:</h3>
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium w-fit">
+                    {referralPromo.activation}
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    Earn across 4 levels when your referrals activate their PAMBA membership.
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <div className="px-3 py-1 bg-stone-100 text-stone-700 rounded-full text-sm font-medium w-fit">
                     {referralPromo.advertiserTask}
                   </div>
                   <div className="text-xs text-stone-500">
-                    Earn this when you refer an advertiser and they create a task.
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                  <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium w-fit">
-                    {referralPromo.activation} per activated earner
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    Paid when the referred earner completes activation.
+                    Earn this when a referral starts a campaign or pays for tasks.
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                   <div className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium w-fit">
-                    10% of setup fee
+                    10% of vendor setup fee
                   </div>
                   <div className="text-xs text-stone-500">
-                    Earn this when any Pamba vendor you referred pays their setup fee.
+                    Earn this when any vendor you refer pays their Pamba setup fee.
                   </div>
                 </div>
               </div>

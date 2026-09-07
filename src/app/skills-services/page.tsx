@@ -59,7 +59,7 @@ export default function SkillsServicesPage() {
                 href="/skills-services/sign-up?type=customer"
                 className="rounded-full border border-stone-300 bg-white px-6 py-3 font-bold text-stone-800"
               >
-                Join as a customer
+                Hire a service provider
               </Link>
             </div>
           </div>

@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       email: String(userSnap.data()?.email || ""),
       reference,
       references: [reference],
-      amount: 2000,
+      amount: 4500,
       lifecycle: {
         paymentReference: reference,
         paymentType: "activation",

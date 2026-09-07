@@ -369,7 +369,7 @@ export default function TransactionsPage() {
         {showActivationPaymentSelector ? (
           <PaymentSelector
             open={showActivationPaymentSelector}
-            amount={2000}
+            amount={4500}
             email={auth.currentUser?.email || undefined}
             fullName={auth.currentUser?.displayName || "Earner"}
             description="Earner Membership Fee"

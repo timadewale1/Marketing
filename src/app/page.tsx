@@ -181,12 +181,45 @@ export default function PAMBALanding() {
   const [howRef, howVisible] = useInView();
   const [ctaRef, ctaVisible] = useInView();
 
-  const navLinks = [
-    { label: "About", href: "#about" },
-    { label: "Marketplace", href: "#marketplace" },
-    { label: "Skills & Services", href: "/skills-services" },
-    { label: "How It Works", href: "#howitworks" },
-    { label: "FAQ", href: "/faq" },
+  const navMenus = [
+    {
+      label: "Pamba Marketplace",
+      links: [
+        { label: "Login as Seller", href: "/marketplace/auth/sign-up?role=vendor" },
+        { label: "Login as Buyer", href: "/marketplace/auth/sign-up?role=customer" },
+      ],
+    },
+    {
+      label: "Pamba Skills & Services",
+      links: [
+        { label: "List your service", href: "/skills-services/sign-up?type=provider" },
+        { label: "Hire a service provider", href: "/skills-services/sign-up?type=customer" },
+      ],
+    },
+    {
+      label: "Pamba Task Community",
+      links: [
+        { label: "Login as Earner", href: "/auth/sign-in?role=earner" },
+        { label: "Login as Advertiser", href: "/auth/sign-in?role=advertiser" },
+      ],
+    },
+    {
+      label: "Pamba Bills",
+      links: [
+        { label: "Airtime", href: "/bills/airtime" },
+        { label: "Data", href: "/bills/data" },
+        { label: "TV & Cable", href: "/bills/tv" },
+        { label: "Electricity", href: "/bills/electricity" },
+      ],
+    },
+    {
+      label: "About PAMBA",
+      links: [
+        { label: "About", href: "#about" },
+        { label: "How it works", href: "#howitworks" },
+        { label: "FAQ", href: "/faq" },
+      ],
+    },
   ];
 
   return (
@@ -257,15 +290,27 @@ export default function PAMBALanding() {
           display: flex; align-items: center; gap: 6px;
           list-style: none;
           justify-content: center;
+          flex-wrap: wrap;
         }
-        .nav-links a {
+        .nav-dropdown { position: relative; }
+        .nav-dropdown-button {
           color: rgba(255,255,255,0.78);
-          text-decoration: none; font-size: 0.8rem; font-weight: 600;
-          padding: 8px 10px; border-radius: 9px;
+          text-decoration: none; font-size: 0.78rem; font-weight: 600;
+          padding: 8px 10px; border-radius: 9px; border: none; background: transparent;
           transition: color 0.2s, transform 0.2s;
-          white-space: nowrap;
+          white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
         }
-        .nav-links a:hover { color: var(--amber); background: rgba(245,158,11,0.1); transform: translateY(-1px); }
+        .nav-dropdown-button:hover { color: var(--amber); background: rgba(245,158,11,0.1); transform: translateY(-1px); }
+        .nav-dropdown-menu {
+          position: absolute; top: calc(100% + 12px); left: 0; min-width: 220px; display: none;
+          flex-direction: column; gap: 6px; padding: 10px; background: rgba(28,25,23,0.96); border: 1px solid rgba(245,158,11,0.22);
+          border-radius: 14px; box-shadow: 0 18px 35px rgba(0,0,0,0.2);
+        }
+        .nav-dropdown:hover .nav-dropdown-menu { display: flex; }
+        .nav-dropdown-menu a {
+          color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.78rem; font-weight: 500; padding: 8px 10px; border-radius: 8px;
+        }
+        .nav-dropdown-menu a:hover { color: var(--amber); background: rgba(245,158,11,0.08); }
         .nav-actions {
           display: flex; gap: 8px;
           justify-content: flex-end;
@@ -1052,13 +1097,21 @@ export default function PAMBALanding() {
               style={{ objectFit: "contain" }}
             />
           </Link>
-          <ul className="nav-links">
-            {navLinks.map((l) => (
-              <li key={l.label}>
-                <a href={l.href}>{l.label}</a>
-              </li>
+          <div className="nav-links">
+            {navMenus.map((menu) => (
+              <div key={menu.label} className="nav-dropdown">
+                <button className="nav-dropdown-button" type="button">
+                  {menu.label}
+                  <ChevronDown size={14} />
+                </button>
+                <div className="nav-dropdown-menu">
+                  {menu.links.map((link) => (
+                    <Link key={link.label} href={link.href}>{link.label}</Link>
+                  ))}
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
           <div className="nav-actions">
             {/* <WhatsAppGroupButton /> */}
             <Link href="/auth/sign-in" className="btn-ghost">
@@ -1084,11 +1137,13 @@ export default function PAMBALanding() {
             <X size={28} />
           </button>
           {/* <WhatsAppGroupButton /> */}
-          {navLinks.map((l) => (
-            <a key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
-              {l.label}
-            </a>
-          ))}
+          {navMenus.flatMap((menu) =>
+            menu.links.map((link) => (
+              <Link key={`${menu.label}-${link.label}`} href={link.href} onClick={() => setMobileOpen(false)}>
+                {link.label}
+              </Link>
+            ))
+          )}
           <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>
             Login
           </Link>
@@ -1206,6 +1261,8 @@ export default function PAMBALanding() {
           <ChevronDown size={16} />
         </div>
       </section>
+
+      <HomepageReviews />
 
       {/* ── SAFETY NOTICE ── */}
       <div className="safety">
@@ -1494,8 +1551,6 @@ export default function PAMBALanding() {
         <HomepageDirectAds />
       </div>
 
-      <HomepageReviews />
-
       {/* ── FEATURES ── */}
       <section className="section features-bg" id="features">
         <div className="section-inner">
@@ -1565,10 +1620,9 @@ export default function PAMBALanding() {
             className={`section-header center fade-up ${howVisible ? "visible" : ""}`}
           >
             <div className="section-label">How It Works</div>
-            <h2 className="section-title">Simple Steps. Real Earnings.</h2>
+            <h2 className="section-title">One platform for earning, selling, hiring, and paying bills.</h2>
             <p className="section-sub">
-              Whether you&apos;re here to earn or to advertise, getting started
-              takes less than 5 minutes.
+              PAMBA brings together task earning, marketplace selling, service hiring, referral growth, and everyday bill payments in one simple ecosystem.
             </p>
           </div>
 
@@ -1754,25 +1808,25 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
       num: "01",
       icon: <UserCheck size={20} />,
       title: "Sign Up & Activate",
-      desc: "Create your free account and activate with a one-time ₦2,000 fee to unlock all available tasks.",
+      desc: "Create your PAMBA account and activate for ₦4,500 to unlock tasks, referrals, wallet funding, and bill payments.",
     },
     {
       num: "02",
       icon: <Target size={20} />,
-      title: "Browse Tasks",
-      desc: "Explore available tasks - YouTube views, social follows, website visits, app downloads, and more.",
+      title: "Earn from Tasks",
+      desc: "Complete social and digital tasks, then submit proof for review to get paid into your wallet.",
     },
     {
       num: "03",
       icon: <CheckCircle size={20} />,
-      title: "Complete & Submit",
-      desc: "Follow the task instructions carefully and submit your proof of completion for review.",
+      title: "Explore Marketplace & Services",
+      desc: "Use the marketplace, hire professionals, or list your own skills and services in the directory.",
     },
     {
       num: "04",
       icon: <Wallet size={20} />,
-      title: "Get Paid Instantly",
-      desc: "Once approved, earnings are credited to your wallet and ready to withdraw to your bank account.",
+      title: "Withdraw or Pay Bills",
+      desc: "Withdraw to your bank or use your wallet to pay airtime, data, electricity, and other utilities.",
     },
   ];
 
@@ -1780,30 +1834,57 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
     {
       num: "01",
       icon: <Megaphone size={20} />,
-      title: "Sign Up & Fund",
-      desc: "Create an advertiser account, verify your details, and fund your wallet via Monnify to get started.",
+      title: "Sign Up & Activate",
+      desc: "Create an advertiser account and activate your membership for ₦4,500 before launching campaigns.",
     },
     {
       num: "02",
       icon: <Clipboard size={20} />,
-      title: "Create a Task",
-      desc: "Define your objective, upload creatives, set your budget, target demographics, and cost-per-lead.",
+      title: "Create a Campaign",
+      desc: "Set your budget, choose your objective, upload creative assets, and launch your task or promotion.",
     },
     {
       num: "03",
       icon: <SlidersHorizontal size={20} />,
-      title: "Target & Optimize",
-      desc: "Choose who sees your task, set pacing, and monitor real-time performance to optimize for quality.",
+      title: "Target & Grow",
+      desc: "Use the platform to reach the right audience, build referrals, and improve results through smart targeting.",
     },
     {
       num: "04",
       icon: <CheckCircle size={20} />,
-      title: "Launch & Track",
-      desc: "Review submissions, approve quality leads, and pay only for validated, verified results.",
+      title: "Track, Pay & Scale",
+      desc: "Review submissions, approve quality leads, pay for valid results, and grow your business across the broader PAMBA ecosystem.",
     },
   ];
 
-  const steps = tab === "earner" ? earnerSteps : advertiserSteps;
+  const marketplaceSteps = [
+    {
+      num: "01",
+      icon: <Megaphone size={20} />,
+      title: "Browse the marketplace",
+      desc: "Discover vendor shops, product links, and marketplace listings from one place.",
+    },
+    {
+      num: "02",
+      icon: <Target size={20} />,
+      title: "List or hire services",
+      desc: "Service providers can create their profile, while customers can hire professionals and businesses quickly.",
+    },
+    {
+      num: "03",
+      icon: <Wallet size={20} />,
+      title: "Pay your bills",
+      desc: "Use your earnings to fund airtime, data, cable, electricity, and other essential services.",
+    },
+    {
+      num: "04",
+      icon: <Users size={20} />,
+      title: "Grow through referrals",
+      desc: "Invite others to PAMBA and receive bonuses from the 4-level referral network.",
+    },
+  ];
+
+  const steps = tab === "earner" ? earnerSteps : tab === "advertiser" ? advertiserSteps : marketplaceSteps;
 
   return (
     <>
@@ -1819,6 +1900,12 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
           onClick={() => setTab("advertiser")}
         >
           For Advertisers
+        </button>
+        <button
+          className="hiw-tab"
+          onClick={() => setTab("marketplace")}
+        >
+          Marketplace & Bills
         </button>
       </div>
       <div className="hiw-steps">

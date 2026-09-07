@@ -993,12 +993,12 @@ export default function CampaignDetailsPage() {
                       <div className="space-y-3 rounded-2xl border border-stone-200 bg-white p-3">
                         <p className="text-sm font-semibold text-stone-800">Advertiser review</p>
                       <p className="text-xs text-stone-500">
-                          Approve to accept this proof, reject it with a clear reason, or request a resubmission if the proof needs another try.
+                          Verify this proof or request a resubmission if it needs another try.
                         </p>
                         <Textarea
                           value={flagReasons[submission.id] || ""}
                           onChange={(event) => setFlagReasons((current) => ({ ...current, [submission.id]: event.target.value }))}
-                          placeholder="Reason required if you choose reject"
+                          placeholder="Add a note for the earner if resubmission is needed"
                           className="min-h-[82px] rounded-2xl border-stone-200 bg-stone-50"
                         />
                         <div className="flex flex-wrap gap-2">
@@ -1009,14 +1009,7 @@ export default function CampaignDetailsPage() {
                           >
                             {flaggingSubmissionId === submission.id ? "Saving..." : "Approve"}
                           </Button>
-                        <Button
-                          variant="outline"
-                          className="rounded-full border-rose-200 text-rose-700 hover:bg-rose-50"
-                          disabled={flaggingSubmissionId === submission.id}
-                          onClick={() => void handleAdvertiserReview(submission, "Rejected")}
-                        >
-                          Reject
-                        </Button>
+                        {/* Reject is intentionally hidden for now; the handler remains available for later re-enablement. */}
                         <Button
                           variant="outline"
                           className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"

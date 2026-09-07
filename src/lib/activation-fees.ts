@@ -1,5 +1,5 @@
 // Multi-level referral system for Pamba Business Network
-// Level 1: Direct referrer gets ₦2,000
+// Level 1: Direct referrer gets ₦2,000 (legacy reference kept here for history; current activation fee is ₦4,500)
 // Level 2: Referrer's referrer gets ₦500
 // Level 3: Referrer's referrer's referrer gets ₦300
 // Level 4: Referrer's referrer's referrer's referrer gets ₦200
