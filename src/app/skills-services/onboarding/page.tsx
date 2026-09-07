@@ -23,6 +23,7 @@ function OnboardingForm() {
     city: "",
     state: "",
     bio: "",
+    profileImageUrl: "",
     experience: "",
     availability: "",
     whatsapp: "",
@@ -32,6 +33,7 @@ function OnboardingForm() {
   });
   const [loading, setLoading] = useState(true);
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -86,8 +88,18 @@ function OnboardingForm() {
         };
       }),
     );
+    let profileImageUrl = form.profileImageUrl || "";
+    if (type === "provider" && profileImageFile) {
+      const imageRef = ref(
+        storage,
+        `service-profile-images/${auth.currentUser?.uid}/${Date.now()}-${profileImageFile.name}`,
+      );
+      const snapshot = await uploadBytes(imageRef, profileImageFile);
+      profileImageUrl = await getDownloadURL(snapshot.ref);
+    }
     const payload = {
       ...form,
+      profileImageUrl,
       accountType: type,
       skills: form.skills
         .split(",")
@@ -190,6 +202,18 @@ function OnboardingForm() {
         </label>
         {type === "provider" && (
           <>
+            <label className="text-sm font-bold sm:col-span-2">
+              Profile picture or business logo
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => setProfileImageFile(event.target.files?.[0] || null)}
+                className="mt-2 block w-full rounded-xl border border-stone-300 px-4 py-3 text-sm font-normal"
+              />
+              <span className="mt-1 block text-xs font-normal text-stone-500">
+                Use a clear photo or logo. This image will appear on your public provider card.
+              </span>
+            </label>
             <label className="text-sm font-bold">
               Skills{" "}
               <span className="font-normal text-stone-500">

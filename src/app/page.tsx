@@ -188,6 +188,7 @@ export default function PAMBALanding() {
     {
       label: "Pamba Marketplace",
       links: [
+        { label: "Go to Marketplace", href: "/marketplace" },
         { label: "Login as Seller", href: "/marketplace/auth/sign-up?role=vendor" },
         { label: "Login as Buyer", href: "/marketplace/auth/sign-up?role=customer" },
       ],
@@ -195,6 +196,7 @@ export default function PAMBALanding() {
     {
       label: "Pamba Skills & Services",
       links: [
+        { label: "Go to Skills & Services", href: "/skills-services" },
         { label: "List your service", href: "/skills-services/sign-up?type=provider" },
         { label: "Hire a service provider", href: "/skills-services/sign-up?type=customer" },
       ],
@@ -220,6 +222,7 @@ export default function PAMBALanding() {
       links: [
         { label: "About", href: "#about" },
         { label: "How it works", href: "#howitworks" },
+        { label: "Pamba Business Network", href: "/earner/pamba-business-network" },
         { label: "FAQ", href: "/faq" },
       ],
     },

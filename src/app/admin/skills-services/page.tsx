@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   Users,
@@ -150,14 +151,13 @@ export default function AdminSkillsServices() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelected(row)}
+                <Link
+                  href={`/admin/skills-services/${row.id}`}
                   className="rounded-xl border border-stone-200 px-3 py-2 text-sm font-bold text-stone-700"
                 >
                   <Eye size={14} className="mr-1 inline" />
                   Details
-                </button>
+                </Link>
                 {row.status !== "suspended" ? (
                   <button
                     onClick={() => void update(row.id, "suspended")}

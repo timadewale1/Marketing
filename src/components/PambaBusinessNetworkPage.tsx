@@ -13,7 +13,6 @@ import {
   Network,
   Search,
   ShoppingBag,
-  Sparkles,
   Store,
   Users,
   Wallet,
@@ -148,7 +147,6 @@ function Overview({ isAdvertiser }: { isAdvertiser: boolean }) {
         </div>
       </article>
       <article className="rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-stone-950 shadow-xl shadow-amber-500/20 sm:p-8">
-        <Sparkles size={26} />
         <h2 className="mt-5 text-2xl font-black">The PAMBA promise</h2>
         <p className="mt-4 text-sm leading-7 text-stone-900/75">We are building practical digital pathways for earning, marketing, selling, hiring, and paying. Every opportunity has its own requirements and terms, so members can choose what fits them.</p>
         <div className="mt-6 space-y-3 text-sm font-bold">

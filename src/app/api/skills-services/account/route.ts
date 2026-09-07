@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireServiceUser } from "@/app/api/skills-services/_auth";
 import { normalizeServiceAccount } from "@/lib/service-marketplace";
+import { notifyAdminOfServiceListing } from "@/lib/skills-services-admin-alerts";
 
 export async function GET(req: Request) {
   try {
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
       city: String(body.city || "").trim(),
       state: String(body.state || "").trim(),
       bio: String(body.bio || "").trim(),
+      profileImageUrl: String(body.profileImageUrl || "").trim(),
       skills: Array.isArray(body.skills)
         ? body.skills.map(String).slice(0, 30)
         : [],
@@ -69,6 +71,15 @@ export async function POST(req: Request) {
           }),
     };
     await ref.set(data, { merge: true });
+    if (!existing.exists && type === "provider") {
+      await notifyAdminOfServiceListing({
+        providerId: uid,
+        providerName: data.name,
+        providerEmail: data.email,
+        categories: data.categories,
+        services: data.services,
+      });
+    }
     return NextResponse.json({
       success: true,
       account: normalizeServiceAccount(uid, {

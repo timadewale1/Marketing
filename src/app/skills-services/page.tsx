@@ -6,7 +6,6 @@ import {
   MapPin,
   Search,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import {
@@ -185,8 +184,10 @@ export default function SkillsServicesPage() {
                   className="group rounded-3xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-xl font-black text-amber-800">
-                      {provider.name.slice(0, 1).toUpperCase()}
+                    <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-amber-100 text-xl font-black text-amber-800">
+                      {provider.profileImageUrl ? (
+                        <img src={provider.profileImageUrl} alt={`${provider.name} profile`} className="h-full w-full object-cover" />
+                      ) : provider.name.slice(0, 1).toUpperCase()}
                     </div>
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
                       Available

@@ -14,6 +14,7 @@ export type ServiceAccount = {
   city?: string;
   state?: string;
   bio?: string;
+  profileImageUrl?: string;
   skills?: string[];
   categories?: string[];
   services?: string[];
@@ -134,6 +135,7 @@ export function normalizeServiceAccount(
     city: String(data.city || ""),
     state: String(data.state || ""),
     bio: String(data.bio || ""),
+    profileImageUrl: String(data.profileImageUrl || ""),
     skills: Array.isArray(data.skills) ? data.skills.map(String) : [],
     categories: Array.isArray(data.categories)
       ? data.categories.map(String)

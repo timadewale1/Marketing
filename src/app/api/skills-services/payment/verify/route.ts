@@ -5,10 +5,11 @@ import {
   SERVICE_CONNECTION_FEE,
   SERVICE_PROVIDER_FEE,
 } from "@/lib/service-marketplace";
+import { notifyAdminOfServiceConnectionPayment } from "@/lib/skills-services-admin-alerts";
 
 export async function POST(req: Request) {
   try {
-    const { dbAdmin, admin, uid } = await requireServiceUser(req);
+    const { dbAdmin, admin, uid, email } = await requireServiceUser(req);
     const body = await req.json();
     const reference = String(body.reference || "").trim();
     if (!reference)
@@ -88,6 +89,20 @@ export async function POST(req: Request) {
       );
     }
     await batch.commit();
+    if (feeType === "connection") {
+      const providerId = String(payment.providerId || "");
+      const providerSnap = await dbAdmin.collection("serviceAccounts").doc(providerId).get();
+      const providerData = providerSnap.data() || {};
+      await notifyAdminOfServiceConnectionPayment({
+        customerId: uid,
+        customerEmail: email,
+        customerName: String(payment.customerName || payment.name || email || uid),
+        providerId,
+        providerName: String(providerData.name || providerData.email || providerId),
+        amount: Number(payment.amount),
+        reference,
+      });
+    }
     return NextResponse.json({ success: true, completed: true });
   } catch (error) {
     console.error("[skills-services/payment/verify]", error);

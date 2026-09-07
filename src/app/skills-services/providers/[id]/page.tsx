@@ -91,8 +91,10 @@ export default function ProviderPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl bg-amber-100 text-4xl font-black text-amber-800">
-              {provider.name.slice(0, 1).toUpperCase()}
+            <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-3xl bg-amber-100 text-4xl font-black text-amber-800">
+              {provider.profileImageUrl ? (
+                <img src={provider.profileImageUrl} alt={`${provider.name} profile`} className="h-full w-full object-cover" />
+              ) : provider.name.slice(0, 1).toUpperCase()}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
