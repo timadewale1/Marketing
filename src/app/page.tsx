@@ -145,6 +145,7 @@ function CountUp({
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function PAMBALanding() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpenMenu, setMobileOpenMenu] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [showWelcomePrompt, setShowWelcomePrompt] = useState(false);
 
@@ -1042,16 +1043,28 @@ export default function PAMBALanding() {
         .mobile-menu {
           position: fixed; inset: 0; z-index: 200;
           background: var(--stone-900);
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 32px;
+          display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+          gap: 8px; overflow-y: auto; padding: 88px 24px 32px;
         }
         .mobile-menu a, .mobile-menu button {
           font-family: 'Sora', sans-serif;
-          font-size: 1.5rem; font-weight: 700;
+          font-size: 1rem; font-weight: 700;
           color: var(--white); text-decoration: none; background: none; border: none;
           cursor: pointer; transition: color 0.2s;
         }
         .mobile-menu a:hover { color: var(--amber); }
+        .mobile-menu-group { border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mobile-menu-group-button {
+          width: 100%; display: flex; align-items: center; justify-content: space-between;
+          padding: 16px 4px; text-align: left;
+        }
+        .mobile-menu-group-button:hover { color: var(--amber); }
+        .mobile-menu-group-button svg { transition: transform 0.2s ease; }
+        .mobile-menu-group-button.open svg { transform: rotate(180deg); }
+        .mobile-menu-submenu { display: flex; flex-direction: column; gap: 4px; padding: 0 0 12px 16px; }
+        .mobile-menu-submenu a { color: rgba(255,255,255,0.72); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600; padding: 10px 4px; }
+        .mobile-menu-account { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.12); }
+        .mobile-menu-account a { padding: 12px 4px; }
         .mobile-close {
           position: absolute; top: 24px; right: 24px;
           background: none; border: none; color: white; cursor: pointer;
@@ -1139,27 +1152,42 @@ export default function PAMBALanding() {
 
       {mobileOpen && (
         <div className="mobile-menu">
-          <button className="mobile-close" onClick={() => setMobileOpen(false)}>
+          <button className="mobile-close" onClick={() => { setMobileOpen(false); setMobileOpenMenu(null); }}>
             <X size={28} />
           </button>
           {/* <WhatsAppGroupButton /> */}
-          {navMenus.flatMap((menu) =>
-            menu.links.map((link) => (
-              <Link key={`${menu.label}-${link.label}`} href={link.href} onClick={() => setMobileOpen(false)}>
-                {link.label}
-              </Link>
-            ))
-          )}
-          <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>
-            Login
-          </Link>
-          <Link
-            href="/auth/sign-up"
-            onClick={() => setMobileOpen(false)}
-            style={{ color: "var(--amber)" }}
-          >
-            Get Started →
-          </Link>
+          {navMenus.map((menu) => {
+            const isOpen = mobileOpenMenu === menu.label;
+            return (
+              <div key={menu.label} className="mobile-menu-group">
+                <button
+                  type="button"
+                  className={`mobile-menu-group-button ${isOpen ? "open" : ""}`}
+                  onClick={() => setMobileOpenMenu(isOpen ? null : menu.label)}
+                >
+                  {menu.label}
+                  <ChevronDown size={18} />
+                </button>
+                {isOpen ? (
+                  <div className="mobile-menu-submenu">
+                    {menu.links.map((link) => (
+                      <Link key={link.label} href={link.href} onClick={() => { setMobileOpen(false); setMobileOpenMenu(null); }}>
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+          <div className="mobile-menu-account">
+            <Link href="/auth/sign-in" onClick={() => setMobileOpen(false)}>
+              Login
+            </Link>
+            <Link href="/auth/sign-up" onClick={() => setMobileOpen(false)} style={{ color: "var(--amber)" }}>
+              Get Started →
+            </Link>
+          </div>
         </div>
       )}
 
