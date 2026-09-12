@@ -42,8 +42,10 @@ function referencesOverlap(left: string[], right: string[]) {
 export async function processPendingActivationReferrals(
   adminDb: AdminFirestore,
   admin: ActivationReferralAdminLike,
-  userId: string
+  userId: string,
+  options: { creditLegacyBonus?: boolean } = {}
 ) {
+  const creditLegacyBonus = options.creditLegacyBonus !== false
   // Query by referred user only, then filter in-memory so we don't miss
   // legacy/inconsistent docs where status/bonus flags were not updated cleanly.
   const refsSnap = await adminDb.collection('referrals')
@@ -175,9 +177,17 @@ export async function processPendingActivationReferrals(
               completedAt: timestamp,
               bonusPaid: true,
               paidAt: timestamp,
-              paidAmount: bonus,
-              amount: bonus,
+              paidAmount: creditLegacyBonus ? bonus : 0,
+              amount: creditLegacyBonus ? bonus : 0,
+              ...(creditLegacyBonus ? {} : {
+                legacyBonusSuppressed: true,
+                legacyBonusSuppressedReason: 'Replaced by multi-level referral payout',
+              }),
             })
+
+            if (!creditLegacyBonus) {
+              return
+            }
 
             const referrerTxCollection =
               referrerCollection === 'advertisers'
@@ -554,7 +564,7 @@ export async function processActivationWithRetry(
           reference: primaryReference,
           references: activationReferences,
         })
-        await processPendingActivationReferrals(adminDb, admin, userId)
+        await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
         
         // Award multi-level referral bonuses
         try {
@@ -652,7 +662,7 @@ export async function processActivationWithRetry(
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      await processPendingActivationReferrals(adminDb, admin, userId)
+      await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
       
       // Award multi-level referral bonuses (Levels 2-4)
       try {

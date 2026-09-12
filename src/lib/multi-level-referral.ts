@@ -147,11 +147,18 @@ export async function awardMultiLevelReferralBonuses(
       const sourceUserName = i === 0 ? activatedUserName : chain[i - 1].userName;
 
       try {
+        let wasAwarded = false
         await adminDb.runTransaction(async (transaction) => {
           const referrerRef = adminDb.collection(referral.collection).doc(referral.userId);
           const referrerSnap = await transaction.get(referrerRef);
+          const chainRecordId = `multi-level-${activatedUserId}-level${referral.level}`;
+          const chainRecordRef = adminDb.collection('referrals').doc(chainRecordId);
+          const existingChainRecord = await transaction.get(chainRecordRef);
 
           if (!referrerSnap.exists) {
+            return;
+          }
+          if (existingChainRecord.exists && existingChainRecord.data()?.creditsApplied === true) {
             return;
           }
 
@@ -185,7 +192,6 @@ export async function awardMultiLevelReferralBonuses(
           });
 
           // Save chain record in referrals collection for audit trail
-          const chainRecordId = `multi-level-${activatedUserId}-level${referral.level}`;
           const chainRecord: ReferralChainRecord = {
             activatedUserId,
             activatedUserName,
@@ -202,13 +208,16 @@ export async function awardMultiLevelReferralBonuses(
           };
 
           transaction.set(
-            adminDb.collection('referrals').doc(chainRecordId),
+            chainRecordRef,
             chainRecord,
             { merge: true }
           );
+          wasAwarded = true;
         });
 
-        awarded++;
+        if (wasAwarded) {
+          awarded++;
+        }
       } catch (error) {
         console.error(
           `[multi-level-referral] failed to award Level ${referral.level} bonus to ${referral.userId}:`,

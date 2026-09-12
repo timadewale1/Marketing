@@ -495,7 +495,7 @@ export async function GET(request: Request) {
 
     for (const userId of autoActivatedUserIds) {
       try {
-        await processPendingActivationReferrals(adminDb, admin, userId)
+        await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
         
         // Award multi-level referral bonuses
         try {

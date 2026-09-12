@@ -3,6 +3,7 @@ import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 import { normalizeActivationReferralPendingAmount } from '@/lib/referral-rewards'
+import { awardMultiLevelReferralBonuses } from '@/lib/multi-level-referral'
 
 interface Referral {
   id?: string
@@ -122,6 +123,34 @@ export async function GET(req: NextRequest) {
             reason,
           })
           skipped++
+          continue
+        }
+
+        if (isActivationCondition) {
+          await dbAdmin.runTransaction(async (transaction) => {
+            const referralRef = dbAdmin.collection('referrals').doc(referralDoc.id)
+            const freshReferral = await transaction.get(referralRef)
+            if (!freshReferral.exists || freshReferral.data()?.status !== 'pending') return
+            transaction.update(referralRef, {
+              status: 'completed',
+              bonusPaid: true,
+              paidAt: admin.firestore.FieldValue.serverTimestamp(),
+              paidAmount: 0,
+              amount: 0,
+              legacyBonusSuppressed: true,
+              legacyBonusSuppressedReason: 'Replaced by multi-level referral payout',
+              completedAt: admin.firestore.FieldValue.serverTimestamp(),
+            })
+          })
+          await awardMultiLevelReferralBonuses(dbAdmin, admin, referredId, 4500)
+          results.push({
+            referralId: referralDoc.id,
+            status: 'processed_multi_level',
+            referrerId,
+            referredId,
+            amount: 0,
+          })
+          processed++
           continue
         }
 

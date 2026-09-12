@@ -180,6 +180,9 @@ export async function PUT(req: Request) {
 
       // Process payment based on referral type/action
       const condition = String(referral.condition || 'activation').toLowerCase()
+      if (condition === 'activation') {
+        throw new Error('Activation referrals are paid by the multi-level referral processor')
+      }
       const amount =
         condition === 'activation'
           ? normalizeActivationReferralPendingAmount()

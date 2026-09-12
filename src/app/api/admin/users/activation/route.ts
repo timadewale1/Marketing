@@ -316,7 +316,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     await userRef.set(updates, { merge: true })
-    await processPendingActivationReferrals(dbAdmin, admin, userId)
+    await processPendingActivationReferrals(dbAdmin, admin, userId, { creditLegacyBonus: false })
     
     // Award multi-level referral bonuses
     try {
