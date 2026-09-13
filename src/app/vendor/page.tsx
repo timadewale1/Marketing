@@ -438,7 +438,7 @@ export default function VendorDashboardPage() {
   const completeVendorPayment = async (
     reference: string,
     purpose: "setup_fee" | "monthly_rent",
-    provider: "paystack" | "monnify",
+    provider: "monnify",
     monnifyResponse?: Record<string, unknown>
   ) => {
     if (!auth.currentUser) return

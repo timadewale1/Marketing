@@ -6,6 +6,7 @@ import { confirmMonnifyPaymentWithRetries, isMonnifyImmediateSuccessResponse } f
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
 import { notifyAdminOfTaskCreated } from '@/lib/task-admin-alerts'
 import { sendNewTaskNotificationToEarners } from '@/lib/mailer'
+import { computeEarnerPayout } from '@/lib/task-pricing'
 
 const WALLET_FUNDING_CONFIRMATION_RETRY_DELAYS_MS = [0, 2000, 5000, 10000, 20000, 40000, 60000, 150000]
 
@@ -13,7 +14,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     console.log('verify-payment called with body:', JSON.stringify(body))
-    const { reference, campaignData, type, userId, amount, provider, monnifyResponse } = body
+    const { reference, campaignData, type, amount, monnifyResponse } = body
+    const provider = String(body?.provider || 'monnify').toLowerCase()
     const requestedUserType = String(body?.userType || '').trim().toLowerCase()
 
     if (!reference) {
@@ -24,12 +26,31 @@ export async function POST(req: NextRequest) {
     if (!dbAdmin || !admin) {
       return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
     }
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, message: 'Missing Authorization token' }, { status: 401 })
+    }
+    let userId: string
+    try {
+      userId = (await admin.auth().verifyIdToken(authHeader.slice(7))).uid
+    } catch {
+      return NextResponse.json({ success: false, message: 'Invalid Authorization token' }, { status: 401 })
+    }
+    if (body?.userId && String(body.userId) !== userId) {
+      return NextResponse.json({ success: false, message: 'Payment user mismatch' }, { status: 403 })
+    }
+    if (provider !== 'monnify') {
+      return NextResponse.json({ success: false, message: 'Only Monnify payments are supported' }, { status: 400 })
+    }
+    if (!Number.isSafeInteger(Number(amount || campaignData?.budget || 0)) || Number(amount || campaignData?.budget || 0) <= 0) {
+      return NextResponse.json({ success: false, message: 'Invalid payment amount' }, { status: 400 })
+    }
     const adminDb = dbAdmin as AdminFirestore
     let referenceCandidates = provider === 'monnify'
       ? extractMonnifyReferenceCandidates(String(reference), monnifyResponse || null)
       : [String(reference)]
 
-    let monnifyConfirmed = provider !== 'monnify'
+    let monnifyConfirmed = false
     let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
     const monnifyImmediateSuccess = provider === 'monnify' && Boolean(monnifyResponse) && isMonnifyImmediateSuccessResponse(monnifyResponse)
 
@@ -92,6 +113,9 @@ export async function POST(req: NextRequest) {
     if (campaignData) {
       const campaignBudget = Number(campaignData?.budget || 0)
       const campaignCpl = Number(campaignData?.costPerLead || 0)
+      if (!Number.isSafeInteger(campaignBudget) || campaignBudget <= 0 || !Number.isSafeInteger(campaignCpl) || campaignCpl <= 0) {
+        return NextResponse.json({ success: false, message: 'Invalid campaign pricing' }, { status: 400 })
+      }
       if (campaignCpl > 0 && campaignBudget < campaignCpl) {
         return NextResponse.json({ success: false, message: 'Budget cannot be less than the task amount' }, { status: 400 })
       }
@@ -118,6 +142,7 @@ export async function POST(req: NextRequest) {
 
       try {
         const campaignRef = adminDb.collection('campaigns').doc()
+        const paymentTxRef = adminDb.collection('advertiserTransactions').doc(`campaign-payment-${String(reference)}`)
         const campaignTitle = String(campaignData.title || 'Untitled')
         const advertiserName = String(
           campaignData.advertiserName ||
@@ -130,20 +155,54 @@ export async function POST(req: NextRequest) {
         const taskDurationValue = Number(campaignData.taskDurationValue || 0)
         const taskDurationUnit = String(campaignData.taskDurationUnit || '').toLowerCase() === 'days' ? 'days' : 'hours'
 
-        await campaignRef.set({
-          ...campaignData,
-          paymentRef: reference,
-          taskDurationValue: taskDurationValue > 0 ? taskDurationValue : null,
-          taskDurationUnit: taskDurationValue > 0 ? taskDurationUnit : null,
-          expiresAt:
-            taskDurationValue > 0
-              ? admin.firestore.Timestamp.fromMillis(
-                  Date.now() + taskDurationValue * (taskDurationUnit === 'days' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000)
-                )
-              : null,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        })
         await dbAdmin.runTransaction(async (t) => {
+          const existingPaymentSnap = await t.get(paymentTxRef)
+          if (existingPaymentSnap.exists) return
+
+          const verifiedAmount = Number(
+            (monnifyConfirmation?.verificationResult?.responseBody as { amountPaid?: number; amount?: number } | undefined)?.amountPaid ||
+            (monnifyConfirmation?.verificationResult?.responseBody as { amountPaid?: number; amount?: number } | undefined)?.amount ||
+            0
+          )
+          if (verifiedAmount > 0 && verifiedAmount < campaignBudget) {
+            throw new Error('Monnify payment amount is below the campaign budget')
+          }
+          const ownerRef = adminDb.collection('advertisers').doc(userId)
+          const ownerSnap = await t.get(ownerRef)
+          if (!ownerSnap.exists) throw new Error('Advertiser profile not found')
+          const campaignPayload = {
+            ...campaignData,
+            ownerId: userId,
+            ownerType: 'advertiser',
+            budget: campaignBudget,
+            originalBudget: campaignBudget,
+            reservedBudget: 0,
+            costPerLead: campaignCpl,
+            earnerPrice: computeEarnerPayout(campaignCpl),
+            estimatedLeads: Math.floor(campaignBudget / campaignCpl),
+            status: 'Active',
+            paymentProvider: 'monnify',
+            paymentRef: String(reference),
+            taskDurationValue: taskDurationValue > 0 ? taskDurationValue : null,
+            taskDurationUnit: taskDurationValue > 0 ? taskDurationUnit : null,
+            expiresAt: taskDurationValue > 0
+              ? admin.firestore.Timestamp.fromMillis(Date.now() + taskDurationValue * (taskDurationUnit === 'days' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000))
+              : null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          }
+          t.set(campaignRef, campaignPayload)
+          t.set(paymentTxRef, {
+            userId,
+            type: 'campaign_payment',
+            amount: -campaignBudget,
+            campaignId: campaignRef.id,
+            campaignTitle,
+            provider: 'monnify',
+            reference: String(reference),
+            status: 'completed',
+            note: 'Campaign budget paid via Monnify',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          })
           try {
             await awardAdvertiserFirstTaskReferralBonusInTransaction(
               adminDb,
@@ -265,7 +324,7 @@ export async function POST(req: NextRequest) {
           String(userId),
           referenceCandidates[0] || String(reference),
           Number(amount),
-          provider === 'monnify' ? 'monnify' : 'paystack',
+          'monnify',
           walletFundingUserType,
           3,
           referenceCandidates

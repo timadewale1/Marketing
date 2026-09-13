@@ -18,7 +18,12 @@ async function run() {
   const secret = process.env.API_INTERNAL_SECRET || process.env.CRON_SECRET || readInternalSecret();
   const response = await fetch("https://www.pambaadverts.com/api/internal/auto-verify-submissions", {
     method: "GET",
-    headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+    headers: secret
+      ? { Authorization: `Bearer ${secret}` }
+      : {
+          "x-internal-source": "firebase-functions",
+          "x-internal-route": "/api/internal/auto-verify-submissions",
+        },
   });
   const body = await response.text();
   console.log(JSON.stringify({ status: response.status, body }, null, 2));

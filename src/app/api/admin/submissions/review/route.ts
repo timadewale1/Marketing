@@ -105,7 +105,8 @@ export async function POST(req: Request): Promise<Response> {
 
     await adminDb.runTransaction(async (t) => {
       if (action === 'Verified') {
-        if (prevStatus === 'Verified') return // idempotent
+        const freshSubmissionSnap = await t.get(subRef)
+        if (!freshSubmissionSnap.exists || String(freshSubmissionSnap.data()?.status || '') === 'Verified') return
 
         // Fetch campaign
         const campaignId = submission.campaignId as string | undefined
@@ -116,6 +117,9 @@ export async function POST(req: Request): Promise<Response> {
           throw new Error('Campaign no longer exists. It was likely deleted after submissions were created, so pending proofs cannot be verified.')
         }
         const campaign = campaignSnap.data() as Campaign
+        if (['Deleted', 'Stopped', 'Expired'].includes(String(campaign.status || ''))) {
+          throw new Error('This campaign is no longer available for settlement')
+        }
         const userId = submission.userId as string
         if (!userId) throw new Error('Submission missing userId')
         await t.get(earnerRef)
@@ -177,7 +181,7 @@ export async function POST(req: Request): Promise<Response> {
           throw new Error('Reserved funds for this submission are no longer available and advertiser balance cannot cover the difference')
         }
 
-        if (action === 'Verified' && isReverifyAttempt && campaignBudget < fullAmount) {
+        if (action === 'Verified' && isReverifyAttempt && reservedAmount <= 0 && campaignBudget < fullAmount) {
           throw new Error('Task budget is exhausted. Please top up before re-verifying this proof.')
         }
 

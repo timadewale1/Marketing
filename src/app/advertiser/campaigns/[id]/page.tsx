@@ -1009,7 +1009,14 @@ export default function CampaignDetailsPage() {
                           >
                             {flaggingSubmissionId === submission.id ? "Saving..." : "Approve"}
                           </Button>
-                        {/* Reject is intentionally hidden for now; the handler remains available for later re-enablement. */}
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-red-300 text-red-700 hover:bg-red-50"
+                          disabled={flaggingSubmissionId === submission.id}
+                          onClick={() => void handleAdvertiserReview(submission, "Rejected")}
+                        >
+                          Reject
+                        </Button>
                         <Button
                           variant="outline"
                           className="rounded-full border-amber-300 text-amber-700 hover:bg-amber-50"

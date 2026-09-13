@@ -253,7 +253,7 @@ export default function TVPage() {
     }
   }
 
-  const completePurchase = async (payload: Record<string, unknown>, mode: 'wallet' | 'paystack' | 'monnify') => {
+  const completePurchase = async (payload: Record<string, unknown>, mode: 'wallet' | 'monnify') => {
     const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
     const response = await postBuyService(payload, { idToken })
     if (!response.ok) {
@@ -321,7 +321,7 @@ export default function TVPage() {
     setShowPaymentSelector(true)
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+  const onPaymentSuccess = async (reference: string, provider: 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
@@ -332,7 +332,7 @@ export default function TVPage() {
           variation_code: selectedPlan?.code,
           amount: String(displayPrice),
           phone,
-          paystackReference: reference,
+          paymentReference: reference,
           provider,
         },
         provider

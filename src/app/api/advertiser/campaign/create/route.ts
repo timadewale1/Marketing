@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const category = String(campaignData.category || '')
     const externalLink = normalizeExternalLink(campaignData.externalLink)
     const mediaUrl = String(campaignData.mediaUrl || '').trim()
-    if (!budget || budget <= 0) {
+    if (!Number.isSafeInteger(budget) || budget <= 0) {
       return NextResponse.json({ success: false, message: 'Invalid campaign budget' }, { status: 400 })
     }
     if (category === 'Social media live task' && !externalLink && !mediaUrl) {
@@ -53,14 +53,21 @@ export async function POST(req: Request) {
     }
     const baseCostPerLead = Number(campaignData.baseCostPerLead || campaignData.costPerLead || 0)
     const priorityMultiplierRaw = Number(campaignData.priorityMultiplier || 1)
-    const priorityMultiplier = Number.isFinite(priorityMultiplierRaw)
-      ? Math.max(1, Math.min(10, Math.round(priorityMultiplierRaw)))
-      : 1
+    if (!Number.isSafeInteger(baseCostPerLead) || baseCostPerLead <= 0 || !Number.isFinite(priorityMultiplierRaw)) {
+      return NextResponse.json({ success: false, message: 'Invalid task pricing' }, { status: 400 })
+    }
+    if (priorityMultiplierRaw < 1 || priorityMultiplierRaw > 10 || !Number.isInteger(priorityMultiplierRaw)) {
+      return NextResponse.json({ success: false, message: 'Priority multiplier must be an integer from 1x to 10x' }, { status: 400 })
+    }
+    const priorityMultiplier = priorityMultiplierRaw
     const priorityEnabled = Boolean(campaignData.priorityEnabled) && priorityMultiplier > 1
     
     // Handle custom cost per lead if provided
     let costPerLead = Number(campaignData.costPerLead || 0) || baseCostPerLead * priorityMultiplier
     const customCostPerLeadRaw = Number(campaignData.customCostPerLead || 0)
+    if (customCostPerLeadRaw && (!Number.isSafeInteger(customCostPerLeadRaw) || customCostPerLeadRaw <= 0)) {
+      return NextResponse.json({ success: false, message: 'Invalid custom price per lead' }, { status: 400 })
+    }
     if (priorityEnabled && customCostPerLeadRaw > 0) {
       if (customCostPerLeadRaw < baseCostPerLead) {
         return NextResponse.json({ 
@@ -71,12 +78,6 @@ export async function POST(req: Request) {
       costPerLead = customCostPerLeadRaw
     }
     
-    if (baseCostPerLead <= 0) {
-      return NextResponse.json({ success: false, message: 'Invalid task amount' }, { status: 400 })
-    }
-    if (priorityEnabled && priorityMultiplier > 10 && !customCostPerLeadRaw) {
-      return NextResponse.json({ success: false, message: 'Priority can only go up to 10x the base task amount' }, { status: 400 })
-    }
     if (!customCostPerLeadRaw && costPerLead !== baseCostPerLead * priorityMultiplier) {
       return NextResponse.json({ success: false, message: 'Priority pricing is invalid' }, { status: 400 })
     }

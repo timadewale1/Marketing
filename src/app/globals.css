@@ -56,18 +56,3 @@ a {
   word-break: break-word;
 }
 
-/* When Paystack inline overlay is active we want the injected iframe to
-   receive pointer events. Radix Dialog inserts an overlay and content
-   that can intercept clicks; toggle a class on body to make the dialog
-   non-interactive so Paystack's UI works as expected. */
-/* Paystack disabled - using Monnify only */
-/* 
-.paystack-active [data-slot="dialog-overlay"] {
-  pointer-events: none !important;
-  background: transparent !important;
-  z-index: 40 !important;
-}
-.paystack-active [data-slot="dialog-content"] {
-  pointer-events: none !important;
-}
-*/

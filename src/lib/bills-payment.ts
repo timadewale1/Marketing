@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server"
 import * as monnify from "@/services/monnify"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 
-type SupportedPaymentProvider = "paystack" | "monnify"
+type SupportedPaymentProvider = "monnify"
 
 export async function resolveActorUserIdFromRequest(request: Request | NextRequest) {
   const authHeader = request.headers.get("authorization") || request.headers.get("Authorization")
@@ -37,38 +37,6 @@ export async function verifyExternalBillsPayment({
 
   if (!normalizedProvider || !paymentReference) {
     throw new Error("Missing payment verification details")
-  }
-
-  if (normalizedProvider === "paystack") {
-    if (!process.env.PAYSTACK_SECRET_KEY) {
-      throw new Error("Paystack is not configured")
-    }
-
-    const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(paymentReference)}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        Accept: "application/json",
-      },
-    })
-
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      throw new Error("Failed to verify payment with provider")
-    }
-    if (!json?.status || json?.data?.status !== "success") {
-      throw new Error("Payment not successful")
-    }
-
-    const paidAmount = Number(json?.data?.amount || 0) / 100
-    if (expectedAmount > 0 && paidAmount < expectedAmount) {
-      throw new Error("Paid amount does not match expected amount")
-    }
-
-    return {
-      provider: "paystack" as SupportedPaymentProvider,
-      paidAmount,
-      verificationData: json?.data || null,
-    }
   }
 
   if (normalizedProvider === "monnify") {

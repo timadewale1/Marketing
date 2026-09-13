@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { auth } from "@/lib/firebase";
 
-// This component handles any lingering Paystack redirects by checking for reference/trxref in URL
 export default function ClientCallback() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -26,7 +25,10 @@ export default function ClientCallback() {
         try {
           const res = await fetch('/api/earner/activate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+            },
             body: JSON.stringify({ reference: refToUse, userId: auth.currentUser?.uid }),
           });
           const data = await res.json();

@@ -778,15 +778,29 @@ async function computeSafeCampaignRefundAmount(
         }
 
         const campaign = campaignSnap.data() as Record<string, unknown>;
+        const overdueBackedExpiredResubmission =
+          String(campaign.status || "") === "Expired" &&
+          String(submission.advertiserDecisionStatus || "").toLowerCase() === "resubmission_requested" &&
+          Boolean((submission as { resubmissionDueAt?: unknown }).resubmissionDueAt) &&
+          getDateFromFirestoreValue((submission as { resubmissionDueAt?: unknown }).resubmissionDueAt)!.getTime() <= Date.now() &&
+          Number(campaign.reservedBudget || 0) >= Number(submission.reservedAmount || 0);
+        if (String(campaign.status || "") !== "Active" && !overdueBackedExpiredResubmission) {
+          outcome.value = "skipped_stale";
+          return;
+        }
         const campaignBudget = Number(campaign.budget || 0);
         const campaignReservedBudget = Number(campaign.reservedBudget || 0);
         let earnerAmount = Number(submission.earnerPrice || 0);
+        const reservedAmount = Number(submission.reservedAmount || 0);
         if (!earnerAmount) {
-          earnerAmount = Math.round(Number(campaign.costPerLead || 0) / 2) || 0;
+          earnerAmount = Math.round(Number(campaign.costPerLead || 0) * 0.6) || 0;
         }
 
-        const fullAmount = earnerAmount * 2;
-        const reservedAmount = Number(submission.reservedAmount || 0);
+        const fullAmount = reservedAmount > 0
+          ? reservedAmount
+          : Number(campaign.costPerLead || 0) > 0
+            ? Number(campaign.costPerLead || 0)
+            : Math.round(earnerAmount / 0.6);
         const advertiserId = String(submission.advertiserId || campaign.ownerId || "");
         const submissionUserId = String(submission.userId || "");
 
@@ -830,7 +844,7 @@ async function computeSafeCampaignRefundAmount(
           remainingToCover = Math.max(0, fullAmount - budgetToConsume);
         }
 
-        if (resubmissionExpired) {
+        if (false) {
           const finalRejectionReason = "The requested resubmission was not received within 24 hours.";
           if (!submissionUserId) throw new Error("Submission missing userId");
           const earnerRef = db.collection("earners").doc(submissionUserId);
@@ -937,6 +951,7 @@ async function computeSafeCampaignRefundAmount(
           finalDecisionBy: "system-auto-verify",
           finalDecisionSource: "system_auto_verify",
           autoVerified: true,
+          autoVerifiedReason: resubmissionExpired ? "resubmission_timeout_auto_approval" : "pending_submission_auto_verification",
         });
 
         const estimated = Number(campaign.estimatedLeads || 0);

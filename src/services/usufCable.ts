@@ -79,7 +79,7 @@ export async function buyUsufCable(
     sellAmount?: number
     payFromWallet?: boolean
     paymentReference?: string
-    paymentProvider?: 'paystack' | 'monnify'
+    paymentProvider?: 'monnify'
   }
 ): Promise<UsufCableResponse> {
   try {

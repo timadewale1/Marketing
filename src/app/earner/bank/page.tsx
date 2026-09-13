@@ -33,16 +33,6 @@ interface Bank {
   verified: boolean;
 }
 
-interface PaystackBank {
-  name: string;
-  code: string;
-  active: boolean;
-  country: string;
-  currency: string;
-  type: string;
-  id: number;
-}
-
 export default function BankPage() {
   const router = useRouter();
   const [bank, setBank] = useState<Bank | null>(null);

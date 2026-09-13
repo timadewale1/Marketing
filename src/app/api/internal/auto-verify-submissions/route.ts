@@ -85,7 +85,7 @@ export async function GET(request: Request) {
     }
 
     let verified = 0
-    let autoRejected = 0
+    const autoRejected = 0
     let skippedFlagged = 0
     let skippedMissingCampaign = 0
     let failed = 0
@@ -156,6 +156,16 @@ export async function GET(request: Request) {
           }
 
           const campaign = campaignSnap.data() as Campaign
+          const overdueBackedExpiredResubmission =
+            String(campaign.status || '') === 'Expired' &&
+            String(submission.advertiserDecisionStatus || '').toLowerCase() === 'resubmission_requested' &&
+            Boolean((submission as { resubmissionDueAt?: unknown }).resubmissionDueAt) &&
+            toDateFromTimestampLike((submission as { resubmissionDueAt?: unknown }).resubmissionDueAt)!.getTime() <= Date.now() &&
+            Number(campaign.reservedBudget || 0) >= Number(submission.reservedAmount || 0)
+          if (String(campaign.status || '') !== 'Active' && !overdueBackedExpiredResubmission) {
+            outcome.value = 'skipped_stale'
+            return
+          }
           const campaignBudget = Number(campaign.budget || 0)
           const campaignReservedBudget = Number(campaign.reservedBudget || 0)
           let earnerAmount = Number(submission.earnerPrice || 0)
@@ -206,85 +216,6 @@ export async function GET(request: Request) {
           budgetToConsume = Math.min(campaignBudget, fullAmount)
           remainingToCover = Math.max(0, fullAmount - budgetToConsume)
         }
-
-          if (resubmissionExpired) {
-            const finalRejectionReason = 'The requested resubmission was not received within 24 hours.'
-            if (!submissionUserId) throw new Error('Submission missing userId')
-            const earnerRef = adminDb.collection('earners').doc(submissionUserId)
-            const earnerSnapshot = await t.get(earnerRef)
-            const currentStrikeCount = Number(earnerSnapshot.data()?.strikeCount || 0)
-            const nextStrikeCount = currentStrikeCount + 1
-            const shouldSuspend = EARNER_STRIKE_SYSTEM_ENABLED && nextStrikeCount >= 20
-            const suspension = EARNER_STRIKE_SYSTEM_ENABLED && shouldSuspend
-              ? {
-                  suspensionCount: Number(earnerSnapshot.data()?.suspensionCount || 0) + 1,
-                  durationDays: 3,
-                  releaseAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-                  indefinite: false,
-                }
-              : null
-
-            t.update(subRef, {
-              status: 'Rejected',
-              reviewedAt: now,
-              reviewedBy: 'system-auto-resubmission-timeout',
-              rejectionReason: finalRejectionReason,
-              advertiserDecisionStatus: 'rejected',
-              advertiserDecisionReason: finalRejectionReason,
-              advertiserDecisionAt: now,
-              advertiserDecisionBy: 'system-auto-resubmission-timeout',
-              advertiserDecisionSource: 'system_auto_resubmission_timeout',
-              updatedAt: now,
-              finalDecisionAt: now,
-              finalDecisionBy: 'system-auto-resubmission-timeout',
-              finalDecisionSource: 'system_auto_resubmission_timeout',
-            })
-
-            if (EARNER_STRIKE_SYSTEM_ENABLED) {
-              const earnerUpdates: Record<string, unknown> = {
-                strikeCount: nextStrikeCount,
-                lastStrikeUpdatedAt: now,
-              }
-              if (shouldSuspend && suspension) {
-                earnerUpdates.status = 'suspended'
-                earnerUpdates.suspensionReason = 'Reached 20 rejected submission strikes'
-                earnerUpdates.suspendedAt = now
-                earnerUpdates.suspensionCount = suspension.suspensionCount
-                earnerUpdates.suspensionIndefinite = false
-                earnerUpdates.suspensionReleaseAt = suspension.releaseAt
-                earnerUpdates.suspensionDurationDays = suspension.durationDays
-              }
-              t.set(earnerRef, earnerUpdates, { merge: true })
-            }
-
-            if (campaignSnap.exists) {
-              const reservedAmt = Number(submission.reservedAmount || 0)
-              if (reservedAmt > 0) {
-                if (campaign.status === 'Deleted') {
-                  t.update(campaignRef, {
-                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-                  })
-              if (advertiserId) {
-                const ownerRef = await resolveOwnerRef(adminDb, advertiserId)
-                if (ownerRef) {
-                  t.update(ownerRef, {
-                    balance: admin.firestore.FieldValue.increment(reservedAmt),
-                  })
-                }
-              }
-                } else {
-                  t.update(campaignRef, {
-                    reservedBudget: admin.firestore.FieldValue.increment(-reservedAmt),
-                    budget: admin.firestore.FieldValue.increment(reservedAmt),
-                  })
-                }
-              }
-            }
-
-            outcome.value = 'skipped_stale'
-            autoRejected += 1
-            return
-          }
 
           let advertiserBalance = 0
           if (remainingToCover > 0 && advertiserId) {
@@ -352,6 +283,7 @@ export async function GET(request: Request) {
             finalDecisionBy: 'system-auto-verify',
             finalDecisionSource: 'system_auto_verify',
             autoVerified: true,
+            autoVerifiedReason: resubmissionExpired ? 'resubmission_timeout_auto_approval' : 'pending_submission_auto_verification',
           })
 
           const estimated = Number(campaign.estimatedLeads || 0)

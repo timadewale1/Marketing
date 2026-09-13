@@ -46,7 +46,7 @@ export async function buyUsufElectricity(
     sellAmount?: number
     payFromWallet?: boolean
     paymentReference?: string
-    paymentProvider?: "paystack" | "monnify"
+    paymentProvider?: "monnify"
   }
 ): Promise<UsufElectricityResponse> {
   try {

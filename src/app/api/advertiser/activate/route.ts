@@ -20,15 +20,16 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const reference = body?.reference as string | undefined
-    // Paystack disabled - defaulting to monnify only
-    const provider = (body?.provider as string | undefined) || 'monnify'
+    const provider = 'monnify'
     const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
-    const userId = body?.userId as string | undefined
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    const authAdmin = await initFirebaseAdmin()
+    if (!authAdmin.admin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
+    const userId = (await authAdmin.admin.auth().verifyIdToken(authHeader.slice(7))).uid
     if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
-    let referenceCandidates = provider === 'monnify'
-      ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
-      : [reference]
+    let referenceCandidates = extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
 
     let paidAmount = 0
     let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
@@ -126,47 +127,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
       }
     } 
-    /* Paystack disabled - using Monnify only
-    else {
-      if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
-
-      // encode reference to avoid problems when reference contains special chars
-      const encodedRef = encodeURIComponent(String(reference))
-      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodedRef}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        Accept: 'application/json',
-      },
-    })
-      let verifyData: { status?: boolean; message?: string; data?: { status?: string; amount?: number; metadata?: { userId?: string } } } | null = null
-    try {
-      verifyData = await verifyRes.json()
-    } catch (e) {
-      console.error('Failed parsing Paystack verify response JSON', e)
-      const text = await verifyRes.text().catch(() => '')
-      console.error('Paystack verify raw response:', text)
-      return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 })
-    }
-
-      console.log('Paystack verify status:', verifyRes.status, 'body:', JSON.stringify(verifyData))
-      if (!verifyData || !verifyData.status || verifyData.data?.status !== 'success') {
-      // Helpful hint for common misconfiguration
-      if (verifyData && (verifyData.message || '').toString().toLowerCase().includes('transaction reference not found')) {
-        return NextResponse.json({
-          success: false,
-          message: 'Transaction reference not found. This often means the Paystack secret key does not match the environment (test vs live) that created the transaction. Ensure your `NEXT_PUBLIC_PAYSTACK_KEY` and `PAYSTACK_SECRET_KEY` are from the same Paystack account/mode.',
-          details: verifyData,
-        }, { status: 400 })
-      }
-        return NextResponse.json({ success: false, message: 'Payment verification failed', details: verifyData }, { status: 400 })
-      }
-
-      paidAmount = Number(verifyData.data.amount || 0) / 100
-      if (!userId) {
-        userId = verifyData.data?.metadata?.userId
-      }
-    }
-    */
 
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     if (provider === 'monnify') {

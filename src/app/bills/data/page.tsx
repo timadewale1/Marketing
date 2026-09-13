@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react'
 import { PaymentSelector } from '@/components/payment-selector'
 import { postBuyService } from '@/lib/postBuyService'
 import Link from 'next/link'
-// bypass Paystack: call VTpass directly
 import DataPlanSelector from '@/components/bills/DataPlanSelector'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -239,7 +238,7 @@ export default function DataPage() {
     } finally { setProcessingWallet(false) }
   }
 
-  const onPaymentSuccess = async (reference: string, paymentProvider: 'paystack' | 'monnify'): Promise<void> => {
+  const onPaymentSuccess = async (reference: string, paymentProvider: 'monnify'): Promise<void> => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
@@ -289,7 +288,7 @@ export default function DataPage() {
         return
       }
 
-      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paystackReference: reference, provider: paymentProvider }
+      const payload: Record<string, unknown> = { serviceID: service || 'data', variation_code: plan, phone, paymentReference: reference, provider: paymentProvider }
       const matched = plans.find(p => p.code === plan)
       if (matched) payload.amount = String(matched.amount)
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined

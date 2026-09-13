@@ -32,13 +32,18 @@ export async function POST(req: Request) {
 
     await db.runTransaction(async (transaction) => {
       const advertiserRef = db.collection('advertisers').doc(advertiserId)
+      const vendorRef = db.collection('vendors').doc(advertiserId)
       const campaignRef = db.collection('campaigns').doc(normalizedCampaignId)
-      const [advertiserSnap, campaignSnap] = await Promise.all([
+      const [advertiserSnap, vendorSnap, campaignSnap] = await Promise.all([
         transaction.get(advertiserRef),
+        transaction.get(vendorRef),
         transaction.get(campaignRef),
       ])
 
-      if (!advertiserSnap.exists) {
+      const ownerRef = advertiserSnap.exists ? advertiserRef : vendorSnap.exists ? vendorRef : null
+      const ownerSnap = advertiserSnap.exists ? advertiserSnap : vendorSnap
+      const ownerCollection = advertiserSnap.exists ? 'advertiserTransactions' : 'vendorTransactions'
+      if (!ownerRef || !ownerSnap.exists) {
         throw new Error('Advertiser profile not found')
       }
 
@@ -46,7 +51,7 @@ export async function POST(req: Request) {
         throw new Error('Campaign not found')
       }
 
-      const advertiser = advertiserSnap.data() || {}
+      const advertiser = ownerSnap.data() || {}
       const campaign = campaignSnap.data() || {}
 
       if (String(campaign.ownerId || '') !== advertiserId) {
@@ -65,7 +70,7 @@ export async function POST(req: Request) {
       const costPerLead = Number(campaign.costPerLead || 0)
       const additionalEstimatedLeads = costPerLead > 0 ? Math.floor(normalizedAmount / costPerLead) : 0
 
-      transaction.update(advertiserRef, {
+      transaction.update(ownerRef, {
         balance: admin.firestore.FieldValue.increment(-normalizedAmount),
       })
 
@@ -77,7 +82,7 @@ export async function POST(req: Request) {
         status: String(campaign.status || '') === 'Completed' ? 'Active' : campaign.status,
       })
 
-      const txRef = db.collection('advertiserTransactions').doc()
+      const txRef = db.collection(ownerCollection).doc()
       transaction.set(txRef, {
         userId: advertiserId,
         type: 'campaign_top_up',

@@ -8,7 +8,7 @@ import { resolveBillsPurchaseActor } from '@/lib/bills-admin-alerts'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity } = body || {}
+    const { request_id, serviceID, amount, phone, paymentReference, userId, metadata, variation_code, billersCode, subscription_type, quantity } = body || {}
 
     if (!serviceID) return NextResponse.json({ ok: false, message: 'serviceID is required' }, { status: 400 })
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           profitRate: commission.rate,
           commissionCap: commission.cap ?? null,
           phone: phone || null,
-          paystackReference: paystackReference || null,
+          paymentReference: paymentReference || null,
           provider: null,
           paymentChannel: 'direct',
           actorUserId: userId || null,
@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
           actorRole: actor.roleLabel,
           actorPath: actor.adminPath,
           serviceIDLower: String(serviceID || '').toLowerCase(),
-          reference: String(paystackReference || reqId),
-          referenceLower: String(paystackReference || reqId).toLowerCase(),
-          searchKey: [actor.name, actor.roleLabel, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
+          reference: String(paymentReference || reqId),
+          referenceLower: String(paymentReference || reqId).toLowerCase(),
+          searchKey: [actor.name, actor.roleLabel, serviceID, paymentReference, reqId].filter(Boolean).join(' ').toLowerCase(),
           response: vtRes.data || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),

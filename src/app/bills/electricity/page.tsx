@@ -270,7 +270,7 @@ export default function ElectricityPage() {
     }
   }
 
-  const completePurchase = async (payload: Record<string, unknown>, mode: 'wallet' | 'paystack' | 'monnify') => {
+  const completePurchase = async (payload: Record<string, unknown>, mode: 'wallet' | 'monnify') => {
     const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
     const response = await postBuyService(payload, { idToken })
     if (!response.ok) {
@@ -345,7 +345,7 @@ export default function ElectricityPage() {
     setShowPaymentSelector(true)
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+  const onPaymentSuccess = async (reference: string, provider: 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
@@ -356,7 +356,7 @@ export default function ElectricityPage() {
           variation_code: matchedVariation?.code,
           amount: String(displayPrice),
           phone: auth.currentUser?.phoneNumber || auth.currentUser?.email || meter,
-          paystackReference: reference,
+          paymentReference: reference,
           provider,
         },
         provider

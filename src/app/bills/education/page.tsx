@@ -342,7 +342,7 @@ export default function EducationPage() {
     setShowPaymentSelector(open)
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify'): Promise<void> => {
+  const onPaymentSuccess = async (reference: string, provider: 'monnify'): Promise<void> => {
     if (!pendingPurchase) {
       toast.error('No pending purchase')
       return
@@ -350,7 +350,7 @@ export default function EducationPage() {
 
     setProcessing(true)
     try {
-      pendingPurchase.paystackReference = reference
+      pendingPurchase.paymentReference = reference
       pendingPurchase.provider = provider
       await handleCompletePurchase()
     } catch (error) {

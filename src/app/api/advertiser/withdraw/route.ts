@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       advertiserSnap.data()?.activationPaymentProvider ||
       advertiserSnap.data()?.pendingActivationProvider ||
       'monnify'
-    const activationPaymentProvider = activationPaymentProviderRaw === 'paystack' ? 'paystack' : 'monnify'
+    const activationPaymentProvider = 'monnify'
 
     // Platform fee (5%) — send net amount after fee
     const fee = Math.round(amount * 0.05)

@@ -29,15 +29,33 @@ service cloud.firestore {
     }
 
     match /advertisers/{uid} {
-      allow create: if isSelf(uid);
+      allow create: if isSelf(uid) &&
+        (!request.resource.data.keys().hasAny(['balance', 'activated', 'pendingBalanceRecovery']) ||
+          (request.resource.data.balance == 0 && request.resource.data.activated == false));
       allow get, list: if signedIn();
-      allow update, delete: if isSelf(uid) || isAdmin();
+      allow update: if isAdmin() || (
+        isSelf(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'balance', 'activated', 'activatedAt', 'status', 'pendingBalanceRecovery',
+          'totalSpent', 'leadsGenerated', 'campaignsCreated', 'taskCreationBlocked',
+          'flaggingRestricted', 'unfoundedSubmissionFlags', 'upheldSubmissionFlags'
+        ])
+      );
+      allow delete: if isAdmin();
     }
 
     match /earners/{uid} {
-      allow create: if isSelf(uid);
+      allow create: if isSelf(uid) &&
+        (!request.resource.data.keys().hasAny(['balance', 'activated', 'pendingBalanceRecovery']) ||
+          (request.resource.data.balance == 0 && request.resource.data.activated == false));
       allow get, list: if signedIn();
-      allow update, delete: if isSelf(uid) || isAdmin();
+      allow update: if isAdmin() || (
+        isSelf(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'balance', 'activated', 'activatedAt', 'status', 'pendingBalanceRecovery',
+          'totalEarned', 'leadsPaidFor', 'strikeCount', 'suspensionCount',
+          'suspensionReleaseAt', 'suspensionIndefinite'
+        ])
+      );
+      allow delete: if isAdmin();
     }
 
     match /marketers/{uid} {
@@ -47,15 +65,30 @@ service cloud.firestore {
     }
 
     match /vendors/{uid} {
-      allow create: if isSelf(uid);
+      allow create: if isSelf(uid) &&
+        (!request.resource.data.keys().hasAny(['balance', 'pendingBalanceRecovery']) ||
+          request.resource.data.balance == 0);
       allow get, list: if signedIn();
-      allow update, delete: if isSelf(uid) || isAdmin();
+      allow update: if isAdmin() || (
+        isSelf(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'balance', 'status', 'vendorPaymentStatus', 'vendorVerificationStatus',
+          'totalSpent', 'leadsGenerated', 'campaignsCreated'
+        ])
+      );
+      allow delete: if isAdmin();
     }
 
     match /customers/{uid} {
-      allow create: if isSelf(uid);
+      allow create: if isSelf(uid) &&
+        (!request.resource.data.keys().hasAny(['balance', 'pendingBalanceRecovery']) ||
+          request.resource.data.balance == 0);
       allow get, list: if signedIn();
-      allow update, delete: if isSelf(uid) || isAdmin();
+      allow update: if isAdmin() || (
+        isSelf(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'balance', 'status', 'pendingBalanceRecovery'
+        ])
+      );
+      allow delete: if isAdmin();
     }
 
     match /vendorProducts/{productId} {
@@ -87,13 +120,9 @@ service cloud.firestore {
     }
 
     match /campaigns/{campaignId} {
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow create: if false;
       allow get, list: if signedIn();
-      allow update, delete: if isAdmin() || (
-        signedIn() &&
-        resource.data.ownerId == request.auth.uid &&
-        request.resource.data.ownerId == resource.data.ownerId
-      );
+      allow update, delete: if isAdmin();
     }
 
     match /earnerSubmissions/{submissionId} {
@@ -105,12 +134,20 @@ service cloud.firestore {
           resource.data.advertiserId == request.auth.uid
         )
       );
-      allow update, delete: if isAdmin() || (
+      allow update: if isAdmin() || (
         signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == resource.data.userId &&
-        request.resource.data.campaignId == resource.data.campaignId
+        request.resource.data.campaignId == resource.data.campaignId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'proofUrl', 'proofUrls', 'proofHashes', 'note', 'socialHandle',
+          'earnerDisputeReason', 'earnerDisputeAt', 'updatedAt',
+          'resubmissionSubmittedAt', 'resubmissionStatus', 'reviewWindowStartedAt',
+          'advertiserDecisionStatus', 'reviewedAt', 'reviewedBy', 'rejectionReason',
+          'finalDecisionAt', 'finalDecisionBy', 'finalDecisionSource'
+        ])
       );
+      allow delete: if isAdmin();
     }
 
     match /submissions/{submissionId} {
@@ -118,13 +155,13 @@ service cloud.firestore {
     }
 
     match /advertiserTransactions/{transactionId} {
-      allow create: if sameUser('userId') || isAdmin();
+      allow create: if isAdmin();
       allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
     match /earnerTransactions/{transactionId} {
-      allow create: if sameUser('userId') || isAdmin();
+      allow create: if isAdmin();
       allow get, list: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow update, delete: if isAdmin();
     }

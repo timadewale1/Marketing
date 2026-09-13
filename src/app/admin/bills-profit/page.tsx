@@ -77,7 +77,7 @@ export default function AdminBillsProfitPage() {
       paymentChannel: data.paymentChannel ? String(data.paymentChannel) : undefined,
       status: String(data.status || ""),
       createdAtMs: toMillis(data.createdAt),
-      reference: String(data.reference || data.paystackReference || data.request_id || ""),
+      reference: String(data.reference || data.paymentReference || data.request_id || ""),
       response: data.response,
     }
   }

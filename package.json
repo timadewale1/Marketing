@@ -10,7 +10,6 @@
     "deploy:cf": "node tools/prepare-cf-build.js && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "start": "next start",
     "lint": "eslint",
-    "mock-paystack": "node tools/integration/mock-paystack.js",
     "test:integration": "node tools/integration/run-withdraw-test.js"
   },
   "dependencies": {
@@ -40,7 +39,6 @@
     "lucide-react": "^0.541.0",
     "next": "^15.5.7",
     "nodemailer": "^8.0.3",
-    "paystack-node": "^0.3.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.62.0",

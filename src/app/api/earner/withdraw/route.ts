@@ -51,7 +51,6 @@ export async function POST(req: Request) {
       accountNumber?: string
       accountName?: string
       fullName?: string
-      paystackRecipientCode?: string
     }
     const earner = earnerSnap.data() as EarnerDoc | null
     if (earner && shouldAutoUnsuspendEarner(earner)) {
@@ -119,7 +118,7 @@ export async function POST(req: Request) {
       earnerSnap.data()?.activationPaymentProvider ||
       earnerSnap.data()?.pendingActivationProvider ||
       'monnify'
-    const activationPaymentProvider = activationPaymentProviderRaw === 'paystack' ? 'paystack' : 'monnify'
+    const activationPaymentProvider = 'monnify'
 
     // Platform fee (5%) — send net amount after fee
     const fee = Math.round(amount * 0.05)

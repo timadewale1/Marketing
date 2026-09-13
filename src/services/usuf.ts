@@ -25,7 +25,7 @@ export async function buyUsufData(
     sellAmount?: number
     payFromWallet?: boolean
     paymentReference?: string
-    paymentProvider?: 'paystack' | 'monnify'
+    paymentProvider?: 'monnify'
   }
 ): Promise<UsufBuyDataResponse> {
   try {

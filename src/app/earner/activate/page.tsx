@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 // This page previously started a redirect-based activation flow. We now use inline Monnify modals.
-// Paystack disabled - using Monnify only
 export default function EarnerActivatePage() {
   const router = useRouter();
 

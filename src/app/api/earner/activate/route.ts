@@ -12,15 +12,16 @@ export async function POST(req: Request) {
   try {
   const body = await req.json()
   const reference = body?.reference as string | undefined
-  // Paystack disabled - defaulting to monnify only
-  const provider = (body?.provider as string | undefined) || 'monnify'
+  const provider = 'monnify'
   const monnifyResponse = body?.monnifyResponse as Record<string, unknown> | undefined
-  const userId = body?.userId as string | undefined
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+  const authAdmin = await initFirebaseAdmin()
+  if (!authAdmin.admin) return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
+  const userId = (await authAdmin.admin.auth().verifyIdToken(authHeader.slice(7))).uid
   if (!reference) return NextResponse.json({ success: false, message: 'Missing reference' }, { status: 400 })
   if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
-  let referenceCandidates = provider === 'monnify'
-    ? extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
-    : [reference]
+  let referenceCandidates = extractMonnifyReferenceCandidates(reference, monnifyResponse || null)
   let monnifyConfirmation: Awaited<ReturnType<typeof confirmMonnifyPaymentWithRetries>> | null = null
   let paidAmount = 0
   const monnifyImmediateSuccess = provider === 'monnify' && Boolean(monnifyResponse) && isMonnifyImmediateSuccessResponse(monnifyResponse)
@@ -115,24 +116,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: 'Monnify verification failed' }, { status: 400 })
       }
     } 
-    /* Paystack disabled - using Monnify only
-    else {
-      if (!process.env.PAYSTACK_SECRET_KEY) return NextResponse.json({ success: false, message: 'PAYSTACK_SECRET_KEY not configured' }, { status: 500 })
-
-      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
-      })
-      const verifyData = await verifyRes.json()
-      if (!verifyData.status || verifyData.data.status !== 'success') {
-        return NextResponse.json({ success: false, message: 'Payment verification failed' }, { status: 400 })
-      }
-
-      paidAmount = Number(verifyData.data.amount || 0) / 100
-      if (!userId) {
-        userId = verifyData.data?.metadata?.userId
-      }
-    }
-    */
     if (!userId) return NextResponse.json({ success: false, message: 'Missing userId' }, { status: 400 })
     if (provider === 'monnify') {
       const confirmation = monnifyConfirmation || await confirmMonnifyPaymentWithRetries(

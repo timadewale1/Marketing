@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
-import { createTransferRecipient, initiateTransfer } from "@/services/paystack"
 import monnify from "@/services/monnify"
 
 type WithdrawalSource = "earner" | "advertiser" | "vendor" | "customer"
@@ -68,7 +67,7 @@ export async function POST(req: Request) {
     const amount = Number(withdrawal.amount || 0)
     const net = Number(withdrawal.net || Math.max(0, amount - Number(withdrawal.fee || 0)))
     const bank = withdrawal.bank || {}
-    const provider = String(withdrawal.withdrawalProvider || "monnify").toLowerCase() === "paystack" ? "paystack" : "monnify"
+    const provider = "monnify"
 
     if (!userId || amount <= 0) {
       return NextResponse.json({ success: false, message: "Withdrawal record is incomplete" }, { status: 400 })
@@ -126,59 +125,6 @@ export async function POST(req: Request) {
           monnifyStatus: disbursementResponse.status || "PENDING",
           monnifyAmount: disbursementResponse.amount,
           monnifyDestinationBank: disbursementResponse.destinationBankName,
-        })
-
-        for (const txDoc of txQuery.docs) {
-          transaction.update(txDoc.ref, {
-            amount: -Math.abs(amount),
-            status: "completed",
-            note: "Withdrawal approved by admin",
-            completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          })
-        }
-      })
-    } else {
-      const recipientCode = await createTransferRecipient({
-        name: recipientName,
-        accountNumber: String(bank.accountNumber || ""),
-        bankCode: String(bank.bankCode || ""),
-        currency: "NGN",
-      }) as string
-
-      const transferData = await initiateTransfer({
-        recipient: recipientCode,
-        amountKobo: Math.round(net * 100),
-        reason: `Withdrawal for ${recipientName}`,
-      }) as { id?: string | number; reference?: string; transfer_code?: string; status?: string }
-
-      const withdrawalStatus = String(transferData?.status || "").toLowerCase() === "success" ? "completed" : "sent"
-
-      await db.runTransaction(async (transaction) => {
-        const userSnap = await transaction.get(userRef)
-        if (!userSnap.exists) {
-          throw new Error("User not found")
-        }
-
-        const currentBalance = Number(userSnap.data()?.balance || 0)
-        if (currentBalance < amount) {
-          throw new Error("Insufficient balance at approval time")
-        }
-
-        transaction.update(userRef, {
-          balance: admin.firestore.FieldValue.increment(-amount),
-          totalWithdrawn: admin.firestore.FieldValue.increment(amount),
-        })
-
-        transaction.update(withdrawalRef, {
-          status: withdrawalStatus,
-          approvalStatus: "approved",
-          approvedBy: adminSession.email,
-          approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          paystackRecipient: recipientCode,
-          paystackTransferId: transferData.id || null,
-          paystackTransferReference: transferData.reference || transferData.transfer_code || null,
-          paystackStatus: transferData.status || null,
         })
 
         for (const txDoc of txQuery.docs) {

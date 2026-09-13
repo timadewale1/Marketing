@@ -332,14 +332,17 @@ const compressed = await imageCompression(file, options)
   const verifyPayment = async (
     reference: string,
     campaignData: Record<string, unknown>,
-    provider: 'paystack' | 'monnify' = 'paystack',
+    provider: 'monnify' = 'monnify',
     monnifyResponse?: Record<string, unknown>,
   ) => {
     const t = toast.loading("Verifying payment...")
     try {
       const res = await fetch("/api/verify-payment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+        },
         body: JSON.stringify({ reference, campaignData, provider, monnifyResponse }),
       })
       const data = await res.json()
@@ -364,7 +367,7 @@ const compressed = await imageCompression(file, options)
     }
   }
 
-  // Paystack payment
+  // Verify the Monnify payment server-side
   const handlePay = async () => {
     if (payInFlightRef.current) {
       return
@@ -1561,7 +1564,7 @@ const getEmbeddedVideo = (url: string) => {
             setShowPaymentSelector(false)
             setPendingCampaignForPayment(null)
           }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
+          onPaymentSuccess={async (reference: string, provider: 'monnify', monnifyResponse?: Record<string, unknown>) => {
             setShowPaymentSelector(false)
             const completed = await verifyPayment(reference, pendingCampaignForPayment, provider, monnifyResponse)
             if (completed) {
@@ -1586,12 +1589,15 @@ const getEmbeddedVideo = (url: string) => {
             setShowActivationPaymentSelector(false)
             setShowActivatePrompt(false)
           }}
-          onPaymentSuccess={async (reference: string, provider: 'paystack' | 'monnify', monnifyResponse?: Record<string, unknown>) => {
+          onPaymentSuccess={async (reference: string, provider: 'monnify', monnifyResponse?: Record<string, unknown>) => {
             setShowActivationPaymentSelector(false)
             try {
               const res = await fetch('/api/advertiser/activate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+                },
                 body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
               })
               const data = await res.json()

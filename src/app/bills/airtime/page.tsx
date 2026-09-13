@@ -151,7 +151,7 @@ export default function AirtimePage() {
 
   const completePurchase = async (
     payload: Record<string, unknown>,
-    mode: 'wallet' | 'paystack' | 'monnify' | 'external'
+    mode: 'wallet' | 'monnify' | 'external'
   ) => {
     const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
     const response = await postBuyService(payload, { idToken })
@@ -212,7 +212,7 @@ export default function AirtimePage() {
     setShowPaymentSelector(true)
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+  const onPaymentSuccess = async (reference: string, provider: 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
@@ -221,7 +221,7 @@ export default function AirtimePage() {
           serviceID: network,
           amount: String(displayPrice),
           phone,
-          paystackReference: reference,
+          paymentReference: reference,
           provider,
         },
         provider

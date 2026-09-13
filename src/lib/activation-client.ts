@@ -10,7 +10,7 @@ export async function registerActivationReference({
 }: {
   role: "earner" | "advertiser"
   reference: string
-  provider?: "monnify" | "paystack"
+  provider?: "monnify"
 }) {
   const user = auth.currentUser
   if (!user) {

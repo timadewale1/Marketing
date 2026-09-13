@@ -377,12 +377,15 @@ export default function TransactionsPage() {
               await registerActivationReference({ role: "earner", reference, provider: "monnify" });
             }}
             onClose={() => setShowActivationPaymentSelector(false)}
-            onPaymentSuccess={async (reference: string, provider: "paystack" | "monnify", monnifyResponse?: Record<string, unknown>) => {
+            onPaymentSuccess={async (reference: string, provider: "monnify", monnifyResponse?: Record<string, unknown>) => {
               setShowActivationPaymentSelector(false);
               try {
                 const res = await fetch("/api/earner/activate", {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+                  },
                   body: JSON.stringify({ reference, userId: auth.currentUser?.uid, provider, monnifyResponse }),
                 });
                 const data = await res.json().catch(() => ({}));

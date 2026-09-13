@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     const withdrawalProviderRaw = vendorSnap.data()?.activationPaymentProvider || "monnify"
-    const withdrawalProvider = withdrawalProviderRaw === "paystack" ? "paystack" : "monnify"
+    const withdrawalProvider = "monnify"
     const fee = Math.round(amount * 0.05)
     const net = amount - fee
 

@@ -33,7 +33,6 @@ export const NIGERIAN_BANKS = [
   { name: "Moniepoint Microfinance Bank", code: "50515" },
   { name: "Opay", code: "999992" },
   { name: "PalmPay", code: "999991" },
-  { name: "Paystack-Titan", code: "100039" },
   { name: "Rubies Bank", code: "125" },
   { name: "Sparkle Microfinance Bank", code: "51310" },
   { name: "Titan Trust Bank", code: "102" },

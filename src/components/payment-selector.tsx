@@ -17,7 +17,7 @@ export type PaymentSelectorProps = {
   onClose: () => void
   onPaymentSuccess: (
     reference: string,
-    provider: 'paystack' | 'monnify',
+    provider: 'monnify',
     monnifyResponse?: Record<string, unknown>,
     monnifyReference?: string
   ) => Promise<void>
@@ -35,10 +35,6 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
   onPaymentSuccess,
   onMonnifyReferenceCreated,
 }) => {
-  // Commented out Paystack - using Monnify only
-  // const [selectedProvider, setSelectedProvider] = useState<'paystack' | 'monnify'>('paystack')
-  const [selectedProvider] = useState<'paystack' | 'monnify'>('monnify')
-  const [paystackOpen, setPaystackOpen] = useState(false)
   const [monnifyOpen, setMonnifyOpen] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
 
@@ -49,18 +45,12 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
     // Do NOT call parent onClose() here — keeping this component mounted
     // ensures the provider modal can be opened reliably. The Dialog's
     // `open` prop already hides the selector when a provider modal opens.
-    setTimeout(() => {
-      if (selectedProvider === 'paystack') {
-        setPaystackOpen(true)
-      } else {
-        setMonnifyOpen(true)
-      }
-    }, 50)
+    setTimeout(() => setMonnifyOpen(true), 50)
   }
 
   return (
     <>
-      <Dialog open={open && !paystackOpen && !monnifyOpen} onOpenChange={onClose}>
+      <Dialog open={open && !monnifyOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-sm bg-white rounded-lg shadow-lg p-6">
           <DialogHeader>
             <DialogTitle>Choose Payment Method</DialogTitle>
@@ -74,7 +64,6 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
               {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
             </div>
 
-            {/* Paystack option disabled - using Monnify only */}
             <div className="p-4 bg-blue-50 rounded border border-blue-200 text-center">
               <p className="text-sm font-medium text-blue-900">💳 Payment via Monnify</p>
             </div>
@@ -99,31 +88,6 @@ export const PaymentSelector: React.FC<PaymentSelectorProps> = ({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Paystack disabled - using Monnify only */}
-      {/* {paystackOpen && (
-        <PaystackModal
-          amount={amount}
-          email={email || auth.currentUser?.email || "no-reply@example.com"}
-          open={paystackOpen}
-          onSuccess={async (reference: string) => {
-            setPaystackOpen(false)
-            setIsVerifying(true)
-            try {
-              await onPaymentSuccess(reference, 'paystack')
-            } catch (err) {
-              console.error('Payment processing error:', err)
-              toast.error('Payment verification failed')
-            } finally {
-              setIsVerifying(false)
-            }
-          }}
-          onClose={() => {
-            setPaystackOpen(false)
-            setIsVerifying(false)
-          }}
-        />
-      )} */}
 
       {monnifyOpen && (
         <MonnifyModal

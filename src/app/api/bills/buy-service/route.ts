@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import vtpassClient from '@/services/vtpass/client'
-import * as paystack from '@/services/paystack'
 import * as monnify from '@/services/monnify'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { generateRequestId } from '@/services/vtpass/utils'
@@ -169,7 +168,10 @@ async function buildBillPurchaseMeta(actorUserId: string | undefined, serviceID:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { request_id, serviceID, amount, phone, paystackReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
+    const { request_id, serviceID, amount, phone, paymentReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
+    if (String(provider || '').toLowerCase() !== 'monnify') {
+      return NextResponse.json({ ok: false, message: 'Only Monnify payments are supported' }, { status: 400 })
+    }
     let actorUserId: string | undefined = userId || await resolveActorUserIdFromRequest(req)
 
     if (!serviceID) return NextResponse.json({ ok: false, message: 'serviceID is required' }, { status: 400 })
@@ -308,7 +310,7 @@ export async function POST(req: NextRequest) {
               profitRate: billMeta.profitRate,
               commissionCap: billMeta.commissionCap,
               phone: phone || null,
-              paystackReference: paystackReference || null,
+              paymentReference: paymentReference || null,
               provider: 'wallet',
               paymentChannel: 'wallet',
               actorUserId: verifiedUid,
@@ -319,7 +321,7 @@ export async function POST(req: NextRequest) {
               serviceIDLower: String(serviceID || '').toLowerCase(),
               reference: reqId,
               referenceLower: String(reqId || '').toLowerCase(),
-              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paymentReference].filter(Boolean).join(' ').toLowerCase(),
               response: vtData2 || null,
               status: 'completed',
               createdAt: new Date().toISOString(),
@@ -356,7 +358,7 @@ export async function POST(req: NextRequest) {
               profitRate: billMeta.profitRate,
               commissionCap: billMeta.commissionCap,
               phone: phone || null,
-              paystackReference: paystackReference || null,
+              paymentReference: paymentReference || null,
               provider: 'wallet',
               paymentChannel: 'wallet',
               actorUserId: verifiedUid,
@@ -367,7 +369,7 @@ export async function POST(req: NextRequest) {
               serviceIDLower: String(serviceID || '').toLowerCase(),
               reference: reqId,
               referenceLower: String(reqId || '').toLowerCase(),
-              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paymentReference].filter(Boolean).join(' ').toLowerCase(),
               response: vtData2 || null,
               status: 'failed',
               vtpassFailed: true,
@@ -394,7 +396,7 @@ export async function POST(req: NextRequest) {
             profitRate: billMeta.profitRate,
             commissionCap: billMeta.commissionCap,
             phone: phone || null,
-            paystackReference: paystackReference || null,
+              paymentReference: paymentReference || null,
             provider: 'wallet',
             paymentChannel: 'wallet',
             actorUserId: verifiedUid,
@@ -405,7 +407,7 @@ export async function POST(req: NextRequest) {
             serviceIDLower: String(serviceID || '').toLowerCase(),
             reference: reqId,
             referenceLower: String(reqId || '').toLowerCase(),
-            searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paystackReference].filter(Boolean).join(' ').toLowerCase(),
+              searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, reqId, paymentReference].filter(Boolean).join(' ').toLowerCase(),
             response: vtData2 || null,
             status: 'pending',
             createdAt: new Date().toISOString(),
@@ -422,28 +424,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (process.env.PAYSTACK_SECRET_KEY && provider === 'paystack') {
-      if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Paystack first.' }, { status: 400 })
+    if (provider === 'monnify') {
+      if (!paymentReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Monnify first.' }, { status: 400 })
       try {
         const verification = await verifyExternalBillsPayment({
           provider,
-          reference: paystackReference,
-          expectedAmount: Number(amount || payload.amount || 0),
-        })
-        payload.paystackVerificationData = verification.verificationData
-      } catch (e) {
-        console.error('Paystack verification error', e)
-        return NextResponse.json({ ok: false, message: 'Failed to verify payment' }, { status: 500 })
-      }
-    }
-
-    // Handle Monnify verification similarly
-    if (process.env.MONNIFY_API_KEY && provider === 'monnify') {
-      if (!paystackReference) return NextResponse.json({ ok: false, message: 'Missing payment reference. Please complete payment via Monnify first.' }, { status: 400 })
-      try {
-        const verification = await verifyExternalBillsPayment({
-          provider,
-          reference: paystackReference,
+          reference: paymentReference,
           expectedAmount: Number(amount || payload.amount || 0),
         })
         payload.monnifyVerificationData = verification.verificationData
@@ -476,33 +462,14 @@ export async function POST(req: NextRequest) {
       let refundStatus = 'none'
       let refundError: string | null = null
       
-      if (provider === 'paystack' && paystackReference) {
+      if (provider === 'monnify' && paymentReference) {
         try {
-          console.log(`[REFUND] Initiating Paystack refund for reference: ${paystackReference}`)
-          const paystackVerifyData = (payload as Record<string, unknown>).paystackVerificationData as Record<string, unknown> | undefined
-          const amountKobo = Number((paystackVerifyData as Record<string, unknown>)?.amount || (Number(amount) * 100))
-          await paystack.refundTransaction({
-            transactionRef: paystackReference,
-            amountKobo: amountKobo,
-            reason: `Bill payment failed for ${serviceID}: ${providerMessage}. Automatic refund.`
-          })
-          refundStatus = 'initiated'
-          console.log(`[REFUND] Paystack refund successfully initiated`)
-        } catch (refundErr) {
-          refundStatus = 'failed'
-          refundError = refundErr instanceof Error ? refundErr.message : String(refundErr)
-          console.error(`[REFUND] Paystack refund failed: ${refundError}`)
-        }
-      }
-      
-      if (provider === 'monnify' && paystackReference) {
-        try {
-          console.log(`[REFUND] Initiating Monnify refund for reference: ${paystackReference}`)
+          console.log(`[REFUND] Initiating Monnify refund for reference: ${paymentReference}`)
           const monnifyVerifyData = (payload as Record<string, unknown>).monnifyVerificationData as Record<string, unknown> | undefined
           const amountPaid = typeof monnifyVerifyData === 'object' && monnifyVerifyData !== null && 'amountPaid' in monnifyVerifyData ? Number(monnifyVerifyData.amountPaid) : 0
           const refundAmount = amountPaid > 0 ? amountPaid : Number(amount)
           await monnify.refundTransaction({
-            transactionRef: paystackReference,
+            transactionRef: paymentReference,
             amount: refundAmount,
             refundReference: `bill-refund-${reqId}`,
             customerNote: 'Bill refund',
@@ -534,7 +501,7 @@ export async function POST(req: NextRequest) {
             profitRate: billMeta.profitRate,
             commissionCap: billMeta.commissionCap,
             phone: phone || null,
-            paystackReference: paystackReference || null,
+            paymentReference: paymentReference || null,
             provider: provider || null,
             paymentChannel: provider || null,
             actorUserId: actorUserId || null,
@@ -543,9 +510,9 @@ export async function POST(req: NextRequest) {
             actorRole: billMeta.actorRole,
             actorPath: billMeta.actorPath,
             serviceIDLower: String(serviceID || '').toLowerCase(),
-            reference: String(paystackReference || reqId),
-            referenceLower: String(paystackReference || reqId).toLowerCase(),
-            searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
+            reference: String(paymentReference || reqId),
+            referenceLower: String(paymentReference || reqId).toLowerCase(),
+            searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paymentReference, reqId].filter(Boolean).join(' ').toLowerCase(),
             response: vtData || null,
             userId: actorUserId || null,
             vtpassFailed: true,
@@ -587,7 +554,7 @@ export async function POST(req: NextRequest) {
           profitRate: billMeta.profitRate,
           commissionCap: billMeta.commissionCap,
           phone: phone || null,
-          paystackReference: paystackReference || null,
+          paymentReference: paymentReference || null,
           provider: provider || null,
           paymentChannel: provider || null,
           actorUserId: actorUserId || null,
@@ -596,9 +563,9 @@ export async function POST(req: NextRequest) {
           actorRole: billMeta.actorRole,
           actorPath: billMeta.actorPath,
           serviceIDLower: String(serviceID || '').toLowerCase(),
-          reference: String(paystackReference || reqId),
-          referenceLower: String(paystackReference || reqId).toLowerCase(),
-          searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paystackReference, reqId].filter(Boolean).join(' ').toLowerCase(),
+          reference: String(paymentReference || reqId),
+          referenceLower: String(paymentReference || reqId).toLowerCase(),
+          searchKey: [billMeta.actorName, billMeta.actorRole, serviceID, paymentReference, reqId].filter(Boolean).join(' ').toLowerCase(),
           response: vtData || null,
           userId: userId || null,
           createdAt: new Date().toISOString(),
@@ -631,7 +598,7 @@ export async function POST(req: NextRequest) {
                     request_id: reqId,
                     serviceID: serviceID || null,
                     phone: phone || null,
-                    paystackReference: paystackReference || null,
+                    paymentReference: paymentReference || null,
                     createdAt: new Date().toISOString(),
                     response: vtData || null,
                   })
@@ -655,8 +622,8 @@ export async function POST(req: NextRequest) {
       actorUserId,
       paidAmount,
       serviceID,
-      paymentChannel: provider === 'monnify' || provider === 'paystack' ? provider : 'direct',
-      reference: String(paystackReference || reqId),
+      paymentChannel: 'monnify',
+      reference: String(paymentReference || reqId),
     })
 
     if (firebaseAdminForPoints?.admin && firebaseAdminForPoints.dbAdmin) {
@@ -664,7 +631,7 @@ export async function POST(req: NextRequest) {
         firebaseAdminForPoints.dbAdmin as import('firebase-admin').firestore.Firestore,
         firebaseAdminForPoints.admin,
         actorUserId || undefined,
-        String(paystackReference || reqId),
+        String(paymentReference || reqId),
         paidAmount
       )
     }

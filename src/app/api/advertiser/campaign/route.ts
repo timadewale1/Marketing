@@ -7,9 +7,9 @@ import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { campaignId, action, userId, budget } = body
+    const { campaignId, action, budget } = body
     
-    if (!campaignId || !action || !userId) {
+    if (!campaignId || !action) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
     }
 
@@ -17,6 +17,13 @@ export async function POST(req: Request) {
     if (!dbAdmin || !admin) {
       return NextResponse.json({ success: false, message: 'Server admin unavailable' }, { status: 500 })
     }
+
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    }
+    const decoded = await admin.auth().verifyIdToken(authHeader.slice(7))
+    const userId = decoded.uid
 
     const adminDb = dbAdmin as AdminFirestore
     const campaignRef = adminDb.collection('campaigns').doc(campaignId)
@@ -33,14 +40,24 @@ export async function POST(req: Request) {
 
     // Start a transaction for atomic updates
     await adminDb.runTransaction(async (transaction) => {
-      const advertiserRef = adminDb.collection('advertisers').doc(campaign.ownerId)
-      const advertiserSnap = await transaction.get(advertiserRef)
+      if (String(campaign.ownerId || '') !== userId) {
+        throw new Error('Unauthorized: not task owner')
+      }
+      const advertiserRef = adminDb.collection('advertisers').doc(userId)
+      const vendorRef = adminDb.collection('vendors').doc(userId)
+      const [advertiserSnap, vendorSnap] = await Promise.all([
+        transaction.get(advertiserRef),
+        transaction.get(vendorRef),
+      ])
+      const ownerRef = advertiserSnap.exists ? advertiserRef : vendorSnap.exists ? vendorRef : null
+      const ownerSnap = advertiserSnap.exists ? advertiserSnap : vendorSnap
+      const ownerCollection = advertiserSnap.exists ? 'advertiserTransactions' : 'vendorTransactions'
 
-      if (!advertiserSnap.exists) {
-        throw new Error('Advertiser not found')
+      if (!ownerRef || !ownerSnap.exists) {
+        throw new Error('Task owner not found')
       }
 
-      const advertiser = advertiserSnap.data()
+      const advertiser = ownerSnap.data()
       if (!advertiser) {
         throw new Error('Invalid advertiser data')
       }
@@ -76,18 +93,18 @@ export async function POST(req: Request) {
           })
 
           // Decrement campaign counter
-          transaction.update(advertiserRef, {
+          transaction.update(ownerRef, {
             campaignsCreated: admin.firestore.FieldValue.increment(-1)
           })
 
           // Refund remaining budget to advertiser
           if (refundAmount > 0) {
-            transaction.update(advertiserRef, {
+            transaction.update(ownerRef, {
               balance: admin.firestore.FieldValue.increment(refundAmount)
             })
 
             // Log refund transaction
-            const txRef = adminDb.collection('advertiserTransactions').doc()
+            const txRef = adminDb.collection(ownerCollection).doc()
             transaction.set(txRef, {
               userId: campaign.ownerId,
               type: 'refund',
@@ -127,12 +144,12 @@ export async function POST(req: Request) {
 
             const newBudget = Number(budget)
 
-            if (advertiser.balance < newBudget) {
+            if (Number(advertiser.balance || 0) < newBudget) {
               throw new Error('Insufficient advertiser balance')
             }
 
             // Deduct new budget from advertiser balance
-            transaction.update(advertiserRef, {
+            transaction.update(ownerRef, {
               balance: admin.firestore.FieldValue.increment(-newBudget)
             })
 
@@ -144,7 +161,7 @@ export async function POST(req: Request) {
             })
 
             // Log transaction
-            const txRef = adminDb.collection('advertiserTransactions').doc()
+            const txRef = adminDb.collection(ownerCollection).doc()
             transaction.set(txRef, {
               userId: campaign.ownerId,
               type: 'campaign_resume',
@@ -169,12 +186,12 @@ export async function POST(req: Request) {
           // When stopping, refund remaining budget
           if (campaign.budget > 0) {
             const refundAmount = await computeSafeCampaignRefundAmount(adminDb, campaignId, campaign)
-            transaction.update(advertiserRef, {
+            transaction.update(ownerRef, {
               balance: admin.firestore.FieldValue.increment(refundAmount)
             })
 
             // Log refund transaction
-            const txRef = adminDb.collection('advertiserTransactions').doc()
+            const txRef = adminDb.collection(ownerCollection).doc()
             transaction.set(txRef, {
               userId: campaign.ownerId,
               type: 'refund',

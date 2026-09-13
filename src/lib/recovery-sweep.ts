@@ -4,7 +4,7 @@ import { processWalletFundingWithRetry, runFullActivationFlow } from "@/lib/paym
 import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
 import { verifyTransaction as verifyMonnifyTransaction } from "@/services/monnify"
 
-type PaymentProvider = "monnify" | "paystack"
+type PaymentProvider = "monnify"
 type VerificationState = "paid" | "manual_check" | "unverified"
 type ProcessedWebhookRecord = {
   reference?: unknown
@@ -44,7 +44,7 @@ function asDate(value: unknown) {
 }
 
 function normalizeProvider(value: unknown): PaymentProvider | null {
-  return String(value || "").toLowerCase() === "paystack" ? "paystack" : String(value || "").toLowerCase() === "monnify" ? "monnify" : null
+  return String(value || "").toLowerCase() === "monnify" ? "monnify" : null
 }
 
 function normalizeReferences(values: unknown[]) {
@@ -106,26 +106,6 @@ function shouldEscalateToManualReview({
   return retryCount >= TX_ONLY_MAX_AUTO_RETRIES || ageMs >= TX_ONLY_MAX_AUTO_AGE_MS
 }
 
-async function verifyPaystackPayment(reference: string) {
-  const secret = process.env.PAYSTACK_SECRET_KEY
-  if (!secret || !reference) return false
-
-  const encodedReference = encodeURIComponent(reference)
-  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodedReference}`, {
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  })
-
-  const payload = await response.json().catch(() => null) as
-    | { status?: boolean; data?: { status?: string } }
-    | null
-
-  return Boolean(response.ok && payload?.status && payload.data?.status === "success")
-}
-
 function resolveMonnifyVerificationState(payload: unknown): VerificationState {
   const responseBody = payload && typeof payload === "object"
     ? (payload as { responseBody?: { paymentStatus?: unknown; status?: unknown } }).responseBody
@@ -145,12 +125,6 @@ function resolveMonnifyVerificationState(payload: unknown): VerificationState {
 
 async function verifyProviderPaymentState(reference: string, provider: PaymentProvider): Promise<VerificationState> {
   if (!reference) return "unverified"
-
-  if (provider === "paystack") {
-    const result = (await verifyPaystackPayment(reference)) ? "paid" : "unverified"
-    console.log(`[recovery-sweep] Paystack verification for ${reference}: ${result}`)
-    return result
-  }
 
   try {
     const payload = await verifyMonnifyTransaction(reference)
@@ -179,11 +153,7 @@ async function resolveRecoveryVerificationState(
   }
 
   const hintedProvider = normalizeProvider(providerHint)
-  const providersToTry: PaymentProvider[] = hintedProvider
-    ? hintedProvider === "monnify"
-      ? ["monnify", "paystack"]
-      : ["paystack", "monnify"]
-    : ["monnify", "paystack"]
+  const providersToTry: PaymentProvider[] = ["monnify"]
 
   let sawManualCheck = false
   const monnifyLikeReferences = uniqueReferences.filter((reference) => reference.toUpperCase().startsWith("TX_"))
@@ -220,7 +190,7 @@ async function resolveRecoveryVerificationState(
  * 
  * Flow:
  * 1. Collects all pending wallet funding and activation attempts
- * 2. For each pending payment, verifies its status with the payment provider (Monnify/Paystack)
+ * 2. For each pending payment, verifies its status with Monnify
  * 3. If verified as PAID: immediately processes activation or wallet funding
  * 4. If NOT verified as PAID: defers for retry later or escalates to manual review
  * 

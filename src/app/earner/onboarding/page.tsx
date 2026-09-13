@@ -149,7 +149,7 @@ export default function EarnerOnboarding() {
         profilePicUrl = await getDownloadURL(storageRef)
       }
 
-      // ✅ Wallet Creation - create a Paystack DVA (live) when not in dev mode
+      // Wallet account creation is no longer part of onboarding; funding uses Monnify.
       interface WalletData {
         wallet: {
           account_number: string;
@@ -177,7 +177,7 @@ export default function EarnerOnboarding() {
           isTest: true,
         };
       } else {
-        // 🔹 Real wallet creation on Paystack
+        // Legacy wallet-account creation path retained for compatibility.
         try {
           const walletRes = await fetch("/api/create-wallet", {
             method: "POST",
@@ -225,7 +225,7 @@ export default function EarnerOnboarding() {
           },
           profilePic: profilePicUrl,
           onboarded: true,
-          /* Wallet field commented out until Paystack DVA is ready
+          /* Wallet field is retained for existing account compatibility
           wallet: {
             account_number: walletData.wallet.account_number,
             bank: walletData.wallet.bank.name,

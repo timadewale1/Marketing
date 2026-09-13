@@ -10,7 +10,7 @@ export async function registerWalletFundingReference({
 }: {
   reference: string
   amount: number
-  provider?: "monnify" | "paystack"
+  provider?: "monnify"
 }) {
   const user = auth.currentUser
   if (!user) {

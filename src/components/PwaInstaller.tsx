@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { toast } from 'react-hot-toast'
-import { auth } from '@/lib/firebase'
 
 // Define the BeforeInstallPromptEvent interface that browsers implement
 interface BeforeInstallPromptEvent extends Event {
@@ -40,19 +38,6 @@ export default function PwaInstaller() {
     }
 
     window.addEventListener('appinstalled', handleAppInstalled);
-
-    // If Paystack redirected back to our site with a reference, attempt to verify
-    // Paystack disabled - using Monnify only
-    async function handlePaystackReturn() {
-      try {
-        // Paystack redirect handling disabled - using Monnify only
-        console.log('Paystack redirect handling disabled - using Monnify only')
-      } catch (err) {
-        console.error('Error handling paystack return', err)
-      }
-    }
-
-    handlePaystackReturn()
 
     return () => {
       window.removeEventListener('appinstalled', handleAppInstalled);

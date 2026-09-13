@@ -28,7 +28,7 @@ export async function buyUsufAirtime(
     sellAmount?: number
     payFromWallet?: boolean
     paymentReference?: string
-    paymentProvider?: 'paystack' | 'monnify'
+    paymentProvider?: 'monnify'
   }
 ): Promise<UsufAirtimeResponse> {
   try {

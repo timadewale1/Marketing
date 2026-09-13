@@ -307,12 +307,12 @@ export default function InsurancePage() {
     setShowPaymentSelector(true)
   }
 
-  const onPaymentSuccess = async (reference: string, provider: 'paystack' | 'monnify') => {
+  const onPaymentSuccess = async (reference: string, provider: 'monnify') => {
     setShowPaymentSelector(false)
     setProcessing(true)
     try {
       const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined
-      const payload = { ...buildPayload(), paystackReference: reference, provider }
+      const payload = { ...buildPayload(), paymentReference: reference, provider }
       const res = await postBuyService(payload, { idToken })
       if (!res.ok) {
         toast.error(res.body?.message || 'Purchase failed')

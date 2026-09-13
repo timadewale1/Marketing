@@ -366,7 +366,7 @@ export default function AdvertiserDashboard() {
         return;
       }
 
-      // Open PaymentSelector to allow Paystack or Monnify
+      // Open the Monnify payment selector
       setShowActivationPaymentSelector(true);
     };
 
@@ -706,14 +706,17 @@ export default function AdvertiserDashboard() {
             }}
             onPaymentSuccess={async (
               reference: string,
-              provider: "paystack" | "monnify",
+              provider: "monnify",
               monnifyResponse?: Record<string, unknown>,
             ) => {
               setShowActivationPaymentSelector(false);
               try {
                 const res = await fetch("/api/advertiser/activate", {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+                  },
                   body: JSON.stringify({
                     reference,
                     userId: auth.currentUser?.uid,

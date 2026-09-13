@@ -139,6 +139,10 @@ export async function POST(req: Request) {
     const resubmissionDueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     await db.runTransaction(async (t) => {
+      const freshSubmissionSnap = await t.get(submissionRef)
+      if (!freshSubmissionSnap.exists) throw new Error('Submission not found')
+      if (String(freshSubmissionSnap.data()?.status || '') === 'Verified' && action === 'Verified') return
+
       const campaignId = String(submission.campaignId || '')
       if (!campaignId) {
         throw new Error('Submission missing campaignId')
@@ -150,6 +154,9 @@ export async function POST(req: Request) {
         throw new Error('Campaign no longer exists. This submission cannot be reviewed until the source campaign is restored or the task is handled by admin.')
       }
       const campaign = campaignSnap.data() as Campaign
+      if (['Deleted', 'Stopped', 'Expired'].includes(String(campaign.status || ''))) {
+        throw new Error('This campaign is no longer available for settlement')
+      }
 
       const userId = String(submission.userId || '')
       if (!userId) {
@@ -206,7 +213,7 @@ export async function POST(req: Request) {
         (advertiserDecisionStatus === 'resubmission_requested' && resubmissionSubmitted)
 
       if (action === 'Verified') {
-        if (isReverifyAttempt && campaignBudget < fullAmount) {
+        if (isReverifyAttempt && reservedAmount <= 0 && campaignBudget < fullAmount) {
           throw new Error('Task budget is exhausted. Please top up before re-verifying this proof.')
         }
         if (remainingToCover > 0 && advertiserBalance < remainingToCover) {

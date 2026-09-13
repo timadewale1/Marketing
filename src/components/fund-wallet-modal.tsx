@@ -1,13 +1,11 @@
 "use client"
 
 import React, { useState } from "react"
-import { PaystackModal } from "@/components/paystack-modal"
 import MonnifyModal from "@/components/monnify-modal"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
 import { auth } from '@/lib/firebase'
-import Image from "next/image"
 import { registerWalletFundingReference } from "@/lib/wallet-funding-client"
 
 export type FundWalletModalProps = {
@@ -18,10 +16,8 @@ export type FundWalletModalProps = {
   onlyMonnify?: boolean
 }
 
-export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, onClose, onSuccess, onlyMonnify }) => {
+export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, onClose, onSuccess }) => {
   const [amount, setAmount] = useState<number>(0)
-  const [provider, setProvider] = useState<'paystack' | 'monnify'>(onlyMonnify ? 'monnify' : 'paystack')
-  const [paystackOpen, setPaystackOpen] = useState(false)
   const [monnifyOpen, setMonnifyOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,17 +33,13 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
       return
     }
     try {
-      const pending = { type: 'wallet_funding', amount: Number(amount), email: email, userId: auth.currentUser?.uid, provider }
+      const pending = { type: 'wallet_funding', amount: Number(amount), email: email, userId: auth.currentUser?.uid, provider: 'monnify' }
       localStorage.setItem('pamba_pending_payment', JSON.stringify(pending))
     } catch (e) {
       console.warn('Failed saving pending payment', e)
     }
     setIsLoading(true)
-    if (provider === 'monnify') {
-      setMonnifyOpen(true)
-    } else {
-      setPaystackOpen(true)
-    }
+    setMonnifyOpen(true)
   }
 
   return (
@@ -80,35 +72,7 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-primary-700 mb-2">
-              Payment Provider
-            </label>
-              <div className="flex gap-3">
-                {!onlyMonnify && (
-                  <button
-                    onClick={() => setProvider('paystack')}
-                    className={`flex-1 py-2 px-3 rounded border-2 transition ${
-                      provider === 'paystack'
-                        ? 'border-amber-500 bg-amber-50 font-medium'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <Image src="/paystack-logo.jpg" alt="Paystack" width={100} height={100} />
-                  </button>
-                )}
-                <button
-                  onClick={() => setProvider('monnify')}
-                  className={`flex-1 py-2 px-3 rounded border-2 transition ${
-                    provider === 'monnify'
-                      ? 'border-blue-500 bg-blue-50 font-medium'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <Image src="/monnify-logo.png" alt="Monnify" width={100} height={100} />
-                </button>
-              </div>
-          </div>
+          <p className="text-sm text-primary-700">Payments are processed securely through Monnify.</p>
 
           <div className="pt-4">
             <Button
@@ -138,47 +102,6 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
           </div>
         </div>
 
-        {paystackOpen && (
-          <PaystackModal
-            amount={amount}
-            email={email || ""}
-            open={paystackOpen}
-            onReady={() => setIsLoading(false)}
-            onSuccess={async (reference: string) => {
-              setPaystackOpen(false)
-              setIsLoading(false)
-              try {
-                const verifyUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/verify-payment` : '/api/verify-payment'
-                const res = await fetch(verifyUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ reference, type: 'wallet_funding', amount: Number(amount), userId: auth.currentUser?.uid, provider: 'paystack' }),
-                })
-                const text = await res.text().catch(() => '')
-                let data: Record<string, unknown> = {}
-                try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
-                if (!res.ok) throw new Error(String(data?.message || `Status ${res.status}`))
-                if (data.pendingConfirmation) {
-                  toast.success('Payment received. Wallet balance will update after Monnify confirms it.')
-                } else {
-                  toast.success('Wallet funded successfully')
-                }
-                try { localStorage.removeItem('pamba_pending_payment') } catch {}
-                onClose()
-                if (!data.pendingConfirmation && onSuccess) onSuccess()
-              } catch (err) {
-                console.error('verify-payment failed', err)
-                toast.error('Wallet funding verification failed')
-              }
-            }}
-            onClose={() => {
-              setPaystackOpen(false)
-              setIsLoading(false)
-              onClose()
-            }}
-          />
-        )}
-
         {monnifyOpen && (
           <MonnifyModal
             amount={amount}
@@ -190,9 +113,10 @@ export const FundWalletModal: React.FC<FundWalletModalProps> = ({ open, email, o
               setIsLoading(false)
               try {
                 const verifyUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/verify-payment` : '/api/verify-payment'
+                const token = await auth.currentUser?.getIdToken()
                 const res = await fetch(verifyUrl, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                   body: JSON.stringify({ reference, type: 'wallet_funding', amount: Number(amount), userId: auth.currentUser?.uid, provider: 'monnify', monnifyResponse: response }),
                 })
                 const text = await res.text().catch(() => '')

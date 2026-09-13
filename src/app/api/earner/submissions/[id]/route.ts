@@ -53,9 +53,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const resubmissionSubmittedAt = (submission as { resubmissionSubmittedAt?: unknown }).resubmissionSubmittedAt
     const canOpenForReview =
       advertiserDecisionStatus === "resubmission_requested" || resubmissionStatus === "submitted" || Boolean(resubmissionSubmittedAt)
+    const dueAt = (submission as { resubmissionDueAt?: { toDate?: () => Date } | string | Date }).resubmissionDueAt
+    const dueDate = dueAt && typeof dueAt === "object" && !(dueAt instanceof Date) && typeof dueAt.toDate === "function"
+      ? dueAt.toDate()
+      : dueAt ? new Date(dueAt as string | Date) : null
     const updates: Record<string, unknown> = {}
 
     if (proofUrls.length > 0) {
+      if (advertiserDecisionStatus === "resubmission_requested" && dueDate && dueDate.getTime() < Date.now()) {
+        return NextResponse.json({ success: false, message: "The resubmission deadline has passed" }, { status: 400 })
+      }
       if ((status === "Verified" || status === "Rejected") && !canOpenForReview) {
         return NextResponse.json({ success: false, message: "This submission can no longer be updated" }, { status: 400 })
       }
