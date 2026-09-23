@@ -54,7 +54,7 @@ import { getReferralPromoCopy } from "@/lib/referral-rewards";
 import PlatformUpdatesPrompt from "@/components/PlatformUpdatesPrompt";
 
 const EARNER_WHATSAPP_GROUP_URL =
-  "https://chat.whatsapp.com/GnxIXIyfkEmFlrsVhwOHgR";
+  "https://chat.whatsapp.com/HdqG1rgIc2iJqUprEoyFTe?s=cl&p=a&mlu=4&ilr=4";
 const EARNER_WHATSAPP_JOINED_KEY = "pamba-earner-whatsapp-joined";
 
 type WithdrawRecord = {
