@@ -168,8 +168,8 @@ async function buildBillPurchaseMeta(actorUserId: string | undefined, serviceID:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { request_id, serviceID, amount, phone, paymentReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider } = body || {}
-    if (String(provider || '').toLowerCase() !== 'monnify') {
+    const { request_id, serviceID, amount, phone, paymentReference, userId, metadata, variation_code, billersCode, subscription_type, quantity, provider, payFromWallet } = body || {}
+    if (!payFromWallet && String(provider || '').toLowerCase() !== 'monnify') {
       return NextResponse.json({ ok: false, message: 'Only Monnify payments are supported' }, { status: 400 })
     }
     let actorUserId: string | undefined = userId || await resolveActorUserIdFromRequest(req)
@@ -196,7 +196,6 @@ export async function POST(req: NextRequest) {
     // Wallet payment flow: if `payFromWallet` is set in the body, reserve funds
     // from the user's wallet (advertiser or earner) and then call VTpass. If
     // VTpass fails we restore the reserved funds and mark the transaction failed.
-    const { payFromWallet } = body || {}
     if (payFromWallet) {
       const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
