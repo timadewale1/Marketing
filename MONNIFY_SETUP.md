@@ -4,9 +4,43 @@
 Confirm these are set in your `.env` file:
 ```env
 MONNIFY_BASE_URL=https://sandbox.monnify.com
-MONNIFY_API_KEY=MK_TEST_9XXA9XNKHD
-MONNIFY_SECRET_KEY=EVU3HEH5JQ533SQTGSG64F52N36ATN35
+MONNIFY_API_KEY=<your-sandbox-api-key>
+MONNIFY_SECRET_KEY=<your-sandbox-secret-key>
 ```
+
+## Withdrawal Payout Function
+
+Withdrawal approval now calls the Gen 2 `monnifyPayoutApi` function in `us-central1`. The function is configured for Direct VPC egress through `monnify-vpc` and `monnify-subnet` with `ALL_TRAFFIC`; the admin web route does not call Monnify directly.
+
+Before deploying, set the payout credentials as Firebase secrets. Run each command and enter the value in the CLI prompt; do not put secret values in commands, source files, or chat:
+
+```powershell
+firebase functions:secrets:set API_INTERNAL_SECRET --project blessing-636ca
+firebase functions:secrets:set MONNIFY_API_KEY --project blessing-636ca
+firebase functions:secrets:set MONNIFY_SECRET_KEY --project blessing-636ca
+firebase functions:secrets:set MONNIFY_WALLET_ACCOUNT_NUMBER --project blessing-636ca
+```
+
+Set the non-secret `MONNIFY_BASE_URL` in `functions/.env.blessing-636ca` to the same sandbox or live base URL used by the Monnify account. In the web app's server-side hosting environment, set:
+
+```env
+MONNIFY_PAYOUT_FUNCTION_URL=https://us-central1-blessing-636ca.cloudfunctions.net/monnifyPayoutApi
+API_INTERNAL_SECRET=<the-same-value-entered-for-the-Firebase-secret>
+```
+
+Deploy only the new function:
+
+```powershell
+firebase deploy --only functions:monnifyPayoutApi --project blessing-636ca
+```
+
+After setting the web app environment values and redeploying the app, sign in as an admin and call the protected IP-check route from the browser console:
+
+```javascript
+await fetch("/api/admin/monnify/egress-check", { method: "POST" }).then((response) => response.json())
+```
+
+The returned `ip` must be `35.193.73.250` before sharing the address with Monnify. If it differs, stop and inspect the function's Direct VPC egress, subnet, NAT IP allocation, and Cloud NAT logs. Do not release the reserved address.
 
 ## How to Verify Your Monnify API Paths
 

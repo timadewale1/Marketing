@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 import { requireAdminSession } from "@/lib/admin-session"
-import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
-import monnify from "@/services/monnify"
 
 type WithdrawalSource = "earner" | "advertiser" | "vendor" | "customer"
 
@@ -15,147 +13,36 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const withdrawalId = String(body?.withdrawalId || "").trim()
     const source = String(body?.source || "").trim() as WithdrawalSource
+    const functionUrl = String(process.env.MONNIFY_PAYOUT_FUNCTION_URL || "").trim()
+    const functionSecret = String(process.env.API_INTERNAL_SECRET || "").trim()
 
     if (!withdrawalId || !["earner", "advertiser", "vendor", "customer"].includes(source)) {
       return NextResponse.json({ success: false, message: "Missing withdrawal details" }, { status: 400 })
     }
-
-    const { admin, dbAdmin } = await initFirebaseAdmin()
-    if (!admin || !dbAdmin) {
-      return NextResponse.json({ success: false, message: "Firebase not initialized" }, { status: 500 })
+    if (!functionUrl || !functionSecret) {
+      console.error("[admin][withdrawals][approve] payout function configuration is missing")
+      return NextResponse.json({ success: false, message: "Payout service is not configured" }, { status: 503 })
     }
 
-    const db = dbAdmin
-    const withdrawalCollection =
-      source === "advertiser"
-        ? "advertiserWithdrawals"
-        : source === "vendor"
-          ? "vendorWithdrawals"
-          : source === "customer"
-            ? "customerWithdrawals"
-            : "earnerWithdrawals"
-    const txCollection =
-      source === "advertiser"
-        ? "advertiserTransactions"
-        : source === "vendor"
-          ? "vendorTransactions"
-          : source === "customer"
-            ? "customerTransactions"
-            : "earnerTransactions"
-    const userCollection =
-      source === "advertiser"
-        ? "advertisers"
-        : source === "vendor"
-          ? "vendors"
-          : source === "customer"
-            ? "customers"
-            : "earners"
-    const withdrawalRef = db.collection(withdrawalCollection).doc(withdrawalId)
-    const withdrawalSnap = await withdrawalRef.get()
-
-    if (!withdrawalSnap.exists) {
-      return NextResponse.json({ success: false, message: "Withdrawal request not found" }, { status: 404 })
-    }
-
-    const withdrawal = withdrawalSnap.data() || {}
-    const status = String(withdrawal.status || "").toLowerCase()
-    if (["sent", "completed"].includes(status)) {
-      return NextResponse.json({ success: true, message: "Withdrawal was already processed" })
-    }
-
-    const userId = String(withdrawal.userId || "").trim()
-    const amount = Number(withdrawal.amount || 0)
-    const net = Number(withdrawal.net || Math.max(0, amount - Number(withdrawal.fee || 0)))
-    const bank = withdrawal.bank || {}
-    const provider = "monnify"
-
-    if (!userId || amount <= 0) {
-      return NextResponse.json({ success: false, message: "Withdrawal record is incomplete" }, { status: 400 })
-    }
-
-    const userRef = db.collection(userCollection).doc(userId)
-    const txQuery = await db
-      .collection(txCollection)
-      .where("userId", "==", userId)
-      .where("type", "==", "withdrawal_request")
-      .where("requestedAmount", "==", amount)
-      .where("status", "==", "pending")
-      .limit(5)
-      .get()
-
-    const recipientName = String(bank.accountName || withdrawal.fullName || withdrawal.name || "Pamba User").trim()
-
-    if (provider === "monnify") {
-      const payoutReference = `${withdrawalRef.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-
-      const disbursementResponse = await monnify.initiateDisbursement({
-        amount: net,
-        reference: payoutReference,
-        narration: `Withdrawal for ${recipientName}`,
-        destinationBankCode: String(bank.bankCode || ""),
-        destinationAccountNumber: String(bank.accountNumber || ""),
-        destinationAccountName: String(bank.accountName || recipientName || "Pamba User").trim(),
-      })
-
-      const withdrawalStatus = String(disbursementResponse?.status || "").toUpperCase() === "SUCCESS" ? "completed" : "sent"
-
-      await db.runTransaction(async (transaction) => {
-        const userSnap = await transaction.get(userRef)
-        if (!userSnap.exists) {
-          throw new Error("User not found")
-        }
-
-        const currentBalance = Number(userSnap.data()?.balance || 0)
-        if (currentBalance < amount) {
-          throw new Error("Insufficient balance at approval time")
-        }
-
-        transaction.update(userRef, {
-          balance: admin.firestore.FieldValue.increment(-amount),
-          totalWithdrawn: admin.firestore.FieldValue.increment(amount),
-        })
-
-        transaction.update(withdrawalRef, {
-          status: withdrawalStatus,
-          approvalStatus: "approved",
-          approvedBy: adminSession.email,
-          approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-          initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          monnifyReference: disbursementResponse.reference || withdrawalRef.id,
-          monnifyStatus: disbursementResponse.status || "PENDING",
-          monnifyAmount: disbursementResponse.amount,
-          monnifyDestinationBank: disbursementResponse.destinationBankName,
-        })
-
-        for (const txDoc of txQuery.docs) {
-          transaction.update(txDoc.ref, {
-            amount: -Math.abs(amount),
-            status: "completed",
-            note: "Withdrawal approved by admin",
-            completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          })
-        }
-      })
-    }
-
-    await db.collection("adminNotifications").add({
-      type: "withdrawal_approved",
-      title: "Withdrawal approved",
-      body: `${recipientName} withdrawal of ₦${amount.toLocaleString()} was approved by admin.`,
-      link: source === "advertiser" ? `/admin/advertisers/${userId}` : source === "vendor" ? `/admin/vendors` : source === "customer" ? `/admin/users/${userId}` : `/admin/earners/${userId}`,
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      actor: adminSession.email,
-      userId,
-      amount,
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${functionSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        withdrawalId,
+        source,
+        approvedBy: adminSession.email,
+      }),
     })
-
-    return NextResponse.json({ success: true, message: "Withdrawal approved and payout started" })
+    const payload = await response.json().catch(() => ({}))
+    return NextResponse.json(payload, { status: response.status })
   } catch (error) {
-    console.error("[admin][withdrawals][approve] failed", error)
+    console.error("[admin][withdrawals][approve] function request failed", error)
     return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : "Failed to approve withdrawal" },
-      { status: 500 }
+      { success: false, message: "Could not reach the payout service" },
+      { status: 502 }
     )
   }
 }

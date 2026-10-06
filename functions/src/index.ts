@@ -1,4 +1,6 @@
 import * as admin from "firebase-admin";
+import { timingSafeEqual } from "node:crypto";
+import { defineSecret } from "firebase-functions/params";
 import { onSchedule } from "firebase-functions/scheduler";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
@@ -347,15 +349,19 @@ function normalizeReferences(values: unknown[]) {
 }
 
 let cachedMonnifyToken: { token: string; expiresAt: number } | null = null;
+const payoutApiSecret = defineSecret("API_INTERNAL_SECRET");
+const payoutMonnifyApiKey = defineSecret("MONNIFY_API_KEY");
+const payoutMonnifySecretKey = defineSecret("MONNIFY_SECRET_KEY");
+const payoutMonnifyWalletAccount = defineSecret("MONNIFY_WALLET_ACCOUNT_NUMBER");
 
-async function getMonnifyToken() {
+async function getMonnifyToken(credentials?: { apiKey?: string; secret?: string }) {
   if (cachedMonnifyToken && cachedMonnifyToken.expiresAt > Date.now()) {
     return cachedMonnifyToken.token;
   }
 
   const base = String(process.env.MONNIFY_BASE_URL || "").trim();
-  const apiKey = String(process.env.MONNIFY_API_KEY || "").trim();
-  const secret = String(process.env.MONNIFY_SECRET_KEY || "").trim();
+  const apiKey = String(credentials?.apiKey || process.env.MONNIFY_API_KEY || "").trim();
+  const secret = String(credentials?.secret || process.env.MONNIFY_SECRET_KEY || "").trim();
   if (!base || !apiKey || !secret) {
     throw new Error("Monnify credentials missing in functions env");
   }
@@ -1651,4 +1657,265 @@ export const internalApi = onRequest({ invoker: "public" }, async (req, res) => 
     success: false,
     message: `Route not offloaded yet: ${path}`,
   });
+});
+
+export const monnifyPayoutApi = onRequest({
+  region: "us-central1",
+  invoker: "public",
+  networkInterface: {
+    network: "monnify-vpc",
+    subnetwork: "monnify-subnet",
+  },
+  vpcEgress: "ALL_TRAFFIC",
+  secrets: [
+    payoutApiSecret,
+    payoutMonnifyApiKey,
+    payoutMonnifySecretKey,
+    payoutMonnifyWalletAccount,
+  ],
+}, async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).json({ success: false, message: "Method not allowed" });
+    return;
+  }
+
+  const expectedSecret = payoutApiSecret.value();
+  const incomingSecret = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  const expectedBytes = Buffer.from(expectedSecret);
+  const incomingBytes = Buffer.from(incomingSecret);
+  if (
+    !expectedSecret ||
+    expectedBytes.length !== incomingBytes.length ||
+    !timingSafeEqual(expectedBytes, incomingBytes)
+  ) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+
+  const body = (req.body || {}) as {
+    action?: string;
+    withdrawalId?: string;
+    source?: string;
+    approvedBy?: string;
+  };
+
+  if (body.action === "check-egress-ip") {
+    try {
+      const response = await fetch("https://api.ipify.org?format=json");
+      const result = await response.json().catch(() => ({})) as { ip?: string };
+      if (!response.ok || !result.ip) {
+        throw new Error(`IP check failed with status ${response.status}`);
+      }
+      res.status(200).json({ success: true, ip: result.ip });
+    } catch (error) {
+      console.error("[monnifyPayoutApi] egress IP check failed", error);
+      res.status(502).json({ success: false, message: "Could not verify outbound IP" });
+    }
+    return;
+  }
+
+  const withdrawalId = String(body.withdrawalId || "").trim();
+  const source = String(body.source || "").trim();
+  const approvedBy = String(body.approvedBy || "").trim();
+  if (!withdrawalId || !["earner", "advertiser", "vendor", "customer"].includes(source)) {
+    res.status(400).json({ success: false, message: "Missing withdrawal details" });
+    return;
+  }
+
+  const withdrawalCollection = source === "advertiser"
+    ? "advertiserWithdrawals"
+    : source === "vendor"
+      ? "vendorWithdrawals"
+      : source === "customer"
+        ? "customerWithdrawals"
+        : "earnerWithdrawals";
+  const txCollection = source === "advertiser"
+    ? "advertiserTransactions"
+    : source === "vendor"
+      ? "vendorTransactions"
+      : source === "customer"
+        ? "customerTransactions"
+        : "earnerTransactions";
+  const userCollection = source === "advertiser"
+    ? "advertisers"
+    : source === "vendor"
+      ? "vendors"
+      : source === "customer"
+        ? "customers"
+        : "earners";
+  const db = admin.firestore();
+  const withdrawalRef = db.collection(withdrawalCollection).doc(withdrawalId);
+  const userCollectionPath = userCollection;
+  const payoutReference = `${withdrawalId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  try {
+    const claim = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(withdrawalRef);
+      if (!snap.exists) throw new Error("Withdrawal request not found");
+
+      const withdrawal = snap.data() || {};
+      const status = String(withdrawal.status || "").toLowerCase();
+      const payoutStatus = String(withdrawal.payoutStatus || "").toLowerCase();
+      if (["sent", "completed"].includes(status)) {
+        return { outcome: "complete" as const, status };
+      }
+      if (payoutStatus === "initiating") {
+        return { outcome: "busy" as const };
+      }
+      if (payoutStatus === "needs_review") {
+        return { outcome: "review" as const };
+      }
+      if (!["pending", "processing", "pending_admin_approval"].includes(status)) {
+        throw new Error("Withdrawal is not awaiting approval");
+      }
+
+      const userId = String(withdrawal.userId || "").trim();
+      const amount = Number(withdrawal.amount || 0);
+      if (!userId || amount <= 0) throw new Error("Withdrawal record is incomplete");
+      const userRef = db.collection(userCollectionPath).doc(userId);
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists) throw new Error("User not found");
+      if (Number(userSnap.data()?.balance || 0) < amount) {
+        throw new Error("Insufficient balance at approval time");
+      }
+
+      transaction.update(userRef, {
+        balance: admin.firestore.FieldValue.increment(-amount),
+      });
+      transaction.update(withdrawalRef, {
+        payoutStatus: "initiating",
+        payoutReference,
+        payoutStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return { outcome: "claimed" as const, withdrawal, userId, amount };
+    });
+
+    if (claim.outcome === "complete") {
+      res.status(200).json({ success: true, message: "Withdrawal was already processed", status: claim.status });
+      return;
+    }
+    if (claim.outcome === "busy" || claim.outcome === "review") {
+      res.status(409).json({
+        success: false,
+        message: claim.outcome === "busy" ? "Payout is already being processed" : "Payout requires manual review",
+      });
+      return;
+    }
+
+    const withdrawal = claim.withdrawal;
+    const amount = claim.amount;
+    const net = Number(withdrawal.net || Math.max(0, amount - Number(withdrawal.fee || 0)));
+    const bank = (withdrawal.bank || {}) as Record<string, unknown>;
+    const recipientName = String(bank.accountName || withdrawal.fullName || withdrawal.name || "Pamba User").trim();
+    const destinationBankCode = String(bank.bankCode || "").trim();
+    const destinationAccountNumber = String(bank.accountNumber || "").trim();
+    if (!destinationBankCode || !destinationAccountNumber || net <= 0) {
+      throw new Error("Withdrawal bank details or net amount are invalid");
+    }
+
+    const base = String(process.env.MONNIFY_BASE_URL || "").trim().replace(/\/$/, "");
+    if (!base) throw new Error("MONNIFY_BASE_URL is not configured in Functions");
+    const token = await getMonnifyToken({
+      apiKey: payoutMonnifyApiKey.value(),
+      secret: payoutMonnifySecretKey.value(),
+    });
+    const disbursementResponse = await fetch(`${base}/api/v2/disbursements/single`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        amount: net,
+        reference: payoutReference,
+        narration: `Withdrawal for ${recipientName}`,
+        destinationBankCode,
+        destinationAccountNumber,
+        destinationAccountName: String(bank.accountName || recipientName || "Pamba User").trim(),
+        currency: "NGN",
+        sourceAccountNumber: payoutMonnifyWalletAccount.value(),
+      }),
+    });
+    const responsePayload = await disbursementResponse.json().catch(() => ({})) as {
+      requestSuccessful?: boolean;
+      responseMessage?: string;
+      responseBody?: Record<string, unknown>;
+    };
+    if (!disbursementResponse.ok || !responsePayload.requestSuccessful || !responsePayload.responseBody) {
+      throw new Error(`Monnify disbursement failed: ${JSON.stringify(responsePayload)}`);
+    }
+
+    const result = responsePayload.responseBody;
+    const withdrawalStatus = String(result.status || "").toUpperCase() === "SUCCESS" ? "completed" : "sent";
+    const txQuery = await db.collection(txCollection)
+      .where("userId", "==", claim.userId)
+      .where("type", "==", "withdrawal_request")
+      .where("requestedAmount", "==", amount)
+      .where("status", "==", "pending")
+      .limit(5)
+      .get();
+
+    await db.runTransaction(async (transaction) => {
+      const withdrawalSnap = await transaction.get(withdrawalRef);
+      if (!withdrawalSnap.exists) throw new Error("Payout records disappeared during approval");
+      if (String(withdrawalSnap.data()?.payoutReference || "") !== payoutReference) {
+        throw new Error("Payout claim changed before finalization");
+      }
+
+      transaction.update(db.collection(userCollectionPath).doc(claim.userId), {
+        totalWithdrawn: admin.firestore.FieldValue.increment(amount),
+      });
+      transaction.update(withdrawalRef, {
+        status: withdrawalStatus,
+        payoutStatus: "submitted",
+        approvalStatus: "approved",
+        approvedBy,
+        approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        monnifyReference: result.reference || payoutReference,
+        monnifyStatus: result.status || "PENDING",
+        monnifyAmount: result.amount,
+        monnifyDestinationBank: result.destinationBankName,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      for (const txDoc of txQuery.docs) {
+        transaction.update(txDoc.ref, {
+          amount: -Math.abs(amount),
+          status: "completed",
+          note: "Withdrawal approved by admin",
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    });
+
+    try {
+      await db.collection("adminNotifications").add({
+        type: "withdrawal_approved",
+        title: "Withdrawal approved",
+        body: `${recipientName} withdrawal of ₦${amount.toLocaleString()} was approved by admin.`,
+        link: source === "advertiser" ? `/admin/advertisers/${claim.userId}` : source === "vendor" ? "/admin/vendors" : source === "customer" ? `/admin/users/${claim.userId}` : `/admin/earners/${claim.userId}`,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        actor: approvedBy,
+        userId: claim.userId,
+        amount,
+      });
+    } catch (notificationError) {
+      console.error("[monnifyPayoutApi] payout succeeded but notification failed", notificationError);
+    }
+
+    res.status(200).json({ success: true, message: "Withdrawal approved and payout started" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to start payout";
+    console.error("[monnifyPayoutApi] payout failed", { withdrawalId, error: message });
+    await withdrawalRef.update({
+      payoutStatus: "needs_review",
+      payoutError: message,
+      payoutErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+    }).catch((updateError) => {
+      console.error("[monnifyPayoutApi] failed to record payout error", updateError);
+    });
+    res.status(502).json({ success: false, message: "Payout failed or needs review before retry" });
+  }
 });
