@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { ACTIVATION_FEE } from "@/lib/activation-fees"
 import { runFullActivationFlow } from "@/lib/paymentProcessing"
 import { proxyToBackendIfConfigured } from "@/lib/backend-route-proxy"
 import { verifyInternalApiSecret } from "@/lib/internal-api-auth"
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     const references = Array.isArray(body.references)
       ? body.references.map((value) => String(value || "").trim()).filter(Boolean)
       : []
-    const amount = Number(body.amount || 4500)
+    const amount = Number(body.amount || ACTIVATION_FEE)
 
     if (!userId || !reference) {
       return NextResponse.json({ success: false, message: "userId and reference are required" }, { status: 400 })

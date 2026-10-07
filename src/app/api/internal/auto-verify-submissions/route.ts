@@ -9,6 +9,8 @@ import { computeAdvertiserCharge, computeEarnerPayout } from '@/lib/task-pricing
 import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { queueReviewPrompt } from '@/lib/reviews'
 import { computeSafeCampaignRefundAmount } from '@/lib/campaign-refund'
+import { normalizeActivationReferralPendingAmount } from '@/lib/referral-rewards'
+import { MULTI_LEVEL_REFERRAL_ENABLED } from '@/lib/activation-fees'
 
 interface Submission {
   status?: string
@@ -427,11 +429,11 @@ export async function GET(request: Request) {
 
     for (const userId of autoActivatedUserIds) {
       try {
-        await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
+          await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: !MULTI_LEVEL_REFERRAL_ENABLED })
         
         // Award multi-level referral bonuses
         try {
-          await awardMultiLevelReferralBonuses(adminDb, admin, userId, 4500)
+          await awardMultiLevelReferralBonuses(adminDb, admin, userId, Number(normalizeActivationReferralPendingAmount()))
         } catch (err) {
           console.warn('[auto-verify] multi-level referral bonus failed for user', userId, err)
         }

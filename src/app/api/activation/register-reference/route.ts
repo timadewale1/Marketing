@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { recordActivationAttempt } from "@/lib/activation-attempts"
+import { ACTIVATION_FEE } from "@/lib/activation-fees"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { logPaymentLifecycle } from "@/lib/payment-reconciliation"
 
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
       email: String(userSnap.data()?.email || ""),
       reference,
       references: [reference],
-      amount: 4500,
+      amount: ACTIVATION_FEE,
       lifecycle: {
         paymentReference: reference,
         paymentType: "activation",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getActivationAttemptDocId } from '@/lib/activation-attempts'
+import { ACTIVATION_FEE } from '@/lib/activation-fees'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { extractMonnifyReferenceCandidates, processActivationWithRetry, processWalletFundingWithRetry } from '@/lib/paymentProcessing'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
         rawAmount,
       })
       await logPaymentLifecycle({
-        scope: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
+        scope: safeAmount >= ACTIVATION_FEE ? 'activation' : 'wallet_funding',
         status: 'webhook_received',
         source: 'webhooks/monnify/transaction',
         provider: 'monnify',
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
         lifecycle: {
           paymentReference: effectiveReference,
           monnifyTransactionReference: typeof transactionReference === 'string' ? transactionReference : null,
-          paymentType: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
+          paymentType: safeAmount >= ACTIVATION_FEE ? 'activation' : 'wallet_funding',
           webhookReceivedAt: new Date().toISOString(),
           monnifyVerificationResult: paymentStatus,
           finalStatus: 'pending',
@@ -213,7 +214,7 @@ export async function POST(req: NextRequest) {
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
           })
           await logPaymentLifecycle({
-            scope: safeAmount >= 4500 ? 'activation' : 'wallet_funding',
+            scope: safeAmount >= ACTIVATION_FEE ? 'activation' : 'wallet_funding',
             status: 'monnify_confirmed',
             source: 'webhooks/monnify/transaction',
             provider: 'monnify',
@@ -314,7 +315,7 @@ export async function POST(req: NextRequest) {
                 console.log('[webhook][monnify][transaction] processing activation for advertiser', advertiserDoc.id)
 
                 try {
-                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 4500)
+                    await processActivationWithRetry(advertiserDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : ACTIVATION_FEE)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -338,7 +339,7 @@ export async function POST(req: NextRequest) {
                   console.log('[webhook][monnify][transaction] processing activation for earner', earnerDoc.id)
 
                   try {
-                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : 4500)
+                    await processActivationWithRetry(earnerDoc.id, referenceCandidates[0] || String(reference || ''), 'monnify', 3, referenceCandidates, safeAmount > 0 ? safeAmount : ACTIVATION_FEE)
                     await logPaymentLifecycle({
                       scope: 'activation',
                       status: 'webhook_processed',
@@ -376,7 +377,7 @@ export async function POST(req: NextRequest) {
                           'monnify',
                           3,
                           referenceCandidates,
-                          safeAmount > 0 ? safeAmount : 2000
+                          safeAmount > 0 ? safeAmount : ACTIVATION_FEE
                         )
 
                         await dbAdmin.collection('activationAttempts').doc(getActivationAttemptDocId(attemptedRole, attemptedUserId)).set({

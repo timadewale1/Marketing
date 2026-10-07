@@ -17,7 +17,8 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { getReferralDistributionSummary } from '@/lib/activation-fees'
+import { ACTIVATION_FEE } from '@/lib/activation-fees'
+import { getReferralActivationBonusLabel } from '@/lib/referral-rewards'
 
 type NetworkRole = 'earner' | 'advertiser'
 
@@ -35,7 +36,7 @@ const networkSections: { key: SectionKey; label: string }[] = [
 ]
 
 export default function PambaBusinessNetworkPage({ role }: PambaBusinessNetworkPageProps) {
-  const distribution = getReferralDistributionSummary()
+  const activationBonus = getReferralActivationBonusLabel()
   const [section, setSection] = useState<SectionKey>('overview')
   const isAdvertiser = role === 'advertiser'
 
@@ -69,7 +70,7 @@ export default function PambaBusinessNetworkPage({ role }: PambaBusinessNetworkP
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: Users, value: '4 levels', label: 'referral network' },
+                { icon: Users, value: 'Direct invites', label: 'referral rewards' },
                 { icon: Store, value: 'Live shops', label: 'marketplace discovery' },
                 { icon: BriefcaseBusiness, value: 'Real skills', label: 'provider directory' },
                 { icon: Wallet, value: 'One wallet', label: 'earn, spend, withdraw' },
@@ -101,8 +102,8 @@ export default function PambaBusinessNetworkPage({ role }: PambaBusinessNetworkP
 
         <div className="mt-6">
           {section === 'overview' ? <Overview isAdvertiser={isAdvertiser} /> : null}
-          {section === 'membership' ? <Membership distribution={distribution} /> : null}
-          {section === 'referrals' ? <Referrals distribution={distribution} isAdvertiser={isAdvertiser} /> : null}
+          {section === 'membership' ? <Membership activationBonus={activationBonus} /> : null}
+          {section === 'referrals' ? <Referrals activationBonus={activationBonus} isAdvertiser={isAdvertiser} /> : null}
           {section === 'ecosystem' ? <Ecosystem /> : null}
         </div>
 
@@ -157,58 +158,50 @@ function Overview({ isAdvertiser }: { isAdvertiser: boolean }) {
   )
 }
 
-function Membership({ distribution }: { distribution: ReturnType<typeof getReferralDistributionSummary> }) {
+function Membership({ activationBonus }: { activationBonus: string }) {
   return (
     <section className="space-y-5">
       <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-700">One-time activation</p>
-            <h2 className="mt-2 text-3xl font-black text-stone-950">₦{distribution.totalFee.toLocaleString()} membership fee</h2>
+            <h2 className="mt-2 text-3xl font-black text-stone-950">₦{ACTIVATION_FEE.toLocaleString()} membership fee</h2>
           </div>
-          <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">Referral pool: ₦{distribution.referralPool.toLocaleString()}</span>
+          <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-black text-amber-900">Direct referral bonus: {activationBonus}</span>
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {distribution.levels.map((level) => (
-            <div key={level.level} className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-stone-500">{level.label}</p>
-              <p className="mt-3 text-2xl font-black text-stone-950">{level.amountLabel}</p>
-              <p className="mt-2 text-xs leading-5 text-stone-600">Distributed when an eligible member in this generation completes activation.</p>
-            </div>
-          ))}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Membership</p>
+            <p className="mt-3 text-2xl font-black text-stone-950">₦{ACTIVATION_FEE.toLocaleString()}</p>
+            <p className="mt-2 text-xs leading-5 text-stone-600">A one-time fee to activate your PAMBA account.</p>
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Direct referral</p>
+            <p className="mt-3 text-2xl font-black text-stone-950">{activationBonus}</p>
+            <p className="mt-2 text-xs leading-5 text-stone-600">Paid to the person who directly referred an eligible member after activation.</p>
+          </div>
         </div>
-      </article>
-      <article className="rounded-3xl border border-cyan-200 bg-cyan-50 p-6 sm:p-8">
-        <h2 className="text-xl font-black text-cyan-950">What the platform charge supports</h2>
-        <div className="mt-4 grid gap-3 text-sm text-cyan-950/75 sm:grid-cols-2">
-          {['Technology and hosting', 'Payment processing', 'Security and fraud prevention', 'Support and administration', 'Compliance and operations', 'New platform features'].map((item) => <p key={item} className="flex items-center gap-2"><CheckCircle2 size={16} className="text-cyan-700" /> {item}</p>)}
-        </div>
-        <p className="mt-5 text-xs leading-5 text-cyan-950/65">The ₦{distribution.platformCharge.toLocaleString()} platform charge supports operations and development. It is not an investment contribution.</p>
       </article>
     </section>
   )
 }
 
-function Referrals({ distribution, isAdvertiser }: { distribution: ReturnType<typeof getReferralDistributionSummary>; isAdvertiser: boolean }) {
+function Referrals({ activationBonus, isAdvertiser }: { activationBonus: string; isAdvertiser: boolean }) {
   return (
     <section className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
       <article className="rounded-3xl bg-stone-950 p-6 text-white shadow-xl sm:p-8">
         <Users className="text-amber-300" size={28} />
         <h2 className="mt-5 text-2xl font-black">Build a network with context.</h2>
-        <p className="mt-4 text-sm leading-7 text-stone-300">Invite people or businesses who can genuinely benefit from PAMBA. Referral activity is recorded with levels and audit details so each qualifying reward has a clear origin.</p>
+        <p className="mt-4 text-sm leading-7 text-stone-300">Invite people or businesses who can genuinely benefit from PAMBA. A qualifying activation earns a direct referral bonus for the person who invited them.</p>
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-stone-300">{isAdvertiser ? 'Introduce businesses that need promotion and grow alongside the campaigns they launch.' : 'Introduce people who want to earn, discover services, shop, or use the broader PAMBA ecosystem.'}</div>
       </article>
       <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-700">Four-level structure</p>
-        <h2 className="mt-2 text-2xl font-black text-stone-950">How qualifying referrals flow</h2>
-        <div className="mt-6 space-y-3">
-          {distribution.levels.map((level, index) => (
-            <div key={level.level} className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500 text-sm font-black text-stone-950">{index + 1}</span>
-              <div className="min-w-0 flex-1"><p className="font-black text-stone-900">{level.label}</p><p className="text-xs text-stone-500">Qualifying activation in this generation</p></div>
-              <p className="font-black text-amber-700">{level.amountLabel}</p>
-            </div>
-          ))}
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-700">Single-level rewards</p>
+        <h2 className="mt-2 text-2xl font-black text-stone-950">Your direct referrals</h2>
+        <div className="mt-6 flex items-center gap-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500 text-sm font-black text-stone-950">1</span>
+          <div className="min-w-0 flex-1"><p className="font-black text-stone-900">Direct referrer</p><p className="text-xs text-stone-500">Earn when someone you invited completes activation.</p></div>
+          <p className="font-black text-amber-700">{activationBonus}</p>
         </div>
       </article>
     </section>

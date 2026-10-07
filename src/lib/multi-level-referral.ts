@@ -1,7 +1,7 @@
 // Multi-level referral bonus processing for Pamba Business Network
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat';
-import { REFERRAL_DISTRIBUTION } from '@/lib/activation-fees';
+import { MULTI_LEVEL_REFERRAL_ENABLED, REFERRAL_DISTRIBUTION } from '@/lib/activation-fees';
 
 interface ReferralChain {
   level: number;
@@ -115,8 +115,12 @@ export async function awardMultiLevelReferralBonuses(
   adminDb: AdminFirestore,
   admin: FirebaseAdminCompat,
   activatedUserId: string,
-  activationFeeAmount: number = 4500
+  activationFeeAmount: number = 2000
 ): Promise<{ awarded: number; failed: number; total: number }> {
+  if (!MULTI_LEVEL_REFERRAL_ENABLED) {
+    return { awarded: 0, failed: 0, total: 0 };
+  }
+
   let awarded = 0;
   let failed = 0;
   let chain: ReferralChain[] = [];

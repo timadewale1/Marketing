@@ -3,6 +3,7 @@ import { requireAdminSession } from "@/lib/admin-session"
 import { initFirebaseAdmin } from "@/lib/firebaseAdmin"
 import { getActivationAttemptDocId } from "@/lib/activation-attempts"
 import { processPendingActivationReferrals } from "@/lib/paymentProcessing"
+import { ACTIVATION_FEE, MULTI_LEVEL_REFERRAL_ENABLED } from "@/lib/activation-fees"
 import { awardMultiLevelReferralBonuses } from "@/lib/multi-level-referral"
 import { applyRecoveryAwareDebitInTransaction } from "@/lib/balance-recovery"
 import type { FirebaseAdminCompat } from "@/lib/firebase-admin-compat"
@@ -316,11 +317,11 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     await userRef.set(updates, { merge: true })
-    await processPendingActivationReferrals(dbAdmin, admin, userId, { creditLegacyBonus: false })
+    await processPendingActivationReferrals(dbAdmin, admin, userId, { creditLegacyBonus: !MULTI_LEVEL_REFERRAL_ENABLED })
     
     // Award multi-level referral bonuses
     try {
-      await awardMultiLevelReferralBonuses(dbAdmin, admin, userId, 4500)
+      await awardMultiLevelReferralBonuses(dbAdmin, admin, userId, ACTIVATION_FEE)
     } catch (err) {
       console.warn('[admin-activation] multi-level referral bonus processing failed:', err)
     }

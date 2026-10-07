@@ -1470,18 +1470,18 @@ export default function PAMBALanding() {
           </div>
           <div className="updates-grid">
             <div className="updates-card">
-              <h3>Four-level referral rewards</h3>
+              <h3>Direct referral rewards</h3>
               <p>
-                Referral rewards now follow up to four levels, with clear
-                amounts and transaction notes showing who each bonus came
-                through.
+                Earn a referral bonus when someone you invite activates their
+                PAMBA membership. Referral credits include clear transaction
+                notes.
               </p>
             </div>
             <div className="updates-card">
               <h3>Updated activation experience</h3>
               <p>
-                The activation flow now uses the updated ₦4,500 membership fee
-                and records referral credits with a clearer audit trail.
+                Membership activation is ₦2,000, with referral credits recorded
+                in your transaction history.
               </p>
             </div>
             <div className="updates-card">
@@ -1842,7 +1842,7 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
       num: "01",
       icon: <UserCheck size={20} />,
       title: "Sign Up & Activate",
-      desc: "Create your PAMBA account and activate for ₦4,500 to unlock tasks, referrals, wallet funding, and bill payments.",
+      desc: "Create your PAMBA account and activate for ₦2,000 to unlock tasks, referrals, wallet funding, and bill payments.",
     },
     {
       num: "02",
@@ -1869,7 +1869,7 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
       num: "01",
       icon: <Megaphone size={20} />,
       title: "Sign Up & Activate",
-      desc: "Create an advertiser account and activate your membership for ₦4,500 before launching campaigns.",
+      desc: "Create an advertiser account and activate your membership for ₦2,000 before launching campaigns.",
     },
     {
       num: "02",
@@ -1914,7 +1914,7 @@ function HowItWorksTabs({ howVisible }: { howVisible: boolean }) {
       num: "04",
       icon: <Users size={20} />,
       title: "Grow through referrals",
-      desc: "Invite others to PAMBA and receive bonuses from the 4-level referral network.",
+      desc: "Invite others to PAMBA and earn referral bonuses when your direct referrals activate.",
     },
   ];
 

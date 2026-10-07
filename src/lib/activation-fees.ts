@@ -1,11 +1,11 @@
-// Multi-level referral system for Pamba Business Network
-// Level 1: Direct referrer gets ₦2,000 (legacy reference kept here for history; current activation fee is ₦4,500)
-// Level 2: Referrer's referrer gets ₦500
-// Level 3: Referrer's referrer's referrer gets ₦300
-// Level 4: Referrer's referrer's referrer's referrer gets ₦200
-// Total distributed: ₦3,000 out of ₦4,500 membership fee
+// Standard mode is kept as the default runtime configuration.
+// The multi-level referral system remains in the codebase but is disabled
+// until it is intentionally re-enabled for a future conversion.
 
-export const ACTIVATION_FEE = 4500;
+export const STANDARD_ACTIVATION_FEE = 2000;
+export const EXPERIMENTAL_ACTIVATION_FEE = 4500;
+export const ACTIVATION_FEE = STANDARD_ACTIVATION_FEE;
+export const MULTI_LEVEL_REFERRAL_ENABLED = false;
 
 export const REFERRAL_DISTRIBUTION = {
   LEVEL_1: 2000,  // Direct referrer

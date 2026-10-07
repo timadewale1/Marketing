@@ -378,7 +378,7 @@ export default function AdvertiserDashboard() {
               Membership fee required
             </div>
             <div className="text-sm text-stone-600">
-              You must pay your one-time membership fee (N4,500) before creating
+              You must pay your one-time membership fee (N2,000) before creating
               tasks.
             </div>
             <div className="mt-2 text-xs font-semibold text-stone-700"></div>
@@ -692,7 +692,7 @@ export default function AdvertiserDashboard() {
         {showActivationPaymentSelector && (
           <PaymentSelector
             open={showActivationPaymentSelector}
-            amount={4500}
+            amount={2000}
             email={auth.currentUser?.email || undefined}
             fullName={auth.currentUser?.displayName || "Advertiser"}
             description="Advertiser Membership Fee"

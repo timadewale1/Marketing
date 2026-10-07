@@ -126,7 +126,7 @@ export default function ReferralsPage() {
                     {referralPromo.activation}
                   </div>
                   <div className="text-xs text-stone-500">
-                    Earn across 4 levels when your referrals activate their PAMBA membership.
+                    Earn this bonus when someone you directly referred activates their PAMBA membership.
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">

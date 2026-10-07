@@ -1474,7 +1474,7 @@ const getEmbeddedVideo = (url: string) => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-stone-800">Membership fee required</div>
-                <div className="text-sm text-stone-600">You must pay your one-time membership fee (₦4,500) before creating tasks.</div>
+                <div className="text-sm text-stone-600">You must pay your one-time membership fee (₦2,000) before creating tasks.</div>
               </div>
               <div>
                 <Button className="bg-amber-500 text-stone-900" onClick={() => triggerActivationPayment(pendingCampaign)}>Pay Membership Fee</Button>
@@ -1578,7 +1578,7 @@ const getEmbeddedVideo = (url: string) => {
       {showActivationPaymentSelector && (
         <PaymentSelector
           open={showActivationPaymentSelector}
-          amount={4500}
+          amount={2000}
           email={auth.currentUser?.email || undefined}
           fullName={auth.currentUser?.displayName || 'Advertiser'}
           description="Advertiser Membership Fee"

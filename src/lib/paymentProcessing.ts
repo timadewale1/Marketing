@@ -13,6 +13,7 @@ import {
 import { applyRecoveryAwareCreditInTransaction } from '@/lib/balance-recovery'
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat'
 import { logPaymentLifecycle } from '@/lib/payment-reconciliation'
+import { ACTIVATION_FEE, MULTI_LEVEL_REFERRAL_ENABLED } from '@/lib/activation-fees'
 import { awardMultiLevelReferralBonuses } from '@/lib/multi-level-referral'
 export { extractMonnifyReferenceCandidates } from '@/lib/monnify-reference'
 
@@ -513,7 +514,7 @@ export async function processActivationWithRetry(
   provider: string = 'monnify',
   maxRetries: number = 3,
   extraReferences: string[] = [],
-  activationPaymentAmount = 4500
+  activationPaymentAmount = ACTIVATION_FEE
 ) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')
@@ -564,11 +565,11 @@ export async function processActivationWithRetry(
           reference: primaryReference,
           references: activationReferences,
         })
-        await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
+        await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: !MULTI_LEVEL_REFERRAL_ENABLED })
         
         // Award multi-level referral bonuses
         try {
-          await awardMultiLevelReferralBonuses(adminDb, admin, userId, 4500)
+          await awardMultiLevelReferralBonuses(adminDb, admin, userId, ACTIVATION_FEE)
         } catch (err) {
           console.warn('[activation] multi-level referral bonus processing failed (already activated):', err)
         }
@@ -626,7 +627,7 @@ export async function processActivationWithRetry(
         references: activationReferences,
       })
 
-      const activationFeeAmount = 4500
+      const activationFeeAmount = ACTIVATION_FEE
       const normalizedPaidAmount = Math.max(0, Math.min(activationFeeAmount, Math.floor(Number(activationPaymentAmount || 0))))
       const userBalanceBeforeActivation = Number(userDoc.data()?.balance || 0)
       const walletOffsetAmount = Math.min(
@@ -662,11 +663,11 @@ export async function processActivationWithRetry(
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
 
-      await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: false })
+      await processPendingActivationReferrals(adminDb, admin, userId, { creditLegacyBonus: !MULTI_LEVEL_REFERRAL_ENABLED })
       
       // Award multi-level referral bonuses (Levels 2-4)
       try {
-        await awardMultiLevelReferralBonuses(adminDb, admin, userId, 4500)
+        await awardMultiLevelReferralBonuses(adminDb, admin, userId, ACTIVATION_FEE)
       } catch (err) {
         console.warn('[activation] multi-level referral bonus processing failed:', err)
         // Don't fail the activation if multi-level bonus processing fails
@@ -733,7 +734,7 @@ export async function runFullActivationFlow(
   provider: string = 'monnify',
   role?: UserRole,
   extraReferences: string[] = [],
-  activationPaymentAmount = 4500
+  activationPaymentAmount = ACTIVATION_FEE
 ) {
   const { admin, dbAdmin } = await initFirebaseAdmin()
   if (!dbAdmin || !admin) throw new Error('Firebase admin not initialized')

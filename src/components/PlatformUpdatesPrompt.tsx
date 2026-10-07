@@ -50,13 +50,13 @@ export default function PlatformUpdatesPrompt() {
         <div className="mt-5 space-y-3 text-sm leading-6 text-stone-600">
           <p className="flex gap-2">
             <CheckCircle2 className="mt-1 shrink-0 text-amber-600" size={16} />
-            Referral bonuses now follow up to four levels with clearer payment
-            records.
+            Referral bonuses now apply to your direct referrals, with clearer
+            payment records.
           </p>
           <p className="flex gap-2">
             <CheckCircle2 className="mt-1 shrink-0 text-amber-600" size={16} />
-            The activation experience now uses the updated membership fee and
-            shows clearer wallet activity.
+            Membership activation is ₦2,000, and wallet activity is easier to
+            review.
           </p>
           <p className="flex gap-2">
             <CheckCircle2 className="mt-1 shrink-0 text-amber-600" size={16} />

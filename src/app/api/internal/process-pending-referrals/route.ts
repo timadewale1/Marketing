@@ -3,6 +3,7 @@ import { verifyInternalApiSecret } from '@/lib/internal-api-auth'
 import { initFirebaseAdmin } from '@/lib/firebaseAdmin'
 import { proxyToBackendIfConfigured } from '@/lib/backend-route-proxy'
 import { normalizeActivationReferralPendingAmount } from '@/lib/referral-rewards'
+import { MULTI_LEVEL_REFERRAL_ENABLED } from '@/lib/activation-fees'
 import { awardMultiLevelReferralBonuses } from '@/lib/multi-level-referral'
 
 interface Referral {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
           continue
         }
 
-        if (isActivationCondition) {
+        if (isActivationCondition && MULTI_LEVEL_REFERRAL_ENABLED) {
           await dbAdmin.runTransaction(async (transaction) => {
             const referralRef = dbAdmin.collection('referrals').doc(referralDoc.id)
             const freshReferral = await transaction.get(referralRef)
@@ -142,7 +143,7 @@ export async function GET(req: NextRequest) {
               completedAt: admin.firestore.FieldValue.serverTimestamp(),
             })
           })
-          await awardMultiLevelReferralBonuses(dbAdmin, admin, referredId, 4500)
+          await awardMultiLevelReferralBonuses(dbAdmin, admin, referredId, Number(normalizeActivationReferralPendingAmount()))
           results.push({
             referralId: referralDoc.id,
             status: 'processed_multi_level',
