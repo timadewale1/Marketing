@@ -353,6 +353,30 @@ const payoutApiSecret = defineSecret("API_INTERNAL_SECRET");
 const payoutMonnifyApiKey = defineSecret("MONNIFY_API_KEY");
 const payoutMonnifySecretKey = defineSecret("MONNIFY_SECRET_KEY");
 const payoutMonnifyWalletAccount = defineSecret("MONNIFY_WALLET_ACCOUNT_NUMBER");
+const DEFINITE_PRECONNECT_ERROR_CODES = new Set([
+  "UND_ERR_CONNECT_TIMEOUT",
+  "ECONNREFUSED",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+]);
+
+function getMonnifyErrorDetails(error: unknown) {
+  const errorValue = error && typeof error === "object"
+    ? error as { name?: unknown; message?: unknown; code?: unknown; cause?: unknown }
+    : {};
+  const causeValue = errorValue.cause && typeof errorValue.cause === "object"
+    ? errorValue.cause as { message?: unknown; code?: unknown }
+    : {};
+  return {
+    name: String(errorValue.name || "Error"),
+    message: String(errorValue.message || "Unknown error"),
+    code: String(errorValue.code || ""),
+    causeCode: String(causeValue.code || ""),
+    causeMessage: String(causeValue.message || ""),
+  };
+}
 
 async function getMonnifyToken(credentials?: { apiKey?: string; secret?: string }) {
   if (cachedMonnifyToken && cachedMonnifyToken.expiresAt > Date.now()) {
@@ -1714,6 +1738,26 @@ export const monnifyPayoutApi = onRequest({
     return;
   }
 
+  if (body.action === "check-monnify-auth") {
+    try {
+      cachedMonnifyToken = null;
+      await getMonnifyToken({
+        apiKey: payoutMonnifyApiKey.value(),
+        secret: payoutMonnifySecretKey.value(),
+      });
+      res.status(200).json({ success: true, message: "Monnify authentication succeeded" });
+    } catch (error) {
+      const details = getMonnifyErrorDetails(error);
+      console.error("[monnifyPayoutApi] Monnify auth check failed", details);
+      res.status(502).json({
+        success: false,
+        message: "Monnify authentication check failed",
+        causeCode: details.causeCode || details.code || undefined,
+      });
+    }
+    return;
+  }
+
   const withdrawalId = String(body.withdrawalId || "").trim();
   const source = String(body.source || "").trim();
   const approvedBy = String(body.approvedBy || "").trim();
@@ -1746,8 +1790,10 @@ export const monnifyPayoutApi = onRequest({
   const db = admin.firestore();
   const withdrawalRef = db.collection(withdrawalCollection).doc(withdrawalId);
   const userCollectionPath = userCollection;
-  const payoutReference = `${withdrawalId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const generatedPayoutReference = `${withdrawalId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let payoutReference = "";
   let disbursementRequestStarted = false;
+  let disbursementResponseReceived = false;
 
   try {
     const claim = await db.runTransaction(async (transaction) => {
@@ -1766,7 +1812,14 @@ export const monnifyPayoutApi = onRequest({
       const knownPreflightFailure =
         payoutStatus === "needs_review" &&
         String(withdrawal.payoutError || "") === "MONNIFY_BASE_URL is not configured in Functions";
-      if (payoutStatus === "needs_review" && !knownPreflightFailure) {
+      const monnifyPreviouslyResponded = Boolean(
+        withdrawal.payoutMonnifyResponseReceivedAt || withdrawal.monnifyReference,
+      );
+      if (
+        payoutStatus === "needs_review" &&
+        !knownPreflightFailure &&
+        (monnifyPreviouslyResponded || !approvedBy)
+      ) {
         return { outcome: "review" as const };
       }
       if (!["pending", "processing", "pending_admin_approval"].includes(status)) {
@@ -1779,7 +1832,10 @@ export const monnifyPayoutApi = onRequest({
       const userRef = db.collection(userCollectionPath).doc(userId);
       const userSnap = await transaction.get(userRef);
       if (!userSnap.exists) throw new Error("User not found");
-      const balanceAlreadyDebited = Boolean(withdrawal.payoutBalanceDebited) || knownPreflightFailure;
+      const balanceAlreadyDebited =
+        Boolean(withdrawal.payoutBalanceDebited) ||
+        Boolean(withdrawal.payoutStartedAt) ||
+        knownPreflightFailure;
       if (!balanceAlreadyDebited) {
         if (Number(userSnap.data()?.balance || 0) < amount) {
           throw new Error("Insufficient balance at approval time");
@@ -1788,6 +1844,7 @@ export const monnifyPayoutApi = onRequest({
           balance: admin.firestore.FieldValue.increment(-amount),
         });
       }
+      payoutReference = String(withdrawal.payoutReference || "").trim() || generatedPayoutReference;
 
       transaction.update(withdrawalRef, {
         payoutStatus: "initiating",
@@ -1796,6 +1853,7 @@ export const monnifyPayoutApi = onRequest({
         payoutBalanceDebited: true,
         payoutError: admin.firestore.FieldValue.delete(),
         payoutErrorAt: admin.firestore.FieldValue.delete(),
+        payoutErrorCode: admin.firestore.FieldValue.delete(),
         payoutFailureStage: admin.firestore.FieldValue.delete(),
       });
       return { outcome: "claimed" as const, withdrawal, userId, amount };
@@ -1849,6 +1907,10 @@ export const monnifyPayoutApi = onRequest({
         sourceAccountNumber: payoutMonnifyWalletAccount.value(),
       }),
     });
+    disbursementResponseReceived = true;
+    await withdrawalRef.update({
+      payoutMonnifyResponseReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     const responsePayload = await disbursementResponse.json().catch(() => ({})) as {
       requestSuccessful?: boolean;
       responseMessage?: string;
@@ -1886,6 +1948,7 @@ export const monnifyPayoutApi = onRequest({
         approvedAt: admin.firestore.FieldValue.serverTimestamp(),
         initiatedAt: admin.firestore.FieldValue.serverTimestamp(),
         monnifyReference: result.reference || payoutReference,
+        payoutMonnifyResponseReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
         monnifyStatus: result.status || "PENDING",
         monnifyAmount: result.amount,
         monnifyDestinationBank: result.destinationBankName,
@@ -1920,12 +1983,30 @@ export const monnifyPayoutApi = onRequest({
     res.status(200).json({ success: true, message: "Withdrawal approved and payout started" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to start payout";
-    console.error("[monnifyPayoutApi] payout failed", { withdrawalId, error: message });
-    await withdrawalRef.update({
-      payoutStatus: disbursementRequestStarted ? "needs_review" : "failed_retryable",
-      payoutFailureStage: disbursementRequestStarted ? "disbursement" : "pre_disbursement",
+    const details = getMonnifyErrorDetails(error);
+    const failureStage = disbursementRequestStarted ? "disbursement" : "pre_disbursement";
+    console.error("[monnifyPayoutApi] payout failed", {
+      withdrawalId,
+      failureStage,
+      errorName: details.name,
+      causeCode: details.causeCode || details.code || undefined,
+      causeMessage: details.causeMessage || undefined,
+    });
+    const retryable =
+      !disbursementRequestStarted ||
+      DEFINITE_PRECONNECT_ERROR_CODES.has(details.causeCode || details.code);
+    const failureUpdates: Record<string, unknown> = {
+      payoutStatus: retryable ? "failed_retryable" : "needs_review",
+      payoutFailureStage: failureStage,
       payoutError: message,
+      payoutErrorCode: details.causeCode || details.code || admin.firestore.FieldValue.delete(),
       payoutErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (disbursementResponseReceived) {
+      failureUpdates.payoutMonnifyResponseReceivedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+    await withdrawalRef.update({
+      ...failureUpdates,
     }).catch((updateError) => {
       console.error("[monnifyPayoutApi] failed to record payout error", updateError);
     });
