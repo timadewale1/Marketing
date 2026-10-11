@@ -42,26 +42,74 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 })
     }
 
-    const status = String(withdrawal.status || "").toLowerCase()
-    if (["completed", "sent", "failed", "cancelled", "reversed"].includes(status)) {
-      return NextResponse.json({ success: false, message: "Withdrawal cannot be cancelled" }, { status: 400 })
-    }
-
-    const txQuery = await db
+    const earnerRef = db.collection("earners").doc(verifiedUid)
+    const refundRef = db.collection("earnerTransactions").doc(`withdrawal-refund-${withdrawalId}`)
+    const txQuery = db
       .collection("earnerTransactions")
       .where("withdrawalId", "==", withdrawalId)
       .where("type", "==", "withdrawal_request")
-      .get()
 
     await db.runTransaction(async (transaction) => {
+      const [currentWithdrawalSnap, earnerSnap, txSnap, refundSnap] = await Promise.all([
+        transaction.get(withdrawalRef),
+        transaction.get(earnerRef),
+        transaction.get(txQuery),
+        transaction.get(refundRef),
+      ])
+
+      if (!currentWithdrawalSnap.exists || !earnerSnap.exists) {
+        throw new Error("Withdrawal request or earner account not found")
+      }
+
+      const currentWithdrawal = currentWithdrawalSnap.data() || {}
+      const status = String(currentWithdrawal.status || "").toLowerCase()
+      const payoutStatus = String(currentWithdrawal.payoutStatus || "").toLowerCase()
+      const statusAllowsCancellation = ["pending", "pending_admin_approval", "processing"].includes(status)
+      const payoutIsSafelyRetryable = payoutStatus === "failed_retryable"
+      const payoutHasMonnifyEvidence = Boolean(
+        currentWithdrawal.payoutMonnifyResponseReceivedAt || currentWithdrawal.monnifyReference,
+      )
+      const payoutCanBeCancelled =
+        (!payoutStatus || payoutIsSafelyRetryable) &&
+        !payoutHasMonnifyEvidence &&
+        (!currentWithdrawal.payoutStartedAt || payoutIsSafelyRetryable)
+
+      if (!statusAllowsCancellation || !payoutCanBeCancelled) {
+        throw new Error("Withdrawal cannot be cancelled after payout processing has started")
+      }
+
+      const amount = Number(currentWithdrawal.amount || 0)
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Withdrawal amount is invalid")
+      }
+
+      const balanceWasDebited = Boolean(currentWithdrawal.payoutBalanceDebited || currentWithdrawal.payoutStartedAt)
+      const shouldRefundBalance = balanceWasDebited && !refundSnap.exists
+
+      if (shouldRefundBalance) {
+        transaction.update(earnerRef, {
+          balance: admin.firestore.FieldValue.increment(amount),
+        })
+        transaction.set(refundRef, {
+          userId: verifiedUid,
+          withdrawalId,
+          type: "withdrawal_refund",
+          amount,
+          status: "completed",
+          note: "Withdrawal cancelled; debited funds returned to wallet",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+      }
+
       transaction.update(withdrawalRef, {
         status: "cancelled",
         approvalStatus: "cancelled",
         cancelledBy: "user",
         cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(balanceWasDebited ? { walletRefundedAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
       })
 
-      txQuery.docs.forEach((txDoc) => {
+      txSnap.docs.forEach((txDoc) => {
         transaction.update(txDoc.ref, {
           status: "cancelled",
           note: "Withdrawal request cancelled by user",
