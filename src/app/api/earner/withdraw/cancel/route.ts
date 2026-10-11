@@ -65,7 +65,10 @@ export async function POST(req: Request) {
       const status = String(currentWithdrawal.status || "").toLowerCase()
       const payoutStatus = String(currentWithdrawal.payoutStatus || "").toLowerCase()
       const statusAllowsCancellation = ["pending", "pending_admin_approval", "processing"].includes(status)
-      const payoutIsSafelyRetryable = payoutStatus === "failed_retryable"
+      const knownPreflightFailure =
+        payoutStatus === "needs_review" &&
+        String(currentWithdrawal.payoutError || "") === "MONNIFY_BASE_URL is not configured in Functions"
+      const payoutIsSafelyRetryable = payoutStatus === "failed_retryable" || knownPreflightFailure
       const payoutHasMonnifyEvidence = Boolean(
         currentWithdrawal.payoutMonnifyResponseReceivedAt || currentWithdrawal.monnifyReference,
       )
