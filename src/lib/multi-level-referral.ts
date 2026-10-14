@@ -1,8 +1,7 @@
 // Multi-level referral bonus processing for Pamba Business Network
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat';
-import { MULTI_LEVEL_REFERRAL_ENABLED, REFERRAL_DISTRIBUTION } from '@/lib/activation-fees';
-import { getReferralActivationBonusAmount } from '@/lib/referral-rewards';
+import { MULTI_LEVEL_REFERRAL_ENABLED, REFERRAL_DISTRIBUTION, STANDARD_ACTIVATION_FEE } from '@/lib/activation-fees';
 
 interface ReferralChain {
   level: number;
@@ -118,14 +117,13 @@ export async function awardMultiLevelReferralBonuses(
   activatedUserId: string,
   activationFeeAmount: number = 2000
 ): Promise<{ awarded: number; failed: number; total: number }> {
-  const directActivationBonus = getReferralActivationBonusAmount();
   const safeActivationFee = Number(activationFeeAmount || 0);
 
-  // The normal activation flow is direct-referral-only at ₦2,000.
+  // The standard activation fee is ₦2,000 and uses direct-referral-only rewards.
   // A future re-enable must never silently award legacy multilevel bonuses
   // for the standard flow, so block any multilevel payout unless the
   // activation is intentionally configured to use a different fee model.
-  if (!MULTI_LEVEL_REFERRAL_ENABLED || safeActivationFee <= directActivationBonus) {
+  if (!MULTI_LEVEL_REFERRAL_ENABLED || safeActivationFee <= STANDARD_ACTIVATION_FEE) {
     return { awarded: 0, failed: 0, total: 0 };
   }
 

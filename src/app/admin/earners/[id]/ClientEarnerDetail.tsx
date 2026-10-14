@@ -116,6 +116,7 @@ type Referral = {
   referredId: string;
   referredName: string;
   referredEmail: string;
+  referredHref: string | null;
   amount: number;
   status: string;
   bonusPaid: boolean;
@@ -333,6 +334,7 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
             referredId: String(data.referredId || ""),
             referredName: "",
             referredEmail: "",
+            referredHref: null,
             amount: Number(data.amount || 0),
             status: String(data.status || "pending"),
             bonusPaid: Boolean(data.bonusPaid),
@@ -347,17 +349,31 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
 
         const referredUsers = await Promise.all(
           uniqueReferredIds.map(async (referredId) => {
-            const [earnerRef, advertiserRef] = await Promise.all([
+            const [earnerRef, advertiserRef, vendorRef] = await Promise.all([
               getDoc(doc(db, "earners", referredId)),
               getDoc(doc(db, "advertisers", referredId)),
+              getDoc(doc(db, "vendors", referredId)),
             ]);
 
-            const source = earnerRef.exists() ? earnerRef.data() : advertiserRef.exists() ? advertiserRef.data() : null;
+            const source = earnerRef.exists()
+              ? earnerRef.data()
+              : advertiserRef.exists()
+                ? advertiserRef.data()
+                : vendorRef.exists()
+                  ? vendorRef.data()
+                  : null;
             return [
               referredId,
               {
                 name: source ? String(source.fullName || source.name || source.companyName || "Unknown user") : "Unknown user",
                 email: source ? String(source.email || "") : "",
+                href: earnerRef.exists()
+                  ? `/admin/earners/${referredId}`
+                  : advertiserRef.exists()
+                    ? `/admin/advertisers/${referredId}`
+                    : vendorRef.exists()
+                      ? `/admin/vendors/${referredId}`
+                      : null,
               },
             ] as const;
           })
@@ -372,6 +388,7 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
               ...referral,
               referredName: referredUser?.name || "Unknown user",
               referredEmail: referredUser?.email || "",
+              referredHref: referredUser?.href || null,
             };
           })
         );
@@ -925,8 +942,17 @@ export default function ClientEarnerDetail({ id, mode = "admin" }: Props) {
                         <div>
                           <p className="font-medium text-stone-900">{currency(referral.amount)}</p>
                           <p className="mt-1 text-sm text-stone-500">
-                            {referral.referredName || "Unknown user"}
-                            {referral.referredEmail ? ` • ${referral.referredEmail}` : ""}
+                            {referral.referredHref ? (
+                              <Link href={referral.referredHref} className="hover:text-amber-700 hover:underline">
+                                {referral.referredName || "Unknown user"}
+                                {referral.referredEmail ? ` • ${referral.referredEmail}` : ""}
+                              </Link>
+                            ) : (
+                              <>
+                                {referral.referredName || "Unknown user"}
+                                {referral.referredEmail ? ` • ${referral.referredEmail}` : ""}
+                              </>
+                            )}
                           </p>
                           <p className="mt-2 text-xs uppercase tracking-[0.24em] text-stone-400">
                             {referral.createdAtMs ? new Date(referral.createdAtMs).toLocaleString() : "Unknown date"}

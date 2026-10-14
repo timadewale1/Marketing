@@ -4,7 +4,6 @@ const REFERRAL_PROMO_END_AT = new Date("2026-06-21T23:59:59+01:00")
 // Standard referral rewards are paid to the direct referrer only.
 
 const LEGACY_ACTIVATION_REFERRAL_AMOUNT = 500
-const LEVEL_1_REFERRAL_AMOUNT = 2000
 const PROMO_ACTIVATION_REFERRAL_AMOUNT = 1000
 const LEGACY_ADVERTISER_TASK_REFERRAL_RATE = 0.1
 const PROMO_ADVERTISER_TASK_REFERRAL_RATE = 0.2
@@ -15,8 +14,7 @@ function isPromoActive(now: Date = new Date()) {
 }
 
 export function getReferralActivationBonusAmount(now: Date = new Date()) {
-  // Return Level 1 bonus amount for direct referrer
-  return LEVEL_1_REFERRAL_AMOUNT
+  return LEGACY_ACTIVATION_REFERRAL_AMOUNT
 }
 
 export function getReferralActivationBonusLabel(now: Date = new Date()) {
