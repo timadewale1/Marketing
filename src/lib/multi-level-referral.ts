@@ -2,6 +2,7 @@
 import type { Firestore as AdminFirestore } from 'firebase-admin/firestore';
 import type { FirebaseAdminCompat } from '@/lib/firebase-admin-compat';
 import { MULTI_LEVEL_REFERRAL_ENABLED, REFERRAL_DISTRIBUTION } from '@/lib/activation-fees';
+import { getReferralActivationBonusAmount } from '@/lib/referral-rewards';
 
 interface ReferralChain {
   level: number;
@@ -117,7 +118,14 @@ export async function awardMultiLevelReferralBonuses(
   activatedUserId: string,
   activationFeeAmount: number = 2000
 ): Promise<{ awarded: number; failed: number; total: number }> {
-  if (!MULTI_LEVEL_REFERRAL_ENABLED) {
+  const directActivationBonus = getReferralActivationBonusAmount();
+  const safeActivationFee = Number(activationFeeAmount || 0);
+
+  // The normal activation flow is direct-referral-only at ₦2,000.
+  // A future re-enable must never silently award legacy multilevel bonuses
+  // for the standard flow, so block any multilevel payout unless the
+  // activation is intentionally configured to use a different fee model.
+  if (!MULTI_LEVEL_REFERRAL_ENABLED || safeActivationFee <= directActivationBonus) {
     return { awarded: 0, failed: 0, total: 0 };
   }
 
